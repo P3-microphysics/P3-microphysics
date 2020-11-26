@@ -22,8 +22,8 @@
 !    Jason Milbrandt (jason.milbrandt@canada.ca)                                           !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       4.0.3_BETA                                                                
-! Last updated:  2020-11-06                                                                !
+! Version:       4.0.4                                                                     !
+! Last updated:  2020-11-26                                                                !
 !                                                                                          !
 !      ***  CHANGE LOG  ***                                                                !
 !
@@ -42,6 +42,8 @@
 ! v4.0.3 (cleanup; remove unused variables, etc.)
 ! - starting point (b00): v4.0.2
 !
+! v4.0.4 (bug fix, mu_i-tendency bug)
+! - startint point: v4.0.3
 !
 !__________________________________________________________________________________________!
 
@@ -147,7 +149,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '4.0.2'
+ character(len=1024), parameter :: version_p3                    = '4.0.4'
  character(len=1024), parameter :: version_intended_table_1_2mom = '2momI_v5.1.4'
  character(len=1024), parameter :: version_intended_table_1_3mom = '3momI_v5.1.4'
  character(len=1024), parameter :: version_intended_table_2      = '4'
@@ -2067,7 +2069,6 @@ END subroutine p3_init
 ! added for triple moment ice
  real                  :: mu_i               !shape parameter for ice
  real                  :: mu_i_new           !shape parameter for processes that specify mu_i
- real, dimension(nCat) :: mu_i_old           !shape parameter for processes that specify mu_i
  real, dimension(nCat) :: dumm0,dumm3
 
 !-----------------------------------------------------------------------------------!
@@ -3605,17 +3606,6 @@ END subroutine p3_init
 ! update prognostic microphysics and thermodynamics variables
 !---------------------------------------------------------------------------------
 
-     ! calculate old mu
-       if (log_3momentIce) then
-          do iice = 1,nCat
-             mu_i_old(iice) = mu_i_initial
-             if (qitot(i,k,iice).ge.qsmall) then
-                dum1 =  6./(f1pr16*pi)*qitot(i,k,iice)  !estimate of moment3
-                mu_i_old(iice) = compute_mu_3moment(nitot(i,k,iice),dum1,zitot(i,k,iice),mu_i_max)
-             endif
-          enddo
-       endif
-
    !-- ice-phase dependent processes:
        iice_loop2: do iice = 1,nCat
 
@@ -3769,30 +3759,6 @@ END subroutine p3_init
        enddo !iice-loop
 
        call impose_max_total_Ni(nitot(i,k,:),max_total_Ni,inv_rho(i,k))
-
-       if (log_3momentIce) then
-          do iice = 1,nCat
-             if (qitot(i,k,iice).ge.qsmall) then
-
-                tmp1 = G_of_mu(mu_i_old(iice))
-               !impose lower limits to prevent taking log of # < 0
-                nitot(i,k,iice) = max(nitot(i,k,iice),nsmall)
-                call calc_bulkRhoRime(qitot(i,k,iice),qirim(i,k,iice),birim(i,k,iice),rhop)
-
-                call find_lookupTable_indices_1d(dumi,dumjj,dumii,dum1,dum4,dum5,isize,     &
-                             rimsize,densize,qitot(i,k,iice),nitot(i,k,iice),               &
-                             qirim(i,k,iice),rhop)
-               ! get G indices
-               !impose lower limits to prevent taking log of # < 0
-                zitot(i,k,iice) = max(zitot(i,k,iice),zsmall)
-                call find_lookupTable_indices_1c(dumzz,dum6,zsize,qitot(i,k,iice),zitot(i,k,iice))
-                call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,12,dum1,dum4,dum5,dum6,f1pr16)
-                dum1 =  6./(f1pr16*pi)*qitot(i,k,iice)  !estimate of moment3, updated after microphysical processes
-                zitot(i,k,iice) = tmp1*dum1**2/nitot(i,k,iice)
-
-             endif
-          enddo  !iice
-       endif  !if log_3momentIce
 
 !---------------------------------------------------------------------------------
 
