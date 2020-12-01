@@ -1,0 +1,12 @@
+To run the 1d kinematic model, use the Makefile to compile the various components:
+
+% make execld
+
+To run:
+% execld
+
+Various output files (e.g. fort.100) are created.  The desired output can be modified in the driver program, cld1d.f90.
+
+To remove all .o files and output:
+% make clean
+
