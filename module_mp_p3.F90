@@ -22,7 +22,7 @@
 !    Jason Milbrandt (jason.milbrandt@canada.ca)                                           !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       4.0.5                                                                     !
+! Version:       4.0.5+                                                                    !
 ! Last updated:  2020-12-01                                                                !
 !                                                                                          !
 !      ***  CHANGE LOG  ***                                                                !
@@ -2895,16 +2895,11 @@ END subroutine p3_init
           dum   = (1./lamc(i,k))**3
 !         qcheti(iice_dest) = cons6*cdist1(i,k)*gamma(7.+pgam(i,k))*exp(aimm*(273.15-t(i,k)))*dum**2
 !         ncheti(iice_dest) = cons5*cdist1(i,k)*gamma(pgam(i,k)+4.)*exp(aimm*(273.15-t(i,k)))*dum
-
-!           Q_nuc = cons6*cdist1(i,k)*gamma(7.+mu_c(i,k))*exp(aimm*(273.15-t(i,k)))*dum**2
-!           N_nuc = cons5*cdist1(i,k)*gamma(mu_c(i,k)+4.)*exp(aimm*(273.15-t(i,k)))*dum
+!         Q_nuc = cons6*cdist1(i,k)*gamma(7.+mu_c(i,k))*exp(aimm*(273.15-t(i,k)))*dum**2
+!         N_nuc = cons5*cdist1(i,k)*gamma(mu_c(i,k)+4.)*exp(aimm*(273.15-t(i,k)))*dum
           tmp1 = cdist1(i,k)*exp(aimm*(273.15-t(i,k)))
           Q_nuc = cons6*gamma(7.+mu_c(i,k))*tmp1*dum**2
           N_nuc = cons5*gamma(mu_c(i,k)+4.)*tmp1*dum
-!           tmpdbl1  = dexp(dble(aimm*(273.15-t(i,k))))
-!           tmpdbl2  = dble(dum)
-!           Q_nuc = cons6*cdist1(i,k)*gamma(7.+mu_c(i,k))*tmpdbl1*tmpdbl2**2
-!           N_nuc = cons5*cdist1(i,k)*gamma(mu_c(i,k)+4.)*tmpdbl1*tmpdbl2
 
 
           if (nCat>1) then
@@ -3175,7 +3170,6 @@ END subroutine p3_init
        if (t(i,k).lt.258.15 .and. supi_cld.ge.0.05) then
 !         dum = exp(-0.639+0.1296*100.*supi(i,k))*1000.*inv_rho(i,k)        !Meyers et al. (1992)
           dum = 0.005*exp(0.304*(273.15-t(i,k)))*1000.*inv_rho(i,k)         !Cooper (1986)
-!         dum = 0.005*dexp(dble(0.304*(273.15-t(i,k))))*1000.*inv_rho(i,k)  !Cooper (1986)
           dum = min(dum,100.e3*inv_rho(i,k)*SCF(k))
           N_nuc = max(0.,(dum-sum(nitot(i,k,:)))*odt)
 
@@ -3380,7 +3374,6 @@ END subroutine p3_init
              dum = 1.
           else if (dum2.ge.dum1) then
              dum = 2.-exp(2300.*(dum2-dum1))
-!            dum = 2.-dexp(dble(2300.*(dum2-dum1)))
           endif
 
           if (iparam.eq.1.) then
@@ -3697,9 +3690,9 @@ END subroutine p3_init
 
           qv(i,k) = qv(i,k) + (-qidep(iice)+qisub(iice)-qinuc(iice))*dt
 
-        ! Update theta. Note temperature is not updated here even though it is used below for
-        ! the homogeneous freezing threshold. This is done for simplicity - the error will be
-        ! very small and the homogeneous temp. freezing threshold is approximate anyway.          
+        ! Update potential temperature. Note temperature is not updated here even though it is used
+        ! below for the homogeneous freezing threshold. This is done for simplicity - the error will
+        ! be very small and the homogeneous temp. freezing threshold is approximate anyway.          
           th(i,k) = th(i,k) + invexn(i,k)*((qidep(iice)-qisub(iice)+qinuc(iice))*      &
                               xxls(i,k)*inv_cp +(qrcol(iice)+qccol(iice)+qchetc(iice)+ &
                               qcheti(iice)+qrhetc(iice)+qrheti(iice)+                  &
@@ -3725,6 +3718,7 @@ END subroutine p3_init
        endif
 
        qv(i,k) = qv(i,k) + (-qcnuc-qccon-qrcon+qcevp+qrevp)*dt
+       ! Update potential temperature. (Note, temperature is not updated here.)
        th(i,k) = th(i,k) + invexn(i,k)*((qcnuc+qccon+qrcon-qcevp-qrevp)*xxlv(i,k)*    &
                  inv_cp)*dt
    !==
@@ -4242,15 +4236,6 @@ END subroutine p3_init
                       call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 7,dum1,dum4,dum5,dum6,f1pr09)
                       call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 8,dum1,dum4,dum5,dum6,f1pr10)
                       call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,13,dum1,dum4,dum5,dum6,f1pr19)
-!                      call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,14,dum1,dum4,dum5,dum6,f1pr20)
-!                      call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,15,dum1,dum4,dum5,dum6,f1pr21)
-!                      call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,12,dum1,dum4,dum5,dum6,f1pr16)
-
-!    if (qitot(i,k,iice).ge.qsmall) then
-!       dum1 =  6./(f1pr16*pi)*qitot(i,k,iice)  !estimate of moment3
-!       mu_i = compute_mu_3moment(nitot(i,k,iice),dum1,zitot(i,k,iice),mu_i_max)
-!       print*,'before sed',k,mu_i
-!    endif
 
                     !-impose mean ice size bounds (i.e. apply lambda limiters)
                     ! note that the Nmax and Nmin are normalized and thus need to be multiplied by existing N
@@ -4265,8 +4250,6 @@ END subroutine p3_init
                       V_qit(k) = f1pr02*rhofaci(i,k)     !mass-weighted  fall speed (with density factor)
                       V_nit(k) = f1pr01*rhofaci(i,k)     !number-weighted    fall speed (with density factor)
                       V_zit(k) = f1pr19*rhofaci(i,k)     !reflectivity-weighted fall speed (with density factor)
-!  V_zit(k) = f1pr02*rhofaci(i,k)     !reflectivity-weighted fall speed (with density factor)
-!  V_nit(k) = f1pr02*rhofaci(i,k)     !reflectivity-weighted fall speed (with density factor)
 
                    endif qi_notsmall_i2
 
@@ -4418,7 +4401,7 @@ END subroutine p3_init
              mu_i_new = mu_c(i,k)
              zitot(i,k,iice_dest) = zitot(i,k,iice_dest) + G_of_mu(mu_i_new)*tmp1**2/N_nuc
           endif ! log_3momentice
-         ! update theta. Note temperature is NOT updated here, but currently not used after
+         ! update potential temperature. (Note temperature is not updated here, but is used after anyway.)
           th(i,k) = th(i,k) + invexn(i,k)*Q_nuc*xlf(i,k)*inv_cp
           qc(i,k) = 0.  != qc(i,k) - Q_nuc
           nc(i,k) = 0.  != nc(i,k) - N_nuc
@@ -4450,7 +4433,7 @@ END subroutine p3_init
              mu_i_new = mu_r(i,k)
              zitot(i,k,iice_dest) = zitot(i,k,iice_dest) + G_of_mu(mu_i_new)*tmp1**2/N_nuc
           endif ! log_3momentice
-         ! update theta. Note temperature is NOT updated here, but currently not used after
+         ! update potential temperature. (Note temperature is not updated here, but is used after anyway.)
           th(i,k) = th(i,k) + invexn(i,k)*Q_nuc*xlf(i,k)*inv_cp
           qr(i,k) = 0.  ! = qr(i,k) - Q_nuc
           nr(i,k) = 0.  ! = nr(i,k) - N_nuc
@@ -6597,7 +6580,7 @@ SUBROUTINE access_lookup_table_coll_3mom(dumzz,dumjj,dumii,dumj,dumi,index,dum1,
 
                     ! find index for qi (total ice mass mixing ratio)
 ! replace with new inversion for new lookup table 2 w/ reduced dimensionality
-!                      dum1 = (alog10(qitot_1/nitot_1)+18.)/(0.2*alog10(261.7))-5. !orig
+                     !dum1 = (alog10(qitot_1/nitot_1)+18.)/(0.2*alog10(261.7))-5. !orig
                       dum1 = (alog10(qitot_1/nitot_1)+18.)*(2.06799)-5. !for computational efficiency
                       dumi = int(dum1)
                       dum1 = min(dum1,real(iisize))
