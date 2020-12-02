@@ -12,7 +12,7 @@ FC=gfortran
 #FFLAGS=-fdefault-real-8 -Wno-line-truncation 
 #FFLAGS=-fdefault-real-8 -Wno-line-truncation -fbounds-check -finit-real=nan -Wall -Wno-conversion -Wno-unused-dummy-argument -std=f2008 -Wunused-parameter
 #FFLAGS=-fdefault-real-8 -Wno-line-truncation -fbounds-check -finit-real=nan -Wall -Wno-unused-dummy-argument -std=f2008 -Wno-intrinsics-std -Wunused-parameter
-FFLAGS=-fdefault-real-8 -fbounds-check 
+FFLAGS=-fdefault-real-8 -fbounds-check  -cpp
 
 LDFLAGS=
 LIBS=

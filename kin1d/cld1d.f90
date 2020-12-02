@@ -73,7 +73,7 @@ subroutine columnmodel
       parameter (dt      = 10.    )     ! time step                     [s]
       parameter (ttotmin = 90     )     ! total integration time	[min]
 
-      integer, parameter :: nCat     =  1
+      integer, parameter :: nCat     =  2
       logical, parameter :: prog_nc_ssat = .true.
      !logical, parameter :: nk_BOTTOM    = .true.   !.T. --> nk at bottom
       logical, parameter :: typeDiags_ON = .true.   ! switch for hydrometeor/precip type diagnostics
@@ -90,7 +90,7 @@ subroutine columnmodel
      character(len=16), parameter :: model = 'KIN1D'
 !    character(len=16), parameter :: model = 'WRF'  !for level tests
 
-     logical, parameter           :: trplMomIce   = .true.
+     logical, parameter           :: trplMomIce   = .false.
      logical, parameter           :: abort_on_err = .true.
 
      character(len=1024), parameter :: LT_path  = './lookup_tables'
@@ -395,9 +395,10 @@ subroutine columnmodel
 !     call P3_INIT('./lookup_tables/',nCat,stat)             !v2.9.1, v2.10.1
 !     call P3_INIT('./lookup_tables/',nCat,1.,1.)            !v3.0.0
 !     call P3_INIT('./lookup_tables/',nCat,stat)             !v2.9.1, v2.10.1, v3.*
+!     call P3_INIT('./lookup_tables/',nCat,model,stat,abort_on_err)   !v3.1.6+
 !     call P3_INIT('./lookup_tables/',nCat,trplMomIce,stat)  !v4.0.0
 !     call P3_INIT('./lookup_tables/',override_path=my_LT_path,nCat,trplMomIce,stat)  !v4.0.0_b38
-      call P3_INIT(LT_path,nCat,trplMomIce,model,stat,abort_on_err)      !v4.0.0
+      call P3_INIT(LT_path,nCat,trplMomIce,model,stat,abort_on_err)      !v4.0.x
 
 
       do k=1,nk
@@ -600,7 +601,8 @@ subroutine columnmodel
             !compute prog var from Z:    (for wrapper)
              Zi1(1,:,:) = (Ni1(1,:,:)*Zi1(1,:,:))**0.5
 
-          endif
+          endif  !if trplMomIce
+          
 !------------------------------------------------------------------------!
 
           tt1(1,:) = th2d1(1,:)*(p(:)*1.e-5)**0.286
@@ -805,8 +807,10 @@ subroutine columnmodel
                       diag_ZET(1,k),     &  !col 2
                       Qc1(1,k),          &  !col 3
                       Qr1(1,k),          &  !col 4
-                      Qi1(1,k,1),        &  !col 5
-                      diag_mui(1,k,1),   &  !col 6
+!                     Qi1(1,k,1),        &  !col 5
+                      sum(Qi1(1,k,:)),   &  !col 5
+                      0.,   &  !col 6
+!                     diag_mui(1,k,1),   &  !col 6
                       diag_rhoi(1,k,1),  &  !col 7
                       diag_di(1,k,1),    &  !col 8
                       diag_dhmax(1,k,1), &  !col 9 Dh_max

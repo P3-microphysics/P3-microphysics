@@ -1,10 +1,5 @@
 module_mp_p3.F90-*
-kin1d_cp
-kin1d/out*
-kin1d/execld
-kin1d/fig*
-kin1d/fort*
-kin1d/*.o
-kin1d/*.mod
+kin1d-*
+attic
 
 
