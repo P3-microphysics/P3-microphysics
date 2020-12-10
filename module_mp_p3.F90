@@ -6257,8 +6257,8 @@ SUBROUTINE access_lookup_table_coll_3mom(dumzz,dumjj,dumii,dumj,dumi,index,dum1,
 
            ! we are inverting this equation from the lookup table to solve for i:
            ! qitot/nitot=800**((i+10)*0.1)*1.e-18, for lookup table beta >= 9
-             dum1 = (alog10(qitot/nitot)+18.)/(0.1*alog10(800.))-10.
-
+            !dum1 = (alog10(qitot/nitot)+18.)/(0.1*alog10(800.)) - 10.
+             dum1 = (alog10(qitot/nitot)+18.)*3.444606 - 10.  !optimized
              dumi = int(dum1)
              ! set limits (to make sure the calculated index doesn't exceed range of lookup table)
              dum1 = min(dum1,real(isize))
