@@ -619,7 +619,7 @@
  
  mu_r_loop: do ii = 1,10
 
-! ! !     mu_r = real(ii-1)  ! values of mu
+   !mu_r = real(ii-1)  ! values of mu
     mu_r = mu_r_constant
 
 ! loop over number-weighted mean size
@@ -6744,14 +6744,13 @@ SUBROUTINE access_lookup_table_coll_3mom(dumzz,dumjj,dumii,dumj,dumi,index,dum1,
  integer                         :: dumi
 
 !--------------------------------------------------------------------------
-
-
-     ! grid-mean values
-       qc = qc_grd*iSCF
-       nc = nc_grd*iSCF
+    
+       qc = qc_grd*iSCF   !in-cloud value
 
        if (qc.ge.qsmall) then
 
+          nc = nc_grd*iSCF   !in-cloud value
+       
         ! set minimum nc to prevent floating point error
           nc   = max(nc,nsmall)
           mu_c = 0.0005714*(nc*1.e-6*rho)+0.2714
@@ -6815,12 +6814,12 @@ SUBROUTINE access_lookup_table_coll_3mom(dumzz,dumjj,dumii,dumj,dumi,index,dum1,
 
 !--------------------------------------------------------------------------
 
-     ! compute in-cloud (precipitation) values (note, nr gets modified below)
-       qr = qr_grd*iSPF
-       nr = nr_grd*iSPF
+       qr = qr_grd*iSPF   !in-cloud value
 
        if (qr.ge.qsmall) then
 
+          nr = nr_grd*iSPF   !in-cloud value
+       
        ! use lookup table to get mu
        ! mu-lambda relationship is from Cao et al. (2008), eq. (7)
 
@@ -7280,11 +7279,6 @@ SUBROUTINE access_lookup_table_coll_3mom(dumzz,dumjj,dumii,dumj,dumi,index,dum1,
  real             :: V_h                 ! fall speed of hail of size D     [m s-1]
  integer          :: nd                  ! maximum number of size bins for integral
  integer          :: i                   ! index for integration
-
-!-- test:
-! maxHailSize = 0.077
-! return
-!==
 
  Frim  = qim/max(qit,1.e-14)
  N_tot = rho*nit
