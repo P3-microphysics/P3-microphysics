@@ -1,50 +1,26 @@
 !__________________________________________________________________________________________
 ! This module contains the Predicted Particle Property (P3) bulk microphysics scheme.      !
 !                                                                                          !
-! This code was originally written by H. Morrison,  MMM Division, NCAR (Dec 2012).         !
-! Modification were made by J. Milbrandt, RPN, Environment Canada (July 2014).             !
+! This code was originally written by H. Morrison, MMM Division, NCAR (Dec 2012).          !
+! Modifications were made by J. Milbrandt, RPN, Environment Canada (July 2014).            !
+! Subsequent major and minor upgrades have been ongoing.                                   !
 !                                                                                          !
-! Three configurations of the P3 scheme are currently available:                           !
-!  1) specified droplet number (i.e. 1-moment cloud water), 1 ice category                 !
-!  2) predicted droplet number (i.e. 2-moment cloud water), 1 ice category                 !
-!  3) predicted droplet number (i.e. 2-moment cloud water), 2 ice categories               !
+! For model-specific aspects/versions, see comments in the interface subroutine(s) in      !
+!   this module (mp_p3_wrapper_wrf, mp_p3_wrapper_gem).                                    !
 !                                                                                          !
-!  The  2-moment cloud version is based on a specified aerosol distribution and            !
-!  does not include a subgrid-scale vertical velocity for droplet activation. Hence,       !
-!  this version should only be used for high-resolution simulations that resolve           !
-!  vertical motion driving droplet activation.                                             !
-!                                                                                          !
-! For details see: Morrison and Milbrandt (2015) [J. Atmos. Sci., 72, 287-311]             !
-!                  Milbrandt and Morrison (2016) [J. Atmos. Sci., 73, 975-995]             !
+! For details see:                                                                         !
+!   Morrison and Milbrandt (2015) [J. Atmos. Sci., 72, 287-311]   - original scheme desc.  !
+!   Milbrandt and Morrison (2016) [J. Atmos. Sci., 73, 975-995]   - multi-ice-category     !
+!   Jouan et al. (2020)           [W. Forecasting, WAF-D-20-0111] - cloud fraction         !
+!   Milbrandt et al. (2021)       [J. Atmos. Sci., JAS-D-20-0084] - triple-moment ice      !
 !                                                                                          !
 ! For questions or bug reports, please contact:                                            !
 !    Hugh Morrison   (morrison@ucar.edu), or                                               !
 !    Jason Milbrandt (jason.milbrandt@canada.ca)                                           !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       4.0.6                                                                     !
-! Last updated:  2020-12-08                                                                !
-!                                                                                          !
-!      ***  CHANGE LOG  ***                                                                !
-!
-! v4.0.0 (3-moment ice version)
-! - starting point  (v4.0.0-b00): v3.1.1
-! - final point: v4.0.0-b46
-!
-! v4.0.1 (adaptations for GEM)
-! - final point: v4.0.1_b10
-!
-! v4.0.2 (bug fix for 3-mom homogeneous freezing)
-! - final point: v4.0.2_b02
-!
-! v4.0.3 (cleanup; remove unused variables, etc.)
-!
-! v4.0.4 (bug fix, mu_i-tendency bug)
-!
-! v4.0.5 (bug fixes, SCPF)
-!
-! v4.0.6 (f1pr09/10 fix; supersaturation fix)
-!
+! Version:       4.0.7                                                                     !
+! Last updated:  2020-12-10                                                                !
 !__________________________________________________________________________________________!
 
  MODULE MODULE_MP_P3
@@ -65,8 +41,6 @@
  integer, parameter :: densize      =  5
  integer, parameter :: rimsize      =  4
  integer, parameter :: rcollsize    = 30
-! integer, parameter :: tabsize      = 12  ! number of quantities used from lookup table
-! integer, parameter :: tabsize_3mom = 15  ! number of quantities used from 3-mom lookup table
  integer, parameter :: tabsize      = 14  ! number of quantities used from lookup table
  integer, parameter :: tabsize_3mom = 17  ! number of quantities used from 3-mom lookup table
  integer, parameter :: colltabsize  =  2  ! number of ice-rain collection  quantities used from lookup table
@@ -149,9 +123,9 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '4.0.6'
+ character(len=1024), parameter :: version_p3                    = '4.0.7'
  character(len=1024), parameter :: version_intended_table_1_2mom = '2momI_v5.1.6_oldDimax'
- character(len=1024), parameter :: version_intended_table_1_3mom = '3momI_v5.1.4'
+ character(len=1024), parameter :: version_intended_table_1_3mom = '3momI_v5.1.6'
  character(len=1024), parameter :: version_intended_table_2      = '4'
 
  character(len=1024)            :: version_header_table_1_2mom
@@ -417,7 +391,7 @@
        return
     endif
 
-  else ! TRIPLE_MOMENT_ICE  (the follwing is for trplMomI=.true.)
+  else ! TRIPLE_MOMENT_ICE  (the following is for trplMomI=.true.)
 
     print*, '     Reading table 1 [',trim(version_intended_table_1_3mom),'] ...'
             
@@ -714,6 +688,16 @@ END subroutine p3_init
   ! variables (hydrometeor variables, potential temperature, and water vapor).  The wrapper  !
   ! also updates the accumulated precipitation arrays and then passes back them, the         !
   ! updated 3D fields, and some diagnostic fields to the driver model.                       !
+  !                                                                                          !
+  ! Three configurations of the P3 scheme are currently available:                           !
+  !  1) specified droplet number (i.e. 1-moment cloud water), 1 ice category                 !
+  !  2) predicted droplet number (i.e. 2-moment cloud water), 1 ice category                 !
+  !  3) predicted droplet number (i.e. 2-moment cloud water), 2 ice categories               !
+  !                                                                                          !
+  !  The  2-moment cloud version is based on a specified aerosol distribution and            !
+  !  does not include a subgrid-scale vertical velocity for droplet activation. Hence,       !
+  !  this version should only be used for high-resolution simulations that resolve           !
+  !  vertical motion driving droplet activation.                                             !
   !                                                                                          !
   ! This version of the WRF wrapper works with WRFV3.8.                                      !
   !------------------------------------------------------------------------------------------!
@@ -2479,17 +2463,12 @@ END subroutine p3_init
 
              call calc_bulkRhoRime(qitot(i,k,iice),qirim(i,k,iice),birim(i,k,iice),rhop)
 
-!             call find_lookupTable_indices_1a(dumi,dumjj,dumii,dum1,dum4,dum5,isize,     &
-!                       rimsize,densize,qitot(i,k,iice),nitot(i,k,iice),qirim(i,k,iice),  &
-!                       999.,rhop)
+             call find_lookupTable_indices_1a(dumi,dumjj,dumii,dum1,dum4,dum5,isize,      &
+                    rimsize,densize,qitot(i,k,iice),nitot(i,k,iice),qirim(i,k,iice),rhop)
 
              call find_lookupTable_indices_1b(dumj,dum3,rcollsize,qr(i,k),nr(i,k))
 
              if (.not. log_3momentIce) then
-
-                call find_lookupTable_indices_1d(dumi,dumjj,dumii,dum1,dum4,dum5,isize,   &
-                       rimsize,densize,qitot(i,k,iice),nitot(i,k,iice),qirim(i,k,iice),   &
-                       rhop)
 
              ! call to lookup table interpolation subroutines to get process rates
                 call access_lookup_table(dumjj,dumii,dumi, 2,dum1,dum4,dum5,f1pr02)
@@ -2510,10 +2489,6 @@ END subroutine p3_init
                 endif
 
              else ! 3-moment ice
-
-                call find_lookupTable_indices_1d(dumi,dumjj,dumii,dum1,dum4,dum5,isize,   &
-                       rimsize,densize,qitot(i,k,iice),nitot(i,k,iice),qirim(i,k,iice),   &
-                       rhop)
 
              ! get G indices
 
@@ -4110,7 +4085,7 @@ END subroutine p3_init
                     !--Compute Vq, Vn:
                       nitot(i,k,iice) = max(nitot(i,k,iice),nsmall) !impose lower limits to prevent log(<0)
                       call calc_bulkRhoRime(qitot(i,k,iice),qirim(i,k,iice),birim(i,k,iice),rhop)
-                      call find_lookupTable_indices_1d(dumi,dumjj,dumii,dum1,dum4,dum5,  &
+                      call find_lookupTable_indices_1a(dumi,dumjj,dumii,dum1,dum4,dum5,  &
                                 isize,rimsize,densize,qitot(i,k,iice),nitot(i,k,iice),   &
                                 qirim(i,k,iice),rhop)
                       call access_lookup_table(dumjj,dumii,dumi, 1,dum1,dum4,dum5,f1pr01)
@@ -4203,7 +4178,7 @@ END subroutine p3_init
                       nitot(i,k,iice) = max(nitot(i,k,iice),nsmall) !impose lower limits to prevent log(<0)
                       call calc_bulkRhoRime(qitot(i,k,iice),qirim(i,k,iice),birim(i,k,iice),rhop)
 
-                      call find_lookupTable_indices_1d(dumi,dumjj,dumii,dum1,dum4,dum5,  &
+                      call find_lookupTable_indices_1a(dumi,dumjj,dumii,dum1,dum4,dum5,  &
                                 isize,rimsize,densize,qitot(i,k,iice),nitot(i,k,iice),   &
                                 qirim(i,k,iice),rhop)
 
@@ -4501,7 +4476,7 @@ END subroutine p3_init
 
              if (.not. log_3momentIce) then
 
-                call find_lookupTable_indices_1d(dumi,dumjj,dumii,dum1,dum4,dum5,isize,   &
+                call find_lookupTable_indices_1a(dumi,dumjj,dumii,dum1,dum4,dum5,isize,   &
                        rimsize,densize,qitot(i,k,iice),nitot(i,k,iice),qirim(i,k,iice),   &
                        rhop)
 
@@ -4517,7 +4492,7 @@ END subroutine p3_init
 
              else ! triple moment ice
 
-                call find_lookupTable_indices_1d(dumi,dumjj,dumii,dum1,dum4,dum5,isize,   &
+                call find_lookupTable_indices_1a(dumi,dumjj,dumii,dum1,dum4,dum5,isize,   &
                        rimsize,densize,qitot(i,k,iice),nitot(i,k,iice),qirim(i,k,iice),   &
                        rhop)
 
@@ -6092,62 +6067,61 @@ SUBROUTINE access_lookup_table_coll_3mom(dumzz,dumjj,dumii,dumj,dumi,index,dum1,
 
 !======================================================================================!
 
-!  subroutine find_lookupTable_indices_1a(dumi,dumjj,dumii,dum1,dum4,dum5,isize,rimsize,   &
-!                                         densize,qitot,nitot,qirim,zitot_in,rhop)
-! 
-! !------------------------------------------------------------------------------------------!
-! ! Finds indices in 3D ice (only) lookup table.
-! !  - used for P3 v3
-! !------------------------------------------------------------------------------------------!
-! 
-!  implicit none
-! 
-! ! arguments:
-!  integer, intent(out) :: dumi,dumjj,dumii
-!  real,    intent(out) :: dum1,dum4,dum5
-!  integer, intent(in)  :: isize,rimsize,densize
-!  real,    intent(in)  :: qitot,nitot,qirim,zitot_in,rhop
-! 
-! !------------------------------------------------------------------------------------------!
-! 
-!            ! find index for qi (normalized ice mass mixing ratio = qitot/nitot)
-! !             dum1 = (alog10(qitot)+16.)/0.70757  !orig
-! !             dum1 = (alog10(qitot)+16.)*1.41328
-! ! we are inverting this equation from the lookup table to solve for i:
-! ! qitot/nitot=261.7**((i+10)*0.1)*1.e-18
-! !             dum1 = (alog10(qitot/nitot)+18.)/(0.1*alog10(261.7))-10. ! orig
-!              dum1 = (alog10(qitot/nitot)+18.)*(4.13599)-10. ! for computational efficiency
-!              dumi = int(dum1)
-!              ! set limits (to make sure the calculated index doesn't exceed range of lookup table)
-!              dum1 = min(dum1,real(isize))
-!              dum1 = max(dum1,1.)
-!              dumi = max(1,dumi)
-!              dumi = min(isize-1,dumi)
-! 
-!            ! find index for rime mass fraction
-!              dum4  = (qirim/qitot)*3. + 1.
-!              dumii = int(dum4)
-!              ! set limits
-!              dum4  = min(dum4,real(rimsize))
-!              dum4  = max(dum4,1.)
-!              dumii = max(1,dumii)
-!              dumii = min(rimsize-1,dumii)
-! 
-!            ! find index for bulk rime density
-!            ! (account for uneven spacing in lookup table for density)
-!              if (rhop.le.650.) then
-!                 dum5 = (rhop-50.)*0.005 + 1.
-!              else
-!                 dum5 =(rhop-650.)*0.004 + 4.
-!              endif
-!              dumjj = int(dum5)
-!              ! set limits
-!              dum5  = min(dum5,real(densize))
-!              dum5  = max(dum5,1.)
-!              dumjj = max(1,dumjj)
-!              dumjj = min(densize-1,dumjj)
-! 
-!  end subroutine find_lookupTable_indices_1a
+ subroutine find_lookupTable_indices_1a(dumi,dumjj,dumii,dum1,dum4,dum5,isize,rimsize,   &
+                                        densize,qitot,nitot,qirim,rhop)
+
+!------------------------------------------------------------------------------------------!
+! Finds indices in 3D ice (only) lookup table.
+!  - used for P3 v4
+!------------------------------------------------------------------------------------------!
+
+ implicit none
+
+! arguments:
+ integer, intent(out) :: dumi,dumjj,dumii
+ real,    intent(out) :: dum1,dum4,dum5
+ integer, intent(in)  :: isize,rimsize,densize
+ real,    intent(in)  :: qitot,nitot,qirim,rhop
+
+!------------------------------------------------------------------------------------------!
+
+           ! find index for qi (normalized ice mass mixing ratio = qitot/nitot)
+
+           ! we are inverting this equation from the lookup table to solve for i:
+           ! qitot/nitot=800**((i+10)*0.1)*1.e-18, for lookup table beta >= 9
+            !dum1 = (alog10(qitot/nitot)+18.)/(0.1*alog10(800.)) - 10.
+             dum1 = (alog10(qitot/nitot)+18.)*3.444606 - 10.  !optimized
+             dumi = int(dum1)
+             ! set limits (to make sure the calculated index doesn't exceed range of lookup table)
+             dum1 = min(dum1,real(isize))
+             dum1 = max(dum1,1.)
+             dumi = max(1,dumi)
+             dumi = min(isize-1,dumi)
+
+           ! find index for rime mass fraction
+             dum4  = (qirim/qitot)*3. + 1.
+             dumii = int(dum4)
+             ! set limits
+             dum4  = min(dum4,real(rimsize))
+             dum4  = max(dum4,1.)
+             dumii = max(1,dumii)
+             dumii = min(rimsize-1,dumii)
+
+           ! find index for bulk rime density
+           ! (account for uneven spacing in lookup table for density)
+             if (rhop.le.650.) then
+                dum5 = (rhop-50.)*0.005 + 1.
+             else
+                dum5 =(rhop-650.)*0.004 + 4.
+             endif
+             dumjj = int(dum5)
+             ! set limits
+             dum5  = min(dum5,real(densize))
+             dum5  = max(dum5,1.)
+             dumjj = max(1,dumjj)
+             dumjj = min(densize-1,dumjj)
+
+ end subroutine find_lookupTable_indices_1a
 
 !======================================================================================!
 
@@ -6226,70 +6200,15 @@ SUBROUTINE access_lookup_table_coll_3mom(dumzz,dumjj,dumii,dumj,dumi,index,dum1,
      dum6  = max(dum6,1.)
      dumzz = max(1,dumzz)
      dumzz = min(zsize-1,dumzz)
+     
   else
+  
      dumzz = 1
      dum6  = 1.
+     
   endif
 
  end subroutine find_lookupTable_indices_1c
-
-!======================================================================================!
-
- subroutine find_lookupTable_indices_1d(dumi,dumjj,dumii,dum1,dum4,dum5,isize,rimsize,   &
-                                        densize,qitot,nitot,qirim,rhop)
-
-!------------------------------------------------------------------------------------------!
-! Finds indices in 3D ice (only) lookup table.
-!  - used for P3 v4
-!------------------------------------------------------------------------------------------!
-
- implicit none
-
-! arguments:
- integer, intent(out) :: dumi,dumjj,dumii
- real,    intent(out) :: dum1,dum4,dum5
- integer, intent(in)  :: isize,rimsize,densize
- real,    intent(in)  :: qitot,nitot,qirim,rhop
-
-!------------------------------------------------------------------------------------------!
-
-           ! find index for qi (normalized ice mass mixing ratio = qitot/nitot)
-
-           ! we are inverting this equation from the lookup table to solve for i:
-           ! qitot/nitot=800**((i+10)*0.1)*1.e-18, for lookup table beta >= 9
-            !dum1 = (alog10(qitot/nitot)+18.)/(0.1*alog10(800.)) - 10.
-             dum1 = (alog10(qitot/nitot)+18.)*3.444606 - 10.  !optimized
-             dumi = int(dum1)
-             ! set limits (to make sure the calculated index doesn't exceed range of lookup table)
-             dum1 = min(dum1,real(isize))
-             dum1 = max(dum1,1.)
-             dumi = max(1,dumi)
-             dumi = min(isize-1,dumi)
-
-           ! find index for rime mass fraction
-             dum4  = (qirim/qitot)*3. + 1.
-             dumii = int(dum4)
-             ! set limits
-             dum4  = min(dum4,real(rimsize))
-             dum4  = max(dum4,1.)
-             dumii = max(1,dumii)
-             dumii = min(rimsize-1,dumii)
-
-           ! find index for bulk rime density
-           ! (account for uneven spacing in lookup table for density)
-             if (rhop.le.650.) then
-                dum5 = (rhop-50.)*0.005 + 1.
-             else
-                dum5 =(rhop-650.)*0.004 + 4.
-             endif
-             dumjj = int(dum5)
-             ! set limits
-             dum5  = min(dum5,real(densize))
-             dum5  = max(dum5,1.)
-             dumjj = max(1,dumjj)
-             dumjj = min(densize-1,dumjj)
-
- end subroutine find_lookupTable_indices_1d
 
 !======================================================================================!
  subroutine find_lookupTable_indices_2(dumi,   dumii,   dumjj,  dumic, dumiic, dumjjc,  &
@@ -6320,7 +6239,7 @@ SUBROUTINE access_lookup_table_coll_3mom(dumzz,dumjj,dumii,dumj,dumi,index,dum1,
                     ! find index for qi (total ice mass mixing ratio)
 ! replace with new inversion for new lookup table 2 w/ reduced dimensionality
 !                      dum1 = (alog10(qitot_1/nitot_1)+18.)/(0.2*alog10(261.7))-5. !orig
-                      dum1 = (alog10(qitot_1/nitot_1)+18.)*(2.06799)-5. !for computational efficiency
+                      dum1 = (alog10(qitot_1/nitot_1)+18.)*(2.06799)-5. !optimization
                       dumi = int(dum1)
                       dum1 = min(dum1,real(iisize))
                       dum1 = max(dum1,1.)
