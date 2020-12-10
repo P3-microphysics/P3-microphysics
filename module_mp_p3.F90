@@ -170,11 +170,6 @@
  read_path = lookup_file_dir           ! path for lookup tables from official model library
 !read_path = '/MY/LOOKUP_TABLE/PATH'   ! path for lookup tables from specified location
 
-!-- JM_only; to be removed for shared code
-!read_path = '/data/ords/armn/armngr8/p3_lookup_tables'                 !ECCC network
-!read_path = '/fs/homeu1/eccc/mrd/ords/rpnatm/jam003/p3_lookup_tables'  !SCIENCE network
-!==
-
  if (trplMomI) then
     lookup_file_1 = trim(read_path)//'/'//'p3_lookupTable_1.dat-'//trim(version_intended_table_1_3mom)
  else
@@ -1915,7 +1910,7 @@ END subroutine p3_init
  real, intent(out), dimension(its:ite), optional      :: prt_sndp      ! precip rate, unmelted snow    m s-1
 
  real, intent(out), dimension(its:ite,kts:kte,n_qiType), optional :: qi_type ! mass mixing ratio, diagnosed ice type  kg kg-1
- real, intent(inout), dimension(its:ite,kts:kte,nCat),   optional :: zitot   ! ice, reflectivity mixing ratio         kg^2 kg-1
+ real, intent(inout), dimension(its:ite,kts:kte,nCat),   optional :: zitot   ! ice, reflectivity mixing ratio         kg2 kg-1
 
  logical, intent(in)                                  :: scpf_on       ! Switch to activate SCPF
  real,    intent(in)                                  :: scpf_pfrac    ! precipitation fraction factor (SCPF)
@@ -2549,7 +2544,8 @@ END subroutine p3_init
              endif  !if log_3momentIce
 
           ! adjust Ni if needed to make sure mean size is in bounds (i.e. apply lambda limiters)
-          ! note that the Nmax and Nmin are normalized and thus need to be multiplied by existing N
+          !  note: the inv_Qmin (f1pr09) and inv_Qmax (f1pr10) are normalized, thus the
+          !  max[min] values of nitot are obtained from multiplying these values by qitot.
              nitot(i,k,iice) = min(nitot(i,k,iice),f1pr09*qitot(i,k,iice))
              nitot(i,k,iice) = max(nitot(i,k,iice),f1pr10*qitot(i,k,iice))
 
@@ -2561,8 +2557,6 @@ END subroutine p3_init
                 tmp2 = G_of_mu(20.)
                 zitot(i,k,iice) = min(zitot(i,k,iice),tmp1*dum1**2/nitot(i,k,iice))
                 zitot(i,k,iice) = max(zitot(i,k,iice),tmp2*dum1**2/nitot(i,k,iice))
-!               zitot(i,k,iice) = min(zitot(i,k,iice),f1pr20*qitot(i,k,iice))
-!               zitot(i,k,iice) = max(zitot(i,k,iice),f1pr21*qitot(i,k,iice))
              endif
 
           ! Determine additional collection efficiency factor to be applied to ice-ice collection.
@@ -2573,7 +2567,7 @@ END subroutine p3_init
                 if (tmp1.lt.0.6) then
                    Eii_fact(iice)=1.
                 else if (tmp1.ge.0.6.and.tmp1.lt.0.9) then
-          ! linear ramp from 1 to 0 for Fr between 0.6 and 0.9
+            ! linear ramp from 1 to 0 for Fr between 0.6 and 0.9
                    Eii_fact(iice) = 1.-(tmp1-0.6)/0.3
                 else if (tmp1.ge.0.9) then
                    Eii_fact(iice) = 0.
@@ -2605,7 +2599,7 @@ END subroutine p3_init
              nccol(iice) = rhofaci(i,k)*f1pr04*nc(i,k)*eci*rho(i,k)*nitot(i,k,iice)*iSCF(k)
           endif
 
-! for T > 273.15, assume cloud water is collected and shed as rain drops
+          ! for T > 273.15, assume cloud water is collected and shed as rain drops
 
           if (qitot(i,k,iice).ge.qsmall .and. qc(i,k).ge.qsmall .and. t(i,k).gt.273.15) then
           ! sink for cloud water mass and number, note qcshed is source for rain mass
@@ -2657,14 +2651,8 @@ END subroutine p3_init
 !...................................
 ! collection between ice categories
 
-!          iceice_interaction1:  if (.false.) then       !for testing (to suppress ice-ice interaction)
+!        iceice_interaction1:  if (.false.) then       !for testing (to suppress ice-ice interaction)
          iceice_interaction1:  if (iice.ge.2) then          
-
-!-----
-! Note:  For v4.0.1, ice-ice interaction is problematic (for both 2-mom and 3-mom ice).
-!        Multi-ice categories can still be used, but for now this process is shut off
-!        (to be fixed and re-activated in a future version, once corrected).
-!=====
 
              qitot_notsmall: if (qitot(i,k,iice).ge.qsmall) then
                 catcoll_loop: do catcoll = 1,iice-1
@@ -3551,14 +3539,6 @@ END subroutine p3_init
              zitot(i,k,iice) = 0.
           endif
 
-!--- NAN CHECK
-! if (.not.(zitot(i,k,iice)<1.e+30 .and. zitot(i,k,iice)>(-1.e+30))) then
-!    print*, '*** NAN TRAP --location: 500 ***'
-!    print*, 'i,k,zitot: ',i,k,zitot(i,k,iice),dum1,dumm3(iice),dumm0(iice)
-!    stop
-! endif 
-!===
-
        !====
 
        !----  Group 2 (initiation processes, where mu_i for the new ice resulting from that process (only) is assigned
@@ -4138,7 +4118,6 @@ END subroutine p3_init
                       call access_lookup_table(dumjj,dumii,dumi, 7,dum1,dum4,dum5,f1pr09)
                       call access_lookup_table(dumjj,dumii,dumi, 8,dum1,dum4,dum5,f1pr10)
                     !-impose mean ice size bounds (i.e. apply lambda limiters)
-                    ! note that the Nmax and Nmin are normalized and thus need to be multiplied by existing N
                       nitot(i,k,iice) = min(nitot(i,k,iice),f1pr09*qitot(i,k,iice))
                       nitot(i,k,iice) = max(nitot(i,k,iice),f1pr10*qitot(i,k,iice))
                       V_qit(k) = f1pr02*rhofaci(i,k)     !mass-weighted  fall speed (with density factor)
@@ -4240,35 +4219,18 @@ END subroutine p3_init
                       call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 7,dum1,dum4,dum5,dum6,f1pr09)
                       call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 8,dum1,dum4,dum5,dum6,f1pr10)
                       call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,13,dum1,dum4,dum5,dum6,f1pr19)
-!                      call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,14,dum1,dum4,dum5,dum6,f1pr20)
-!                      call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,15,dum1,dum4,dum5,dum6,f1pr21)
-!                      call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,12,dum1,dum4,dum5,dum6,f1pr16)
 
-!    if (qitot(i,k,iice).ge.qsmall) then
-!       dum1 =  6./(f1pr16*pi)*qitot(i,k,iice)  !estimate of moment3
-!       mu_i = compute_mu_3moment(nitot(i,k,iice),dum1,zitot(i,k,iice),mu_i_max)
-!       print*,'before sed',k,mu_i
-!    endif
-
-                    !-impose mean ice size bounds (i.e. apply lambda limiters)
-                    ! note that the Nmax and Nmin are normalized and thus need to be multiplied by existing N
+                    !impose mean ice size bounds (i.e. apply lambda limiters)
                       nitot(i,k,iice) = min(nitot(i,k,iice),f1pr09*qitot(i,k,iice))
                       nitot(i,k,iice) = max(nitot(i,k,iice),f1pr10*qitot(i,k,iice))
 
-                    ! adjust Zitot to make sure mu is in bounds
-                    ! note that the Zmax and Zmin are normalized and thus need to be multiplied by existing Q
-!                      zitot(i,k,iice) = min(zitot(i,k,iice),f1pr20*qitot(i,k,iice))
-!                      zitot(i,k,iice) = max(zitot(i,k,iice),f1pr21*qitot(i,k,iice))
-
                       V_qit(k) = f1pr02*rhofaci(i,k)     !mass-weighted  fall speed (with density factor)
-                      V_nit(k) = f1pr01*rhofaci(i,k)     !number-weighted    fall speed (with density factor)
+                      V_nit(k) = f1pr01*rhofaci(i,k)     !number-weighted fall speed (with density factor)
                       V_zit(k) = f1pr19*rhofaci(i,k)     !reflectivity-weighted fall speed (with density factor)
-!  V_zit(k) = f1pr02*rhofaci(i,k)     !reflectivity-weighted fall speed (with density factor)
-!  V_nit(k) = f1pr02*rhofaci(i,k)     !reflectivity-weighted fall speed (with density factor)
 
                    endif qi_notsmall_i2
 
-                   ! use V_zit for calculating sub-stepping since it's larger than V_qit
+                   ! use V_zit for calculating sub-stepping since it is larger than V_qit
                    Co_max = max(Co_max, V_zit(k)*dt_left*inv_dzq(i,k))
 
                 enddo kloop_sedi_i2
@@ -4537,10 +4499,6 @@ END subroutine p3_init
 
              call calc_bulkRhoRime(qitot(i,k,iice),qirim(i,k,iice),birim(i,k,iice),rhop)
 
-!             call find_lookupTable_indices_1a(dumi,dumjj,dumii,dum1,dum4,dum5,isize,     &
-!                       rimsize,densize,qitot(i,k,iice),nitot(i,k,iice),qirim(i,k,iice),  &
-!                       999.,rhop)
-
              if (.not. log_3momentIce) then
 
                 call find_lookupTable_indices_1d(dumi,dumjj,dumii,dum1,dum4,dum5,isize,   &
@@ -4586,7 +4544,6 @@ END subroutine p3_init
 
 
           ! impose mean ice size bounds (i.e. apply lambda limiters)
-          ! note that the Nmax and Nmin are normalized and thus need to be multiplied by existing N
              nitot(i,k,iice) = min(nitot(i,k,iice),f1pr09*qitot(i,k,iice))
              nitot(i,k,iice) = max(nitot(i,k,iice),f1pr10*qitot(i,k,iice))
 
@@ -4817,10 +4774,10 @@ END subroutine p3_init
 !  note: This is not necessary for GEM, which already has these values available
 !        from the beginning of the model time step (TT_moins and HU_moins) when
 !        s/r 'p3_wrapper_gem' is called (from s/r 'condensation').
-!!  if (trim(model) == 'WRF') then
-     th_old = th
-     qv_old = qv
-!!  endif
+ if (trim(model) == 'WRF') then
+    th_old = th
+    qv_old = qv
+ endif
 
 !...........................................................................................
 ! Compute diagnostic hydrometeor types for output as 3D fields and
@@ -5909,237 +5866,6 @@ SUBROUTINE access_lookup_table_coll_3mom(dumzz,dumjj,dumii,dumj,dumi,index,dum1,
 
 !------------------------------------------------------------------------------------------!
 
-!  real function gamma(X)
-! ----------------------------------------------------------------------
-! THIS ROUTINE CALCULATES THE gamma FUNCTION FOR A REAL ARGUMENT X.
-!   COMPUTATION IS BASED ON AN ALGORITHM OUTLINED IN REFERENCE 1.
-!   THE PROGRAM USES RATIONAL FUNCTIONS THAT APPROXIMATE THE gamma
-!   FUNCTION TO AT LEAST 20 SIGNIFICANT DECIMAL DIGITS.  COEFFICIENTS
-!   FOR THE APPROXIMATION OVER THE INTERVAL (1,2) ARE UNPUBLISHED.
-!   THOSE FOR THE APPROXIMATION FOR X .GE. 12 ARE FROM REFERENCE 2.
-!   THE ACCURACY ACHIEVED DEPENDS ON THE ARITHMETIC SYSTEM, THE
-!   COMPILER, THE INTRINSIC FUNCTIONS, AND PROPER SELECTION OF THE
-!   MACHINE-DEPENDENT CONSTANTS.
-! ----------------------------------------------------------------------
-! 
-! EXPLANATION OF MACHINE-DEPENDENT CONSTANTS
-! 
-! BETA   - RADIX FOR THE FLOATING-POINT REPRESENTATION
-! MAXEXP - THE SMALLEST POSITIVE POWER OF BETA THAT OVERFLOWS
-! XBIG   - THE LARGEST ARGUMENT FOR WHICH gamma(X) IS REPRESENTABLE
-!          IN THE MACHINE, I.E., THE SOLUTION TO THE EQUATION
-!                  gamma(XBIG) = BETA**MAXEXP
-! XINF   - THE LARGEST MACHINE REPRESENTABLE FLOATING-POINT NUMBER;
-!          APPROXIMATELY BETA**MAXEXP
-! EPS    - THE SMALLEST POSITIVE FLOATING-POINT NUMBER SUCH THAT
-!          1.0+EPS .GT. 1.0
-! XMININ - THE SMALLEST POSITIVE FLOATING-POINT NUMBER SUCH THAT
-!          1/XMININ IS MACHINE REPRESENTABLE
-! 
-!     APPROXIMATE VALUES FOR SOME IMPORTANT MACHINES ARE:
-! 
-!                            BETA       MAXEXP        XBIG
-! 
-! CRAY-1         (S.P.)        2         8191        966.961
-! CYBER 180/855
-!   UNDER NOS    (S.P.)        2         1070        177.803
-! IEEE (IBM/XT,
-!   SUN, ETC.)   (S.P.)        2          128        35.040
-! IEEE (IBM/XT,
-!   SUN, ETC.)   (D.P.)        2         1024        171.624
-! IBM 3033       (D.P.)       16           63        57.574
-! VAX D-FORMAT   (D.P.)        2          127        34.844
-! VAX G-FORMAT   (D.P.)        2         1023        171.489
-! 
-!                            XINF         EPS        XMININ
-! 
-! CRAY-1         (S.P.)   5.45E+2465   7.11E-15    1.84E-2466
-! CYBER 180/855
-!   UNDER NOS    (S.P.)   1.26E+322    3.55E-15    3.14E-294
-! IEEE (IBM/XT,
-!   SUN, ETC.)   (S.P.)   3.40E+38     1.19E-7     1.18E-38
-! IEEE (IBM/XT,
-!   SUN, ETC.)   (D.P.)   1.79D+308    2.22D-16    2.23D-308
-! IBM 3033       (D.P.)   7.23D+75     2.22D-16    1.39D-76
-! VAX D-FORMAT   (D.P.)   1.70D+38     1.39D-17    5.88D-39
-! VAX G-FORMAT   (D.P.)   8.98D+307    1.11D-16    1.12D-308
-! 
-! ----------------------------------------------------------------------
-! 
-! ERROR RETURNS
-! 
-!  THE PROGRAM RETURNS THE VALUE XINF FOR SINGULARITIES OR
-!     WHEN OVERFLOW WOULD OCCUR.  THE COMPUTATION IS BELIEVED
-!     TO BE FREE OF UNDERFLOW AND OVERFLOW.
-! 
-! 
-!  INTRINSIC FUNCTIONS REQUIRED ARE:
-! 
-!     INT, DBLE, EXP, log, REAL, SIN
-! 
-! 
-! REFERENCES:  AN OVERVIEW OF SOFTWARE DEVELOPMENT FOR SPECIAL
-!              FUNCTIONS   W. J. CODY, LECTURE NOTES IN MATHEMATICS,
-!              506, NUMERICAL ANALYSIS DUNDEE, 1975, G. A. WATSON
-!              (ED.), SPRINGER VERLAG, BERLIN, 1976.
-! 
-!              COMPUTER APPROXIMATIONS, HART, ET. AL., WILEY AND
-!              SONS, NEW YORK, 1968.
-! 
-!  LATEST MODIFICATION: OCTOBER 12, 1989
-! 
-!  AUTHORS: W. J. CODY AND L. STOLTZ
-!           APPLIED MATHEMATICS DIVISION
-!           ARGONNE NATIONAL LABORATORY
-!           ARGONNE, IL 60439
-! 
-! ----------------------------------------------------------------------
-!       implicit none
-!       integer :: I,N
-!       logical :: l_parity
-!       real ::                                                       &
-!           CONV,EPS,FACT,HALF,ONE,res,sum,TWELVE,                    &
-!           TWO,X,XBIG,XDEN,XINF,XMININ,XNUM,Y,Y1,YSQ,Z,ZERO
-!       real, dimension(7) :: C
-!       real, dimension(8) :: P
-!       real, dimension(8) :: Q
-!       real, parameter    :: constant1 = 0.9189385332046727417803297
-! 
-! ----------------------------------------------------------------------
-!  MATHEMATICAL CONSTANTS
-! ----------------------------------------------------------------------
-!       data ONE,HALF,TWELVE,TWO,ZERO/1.0E0,0.5E0,12.0E0,2.0E0,0.0E0/
-! ----------------------------------------------------------------------
-!  MACHINE DEPENDENT PARAMETERS
-! ----------------------------------------------------------------------
-!       data XBIG,XMININ,EPS/35.040E0,1.18E-38,1.19E-7/,XINF/3.4E38/
-! ----------------------------------------------------------------------
-!  NUMERATOR AND DENOMINATOR COEFFICIENTS FOR RATIONAL MINIMAX
-!     APPROXIMATION OVER (1,2).
-! ----------------------------------------------------------------------
-!       data P/-1.71618513886549492533811E+0,2.47656508055759199108314E+1,  &
-!              -3.79804256470945635097577E+2,6.29331155312818442661052E+2,  &
-!              8.66966202790413211295064E+2,-3.14512729688483675254357E+4,  &
-!              -3.61444134186911729807069E+4,6.64561438202405440627855E+4/
-!       data Q/-3.08402300119738975254353E+1,3.15350626979604161529144E+2,  &
-!              -1.01515636749021914166146E+3,-3.10777167157231109440444E+3, &
-!               2.25381184209801510330112E+4,4.75584627752788110767815E+3,  &
-!             -1.34659959864969306392456E+5,-1.15132259675553483497211E+5/
-! ----------------------------------------------------------------------
-!  COEFFICIENTS FOR MINIMAX APPROXIMATION OVER (12, INF).
-! ----------------------------------------------------------------------
-!       data C/-1.910444077728E-03,8.4171387781295E-04,                      &
-!            -5.952379913043012E-04,7.93650793500350248E-04,                 &
-!            -2.777777777777681622553E-03,8.333333333333333331554247E-02,    &
-!             5.7083835261E-03/
-! ----------------------------------------------------------------------
-!  STATEMENT FUNCTIONS FOR CONVERSION BETWEEN INTEGER AND FLOAT
-! ----------------------------------------------------------------------
-!       CONV(I) = REAL(I)
-!       l_parity=.FALSE.
-!       FACT=ONE
-!       N=0
-!       Y=X
-!       if (Y.LE.ZERO) then
-! ----------------------------------------------------------------------
-!  ARGUMENT IS NEGATIVE
-! ----------------------------------------------------------------------
-!         Y=-X
-!         Y1=AINT(Y)
-!         res=Y-Y1
-!         if (res.NE.ZERO) then
-!           if(Y1.NE.AINT(Y1*HALF)*TWO)l_parity=.TRUE.
-!           FACT=-PI/SIN(PI*res)
-!           Y=Y+ONE
-!         else
-!           res=XINF
-!           goto 900
-!         endif
-!       endif
-! ----------------------------------------------------------------------
-!  ARGUMENT IS POSITIVE
-! ----------------------------------------------------------------------
-!       if (Y.LT.EPS) then
-! ----------------------------------------------------------------------
-!  ARGUMENT .LT. EPS
-! ----------------------------------------------------------------------
-!         if (Y.GE.XMININ) then
-!           res=ONE/Y
-!         else
-!           res=XINF
-!           goto 900
-!         endif
-!       elseif (Y.LT.TWELVE) then
-!         Y1=Y
-!         if (Y.LT.ONE) then
-! ----------------------------------------------------------------------
-!  0.0 .LT. ARGUMENT .LT. 1.0
-! ----------------------------------------------------------------------
-!           Z=Y
-!           Y=Y+ONE
-!         else
-! ----------------------------------------------------------------------
-!  1.0 .LT. ARGUMENT .LT. 12.0, REDUCE ARGUMENT IF NECESSARY
-! ----------------------------------------------------------------------
-!           N=INT(Y)-1
-!           Y=Y-CONV(N)
-!           Z=Y-ONE
-!         endif
-! ----------------------------------------------------------------------
-!  EVALUATE APPROXIMATION FOR 1.0 .LT. ARGUMENT .LT. 2.0
-! ----------------------------------------------------------------------
-!         XNUM=ZERO
-!         XDEN=ONE
-!         do I=1,8
-!           XNUM=(XNUM+P(I))*Z
-!           XDEN=XDEN*Z+Q(I)
-!         enddo
-!         res=XNUM/XDEN+ONE
-!         if (Y1.LT.Y) then
-! ----------------------------------------------------------------------
-!  ADJUST RESULT FOR CASE  0.0 .LT. ARGUMENT .LT. 1.0
-! ----------------------------------------------------------------------
-!           res=res/Y1
-!         elseif (Y1.GT.Y) then
-! ----------------------------------------------------------------------
-!  ADJUST RESULT FOR CASE  2.0 .LT. ARGUMENT .LT. 12.0
-! ----------------------------------------------------------------------
-!           do I=1,N
-!             res=res*Y
-!             Y=Y+ONE
-!           enddo
-!         endif
-!       else
-! ----------------------------------------------------------------------
-!  EVALUATE FOR ARGUMENT .GE. 12.0,
-! ----------------------------------------------------------------------
-!         if (Y.LE.XBIG) then
-!           YSQ=Y*Y
-!           sum=C(7)
-!           do I=1,6
-!             sum=sum/YSQ+C(I)
-!           enddo
-!           sum=sum/Y-Y+constant1
-!           sum=sum+(Y-HALF)*log(Y)
-!           res=exp(sum)
-!         else
-!           res=XINF
-!           goto 900
-!         endif
-!       endif
-! ----------------------------------------------------------------------
-!  FINAL ADJUSTMENTS AND RETURN
-! ----------------------------------------------------------------------
-!       if (l_parity)res=-res
-!       if (FACT.NE.ONE)res=FACT/res
-!   900 gamma=res
-!       return
-! ---------- LAST LINE OF gamma ----------
-! 
-!  end function gamma
-
-!------------------------------------------------------------------------------------------!
-
  real function DERF(X)
 
  implicit none
@@ -6257,14 +5983,11 @@ SUBROUTINE access_lookup_table_coll_3mom(dumzz,dumjj,dumii,dumj,dumi,index,dum1,
  end function DERF
 
 !------------------------------------------------------------------------------------------!
-
  logical function isnan(arg1)
        real,intent(in) :: arg1
-       isnan=( arg1  .ne. arg1 )
+       isnan = (arg1 .ne. arg1)
        return
  end function isnan
-
-!------------------------------------------------------------------------------------------!
 
 !==========================================================================================!
  subroutine icecat_destination(Qi,Di,D_nuc,deltaD_init,iice_dest)
@@ -6373,7 +6096,8 @@ SUBROUTINE access_lookup_table_coll_3mom(dumzz,dumjj,dumii,dumj,dumi,index,dum1,
 !                                         densize,qitot,nitot,qirim,zitot_in,rhop)
 ! 
 ! !------------------------------------------------------------------------------------------!
-! ! Finds indices in 3D ice (only) lookup table, for 2-moment ice
+! ! Finds indices in 3D ice (only) lookup table.
+! !  - used for P3 v3
 ! !------------------------------------------------------------------------------------------!
 ! 
 !  implicit none
@@ -6515,7 +6239,8 @@ SUBROUTINE access_lookup_table_coll_3mom(dumzz,dumjj,dumii,dumj,dumi,index,dum1,
                                         densize,qitot,nitot,qirim,rhop)
 
 !------------------------------------------------------------------------------------------!
-! Finds indices in 3D ice (only) lookup table, for 3-moment ice
+! Finds indices in 3D ice (only) lookup table.
+!  - used for P3 v4
 !------------------------------------------------------------------------------------------!
 
  implicit none
@@ -6530,10 +6255,8 @@ SUBROUTINE access_lookup_table_coll_3mom(dumzz,dumjj,dumii,dumj,dumi,index,dum1,
 
            ! find index for qi (normalized ice mass mixing ratio = qitot/nitot)
 
-! we are inverting this equation from the lookup table to solve for i:
-! qitot/nitot=261.7**((i+10)*0.1)*1.e-18, for lookup table beta <= 7
-!             dum1 = (alog10(qitot/nitot)+18.)/(0.1*alog10(261.7))-10.
-! qitot/nitot=800**((i+10)*0.1)*1.e-18, for lookup table beta >= 9
+           ! we are inverting this equation from the lookup table to solve for i:
+           ! qitot/nitot=800**((i+10)*0.1)*1.e-18, for lookup table beta >= 9
              dum1 = (alog10(qitot/nitot)+18.)/(0.1*alog10(800.))-10.
 
              dumi = int(dum1)
