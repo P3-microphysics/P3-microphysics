@@ -22,8 +22,8 @@
 !    Jason Milbrandt (jason.milbrandt@canada.ca)                                           !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       4.0.5+                                                                    !
-! Last updated:  2020-12-01                                                                !
+! Version:       4.0.6                                                                     !
+! Last updated:  2020-12-08                                                                !
 !                                                                                          !
 !      ***  CHANGE LOG  ***                                                                !
 !
@@ -32,21 +32,18 @@
 ! - final point: v4.0.0-b46
 !
 ! v4.0.1 (adaptations for GEM)
-! - starting point (b00): v4.0.0
 ! - final point: v4.0.1_b10
 !
 ! v4.0.2 (bug fix for 3-mom homogeneous freezing)
-! - starting point (b00): v4.0.1
 ! - final point: v4.0.2_b02
 !
 ! v4.0.3 (cleanup; remove unused variables, etc.)
-! - starting point (b00): v4.0.2
 !
 ! v4.0.4 (bug fix, mu_i-tendency bug)
-! - startint point: v4.0.3
 !
 ! v4.0.5 (bug fixes, SCPF)
-! - startint point: v4.0.4
+!
+! v4.0.6 (f1pr09/10 fix; supersaturation fix)
 !
 !__________________________________________________________________________________________!
 
@@ -152,8 +149,8 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '4.0.5'
- character(len=1024), parameter :: version_intended_table_1_2mom = '2momI_v5.1.4'
+ character(len=1024), parameter :: version_p3                    = '4.0.6'
+ character(len=1024), parameter :: version_intended_table_1_2mom = '2momI_v5.1.6_oldDimax'
  character(len=1024), parameter :: version_intended_table_1_3mom = '3momI_v5.1.4'
  character(len=1024), parameter :: version_intended_table_2      = '4'
 
@@ -712,8 +709,8 @@ END subroutine p3_init
                               its, ite, jts, jte, kts, kte ,                             &
                               diag_zdbz_3d,diag_effc_3d,diag_effi_3d,                    &
                               diag_vmi_3d,diag_di_3d,diag_rhopo_3d,                      &
-                              qi1_3d,qni1_3d,qir1_3d,qib1_3d,nc_3d,qzi1_3d,              &
-                              diag_dhmax_3d,diag_lami_3d,diag_mui_3d)
+                              qi1_3d,qni1_3d,qir1_3d,qib1_3d,nc_3d,qzi1_3d)
+!                              diag_dhmax_3d,diag_lami_3d,diag_mui_3d)
 
   !------------------------------------------------------------------------------------------!
   ! This subroutine is the main WRF interface with the P3 microphysics scheme.  It takes     !
@@ -775,8 +772,8 @@ END subroutine p3_init
    real, dimension(ims:ime, kms:kme, jms:jme), intent(inout):: th_3d,qv_3d,qc_3d,qr_3d,   &
                    qnr_3d,diag_zdbz_3d,diag_effc_3d,diag_effi_3d,diag_vmi_3d,diag_di_3d,  &
                    diag_rhopo_3d,th_old_3d,qv_old_3d
-   real, dimension(ims:ime, kms:kme, jms:jme), intent(inout):: diag_dhmax_3d,             &
-                   diag_lami_3d,diag_mui_3d
+!   real, dimension(ims:ime, kms:kme, jms:jme), intent(inout):: diag_dhmax_3d,             &
+!                   diag_lami_3d,diag_mui_3d
    real, dimension(ims:ime, kms:kme, jms:jme), intent(inout):: qi1_3d,qni1_3d,qir1_3d,    &
                                                                qib1_3d
    real, dimension(ims:ime, kms:kme, jms:jme), intent(inout), optional :: nc_3d
@@ -805,7 +802,7 @@ END subroutine p3_init
    logical                  :: log_predictNc
    logical                  :: log_3momentIce
    logical, parameter       :: debug_on      = .false. !switch for internal debug checking
-   logical, parameter       :: typeDiags_ON  = .true.
+   logical, parameter       :: typeDiags_ON  = .false.
    real,    parameter       :: clbfact_dep   = 1.0     !calibration factor for deposition
    real,    parameter       :: clbfact_sub   = 1.0     !calibration factor for sublimation
 
@@ -870,8 +867,8 @@ END subroutine p3_init
                n_diag_2d,diag_2d(its:ite,1:n_diag_2d),                                                  &
                n_diag_3d,diag_3d(its:ite,kts:kte,1:n_diag_3d),                                          &
                log_predictNc,typeDiags_ON,trim(model),clbfact_dep,clbfact_sub,debug_on,                 &
-               scpf_on,scpf_pfrac,scpf_resfact,cldfrac,diag_dhmax=diag_dhmax_3d(its:ite,kts:kte,j),     &
-               diag_lami=diag_lami_3d(its:ite,kts:kte,j),diag_mui=diag_mui_3d(its:ite,kts:kte,j))
+               scpf_on,scpf_pfrac,scpf_resfact,cldfrac )!,diag_dhmax=diag_dhmax_3d(its:ite,kts:kte,j),     &
+!               diag_lami=diag_lami_3d(its:ite,kts:kte,j),diag_mui=diag_mui_3d(its:ite,kts:kte,j))
 
       else if (log_3momentIce) then
 
@@ -889,9 +886,9 @@ END subroutine p3_init
                n_diag_2d,diag_2d(its:ite,1:n_diag_2d),                                                  &
                n_diag_3d,diag_3d(its:ite,kts:kte,1:n_diag_3d),                                          &
                log_predictNc,typeDiags_ON,trim(model),clbfact_dep,clbfact_sub,debug_on,                 &
-               scpf_on,scpf_pfrac,scpf_resfact,cldfrac,zitot=qzi1_3d(its:ite,kts:kte,j),                &
-               diag_dhmax=diag_dhmax_3d(its:ite,kts:kte,j),diag_lami=diag_lami_3d(its:ite,kts:kte,j),   &
-               diag_mui=diag_mui_3d(its:ite,kts:kte,j))
+               scpf_on,scpf_pfrac,scpf_resfact,cldfrac,zitot=qzi1_3d(its:ite,kts:kte,j))
+!               diag_dhmax=diag_dhmax_3d(its:ite,kts:kte,j),diag_lami=diag_lami_3d(its:ite,kts:kte,j),   &
+!               diag_mui=diag_mui_3d(its:ite,kts:kte,j))
       endif ! 3momentIce
 
      !surface precipitation output:
@@ -2042,8 +2039,8 @@ END subroutine p3_init
  real    :: f1pr06   ! effective radius
  real    :: f1pr07   ! collection of rain number by ice
  real    :: f1pr08   ! collection of rain mass by ice
- real    :: f1pr09   ! minimum ice number (lambda limiter)
- real    :: f1pr10   ! maximum ice number (lambda limiter)
+ real    :: f1pr09   ! inverse normalized qsmall (for lambda limiter)
+ real    :: f1pr10   ! inverse normalized qlarge (for lambda limiter)
 !real    :: f1pr11   ! not used
 !real    :: f1pr12   ! not used
  real    :: f1pr13   ! reflectivity
@@ -2241,8 +2238,9 @@ END subroutine p3_init
        xxlv(i,k)    = 3.1484e6-2370.*273.15 !t(i,k), use constant Lv
        xxls(i,k)    = xxlv(i,k)+0.3337e6
        xlf(i,k)     = xxls(i,k)-xxlv(i,k)
-       qvs(i,k)     = qv_sat(t_old(i,k),pres(i,k),0)
-       qvi(i,k)     = qv_sat(t_old(i,k),pres(i,k),1)
+     ! max statement added below for first calculation when t_old is zero before t_old is set at end of p3 main
+       qvs(i,k)     = qv_sat(max(t_old(i,k),1.),pres(i,k),0)
+       qvi(i,k)     = qv_sat(max(t_old(i,k),1.),pres(i,k),1)
 
       ! if supersaturation is not predicted or during the first time step, then diagnose from qv and T (qvs)
        if (.not.(log_predictSsat).or.it.le.1) then
@@ -2552,8 +2550,8 @@ END subroutine p3_init
 
           ! adjust Ni if needed to make sure mean size is in bounds (i.e. apply lambda limiters)
           ! note that the Nmax and Nmin are normalized and thus need to be multiplied by existing N
-             nitot(i,k,iice) = min(nitot(i,k,iice),f1pr09*nitot(i,k,iice))
-             nitot(i,k,iice) = max(nitot(i,k,iice),f1pr10*nitot(i,k,iice))
+             nitot(i,k,iice) = min(nitot(i,k,iice),f1pr09*qitot(i,k,iice))
+             nitot(i,k,iice) = max(nitot(i,k,iice),f1pr10*qitot(i,k,iice))
 
           ! adjust Zitot to make sure mu is in bounds
           ! note that the Zmax and Zmin are normalized and thus need to be multiplied by existing Q
@@ -2659,8 +2657,8 @@ END subroutine p3_init
 !...................................
 ! collection between ice categories
 
-          iceice_interaction1:  if (.false.) then       !for testing (to suppress ice-ice interaction)
-!         iceice_interaction1:  if (iice.ge.2) then          
+!          iceice_interaction1:  if (.false.) then       !for testing (to suppress ice-ice interaction)
+         iceice_interaction1:  if (iice.ge.2) then          
 
 !-----
 ! Note:  For v4.0.1, ice-ice interaction is problematic (for both 2-mom and 3-mom ice).
@@ -2895,11 +2893,16 @@ END subroutine p3_init
           dum   = (1./lamc(i,k))**3
 !         qcheti(iice_dest) = cons6*cdist1(i,k)*gamma(7.+pgam(i,k))*exp(aimm*(273.15-t(i,k)))*dum**2
 !         ncheti(iice_dest) = cons5*cdist1(i,k)*gamma(pgam(i,k)+4.)*exp(aimm*(273.15-t(i,k)))*dum
-!         Q_nuc = cons6*cdist1(i,k)*gamma(7.+mu_c(i,k))*exp(aimm*(273.15-t(i,k)))*dum**2
-!         N_nuc = cons5*cdist1(i,k)*gamma(mu_c(i,k)+4.)*exp(aimm*(273.15-t(i,k)))*dum
+
+!           Q_nuc = cons6*cdist1(i,k)*gamma(7.+mu_c(i,k))*exp(aimm*(273.15-t(i,k)))*dum**2
+!           N_nuc = cons5*cdist1(i,k)*gamma(mu_c(i,k)+4.)*exp(aimm*(273.15-t(i,k)))*dum
           tmp1 = cdist1(i,k)*exp(aimm*(273.15-t(i,k)))
           Q_nuc = cons6*gamma(7.+mu_c(i,k))*tmp1*dum**2
           N_nuc = cons5*gamma(mu_c(i,k)+4.)*tmp1*dum
+!           tmpdbl1  = dexp(dble(aimm*(273.15-t(i,k))))
+!           tmpdbl2  = dble(dum)
+!           Q_nuc = cons6*cdist1(i,k)*gamma(7.+mu_c(i,k))*tmpdbl1*tmpdbl2**2
+!           N_nuc = cons5*cdist1(i,k)*gamma(mu_c(i,k)+4.)*tmpdbl1*tmpdbl2
 
 
           if (nCat>1) then
@@ -3170,6 +3173,7 @@ END subroutine p3_init
        if (t(i,k).lt.258.15 .and. supi_cld.ge.0.05) then
 !         dum = exp(-0.639+0.1296*100.*supi(i,k))*1000.*inv_rho(i,k)        !Meyers et al. (1992)
           dum = 0.005*exp(0.304*(273.15-t(i,k)))*1000.*inv_rho(i,k)         !Cooper (1986)
+!         dum = 0.005*dexp(dble(0.304*(273.15-t(i,k))))*1000.*inv_rho(i,k)  !Cooper (1986)
           dum = min(dum,100.e3*inv_rho(i,k)*SCF(k))
           N_nuc = max(0.,(dum-sum(nitot(i,k,:)))*odt)
 
@@ -3374,6 +3378,7 @@ END subroutine p3_init
              dum = 1.
           else if (dum2.ge.dum1) then
              dum = 2.-exp(2300.*(dum2-dum1))
+!            dum = 2.-dexp(dble(2300.*(dum2-dum1)))
           endif
 
           if (iparam.eq.1.) then
@@ -3690,9 +3695,9 @@ END subroutine p3_init
 
           qv(i,k) = qv(i,k) + (-qidep(iice)+qisub(iice)-qinuc(iice))*dt
 
-        ! Update potential temperature. Note temperature is not updated here even though it is used
-        ! below for the homogeneous freezing threshold. This is done for simplicity - the error will
-        ! be very small and the homogeneous temp. freezing threshold is approximate anyway.          
+        ! Update theta. Note temperature is not updated here even though it is used below for
+        ! the homogeneous freezing threshold. This is done for simplicity - the error will be
+        ! very small and the homogeneous temp. freezing threshold is approximate anyway.          
           th(i,k) = th(i,k) + invexn(i,k)*((qidep(iice)-qisub(iice)+qinuc(iice))*      &
                               xxls(i,k)*inv_cp +(qrcol(iice)+qccol(iice)+qchetc(iice)+ &
                               qcheti(iice)+qrhetc(iice)+qrheti(iice)+                  &
@@ -3718,7 +3723,6 @@ END subroutine p3_init
        endif
 
        qv(i,k) = qv(i,k) + (-qcnuc-qccon-qrcon+qcevp+qrevp)*dt
-       ! Update potential temperature. (Note, temperature is not updated here.)
        th(i,k) = th(i,k) + invexn(i,k)*((qcnuc+qccon+qrcon-qcevp-qrevp)*xxlv(i,k)*    &
                  inv_cp)*dt
    !==
@@ -4135,8 +4139,8 @@ END subroutine p3_init
                       call access_lookup_table(dumjj,dumii,dumi, 8,dum1,dum4,dum5,f1pr10)
                     !-impose mean ice size bounds (i.e. apply lambda limiters)
                     ! note that the Nmax and Nmin are normalized and thus need to be multiplied by existing N
-                      nitot(i,k,iice) = min(nitot(i,k,iice),f1pr09*nitot(i,k,iice))
-                      nitot(i,k,iice) = max(nitot(i,k,iice),f1pr10*nitot(i,k,iice))
+                      nitot(i,k,iice) = min(nitot(i,k,iice),f1pr09*qitot(i,k,iice))
+                      nitot(i,k,iice) = max(nitot(i,k,iice),f1pr10*qitot(i,k,iice))
                       V_qit(k) = f1pr02*rhofaci(i,k)     !mass-weighted  fall speed (with density factor)
                       V_nit(k) = f1pr01*rhofaci(i,k)     !number-weighted    fall speed (with density factor)
                     !==
@@ -4236,11 +4240,20 @@ END subroutine p3_init
                       call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 7,dum1,dum4,dum5,dum6,f1pr09)
                       call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 8,dum1,dum4,dum5,dum6,f1pr10)
                       call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,13,dum1,dum4,dum5,dum6,f1pr19)
+!                      call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,14,dum1,dum4,dum5,dum6,f1pr20)
+!                      call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,15,dum1,dum4,dum5,dum6,f1pr21)
+!                      call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,12,dum1,dum4,dum5,dum6,f1pr16)
+
+!    if (qitot(i,k,iice).ge.qsmall) then
+!       dum1 =  6./(f1pr16*pi)*qitot(i,k,iice)  !estimate of moment3
+!       mu_i = compute_mu_3moment(nitot(i,k,iice),dum1,zitot(i,k,iice),mu_i_max)
+!       print*,'before sed',k,mu_i
+!    endif
 
                     !-impose mean ice size bounds (i.e. apply lambda limiters)
                     ! note that the Nmax and Nmin are normalized and thus need to be multiplied by existing N
-                      nitot(i,k,iice) = min(nitot(i,k,iice),f1pr09*nitot(i,k,iice))
-                      nitot(i,k,iice) = max(nitot(i,k,iice),f1pr10*nitot(i,k,iice))
+                      nitot(i,k,iice) = min(nitot(i,k,iice),f1pr09*qitot(i,k,iice))
+                      nitot(i,k,iice) = max(nitot(i,k,iice),f1pr10*qitot(i,k,iice))
 
                     ! adjust Zitot to make sure mu is in bounds
                     ! note that the Zmax and Zmin are normalized and thus need to be multiplied by existing Q
@@ -4250,6 +4263,8 @@ END subroutine p3_init
                       V_qit(k) = f1pr02*rhofaci(i,k)     !mass-weighted  fall speed (with density factor)
                       V_nit(k) = f1pr01*rhofaci(i,k)     !number-weighted    fall speed (with density factor)
                       V_zit(k) = f1pr19*rhofaci(i,k)     !reflectivity-weighted fall speed (with density factor)
+!  V_zit(k) = f1pr02*rhofaci(i,k)     !reflectivity-weighted fall speed (with density factor)
+!  V_nit(k) = f1pr02*rhofaci(i,k)     !reflectivity-weighted fall speed (with density factor)
 
                    endif qi_notsmall_i2
 
@@ -4401,7 +4416,7 @@ END subroutine p3_init
              mu_i_new = mu_c(i,k)
              zitot(i,k,iice_dest) = zitot(i,k,iice_dest) + G_of_mu(mu_i_new)*tmp1**2/N_nuc
           endif ! log_3momentice
-         ! update potential temperature. (Note temperature is not updated here, but is used after anyway.)
+         ! update theta. Note temperature is NOT updated here, but currently not used after
           th(i,k) = th(i,k) + invexn(i,k)*Q_nuc*xlf(i,k)*inv_cp
           qc(i,k) = 0.  != qc(i,k) - Q_nuc
           nc(i,k) = 0.  != nc(i,k) - N_nuc
@@ -4433,7 +4448,7 @@ END subroutine p3_init
              mu_i_new = mu_r(i,k)
              zitot(i,k,iice_dest) = zitot(i,k,iice_dest) + G_of_mu(mu_i_new)*tmp1**2/N_nuc
           endif ! log_3momentice
-         ! update potential temperature. (Note temperature is not updated here, but is used after anyway.)
+         ! update theta. Note temperature is NOT updated here, but currently not used after
           th(i,k) = th(i,k) + invexn(i,k)*Q_nuc*xlf(i,k)*inv_cp
           qr(i,k) = 0.  ! = qr(i,k) - Q_nuc
           nr(i,k) = 0.  ! = nr(i,k) - N_nuc
@@ -4572,8 +4587,8 @@ END subroutine p3_init
 
           ! impose mean ice size bounds (i.e. apply lambda limiters)
           ! note that the Nmax and Nmin are normalized and thus need to be multiplied by existing N
-             nitot(i,k,iice) = min(nitot(i,k,iice),f1pr09*nitot(i,k,iice))
-             nitot(i,k,iice) = max(nitot(i,k,iice),f1pr10*nitot(i,k,iice))
+             nitot(i,k,iice) = min(nitot(i,k,iice),f1pr09*qitot(i,k,iice))
+             nitot(i,k,iice) = max(nitot(i,k,iice),f1pr10*qitot(i,k,iice))
 
           ! adjust Zitot to make sure mu is in bounds
           ! note that the Zmax and Zmin are normalized and thus need to be multiplied by existing Q
@@ -5859,32 +5874,33 @@ SUBROUTINE access_lookup_table_coll_3mom(dumzz,dumjj,dumii,dumj,dumi,index,dum1,
       if (i_type.EQ.1 .and. T.lt.273.15) then
 ! ICE
 
-!       Flatau formulation:
-         dt       = max(-80.,t-273.16)
-         polysvp1 = a0i + dt*(a1i+dt*(a2i+dt*(a3i+dt*(a4i+dt*(a5i+dt*(a6i+dt*(a7i+       &
-                    a8i*dt)))))))
-         polysvp1 = polysvp1*100.
-
-!       Goff-Gratch formulation:
-!        POLYSVP1 = 10.**(-9.09718*(273.16/T-1.)-3.56654*                 &
-!          log10(273.16/T)+0.876793*(1.-T/273.16)+                        &
-!          log10(6.1071))*100.
-
+! hm 11/16/20, use Goff-Gratch for T < 195.8 K and Flatau et al. equal or above 195.8 K
+         if (t.ge.195.8) then
+            dt=t-273.15
+            polysvp1 = a0i + dt*(a1i+dt*(a2i+dt*(a3i+dt*(a4i+dt*(a5i+dt*(a6i+dt*(a7i+a8i*dt)))))))                                                                                    
+            polysvp1 = polysvp1*100.
+         else
+            polysvp1 = 10.**(-9.09718*(273.16/t-1.)-3.56654* &
+                alog10(273.16/t)+0.876793*(1.-t/273.16)+ &
+                alog10(6.1071))*100.
+         end if
 
       elseif (i_type.EQ.0 .or. T.ge.273.15) then
 ! LIQUID
 
-!       Flatau formulation:
-         dt       = max(-80.,t-273.16)
-         polysvp1 = a0 + dt*(a1+dt*(a2+dt*(a3+dt*(a4+dt*(a5+dt*(a6+dt*(a7+a8*dt)))))))
-         polysvp1 = polysvp1*100.
-
-!       Goff-Gratch formulation:
-!        POLYSVP1 = 10.**(-7.90298*(373.16/T-1.)+                         &
-!             5.02808*log10(373.16/T)-                                    &
-!             1.3816E-7*(10**(11.344*(1.-T/373.16))-1.)+                  &
-!             8.1328E-3*(10**(-3.49149*(373.16/T-1.))-1.)+                &
-!             log10(1013.246))*100.
+! hm 11/16/20, use Goff-Gratch for T < 202.0 K and Flatau et al. equal or above 202.0 K
+         if (t.ge.202.0) then
+            dt = t-273.15
+            polysvp1 = a0 + dt*(a1+dt*(a2+dt*(a3+dt*(a4+dt*(a5+dt*(a6+dt*(a7+a8*dt)))))))                                                                                             
+            polysvp1 = polysvp1*100.
+         else
+! note: uncertain below -70 C, but produces physical values (non-negative) unlike flatau
+            polysvp1 = 10.**(-7.90298*(373.16/t-1.)+ &
+                5.02808*alog10(373.16/t)- &
+                1.3816e-7*(10**(11.344*(1.-t/373.16))-1.)+ &
+                8.1328e-3*(10**(-3.49149*(373.16/t-1.))-1.)+ &
+                alog10(1013.246))*100.
+         end if
 
          endif
 
@@ -6580,7 +6596,7 @@ SUBROUTINE access_lookup_table_coll_3mom(dumzz,dumjj,dumii,dumj,dumi,index,dum1,
 
                     ! find index for qi (total ice mass mixing ratio)
 ! replace with new inversion for new lookup table 2 w/ reduced dimensionality
-                     !dum1 = (alog10(qitot_1/nitot_1)+18.)/(0.2*alog10(261.7))-5. !orig
+!                      dum1 = (alog10(qitot_1/nitot_1)+18.)/(0.2*alog10(261.7))-5. !orig
                       dum1 = (alog10(qitot_1/nitot_1)+18.)*(2.06799)-5. !for computational efficiency
                       dumi = int(dum1)
                       dum1 = min(dum1,real(iisize))
@@ -6730,13 +6746,13 @@ SUBROUTINE access_lookup_table_coll_3mom(dumzz,dumjj,dumii,dumj,dumi,index,dum1,
 !--------------------------------------------------------------------------
 
 
-       qc = qc_grd*iSCF  !in-cloud value
+     ! grid-mean values
+       qc = qc_grd*iSCF
+       nc = nc_grd*iSCF
 
        if (qc.ge.qsmall) then
 
-          nc = nc_grd*iSCF  !in-cloud value
-
-       ! set minimum nc to prevent floating point error
+        ! set minimum nc to prevent floating point error
           nc   = max(nc,nsmall)
           mu_c = 0.0005714*(nc*1.e-6*rho)+0.2714
           mu_c = 1./(mu_c**2)-1.
@@ -6799,11 +6815,11 @@ SUBROUTINE access_lookup_table_coll_3mom(dumzz,dumjj,dumii,dumj,dumi,index,dum1,
 
 !--------------------------------------------------------------------------
 
-       qr = qr_grd*iSPF  !in-precipitation value
+     ! compute in-cloud (precipitation) values (note, nr gets modified below)
+       qr = qr_grd*iSPF
+       nr = nr_grd*iSPF
 
        if (qr.ge.qsmall) then
-
-          nr = nr_grd*iSPF  !in-precipitation value
 
        ! use lookup table to get mu
        ! mu-lambda relationship is from Cao et al. (2008), eq. (7)
