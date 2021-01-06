@@ -19,8 +19,8 @@
 !    Jason Milbrandt (jason.milbrandt@canada.ca)                                           !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       4.0.7                                                                     !
-! Last updated:  2020-12-10                                                                !
+! Version:       4.0.7-HM                                                                  !
+! Last updated:  2021-01-02                                                                !
 !__________________________________________________________________________________________!
 
  MODULE MODULE_MP_P3
@@ -126,7 +126,7 @@
  character(len=1024), parameter :: version_p3                    = '4.0.7'
  character(len=1024), parameter :: version_intended_table_1_2mom = '2momI_v5.1.6_oldDimax'
  character(len=1024), parameter :: version_intended_table_1_3mom = '3momI_v5.1.6'
- character(len=1024), parameter :: version_intended_table_2      = '4'
+ character(len=1024), parameter :: version_intended_table_2      = '4.1'
 
  character(len=1024)            :: version_header_table_1_2mom
  character(len=1024)            :: version_header_table_1_3mom
@@ -138,6 +138,7 @@
  real                           :: lamr,mu_r,dum,dm,dum1,dum2,dum3,dum4,dum5,  &
                                    dd,amg,vt,dia
  logical                        :: err_abort
+ integer                        :: ierr
 
 !------------------------------------------------------------------------------------------!
 
@@ -385,7 +386,7 @@
     if (global_status == STATUS_ERROR) then
        if (err_abort) then
           print*,'Stopping in P3 init'
-          call flush(6)
+          flush(6)
           stop
        endif
        return
@@ -395,7 +396,14 @@
 
     print*, '     Reading table 1 [',trim(version_intended_table_1_3mom),'] ...'
             
-    open(unit=10,file=lookup_file_1, status='old')
+    open(unit=10,file=lookup_file_1,status='old',iostat=ierr,err=101)
+ 101  if (ierr.ne.0) then
+         print*,'Error opening 3-moment lookup table file '//lookup_file_1
+         print*,'Make sure this file is unzipped and then rerun the model.'
+         print*,' '
+         flush(6)
+         stop
+      end if
 
     !-- check that table version is correct:
     !   note:  to override and use a different lookup table, simply comment out the 'return' below
@@ -509,7 +517,7 @@
 !  if (global_status == STATUS_ERROR) then
 !     if (err_abort) then
 !        print*,'Stopping in P3 init'
-!        call flush(6)
+!        flush(6)
 !        stop
 !     endif
 !     return
@@ -693,13 +701,13 @@ END subroutine p3_init
   !  1) specified droplet number (i.e. 1-moment cloud water), 1 ice category                 !
   !  2) predicted droplet number (i.e. 2-moment cloud water), 1 ice category                 !
   !  3) predicted droplet number (i.e. 2-moment cloud water), 2 ice categories               !
+  !  4) predicted droplet number (i.e. 2-moment cloud water), 1 ice catetory, 3-moment ice   !
   !                                                                                          !
   !  The  2-moment cloud version is based on a specified aerosol distribution and            !
   !  does not include a subgrid-scale vertical velocity for droplet activation. Hence,       !
   !  this version should only be used for high-resolution simulations that resolve           !
   !  vertical motion driving droplet activation.                                             !
   !                                                                                          !
-  ! This version of the WRF wrapper works with WRFV3.8.                                      !
   !------------------------------------------------------------------------------------------!
 
   !--- input:
@@ -725,6 +733,7 @@ END subroutine p3_init
   ! qir1_3d   --> rime ice mass mixing ratio (kg/kg)
   ! qib1_3d   --> ice rime volume mixing ratio (m^-3 kg^-1)
   ! qzi1_3d   --> ice rime volume mixing ratio (m^-6 kg^-1)
+  ! nc_3d     --> cloud droplet number mixing ratio (#/kg)
 
   !--- output:
 
@@ -935,7 +944,6 @@ END subroutine p3_init
   ! also updates the accumulated precipitation arrays and then passes back them, the         !
   ! updated 3D fields, and some diagnostic fields to the driver model.                       !
   !                                                                                          !
-  ! This version of the WRF wrapper works with WRFV3.8.                                      !
   !------------------------------------------------------------------------------------------!
 
   !--- input:
@@ -956,10 +964,15 @@ END subroutine p3_init
   ! qc_3d     --> cloud water mass mixing ratio (kg/kg)
   ! qr_3d     --> rain mass mixing ratio (kg/kg)
   ! qnr_3d    --> rain number mixing ratio (#/kg)
-  ! qi1_3d    --> total ice mixing ratio (kg/kg)
-  ! qni1_3d   --> ice number mixing ratio (#/kg)
-  ! qir1_3d   --> rime ice mass mixing ratio (kg/kg)
-  ! qib1_3d   --> ice rime volume mixing ratio (m^-3 kg^-1)
+  ! qi1_3d    --> total ice mixing ratio category 1 (kg/kg)
+  ! qni1_3d   --> ice number mixing ratio category 1 (#/kg)
+  ! qir1_3d   --> rime ice mass mixing ratio category 1 (kg/kg)
+  ! qib1_3d   --> ice rime volume mixing ratio category 1 (m^-3 kg^-1)
+  ! qi2_3d    --> total ice mixing ratio category 2 (kg/kg)
+  ! qni2_3d   --> ice number mixing ratio category 2 (#/kg)
+  ! qir2_3d   --> rime ice mass mixing ratio category 2 (kg/kg)
+  ! qib2_3d   --> ice rime volume mixing ratio category 2 (m^-3 kg^-1)
+  ! nc_3d     --> cloud droplet number mixing ratio (#/kg)
 
   !--- output:
 
