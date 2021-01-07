@@ -19,8 +19,8 @@
 !    Jason Milbrandt (jason.milbrandt@canada.ca)                                           !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       4.0.7-HM                                                                  !
-! Last updated:  2021-01-02                                                                !
+! Version:       4.0.8                                                                     !
+! Last updated:  2021-01-06                                                                !
 !__________________________________________________________________________________________!
 
  MODULE MODULE_MP_P3
@@ -123,7 +123,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '4.0.7'
+ character(len=1024), parameter :: version_p3                    = '4.0.8'
  character(len=1024), parameter :: version_intended_table_1_2mom = '2momI_v5.1.6_oldDimax'
  character(len=1024), parameter :: version_intended_table_1_3mom = '3momI_v5.1.6'
  character(len=1024), parameter :: version_intended_table_2      = '4.1'
@@ -3122,7 +3122,7 @@ END subroutine p3_init
            !note: limit to saturation adjustment (for dep and subl) is applied later
              qisub(iice) = -qidep(iice)
              qisub(iice) = qisub(iice)*clbfact_sub
-             qisub(iice) = min(qisub(iice), qitot(i,k,iice)*dt)
+             qisub(iice) = min(qisub(iice), qitot(i,k,iice)*odt)
              nisub(iice) = qisub(iice)*(nitot(i,k,iice)/qitot(i,k,iice))
              qidep(iice) = 0.
           else
