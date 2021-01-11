@@ -19,8 +19,8 @@
 !    Jason Milbrandt (jason.milbrandt@canada.ca)                                           !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       4.0.8                                                                     !
-! Last updated:  2021-01-06                                                                !
+! Version:       4.0.8-HM                                                                  !
+! Last updated:  2021-01-11                                                                !
 !__________________________________________________________________________________________!
 
  MODULE MODULE_MP_P3
@@ -3183,7 +3183,7 @@ END subroutine p3_init
           dumqvs = qv_sat(t(i,k),pres(i,k),0)
           dqsdt = xxlv(i,k)*dumqvs/(rv*t(i,k)*t(i,k))
           ab    = 1. + dqsdt*xxlv(i,k)*inv_cp
-          dum   = min(dum,(Qv_cld(k)-dumqvs)/ab)  ! limit overdepletion of supersaturation
+          dum   = max(0.,min(dum,(Qv_cld(k)-dumqvs)/ab))  ! limit overdepletion of supersaturation
           qcnuc = dum*odt*SCF(k)
        endif
 
