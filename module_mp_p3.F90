@@ -19,7 +19,7 @@
 !    Jason Milbrandt (jason.milbrandt@canada.ca)                                           !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       4.0.11                                                                    !
+! Version:       4.0.12                                                                    !
 ! Last updated:  2021-01-22                                                                !
 !__________________________________________________________________________________________!
 
@@ -123,7 +123,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '4.0.11'
+ character(len=1024), parameter :: version_p3                    = '4.0.12'
 ! character(len=1024), parameter :: version_intended_table_1_2mom = '2momI_v5.1.6_oldDimax'
  character(len=1024), parameter :: version_intended_table_1_2mom = '2momI-v5.3'  
  character(len=1024), parameter :: version_intended_table_1_3mom = '3momI_v5.1.6'
@@ -3524,7 +3524,7 @@ END subroutine p3_init
           dumm3(iice) = qitot(i,k,iice) + ( qidep(iice)+qrcol(iice)+qccol(iice)+     &
                                             qrmul(iice)-qisub(iice)-qimlt(iice) )*dt
         ! NOTE: must add nicol in line below for combining 3-moment with multi-cat P3
-          dumm0(iice) = nitot(i,k,iice) + ( nimlt(iice)+nisub(iice)+nimul(iice)-nislf(iice) )*dt
+          dumm0(iice) = nitot(i,k,iice) + (-nimlt(iice)-nisub(iice)+nimul(iice)-nislf(iice) )*dt
 
          !update further due to category interactions:
           do catcoll = 1,nCat
