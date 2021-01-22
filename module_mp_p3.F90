@@ -19,7 +19,7 @@
 !    Jason Milbrandt (jason.milbrandt@canada.ca)                                           !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       4.0.8-HM                                                                  !
+! Version:       4.0.9                                                                     !
 ! Last updated:  2021-01-11                                                                !
 !__________________________________________________________________________________________!
 
@@ -123,7 +123,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '4.0.8'
+ character(len=1024), parameter :: version_p3                    = '4.0.9'
  character(len=1024), parameter :: version_intended_table_1_2mom = '2momI_v5.1.6_oldDimax'
  character(len=1024), parameter :: version_intended_table_1_3mom = '3momI_v5.1.6'
  character(len=1024), parameter :: version_intended_table_2      = '4.1'
