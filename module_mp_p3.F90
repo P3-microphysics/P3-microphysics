@@ -19,8 +19,8 @@
 !    Jason Milbrandt (jason.milbrandt@canada.ca)                                           !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       4.0.10                                                                    !
-! Last updated:  2021-01-15                                                                !
+! Version:       4.0.11                                                                    !
+! Last updated:  2021-01-22                                                                !
 !__________________________________________________________________________________________!
 
  MODULE MODULE_MP_P3
@@ -114,16 +114,16 @@
  implicit none
 
 ! Passed arguments:
- character(len=1024), intent(in)            :: lookup_file_dir      ! directory of the lookup tables (model library)
- integer,       intent(in)            :: nCat                 ! number of free ice categories
- logical,       intent(in)            :: trplMomI             ! .T.=3-moment / .F.=2-moment (ice)
- integer,       intent(out), optional :: stat                 ! return status of subprogram
- logical,       intent(in),  optional :: abort_on_err         ! abort when an error is encountered [.false.]
-  character(len=1024),intent(in),optional :: model                ! driving model
+ character(len=1024), intent(in)          :: lookup_file_dir    ! directory of the lookup tables (model library)
+ integer,       intent(in)                :: nCat               ! number of free ice categories
+ logical,       intent(in)                :: trplMomI           ! .T.=3-moment / .F.=2-moment (ice)
+ integer,       intent(out), optional     :: stat               ! return status of subprogram
+ logical,       intent(in),  optional     :: abort_on_err       ! abort when an error is encountered [.false.]
+  character(len=1024),intent(in),optional :: model              ! driving model
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '4.0.10'
+ character(len=1024), parameter :: version_p3                    = '4.0.11'
 ! character(len=1024), parameter :: version_intended_table_1_2mom = '2momI_v5.1.6_oldDimax'
  character(len=1024), parameter :: version_intended_table_1_2mom = '2momI-v5.3'  
  character(len=1024), parameter :: version_intended_table_1_3mom = '3momI_v5.1.6'
@@ -3443,7 +3443,12 @@ END subroutine p3_init
           qccol  = qccol*ratio
           qcheti = qcheti*ratio
           qcshd  = qcshd*ratio
-         !qchetc = qchetc*ratio
+          ncaut  = ncaut*ratio
+          ncacc  = ncacc*ratio
+          nccol  = nccol*ratio
+          ncheti = ncheti*ratio
+          ncshd  = ncshd*ratio
+         !nchetc = nchetc*ratio
        endif
 
 ! rain
@@ -3455,7 +3460,11 @@ END subroutine p3_init
           qrcol  = qrcol*ratio
           qrheti = qrheti*ratio
           qrmul  = qrmul*ratio
+          nrevp  = nrevp*ratio
+          nrcol  = nrcol*ratio
+          nrheti = nrheti*ratio
          !qrhetc = qrhetc*ratio
+         !nrhetc = nrhetc*ratio
        endif
 
 ! ice
@@ -3473,8 +3482,11 @@ END subroutine p3_init
              ratio = sources/sinks
              qisub(iice) = qisub(iice)*ratio
              qimlt(iice) = qimlt(iice)*ratio
+             nisub(iice) = nisub(iice)*ratio
+             nimlt(iice) = nimlt(iice)*ratio
              do catcoll = 1,nCat
                 qicol(iice,catcoll) = qicol(iice,catcoll)*ratio
+                nicol(iice,catcoll) = nicol(iice,catcoll)*ratio
              enddo
           endif
       enddo  !iice-loop
