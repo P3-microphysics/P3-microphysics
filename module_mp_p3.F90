@@ -19,8 +19,8 @@
 !    Jason Milbrandt (jason.milbrandt@canada.ca)                                           !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       4.0.9                                                                     !
-! Last updated:  2021-01-11                                                                !
+! Version:       4.0.10                                                                    !
+! Last updated:  2021-01-15                                                                !
 !__________________________________________________________________________________________!
 
  MODULE MODULE_MP_P3
@@ -106,25 +106,26 @@
 ! 'P3_INIT' be called at the first model time step, prior to first call to 'P3_MAIN'.      !
 !------------------------------------------------------------------------------------------!
 
-! #ifdef ECCCGEM
-!  use iso_c_binding
-!  use rpn_comm_itf_mod
-! #endif
+#ifdef ECCCGEM
+ use iso_c_binding
+ use rpn_comm_itf_mod
+#endif
 
  implicit none
 
 ! Passed arguments:
- character*(*), intent(in)            :: lookup_file_dir      ! directory of the lookup tables (model library)
+ character(len=1024), intent(in)            :: lookup_file_dir      ! directory of the lookup tables (model library)
  integer,       intent(in)            :: nCat                 ! number of free ice categories
  logical,       intent(in)            :: trplMomI             ! .T.=3-moment / .F.=2-moment (ice)
  integer,       intent(out), optional :: stat                 ! return status of subprogram
  logical,       intent(in),  optional :: abort_on_err         ! abort when an error is encountered [.false.]
- character(len=*),intent(in),optional :: model                ! driving model
+  character(len=1024),intent(in),optional :: model                ! driving model
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '4.0.9'
- character(len=1024), parameter :: version_intended_table_1_2mom = '2momI_v5.1.6_oldDimax'
+ character(len=1024), parameter :: version_p3                    = '4.0.10'
+! character(len=1024), parameter :: version_intended_table_1_2mom = '2momI_v5.1.6_oldDimax'
+ character(len=1024), parameter :: version_intended_table_1_2mom = '2momI-v5.3'  
  character(len=1024), parameter :: version_intended_table_1_3mom = '3momI_v5.1.6'
  character(len=1024), parameter :: version_intended_table_2      = '4.1'
 
@@ -134,7 +135,7 @@
  character(len=1024)            :: lookup_file_1                      !lookup table, main
  character(len=1024)            :: lookup_file_2                      !lookup table for ice-ice interactions
  character(len=1024)            :: dumstr,read_path
- integer                        :: i,j,ii,jj,kk,jjj,jjj2,jjjj,jjjj2,end_status,zz,procnum
+ integer                        :: i,j,ii,jj,kk,jjj,jjj2,jjjj,jjjj2,end_status,zz,procnum,istat
  real                           :: lamr,mu_r,dum,dm,dum1,dum2,dum3,dum4,dum5,  &
                                    dd,amg,vt,dia
  logical                        :: err_abort
@@ -305,9 +306,9 @@
 
  procnum = 0
 
-! #ifdef ECCCGEM
-!  call rpn_comm_rank(RPN_COMM_GRID,procnum,istat)
-! #endif
+#ifdef ECCCGEM
+ call rpn_comm_rank(RPN_COMM_GRID,procnum,istat)
+#endif
 
  if (trplMomI) then
     itab_3mom_dp = 0.D0
@@ -510,32 +511,32 @@
  endif IF_PROC0
 
 
-! #ifdef ECCCGEM
-!  call rpn_comm_bcast(global_status,1,RPN_COMM_INTEGER,0,RPN_COMM_GRID,istat)
-! #endif
-! 
-!  if (global_status == STATUS_ERROR) then
-!     if (err_abort) then
-!        print*,'Stopping in P3 init'
-!        flush(6)
-!        stop
-!     endif
-!     return
-!  endif
-! 
-! #ifdef ECCCGEM
-!  if (trplMomI) then
-!     call rpn_comm_bcast(itab_3mom,size(itab_3mom),RPN_COMM_REAL,0,RPN_COMM_GRID,istat)
-!     call rpn_comm_bcast(itabcoll_3mom,size(itabcoll_3mom),RPN_COMM_DOUBLE_PRECISION,0,RPN_COMM_GRID,istat)
-!  else
-!     call rpn_comm_bcast(itab,size(itab),RPN_COMM_REAL,0,RPN_COMM_GRID,istat)
-!     call rpn_comm_bcast(itabcoll,size(itabcoll),RPN_COMM_DOUBLE_PRECISION,0,RPN_COMM_GRID,istat)
-!  endif
-!  if (nCat>1) then
-!     call rpn_comm_bcast(itabcolli1,size(itabcolli1),RPN_COMM_DOUBLE_PRECISION,0,RPN_COMM_GRID,istat)
-!     call rpn_comm_bcast(itabcolli2,size(itabcolli2),RPN_COMM_DOUBLE_PRECISION,0,RPN_COMM_GRID,istat)
-!  endif
-! #endif
+#ifdef ECCCGEM
+ call rpn_comm_bcast(global_status,1,RPN_COMM_INTEGER,0,RPN_COMM_GRID,istat)
+#endif
+
+ if (global_status == STATUS_ERROR) then
+    if (err_abort) then
+       print*,'Stopping in P3 init'
+       flush(6)
+       stop
+    endif
+    return
+ endif
+
+#ifdef ECCCGEM
+ if (trplMomI) then
+    call rpn_comm_bcast(itab_3mom,size(itab_3mom),RPN_COMM_REAL,0,RPN_COMM_GRID,istat)
+    call rpn_comm_bcast(itabcoll_3mom,size(itabcoll_3mom),RPN_COMM_DOUBLE_PRECISION,0,RPN_COMM_GRID,istat)
+ else
+    call rpn_comm_bcast(itab,size(itab),RPN_COMM_REAL,0,RPN_COMM_GRID,istat)
+    call rpn_comm_bcast(itabcoll,size(itabcoll),RPN_COMM_DOUBLE_PRECISION,0,RPN_COMM_GRID,istat)
+ endif
+ if (nCat>1) then
+    call rpn_comm_bcast(itabcolli1,size(itabcolli1),RPN_COMM_DOUBLE_PRECISION,0,RPN_COMM_GRID,istat)
+    call rpn_comm_bcast(itabcolli2,size(itabcolli2),RPN_COMM_DOUBLE_PRECISION,0,RPN_COMM_GRID,istat)
+ endif
+#endif
 
 !------------------------------------------------------------------------------------------!
 
@@ -2004,13 +2005,13 @@ END subroutine p3_init
  real, dimension(kts:kte) :: SCF,iSCF,SPF,iSPF,SPF_clr,Qv_cld,Qv_clr
  real                     :: ssat_cld,ssat_clr,ssat_r,supi_cld,sup_cld,sup_r
 
- real    :: lammax,lammin,mu,dv,sc,dqsdt,ab,kap,epsr,epsc,xx,aaa,epsilon,sigvl,epsi_tot, &
+ real    :: lammax,lammin,mu,dv,sc,dqsdT,ab,kap,epsr,epsc,xx,aaa,epsilon,sigvl,epsi_tot, &
             aact,sm1,sm2,uu1,uu2,dum,dum1,dum2,dumqv,dumqvs,dums,ratio,qsat0,dum3,dum4,  &
             dum5,dum6,rdumii,rdumjj,dqsidt,abi,dumqvi,rhop,v_impact,ri,iTc,D_c,tmp1,     &
             tmp2,inv_dum3,odt,oxx,oabi,fluxdiv_qit,fluxdiv_nit,fluxdiv_qir,fluxdiv_bir,  &
             prt_accum,fluxdiv_qx,fluxdiv_nx,Co_max,dt_sub,fluxdiv_zit,D_new,Q_nuc,N_nuc, &
             deltaD_init,dum1c,dum4c,dum5c,dumt,qcon_satadj,qdep_satadj,sources,sinks,    &
-            timeScaleFactor,dt_left
+            timeScaleFactor,dt_left,qv_tmp,t_tmp
 
  double precision :: tmpdbl1,tmpdbl2,tmpdbl3
 
@@ -2055,7 +2056,7 @@ END subroutine p3_init
  integer                                  :: ktop_typeDiag
 
 ! to be added as namelist parameters (future)
- logical, parameter :: debug_ABORT  = .false. !.true. will result in forced abort in s/r 'check_values'
+ logical, parameter :: debug_ABORT  = .true. !.true. will result in forced abort in s/r 'check_values'
  logical            :: force_abort
  integer            :: location_ind          !return value of location index from sr/ 'check_values'
 ! added for triple moment ice
@@ -2397,8 +2398,8 @@ END subroutine p3_init
       ! production term for supersaturation, and the effects are sub-grid
       ! scale mixing and radiation are not explicitly included.
 
-          dqsdt   = xxlv(i,k)*qvs(i,k)/(rv*t(i,k)*t(i,k))
-          ab      = 1. + dqsdt*xxlv(i,k)*inv_cp
+          dqsdT   = xxlv(i,k)*qvs(i,k)/(rv*t(i,k)*t(i,k))
+          ab      = 1. + dqsdT*xxlv(i,k)*inv_cp
           epsilon = (qv(i,k)-qvs(i,k)-ssat(i,k))/ab
           epsilon = max(epsilon,-qc(i,k))   ! limit adjustment to available water
         ! don't adjust upward if subsaturated
@@ -2436,9 +2437,9 @@ END subroutine p3_init
        dv     = 8.794e-5*t(i,k)**1.81/pres(i,k)
        sc     = mu/(rho(i,k)*dv)
        dum    = 1./(rv*t(i,k)**2)
-       dqsdt  = xxlv(i,k)*qvs(i,k)*dum
+       dqsdT  = xxlv(i,k)*qvs(i,k)*dum
        dqsidt = xxls(i,k)*qvi(i,k)*dum
-       ab     = 1.+dqsdt*xxlv(i,k)*inv_cp
+       ab     = 1.+dqsdT*xxlv(i,k)*inv_cp
        abi    = 1.+dqsidt*xxls(i,k)*inv_cp
        kap    = 1.414e+3*mu
       !very simple temperature dependent aggregation efficiency
@@ -3018,7 +3019,7 @@ END subroutine p3_init
 
        if (t(i,k).lt.273.15) then
           oabi = 1./abi
-          xx = epsc + epsr + epsi_tot*(1.+xxls(i,k)*inv_cp*dqsdt)*oabi
+          xx = epsc + epsr + epsi_tot*(1.+xxls(i,k)*inv_cp*dqsdT)*oabi
        else
           xx = epsc + epsr
        endif
@@ -3055,10 +3056,10 @@ END subroutine p3_init
 !       dum = qvs(i,k)*rho(i,k)*g*uzpl(i,k)/max(1.e-3,(pres(i,k)-polysvp1(t(i,k),0)))
 
        if (t(i,k).lt.273.15) then
-          aaa = (qv(i,k)-qv_old(i,k))*odt - dqsdt*(-dum*g*inv_cp)-(qvs(i,k)-dumqvi)*     &
-                (1.+xxls(i,k)*inv_cp*dqsdt)*oabi*epsi_tot
+          aaa = (qv(i,k)-qv_old(i,k))*odt - dqsdT*(-dum*g*inv_cp)-(qvs(i,k)-dumqvi)*     &
+                (1.+xxls(i,k)*inv_cp*dqsdT)*oabi*epsi_tot
        else
-          aaa = (qv(i,k)-qv_old(i,k))*odt - dqsdt*(-dum*g*inv_cp)
+          aaa = (qv(i,k)-qv_old(i,k))*odt - dqsdT*(-dum*g*inv_cp)
        endif
 
        xx  = max(1.e-20,xx)   ! set lower bound on xx to prevent division by zero
@@ -3092,15 +3093,20 @@ END subroutine p3_init
        if (qccon.lt.0.) then
           qcevp = -qccon
           qccon = 0.
+       else
+          qccon = min(qccon, qv(i,k)*odt)              
        endif
+       
 
        if (qrcon.lt.0.) then
           qrevp = -qrcon
           nrevp = qrevp*(nr(i,k)/qr(i,k))
          !nrevp = nrevp*exp(-0.2*mu_r(i,k))  !add mu dependence [Seifert (2008), neglecting size dependence]
           qrcon = 0.
+       else
+          qrcon = min(qrcon, qv(i,k)*odt)
        endif
-
+       
        iice_loop_depsub:  do iice = 1,nCat
 
           if (qitot(i,k,iice).ge.qsmall.and.t(i,k).lt.273.15) then
@@ -3126,9 +3132,10 @@ END subroutine p3_init
              nisub(iice) = qisub(iice)*(nitot(i,k,iice)/qitot(i,k,iice))
              qidep(iice) = 0.
           else
-             qidep(iice) = qidep(iice)*clbfact_dep
+             qidep(iice) = qidep(iice)*clbfact_dep            
+             qidep(iice) = min(qidep(iice), qv(i,k)*odt)
           endif
-
+          
        enddo iice_loop_depsub
 
 444    continue
@@ -3181,8 +3188,8 @@ END subroutine p3_init
           dum   = nccnst*inv_rho(i,k)*cons7-qc(i,k)
           dum   = max(0.,dum*iSCF(k))         ! in-cloud value
           dumqvs = qv_sat(t(i,k),pres(i,k),0)
-          dqsdt = xxlv(i,k)*dumqvs/(rv*t(i,k)*t(i,k))
-          ab    = 1. + dqsdt*xxlv(i,k)*inv_cp
+          dqsdT = xxlv(i,k)*dumqvs/(rv*t(i,k)*t(i,k))
+          ab    = 1. + dqsdT*xxlv(i,k)*inv_cp
           dum   = max(0.,min(dum,(Qv_cld(k)-dumqvs)/ab))  ! limit overdepletion of supersaturation
           qcnuc = dum*odt*SCF(k)
        endif
@@ -3367,60 +3374,63 @@ END subroutine p3_init
 
 
 !.................................................................
-! conservation of water
-!.................................................................
-
+! conservation of mass
+!
 ! The microphysical process rates are computed above, based on the environmental conditions.
 ! The rates are adjusted here (where necessary) such that the sum of the sinks of mass cannot
 ! be greater than the sum of the sources, thereby resulting in overdepletion.
 
-
-   !-- Limit total condensation (incl. activation) and evaporation to saturation adjustment
+    !Limit total condensation (incl. activation) and evaporation to saturation adjustment
        dumqvs = qv_sat(t(i,k),pres(i,k),0)
        qcon_satadj  = (Qv_cld(k)-dumqvs)/(1.+xxlv(i,k)**2*dumqvs/(cp*rv*t(i,k)**2))*odt*SCF(k)
+       
        tmp1 = qccon+qrcon+qcnuc
-       if (tmp1.gt.0. .and. tmp1.gt.qcon_satadj) then
-          ratio = max(0.,qcon_satadj)/tmp1
-          ratio = min(1.,ratio)
-          qccon = qccon*ratio
-          qrcon = qrcon*ratio
-          qcnuc = qcnuc*ratio
-          ncnuc = ncnuc*ratio
-       elseif (qcevp+qrevp.gt.0.) then
-          ratio = max(0.,-qcon_satadj)/(qcevp+qrevp)
-          ratio = min(1.,ratio)
-          qcevp = qcevp*ratio
-          qrevp = qrevp*ratio
-          nrevp = nrevp*ratio
+       if (tmp1>0. .and. qcon_satadj<0.) then
+          qccon = 0.
+          qrcon = 0.
+          qcnuc = 0.
+       else
+          if (tmp1.gt.0. .and. tmp1.gt.qcon_satadj) then
+             ratio = max(0.,qcon_satadj)/tmp1
+             ratio = min(1.,ratio)
+             qccon = qccon*ratio
+             qrcon = qrcon*ratio
+             qcnuc = qcnuc*ratio
+             ncnuc = ncnuc*ratio
+          elseif (qcevp+qrevp.gt.0.) then
+             ratio = max(0.,-qcon_satadj)/(qcevp+qrevp)
+             ratio = min(1.,ratio)
+             qcevp = qcevp*ratio
+             qrevp = qrevp*ratio
+             nrevp = nrevp*ratio
+          endif
        endif
 
+    !Limit total deposition (incl. nucleation) and sublimation to saturation adjustment  
+       qv_tmp = Qv_cld(k) + (-qcnuc-qcacc-qrcon+qcevp+qrevp)*dt                              !qv after cond/evap      
+       t_tmp  = t(i,k) + (qcnuc+qccon+qrcon-qcevp-qrevp)*xxlv(i,k)*inv_cp*dt                 !T after cond/evap       
+       dumqvi = qv_sat(t_tmp,pres(i,k),1)
+       qdep_satadj = (qv_tmp-dumqvi)/(1.+xxls(i,k)**2*dumqvi/(cp*rv*t_tmp**2))*odt*SCF(k)
 
-   !-- Limit ice process rates to prevent overdepletion of sources such that
-   !   the subsequent adjustments are done with maximum possible rates for the
-   !   time step.  (note: most ice rates are adjusted here since they must be done
-   !   simultaneously (outside of iice-loops) to distribute reduction proportionally
-   !   amongst categories.
-
-       dumqvi = qv_sat(t(i,k),pres(i,k),1)
-       qdep_satadj = (Qv_cld(k)-dumqvi)/(1.+xxls(i,k)**2*dumqvi/(cp*rv*t(i,k)**2))*odt*SCF(k)
        tmp1 = sum(qidep)+sum(qinuc)
-       if (tmp1.gt.0. .and. tmp1.gt.qdep_satadj) then
-          ratio = max(0.,qdep_satadj)/tmp1
-          ratio = min(1.,ratio)
-          qidep = qidep*ratio
-          qinuc = qinuc*ratio
+       if (tmp1>0. .and. qdep_satadj<0.) then
+          qidep = 0.
+          qinuc = 0.
+       else
+          if (tmp1.gt.0. .and. tmp1.gt.qdep_satadj) then
+             ratio = max(0.,qdep_satadj)/tmp1
+             ratio = min(1.,ratio)
+             qidep = qidep*ratio
+             qinuc = qinuc*ratio
+          endif
+          do iice = 1,nCat
+             dum = max(qisub(iice),1.e-20)
+             qisub(iice)  = qisub(iice)*min(1.,max(0.,-qdep_satadj)/max(sum(qisub), 1.e-20))  !optimized (avoids IF(qisub.gt.0.) )
+             nisub(iice)  = nisub(iice)*min(1.,qisub(iice)/dum)
+          enddo
+         !qchetc = qchetc*min(1.,qc(i,k)*odt/max(sum(qchetc),1.e-20))  !currently not used
+         !qrhetc = qrhetc*min(1.,qr(i,k)*odt/max(sum(qrhetc),1.e-20))  !currently not used
        endif
-       do iice = 1,nCat
-          dum = max(qisub(iice),1.e-20)
-          qisub(iice)  = qisub(iice)*min(1.,max(0.,-qdep_satadj)/max(sum(qisub), 1.e-20))  !optimized (avoids IF(qisub.gt.0.) )
-          nisub(iice)  = nisub(iice)*min(1.,qisub(iice)/dum)
-       enddo
-      !qchetc = qchetc*min(1.,qc(i,k)*odt/max(sum(qchetc),1.e-20))  !currently not used
-      !qrhetc = qrhetc*min(1.,qr(i,k)*odt/max(sum(qrhetc),1.e-20))  !currently not used
-   !==
-
-! vapor -- not needed, since all sinks already have limits imposed and the sum, therefore,
-!          cannot possibly overdeplete qv
 
 ! cloud
        sinks   = (qcaut+qcacc+sum(qccol)+qcevp+sum(qchetc)+sum(qcheti)+sum(qcshd))*dt
@@ -3468,7 +3478,20 @@ END subroutine p3_init
              enddo
           endif
       enddo  !iice-loop
+      
+! vapor
+       sinks   = (qccon+qrcon+qcnuc+sum(qidep)+sum(qinuc))*dt
+       sources = qv(i,k) + (qcevp+qrevp+sum(qisub))*dt
+       if (sinks.gt.sources .and. sinks.ge.1.e-20) then
+          ratio  = sources/sinks
+          qccon  = qccon*ratio
+          qrcon  = qrcon*ratio
+          qcnuc  = qcnuc*ratio
+          qidep  = qidep*ratio
+          qinuc  = qinuc*ratio
+       endif
 
+      
 !------------------------------------------------------------------------------------------!
 ! Update ice reflectivity
 
@@ -3635,7 +3658,6 @@ END subroutine p3_init
 
           enddo interactions_loop ! catcoll loop
 
-
           if (qirim(i,k,iice).lt.0.) then
              qirim(i,k,iice) = 0.
              birim(i,k,iice) = 0.
@@ -3727,6 +3749,7 @@ END subroutine p3_init
           endif
        enddo !iice-loop
 
+       qv(i,k) = max(0., qv(i,k))
        call impose_max_total_Ni(nitot(i,k,:),max_total_Ni,inv_rho(i,k))
 
 !---------------------------------------------------------------------------------
@@ -5819,7 +5842,7 @@ SUBROUTINE access_lookup_table_coll_3mom(dumzz,dumjj,dumii,dumj,dumi,index,dum1,
       if (i_type.EQ.1 .and. T.lt.273.15) then
 ! ICE
 
-! hm 11/16/20, use Goff-Gratch for T < 195.8 K and Flatau et al. equal or above 195.8 K
+! use Goff-Gratch for T < 195.8 K and Flatau et al. equal or above 195.8 K
          if (t.ge.195.8) then
             dt=t-273.15
             polysvp1 = a0i + dt*(a1i+dt*(a2i+dt*(a3i+dt*(a4i+dt*(a5i+dt*(a6i+dt*(a7i+a8i*dt)))))))                                                                                    
@@ -5833,7 +5856,7 @@ SUBROUTINE access_lookup_table_coll_3mom(dumzz,dumjj,dumii,dumj,dumi,index,dum1,
       elseif (i_type.EQ.0 .or. T.ge.273.15) then
 ! LIQUID
 
-! hm 11/16/20, use Goff-Gratch for T < 202.0 K and Flatau et al. equal or above 202.0 K
+! use Goff-Gratch for T < 202.0 K and Flatau et al. equal or above 202.0 K
          if (t.ge.202.0) then
             dt = t-273.15
             polysvp1 = a0 + dt*(a1+dt*(a2+dt*(a3+dt*(a4+dt*(a5+dt*(a6+dt*(a7+a8*dt)))))))                                                                                             
