@@ -20,7 +20,7 @@
 !__________________________________________________________________________________________!
 !                                                                                          !
 ! Version:       4.0.12                                                                    !
-! Last updated:  2021-01-22                                                                !
+! Last updated:  2021-01-24                                                                !
 !__________________________________________________________________________________________!
 
  MODULE MODULE_MP_P3
@@ -3443,11 +3443,10 @@ END subroutine p3_init
           qccol  = qccol*ratio
           qcheti = qcheti*ratio
           qcshd  = qcshd*ratio
-          ncaut  = ncaut*ratio
+          ncautc = ncautc*ratio
           ncacc  = ncacc*ratio
           nccol  = nccol*ratio
           ncheti = ncheti*ratio
-          ncshd  = ncshd*ratio
          !nchetc = nchetc*ratio
        endif
 
