@@ -19,7 +19,7 @@
 !    Jason Milbrandt (jason.milbrandt@canada.ca)                                           !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       4.0.12+                                                                    !
+! Version:       4.0.13                                                                    !
 ! Last updated:  2021-01-26                                                                !
 !__________________________________________________________________________________________!
 
@@ -123,9 +123,9 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '4.0.12'
- character(len=1024), parameter :: version_intended_table_1_2mom = '5.2_2momI'  !5.2 ==> old Dimax, diag_mui_orig
- character(len=1024), parameter :: version_intended_table_1_3mom = '5.3_3momI'  !5.3 ==> new Dimax 
+ character(len=1024), parameter :: version_p3                    = '4.0.13'
+ character(len=1024), parameter :: version_intended_table_1_2mom = '5.2-2momI'
+ character(len=1024), parameter :: version_intended_table_1_3mom = '5.3-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '5.0'
  
  character(len=1024)            :: version_header_table_1_2mom
@@ -142,13 +142,8 @@
 
 !------------------------------------------------------------------------------------------!
 
-!read_path = lookup_file_dir           ! path for lookup tables from official model library
+ read_path = lookup_file_dir           ! path for lookup tables from official model library
 !read_path = '/MY/LOOKUP_TABLE/PATH'   ! path for lookup tables from specified location
-
-!-- JM_only; to be removed for shared code
-read_path = '/data/ords/armn/armngr8/p3_lookup_tables'                 !ECCC network
-!read_path = '/fs/homeu1/eccc/mrd/ords/rpnatm/jam003/p3_lookup_tables'  !SCIENCE network
-!==
 
  if (trplMomI) then
     lookup_file_1 = trim(read_path)//'/'//'p3_lookupTable_1.dat-'//trim(version_intended_table_1_3mom)
@@ -3521,7 +3516,6 @@ END subroutine p3_init
 
        iice_loop_z: do iice = 1,nCat
 
-
        !----  Group 1 process rates (assume mu_i does not change)
        !
        !   upated value of zitot is computed for these processes
@@ -3591,9 +3585,9 @@ END subroutine p3_init
           endif
 
         !proceses of deposition nucleation
-          tmp2 = ninuc(iice)                                     !moment_0 tendency
+          tmp2 = ninuc(iice)                                    !moment_0 tendency
           if (tmp2.ge.qsmall) then
-             tmp1 = qinuc(iice)*6./(900.*pi)                     !estimate of moment_3 tendency
+             tmp1 = qinuc(iice)*6./(900.*pi)                    !estimate of moment_3 tendency
              mu_i_new = mu_i_initial                            !estimated assigned value
              zitot(i,k,iice) = zitot(i,k,iice) + G_of_mu(mu_i_new)*tmp1**2/tmp2*dt
           endif
@@ -3795,8 +3789,10 @@ END subroutine p3_init
 
 
     !NOTE: At this point, it is possible to have negative (but small) nc, nr, nitot.  This is not
-    !      a problem; those values get clipped to zero in the sedimentation section (if necessary).
-    !      (This is not done above simply for efficiency purposes.)
+    !      a problem; those values get clipped to zero or assigned a minumum value in the sedimentation
+    !      section, immediately below (if necessary).  Similarly, for 3-moment-ice it is possible at this
+    !      point to have zitot=0 but qitot slightly larger than qsmall; in sedimentation non-zero zitot
+    !      is computed (if necessary) by applying the constraints on mu_i.
 
     if (debug_on) then
        location_ind = 300
@@ -6805,7 +6801,8 @@ SUBROUTINE access_lookup_table_coll_3mom(dumzz,dumjj,dumii,dumj,dumi,index,dum1,
         endif
 
         if (present(Zitot)) then
-           if ( .not.(Qitot(k,iice)==0. .and. Nitot(k,iice)==0. .and. Zitot(k,iice)==0.) .and.  &
+           if ( .not.(Qitot(k,iice)==0. .and. Nitot(k,iice)==0. .and. Zitot(k,iice)==0.) .and.                &
+               ( Qitot(k,iice)>0. .and. Nitot(k,iice)>0. .and. Zitot(k,iice)<=0. )                            &  !inconsistency
                .and. source_ind /= 100                                                                        &  !skip trap for this source_ind
                .and. source_ind /= 200                                                                        &  !skip trap for this source_ind
                .and. source_ind /= 300 ) then                                                                    !skip trap for this source_ind
