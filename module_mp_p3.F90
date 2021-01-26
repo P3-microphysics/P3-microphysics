@@ -11,16 +11,16 @@
 ! For details see:                                                                         !
 !   Morrison and Milbrandt (2015) [J. Atmos. Sci., 72, 287-311]   - original scheme desc.  !
 !   Milbrandt and Morrison (2016) [J. Atmos. Sci., 73, 975-995]   - multi-ice-category     !
-!   Jouan et al. (2020)           [W. Forecasting, WAF-D-20-0111] - cloud fraction         !
-!   Milbrandt et al. (2021)       [J. Atmos. Sci., JAS-D-20-0084] - triple-moment ice      !
+!   Jouan et al. (2020)           [W. Forecasting, 35, 2541-2565] - cloud fraction         !
+!   Milbrandt et al. (2021)       [J. Atmos. Sci., 78, 439-458]   - triple-moment ice      !
 !                                                                                          !
 ! For questions or bug reports, please contact:                                            !
 !    Hugh Morrison   (morrison@ucar.edu), or                                               !
 !    Jason Milbrandt (jason.milbrandt@canada.ca)                                           !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       4.0.12                                                                    !
-! Last updated:  2021-01-24                                                                !
+! Version:       4.0.12+                                                                    !
+! Last updated:  2021-01-26                                                                !
 !__________________________________________________________________________________________!
 
  MODULE MODULE_MP_P3
@@ -124,16 +124,15 @@
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
  character(len=1024), parameter :: version_p3                    = '4.0.12'
-! character(len=1024), parameter :: version_intended_table_1_2mom = '2momI_v5.1.6_oldDimax'
- character(len=1024), parameter :: version_intended_table_1_2mom = '2momI-v5.3'  
- character(len=1024), parameter :: version_intended_table_1_3mom = '3momI_v5.1.6'
- character(len=1024), parameter :: version_intended_table_2      = '4.1'
-
+ character(len=1024), parameter :: version_intended_table_1_2mom = '5.2_2momI'  !5.2 ==> old Dimax, diag_mui_orig
+ character(len=1024), parameter :: version_intended_table_1_3mom = '5.3_3momI'  !5.3 ==> new Dimax 
+ character(len=1024), parameter :: version_intended_table_2      = '5.0'
+ 
  character(len=1024)            :: version_header_table_1_2mom
  character(len=1024)            :: version_header_table_1_3mom
  character(len=1024)            :: version_header_table_2
- character(len=1024)            :: lookup_file_1                      !lookup table, main
- character(len=1024)            :: lookup_file_2                      !lookup table for ice-ice interactions
+ character(len=1024)            :: lookup_file_1                   !lookup table, main
+ character(len=1024)            :: lookup_file_2                   !lookup table for ice-ice interactions (for nCat>1 only)
  character(len=1024)            :: dumstr,read_path
  integer                        :: i,j,ii,jj,kk,jjj,jjj2,jjjj,jjjj2,end_status,zz,procnum,istat
  real                           :: lamr,mu_r,dum,dm,dum1,dum2,dum3,dum4,dum5,  &
@@ -143,8 +142,13 @@
 
 !------------------------------------------------------------------------------------------!
 
- read_path = lookup_file_dir           ! path for lookup tables from official model library
+!read_path = lookup_file_dir           ! path for lookup tables from official model library
 !read_path = '/MY/LOOKUP_TABLE/PATH'   ! path for lookup tables from specified location
+
+!-- JM_only; to be removed for shared code
+read_path = '/data/ords/armn/armngr8/p3_lookup_tables'                 !ECCC network
+!read_path = '/fs/homeu1/eccc/mrd/ords/rpnatm/jam003/p3_lookup_tables'  !SCIENCE network
+!==
 
  if (trplMomI) then
     lookup_file_1 = trim(read_path)//'/'//'p3_lookupTable_1.dat-'//trim(version_intended_table_1_3mom)
@@ -2056,7 +2060,7 @@ END subroutine p3_init
  integer                                  :: ktop_typeDiag
 
 ! to be added as namelist parameters (future)
- logical, parameter :: debug_ABORT  = .true. !.true. will result in forced abort in s/r 'check_values'
+ logical, parameter :: debug_ABORT  = .false. !.true. will result in forced abort in s/r 'check_values'
  logical            :: force_abort
  integer            :: location_ind          !return value of location index from sr/ 'check_values'
 ! added for triple moment ice
@@ -3443,11 +3447,15 @@ END subroutine p3_init
           qccol  = qccol*ratio
           qcheti = qcheti*ratio
           qcshd  = qcshd*ratio
-          ncautc = ncautc*ratio
-          ncacc  = ncacc*ratio
-          nccol  = nccol*ratio
-          ncheti = ncheti*ratio
-         !nchetc = nchetc*ratio
+         !if (log_predictNc) then
+         ! note: the conditional is present for strict code logic but commented for efficiency
+         !       (4 multiplications, even if values are not used [if log_predictNc=.false.], are cheaper than one IF)
+            ncautc = ncautc*ratio
+            ncacc  = ncacc*ratio
+            nccol  = nccol*ratio
+            ncheti = ncheti*ratio
+           !nchetc = nchetc*ratio
+         !endif
        endif
 
 ! rain
@@ -6785,10 +6793,10 @@ SUBROUTINE access_lookup_table_coll_3mom(dumzz,dumjj,dumii,dumj,dumi,index,dum1,
                .or. Qitot(k,iice)<0. .or. Qitot(k,iice)>Q_high                                                &  !unrealistic values
                .or. Qirim(k,iice)<0. .or. Qirim(k,iice)>Q_high                                                &
                .or. Nitot(k,iice)<0. .or. Nitot(k,iice)>N_high                                                &
-               .or. Birim(k,iice)<0. .or. Birim(k,iice)>B_high )                                              &  !skip trap for this source_ind
+               .or. Birim(k,iice)<0. .or. Birim(k,iice)>B_high )                                              &
                .and. source_ind /= 100                                                                        &  !skip trap for this source_ind
                .and. source_ind /= 200                                                                        &  !skip trap for this source_ind
-               .and. source_ind /= 300 ) then
+               .and. source_ind /= 300 ) then                                                                    !skip trap for this source_ind
            write(6,'(a68,5i5,4e15.6)') '*D WARNING IN P3_MAIN -- src,i,k,step,iice,Qitot,Qirim,Nitot,Birim: ', &
               source_ind,i,k,timestepcount,iice,Qitot(k,iice),Qirim(k,iice),Nitot(k,iice),Birim(k,iice)
            badvalue_found = .true.
@@ -6796,10 +6804,12 @@ SUBROUTINE access_lookup_table_coll_3mom(dumzz,dumjj,dumii,dumj,dumi,index,dum1,
                            Birim(k,iice)>B_high, Q_high, N_high, B_high
         endif
 
-        if (present(Zitot) .and. source_ind/=100 .and. source_ind/=200) then
+        if (present(Zitot)) then
            if ( .not.(Qitot(k,iice)==0. .and. Nitot(k,iice)==0. .and. Zitot(k,iice)==0.) .and.  &
-                .not.(Qitot(k,iice)>0.  .and. Nitot(k,iice)>0.  .and. Zitot(k,iice)>0. )) then
-              write(6,'(a62,5i5,3e15.6)') '*E WARNING IN P3_MAIN -- src,i,k,step,iice,Qitot,Nitot,Zitot: ', &
+               .and. source_ind /= 100                                                                        &  !skip trap for this source_ind
+               .and. source_ind /= 200                                                                        &  !skip trap for this source_ind
+               .and. source_ind /= 300 ) then                                                                    !skip trap for this source_ind
+              write(6,'(a62,5i5,3e15.6)') '*E WARNING IN P3_MAIN -- src,i,k,step,iice,Qitot,Nitot,Zitot: ',   &
                  source_ind,i,k,timestepcount,iice,Qitot(k,iice),Nitot(k,iice),Zitot(k,iice)
               badvalue_found = .true.
            endif
