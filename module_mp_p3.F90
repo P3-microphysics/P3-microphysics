@@ -20,7 +20,7 @@
 !__________________________________________________________________________________________!
 !                                                                                          !
 ! Version:       4.0.13                                                                    !
-! Last updated:  2021-01-26                                                                !
+! Last updated:  2021-01-28                                                                !
 !__________________________________________________________________________________________!
 
  MODULE MODULE_MP_P3
@@ -124,8 +124,8 @@
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
  character(len=1024), parameter :: version_p3                    = '4.0.13'
- character(len=1024), parameter :: version_intended_table_1_2mom = '5.2-2momI'
- character(len=1024), parameter :: version_intended_table_1_3mom = '5.3-3momI'
+ character(len=1024), parameter :: version_intended_table_1_2mom = '5.2_2momI'
+ character(len=1024), parameter :: version_intended_table_1_3mom = '5.3_3momI'
  character(len=1024), parameter :: version_intended_table_2      = '5.0'
  
  character(len=1024)            :: version_header_table_1_2mom
@@ -146,11 +146,11 @@
 !read_path = '/MY/LOOKUP_TABLE/PATH'   ! path for lookup tables from specified location
 
  if (trplMomI) then
-    lookup_file_1 = trim(read_path)//'/'//'p3_lookupTable_1.dat-'//trim(version_intended_table_1_3mom)
+    lookup_file_1 = trim(read_path)//'/'//'p3_lookupTable_1.dat-v'//trim(version_intended_table_1_3mom)
  else
-    lookup_file_1 = trim(read_path)//'/'//'p3_lookupTable_1.dat-'//trim(version_intended_table_1_2mom)
+    lookup_file_1 = trim(read_path)//'/'//'p3_lookupTable_1.dat-v'//trim(version_intended_table_1_2mom)
  endif
- lookup_file_2 = trim(read_path)//'/'//'p3_lookupTable_2.dat-'//trim(version_intended_table_2)
+ lookup_file_2 = trim(read_path)//'/'//'p3_lookupTable_2.dat-v'//trim(version_intended_table_2)
 
 !------------------------------------------------------------------------------------------!
 
