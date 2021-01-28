@@ -248,7 +248,7 @@ PROGRAM create_p3_lookuptable_1
 !   and save as 'create_p3_lookupTable_1-top.f90'
 !------------------------------------------------------------------------------------
 
-! For testing single values, uncomment the following:
+! For testing single values, uncomment the following: 
 ! i_Znorm = 1
 ! i_rhor  = 1
 
