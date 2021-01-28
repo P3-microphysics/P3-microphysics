@@ -19,8 +19,8 @@
 !    Jason Milbrandt (jason.milbrandt@canada.ca)                                           !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       4.0.13                                                                    !
-! Last updated:  2021-01-28                                                                !
+! Version:       4.0.14                                                                    !
+! Last updated:  2021-01-29                                                                !
 !__________________________________________________________________________________________!
 
  MODULE MODULE_MP_P3
@@ -123,7 +123,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '4.0.13'
+ character(len=1024), parameter :: version_p3                    = '4.0.14'
  character(len=1024), parameter :: version_intended_table_1_2mom = '5.2_2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '5.3_3momI'
  character(len=1024), parameter :: version_intended_table_2      = '5.0'
@@ -2640,7 +2640,17 @@ END subroutine p3_init
 ! collection between ice categories
 
 !        iceice_interaction1:  if (.false.) then       !for testing (to suppress ice-ice interaction)
-         iceice_interaction1:  if (iice.ge.2) then          
+!        iceice_interaction1:  if (iice.ge.2) then          
+         iceice_interaction1:  if (iice.ge.2 .and. .not.log_3momentIce) then     
+         
+         !note:  In this version, lookupTable_2 (LT2, for ice category interactions) is computed for a maximum
+         !       mean ice size of Dm_max=2000.e-6 m (the old lambda_i limiter); thus it is compatible with
+         !       use of LT1-v5.2_2momI (with Dm_max=2000.e-6) [i.e. for log_3momentIce=.false.] but not with
+         !       LT1-v5.3_3momI (with Dm_max=400000.e-6).  This means that this version can still be
+         !       run with the 3momI + nCat>1 configuration, but the ice-ice interactions between different
+         !       categories (in this 'iceice_interaction1' block) is suppressed.
+         !       In a forthcoming version, both LT1-2momI and LT2 (and LT1-3momI) will all be computed
+         !       using the unconstrained size limited (i.e. Dm_max=400000.e-6).
 
              qitot_notsmall: if (qitot(i,k,iice).ge.qsmall) then
                 catcoll_loop: do catcoll = 1,iice-1
