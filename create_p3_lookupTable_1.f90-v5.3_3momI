@@ -14,7 +14,7 @@ PROGRAM create_p3_lookuptable_1
 !
 !--------------------------------------------------------------------------------------
 ! Version:       5.3
-! Last modified: 2021-01-28
+! Last modified: 2021-01-29
 !______________________________________________________________________________________
 
 !______________________________________________________________________________________
@@ -67,18 +67,14 @@ PROGRAM create_p3_lookuptable_1
 ! for i_rhor in 01 02 03 04 05
 ! do
 ! 
-! rm cfg_input full_code.f90
-! 
-! cat > cfg_input << EOF
-!  i_rhor  = ${i_rhor}
+!    rm cfg_input full_code.f90
+!    cat > cfg_input << EOF
+!     i_rhor  = ${i_rhor}
 ! EOF
-! 
-! cat create_p3_lookupTable_1-top.f90 cfg_input create_p3_lookupTable_1-bottom.f90 > full_code.f90
-! 
-! echo 'Compiling 'exec_${i_rhor}
-! 
-! ifort -r8 full_code.f90
-! mv a.out exec_${i_rhor}
+!    cat create_p3_lookupTable_1-top.f90 cfg_input create_p3_lookupTable_1-bottom.f90 > full_code.f90
+!    echo 'Compiling 'exec_${i_rhor}
+!    ifort -r8 full_code.f90
+!    mv a.out exec_${i_rhor}
 ! 
 ! done
 ! 
@@ -91,41 +87,35 @@ PROGRAM create_p3_lookuptable_1
 !
 ! for i_Znorm in 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78 79 80
 ! do
-! 
-! rm cfg_input full_code.f90
-! 
-! cat > cfg_input << EOF
-!  i_Znorm = ${i_Znorm}
+
+!    rm cfg_input full_code.f90
+!    cat > cfg_input << EOF
+!     i_Znorm = ${i_Znorm}
 ! EOF
-! 
-! cat create_p3_lookupTable_1-top.f90 cfg_input create_p3_lookupTable_1-bottom.f90 > full_code.f90
-! 
-! echo 'Compiling 'exec_${i_Znorm}
-! 
-! ifort -r8 full_code.f90
-! mv a.out exec_${i_Znorm}
+!    cat create_p3_lookupTable_1-top.f90 cfg_input create_p3_lookupTable_1-bottom.f90 > full_code.f90
+!    echo 'Compiling 'exec_${i_Znorm} 
+!    ifort -r8 full_code.f90
+!    mv a.out exec_${i_Znorm}
 ! 
 ! done
 ! 
 ! rm cfg_input full_code.f90
 
 !--------------------------------------------------------------------------------------------
-!# Parallel script 2 (of 3):   [copy text below (uncommented) to file 'go_2-submit.csh']
+!# Parallel script 2 (of 3):   [copy text below (uncommented) to file 'go_2-submit.ksh']
 !#  - creates individual work directories, launches each executable
 
-!#!/bin/csh
+!#!/bin/ksh
 !
-! foreach exec (`ls exec_*`)
-! 
-! echo Submitting: ${exec}
-! 
-! mkdir ${exec}-workdir
-! mv ${exec} ${exec}-workdir
-! cd ${exec}-workdir
-! ./${exec} > log &
-! cd ..
-! 
-! end
+! for exec in `ls exec_*`
+! do
+!    echo Submitting: ${exec}
+!    mkdir ${exec}-workdir
+!    mv ${exec} ${exec}-workdir
+!    cd ${exec}-workdir
+!    ./${exec} > log &
+!    cd ..
+! done
 
 !--------------------------------------------------------------------------------------------
 !# Parallel script 3 (of 3):   [copy text below (uncommented) to file 'go_3-concatenate.ksh]
@@ -264,8 +254,6 @@ PROGRAM create_p3_lookuptable_1
 
 ! assume 600 hPa, 253 K for p and T for fallspeed calcs (for reference air density)
  pi  = acos(-1.)
-!pi  = 3.14159        !=acos(-1.)
-!pi  = 3.14159265359  !=acos(-1.)      <-- for double precision
  g   = 9.861                           ! gravity
  p   = 60000.                          ! air pressure (pa)
  t   = 253.15                          ! temp (K)
@@ -459,16 +447,12 @@ PROGRAM create_p3_lookuptable_1
 !==
 
 ! write header to first file:
- if (log_3momI) then
-    if (i_Znorm==1) then
-       write(1,*) 'LOOKUP_TABLE_1-version:  ',trim(version),'_3momI'
-       write(1,*)
-    endif
- else
-    if (i_rhor==1) then
-       write(1,*) 'LOOKUP_TABLE_1-version:  ',trim(version),'_2momI'
-       write(1,*)
-    endif
+ if (log_3momI .and. i_Znorm==1 .and. i_rhor==1) then
+    write(1,*) 'LOOKUP_TABLE_1-version:  ',trim(version),'_3momI'
+    write(1,*)
+ elseif (i_rhor==1) then
+    write(1,*) 'LOOKUP_TABLE_1-version:  ',trim(version),'_2momI'
+    write(1,*)
  endif
 
 !------------------------------------------------------------------------
