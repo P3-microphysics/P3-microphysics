@@ -103,7 +103,7 @@ PROGRAM create_p3_lookuptable_2
 ! mv lt_total p3_lookupTable_2.dat
 ! 
 ! echo 'Done.  Work directories and contents can now be removed.'
-! echo 'Be sure to re-name the file with the appropriate extension, with the version number
+! echo 'Be sure to re-name the file with the appropriate extension, with the version number'
 ! echo 'corresponding to that in the header.  (e.g. 'p3_lookupTable_2.dat-v5.0')'
 
 !--------------------------------------------------------------------------------------------

@@ -19,7 +19,7 @@
 !    Jason Milbrandt (jason.milbrandt@canada.ca)                                           !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       4.0.14                                                                    !
+! Version:       4.0.15                                                                    !
 ! Last updated:  2021-01-29                                                                !
 !__________________________________________________________________________________________!
 
@@ -123,9 +123,9 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '4.0.14'
- character(len=1024), parameter :: version_intended_table_1_2mom = '5.2_2momI'
- character(len=1024), parameter :: version_intended_table_1_3mom = '5.3_3momI'
+ character(len=1024), parameter :: version_p3                    = '4.0.15' 
+ character(len=1024), parameter :: version_intended_table_1_2mom = '5.2-2momI'
+ character(len=1024), parameter :: version_intended_table_1_3mom = '5.3-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '5.0'
  
  character(len=1024)            :: version_header_table_1_2mom
@@ -2006,7 +2006,7 @@ END subroutine p3_init
 
  real    :: lammax,lammin,mu,dv,sc,dqsdT,ab,kap,epsr,epsc,xx,aaa,epsilon,sigvl,epsi_tot, &
             aact,sm1,sm2,uu1,uu2,dum,dum1,dum2,dumqv,dumqvs,dums,ratio,qsat0,dum3,dum4,  &
-            dum5,dum6,rdumii,rdumjj,dqsidt,abi,dumqvi,rhop,v_impact,ri,iTc,D_c,tmp1,     &
+            dum5,dum6,rdumii,rdumjj,dqsidT,abi,dumqvi,rhop,v_impact,ri,iTc,D_c,tmp1,     &
             tmp2,inv_dum3,odt,oxx,oabi,fluxdiv_qit,fluxdiv_nit,fluxdiv_qir,fluxdiv_bir,  &
             prt_accum,fluxdiv_qx,fluxdiv_nx,Co_max,dt_sub,fluxdiv_zit,D_new,Q_nuc,N_nuc, &
             deltaD_init,dum1c,dum4c,dum5c,dumt,qcon_satadj,qdep_satadj,sources,sinks,    &
@@ -2437,9 +2437,9 @@ END subroutine p3_init
        sc     = mu/(rho(i,k)*dv)
        dum    = 1./(rv*t(i,k)**2)
        dqsdT  = xxlv(i,k)*qvs(i,k)*dum
-       dqsidt = xxls(i,k)*qvi(i,k)*dum
+       dqsidT = xxls(i,k)*qvi(i,k)*dum
        ab     = 1.+dqsdT*xxlv(i,k)*inv_cp
-       abi    = 1.+dqsidt*xxls(i,k)*inv_cp
+       abi    = 1.+dqsidT*xxls(i,k)*inv_cp
        kap    = 1.414e+3*mu
       !very simple temperature dependent aggregation efficiency
        if (t(i,k).lt.253.15) then
@@ -3398,6 +3398,7 @@ END subroutine p3_init
           qccon = 0.
           qrcon = 0.
           qcnuc = 0.
+          ncnuc = 0.
        else
           if (tmp1.gt.0. .and. tmp1.gt.qcon_satadj) then
              ratio = max(0.,qcon_satadj)/tmp1
@@ -3425,6 +3426,7 @@ END subroutine p3_init
        if (tmp1>0. .and. qdep_satadj<0.) then
           qidep = 0.
           qinuc = 0.
+          ninuc = 0.
        else
           if (tmp1.gt.0. .and. tmp1.gt.qdep_satadj) then
              ratio = max(0.,qdep_satadj)/tmp1
@@ -3513,6 +3515,8 @@ END subroutine p3_init
           qcnuc  = qcnuc*ratio
           qidep  = qidep*ratio
           qinuc  = qinuc*ratio
+          ninuc  = ninuc*ratio
+          ncnuc  = ncnuc*ratio
        endif
 
       
