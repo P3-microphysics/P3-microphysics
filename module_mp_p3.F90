@@ -19,7 +19,7 @@
 !    Jason Milbrandt (jason.milbrandt@canada.ca)                                           !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       4.0.15                                                                    !
+! Version:       4.0.16                                                                    !
 ! Last updated:  2021-01-29                                                                !
 !__________________________________________________________________________________________!
 
@@ -51,8 +51,6 @@
  ! NOTE: TO DO, MAKE LOOKUP TABLE ARRAYS ALLOCATABLE SO BOTH 2-MOMENT AND 3-MOMENT NOT ALLOCATED
  real, dimension(densize,rimsize,isize,tabsize)                        :: itab        !ice lookup table values
  real, dimension(zsize,densize,rimsize,isize,tabsize_3mom)             :: itab_3mom   !ice lookup table values
- double precision, dimension(densize,rimsize,isize,tabsize)            :: itab_dp
- double precision, dimension(zsize,densize,rimsize,isize,tabsize_3mom) :: itab_3mom_dp
 
 !ice lookup table values for ice-rain collision/collection
  real, dimension(densize,rimsize,isize,rcollsize,colltabsize)                   :: itabcoll
@@ -64,8 +62,6 @@
 ! separated into itabcolli1 and itabcolli2, due to max of 7 dimensional arrays on some FORTRAN compilers
  real, dimension(iisize,rimsize,densize,iisize,rimsize,densize)             :: itabcolli1
  real, dimension(iisize,rimsize,densize,iisize,rimsize,densize)             :: itabcolli2
- double precision, dimension(iisize,rimsize,densize,iisize,rimsize,densize) :: itabcolli1_dp
- double precision, dimension(iisize,rimsize,densize,iisize,rimsize,densize) :: itabcolli2_dp
 
 ! integer switch for warm rain autoconversion/accretion schemes
  integer :: iparam
@@ -114,16 +110,16 @@
  implicit none
 
 ! Passed arguments:
- character(len=1024), intent(in)          :: lookup_file_dir    ! directory of the lookup tables (model library)
+ character*(*), intent(in)                :: lookup_file_dir    ! directory of the lookup tables (model library)
  integer,       intent(in)                :: nCat               ! number of free ice categories
  logical,       intent(in)                :: trplMomI           ! .T.=3-moment / .F.=2-moment (ice)
  integer,       intent(out), optional     :: stat               ! return status of subprogram
  logical,       intent(in),  optional     :: abort_on_err       ! abort when an error is encountered [.false.]
-  character(len=1024),intent(in),optional :: model              ! driving model
+ character*(*), intent(in),  optional     :: model              ! driving model
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '4.0.15' 
+ character(len=1024), parameter :: version_p3                    = '4.0.16' 
  character(len=1024), parameter :: version_intended_table_1_2mom = '5.2-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '5.3-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '5.0'
@@ -310,15 +306,13 @@
 #endif
 
  if (trplMomI) then
-    itab_3mom_dp = 0.D0
-    itabcoll_3mom_dp = 0.D0
+    itabcoll_3mom = 0.
  else
-    itab_dp = 0.D0
-    itabcoll_dp = 0.D0
+    itabcoll = 0.
  endif
  if (nCat>1) then
-    itabcolli1_dp = 0.D0
-    itabcolli2_dp = 0.D0
+    itabcolli1 = 0.
+    itabcolli2 = 0.
  endif
 
  IF_PROC0: if (procnum == 0) then
@@ -358,11 +352,11 @@
      do jj = 1,densize
        do ii = 1,rimsize
           do i = 1,isize
-             read(10,*) dum,dum,dum,dum,itab_dp(jj,ii,i, 1),itab_dp(jj,ii,i, 2),                     &
-                    itab_dp(jj,ii,i, 3),itab_dp(jj,ii,i, 4),itab_dp(jj,ii,i, 5),                     &
-                    itab_dp(jj,ii,i, 6),itab_dp(jj,ii,i, 7),itab_dp(jj,ii,i, 8),dum,                 &
-                    itab_dp(jj,ii,i, 9),itab_dp(jj,ii,i,10),itab_dp(jj,ii,i,11),itab_dp(jj,ii,i,12), &
-                    itab_dp(jj,ii,i,13),itab_dp(jj,ii,i,14)
+             read(10,*) dum,dum,dum,dum,itab(jj,ii,i, 1),itab(jj,ii,i, 2),                &
+                    itab(jj,ii,i, 3),itab(jj,ii,i, 4),itab(jj,ii,i, 5),                   &
+                    itab(jj,ii,i, 6),itab(jj,ii,i, 7),itab(jj,ii,i, 8),dum,               &
+                    itab(jj,ii,i, 9),itab(jj,ii,i,10),itab(jj,ii,i,11),itab(jj,ii,i,12),  &
+                    itab(jj,ii,i,13),itab(jj,ii,i,14)
            enddo
 
          !read in table for ice-rain collection
@@ -380,7 +374,6 @@
     endif IF_OK
     close(10)
 
-    itab = sngl(itab_dp)
     itabcoll = sngl(itabcoll_dp)
 
     if (global_status == STATUS_ERROR) then
@@ -430,12 +423,12 @@
        do jj = 1,densize
           do ii = 1,rimsize
              do i = 1,isize
-                read(10,*) dum,dum,dum,dum,      itab_3mom_dp(zz,jj,ii,i, 1),itab_3mom_dp(zz,jj,ii,i, 2),     &
-                     itab_3mom_dp(zz,jj,ii,i, 3),itab_3mom_dp(zz,jj,ii,i, 4),itab_3mom_dp(zz,jj,ii,i, 5),     &
-                     itab_3mom_dp(zz,jj,ii,i, 6),itab_3mom_dp(zz,jj,ii,i, 7),itab_3mom_dp(zz,jj,ii,i, 8),dum, &
-                     itab_3mom_dp(zz,jj,ii,i, 9),itab_3mom_dp(zz,jj,ii,i,10),itab_3mom_dp(zz,jj,ii,i,11),     &
-                     itab_3mom_dp(zz,jj,ii,i,12),itab_3mom_dp(zz,jj,ii,i,13),itab_3mom_dp(zz,jj,ii,i,14),     &
-                     itab_3mom_dp(zz,jj,ii,i,15),itab_3mom_dp(zz,jj,ii,i,16),itab_3mom_dp(zz,jj,ii,i,17)
+                read(10,*) dum,dum,dum,dum,   itab_3mom(zz,jj,ii,i, 1),itab_3mom(zz,jj,ii,i, 2),     &
+                     itab_3mom(zz,jj,ii,i, 3),itab_3mom(zz,jj,ii,i, 4),itab_3mom(zz,jj,ii,i, 5),     &
+                     itab_3mom(zz,jj,ii,i, 6),itab_3mom(zz,jj,ii,i, 7),itab_3mom(zz,jj,ii,i, 8),dum, &
+                     itab_3mom(zz,jj,ii,i, 9),itab_3mom(zz,jj,ii,i,10),itab_3mom(zz,jj,ii,i,11),     &
+                     itab_3mom(zz,jj,ii,i,12),itab_3mom(zz,jj,ii,i,13),itab_3mom(zz,jj,ii,i,14),     &
+                     itab_3mom(zz,jj,ii,i,15),itab_3mom(zz,jj,ii,i,16),itab_3mom(zz,jj,ii,i,17)
               enddo
          !read in table for ice-rain collection
              do i = 1,isize
@@ -452,7 +445,6 @@
    
     close(10)
     
-    itab_3mom = sngl(itab_3mom_dp)
     itabcoll_3mom = sngl(itabcoll_3mom_dp)
     
   endif TRIPLE_MOMENT_ICE
@@ -489,9 +481,9 @@
                 do ii = 1,iisize
                    do jjj2 = 1,rimsize
                       do jjjj2 = 1,densize
-                         read(10,*) dum,dum,dum,dum,dum,dum,dum,                   &
-                         itabcolli1_dp(i,jjj,jjjj,ii,jjj2,jjjj2),                  &
-                         itabcolli2_dp(i,jjj,jjjj,ii,jjj2,jjjj2)
+                         read(10,*) dum,dum,dum,dum,dum,dum,dum,                &
+                         itabcolli1(i,jjj,jjjj,ii,jjj2,jjjj2),                  &
+                         itabcolli2(i,jjj,jjjj,ii,jjj2,jjjj2)
                       enddo
                    enddo
                 enddo
@@ -501,9 +493,6 @@
        endif IF_OKB
 
        close(unit=10)
-
-       itabcolli1 = sngl(itabcolli1_dp)
-       itabcolli2 = sngl(itabcolli2_dp)
 
     endif IF_NCAT
 
@@ -526,14 +515,14 @@
 #ifdef ECCCGEM
  if (trplMomI) then
     call rpn_comm_bcast(itab_3mom,size(itab_3mom),RPN_COMM_REAL,0,RPN_COMM_GRID,istat)
-    call rpn_comm_bcast(itabcoll_3mom,size(itabcoll_3mom),RPN_COMM_DOUBLE_PRECISION,0,RPN_COMM_GRID,istat)
+    call rpn_comm_bcast(itabcoll_3mom,size(itabcoll_3mom),RPN_COMM_REAL,0,RPN_COMM_GRID,istat)
  else
     call rpn_comm_bcast(itab,size(itab),RPN_COMM_REAL,0,RPN_COMM_GRID,istat)
-    call rpn_comm_bcast(itabcoll,size(itabcoll),RPN_COMM_DOUBLE_PRECISION,0,RPN_COMM_GRID,istat)
+    call rpn_comm_bcast(itabcoll,size(itabcoll),RPN_COMM_REAL,0,RPN_COMM_GRID,istat)
  endif
  if (nCat>1) then
-    call rpn_comm_bcast(itabcolli1,size(itabcolli1),RPN_COMM_DOUBLE_PRECISION,0,RPN_COMM_GRID,istat)
-    call rpn_comm_bcast(itabcolli2,size(itabcolli2),RPN_COMM_DOUBLE_PRECISION,0,RPN_COMM_GRID,istat)
+    call rpn_comm_bcast(itabcolli1,size(itabcolli1),RPN_COMM_REAL,0,RPN_COMM_GRID,istat)
+    call rpn_comm_bcast(itabcolli2,size(itabcolli2),RPN_COMM_REAL,0,RPN_COMM_GRID,istat)
  endif
 #endif
 
