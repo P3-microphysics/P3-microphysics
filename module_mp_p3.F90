@@ -19,7 +19,7 @@
 !    Jason Milbrandt (jason.milbrandt@canada.ca)                                           !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       4.0.18                                                                    !
+! Version:       4.0.19                                                                    !
 ! Last updated:  2021-02-02                                                                !
 !__________________________________________________________________________________________!
 
@@ -117,7 +117,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '4.0.18' 
+ character(len=1024), parameter :: version_p3                    = '4.0.19' 
  character(len=1024), parameter :: version_intended_table_1_2mom = '5.2-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '5.3-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '4'
@@ -140,7 +140,7 @@
  read_path = lookup_file_dir           ! path for lookup tables from official model library
 !read_path = '/MY/LOOKUP_TABLE/PATH'   ! path for lookup tables from specified location
 
-! read_path ='/users/dor/armn/gr8/ords/p3_lookup_tables'  !JM only
+ read_path ='/users/dor/armn/gr8/ords/p3_lookup_tables'  !JM only
  
  if (trplMomI) then
     lookup_file_1 = trim(read_path)//'/'//'p3_lookupTable_1.dat-v'//trim(version_intended_table_1_3mom)
@@ -3422,6 +3422,7 @@ END subroutine p3_init
              ratio = min(1.,ratio)
              qidep = qidep*ratio
              qinuc = qinuc*ratio
+             ninuc = ninuc*ratio
           endif
           do iice = 1,nCat
              dum = max(qisub(iice),1.e-20)
