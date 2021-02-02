@@ -19,8 +19,8 @@
 !    Jason Milbrandt (jason.milbrandt@canada.ca)                                           !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       4.0.17                                                                    !
-! Last updated:  2021-02-01                                                                !
+! Version:       4.0.18                                                                    !
+! Last updated:  2021-02-02                                                                !
 !__________________________________________________________________________________________!
 
  MODULE MODULE_MP_P3
@@ -49,19 +49,17 @@
  real, parameter    :: real_rcollsize = real(rcollsize)
 
  ! NOTE: TO DO, MAKE LOOKUP TABLE ARRAYS ALLOCATABLE SO BOTH 2-MOMENT AND 3-MOMENT NOT ALLOCATED
- real, dimension(densize,rimsize,isize,tabsize)                        :: itab        !ice lookup table values
- real, dimension(zsize,densize,rimsize,isize,tabsize_3mom)             :: itab_3mom   !ice lookup table values
+ real, dimension(densize,rimsize,isize,tabsize)                     :: itab        !ice lookup table values
+ real, dimension(zsize,densize,rimsize,isize,tabsize_3mom)          :: itab_3mom   !ice lookup table values
 
 !ice lookup table values for ice-rain collision/collection
- real, dimension(densize,rimsize,isize,rcollsize,colltabsize)                   :: itabcoll
- real, dimension(zsize,densize,rimsize,isize,rcollsize,colltabsize)             :: itabcoll_3mom
- double precision, dimension(densize,rimsize,isize,rcollsize,colltabsize)       :: itabcoll_dp
- double precision, dimension(zsize,densize,rimsize,isize,rcollsize,colltabsize) :: itabcoll_3mom_dp
+ real, dimension(densize,rimsize,isize,rcollsize,colltabsize)       :: itabcoll
+ real, dimension(zsize,densize,rimsize,isize,rcollsize,colltabsize) :: itabcoll_3mom
 
  ! NOTE: TO DO, MAKE LOOKUP TABLE ARRAYS ALLOCATABLE SO MULTICAT NOT ALLOCATED WHEN NCAT = 1
 ! separated into itabcolli1 and itabcolli2, due to max of 7 dimensional arrays on some FORTRAN compilers
- real, dimension(iisize,rimsize,densize,iisize,rimsize,densize)             :: itabcolli1
- real, dimension(iisize,rimsize,densize,iisize,rimsize,densize)             :: itabcolli2
+ real, dimension(iisize,rimsize,densize,iisize,rimsize,densize)     :: itabcolli1
+ real, dimension(iisize,rimsize,densize,iisize,rimsize,densize)     :: itabcolli2
 
 ! integer switch for warm rain autoconversion/accretion schemes
  integer :: iparam
@@ -119,7 +117,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '4.0.17' 
+ character(len=1024), parameter :: version_p3                    = '4.0.18' 
  character(len=1024), parameter :: version_intended_table_1_2mom = '5.2-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '5.3-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '4'
@@ -133,6 +131,7 @@
  integer                        :: i,j,ii,jj,kk,jjj,jjj2,jjjj,jjjj2,end_status,zz,procnum,istat
  real                           :: lamr,mu_r,dum,dm,dum1,dum2,dum3,dum4,dum5,  &
                                    dd,amg,vt,dia
+ double precision               :: dp_dum1, dp_dum2
  logical                        :: err_abort
  integer                        :: ierr
 
@@ -364,10 +363,9 @@
          !read in table for ice-rain collection
           do i = 1,isize
              do j = 1,rcollsize
-                read(10,*) dum,dum,dum,dum,dum,itabcoll_dp(jj,ii,i,j,1),              &
-                           itabcoll_dp(jj,ii,i,j,2),dum
-                itabcoll_dp(jj,ii,i,j,1) = dlog10(max(itabcoll_dp(jj,ii,i,j,1),1.d-90))
-                itabcoll_dp(jj,ii,i,j,2) = dlog10(max(itabcoll_dp(jj,ii,i,j,2),1.d-90))
+                read(10,*) dum,dum,dum,dum,dum,dp_dum1,dp_dum2,dum
+                itabcoll(jj,ii,i,j,1) = sngl(dlog10(max(dp_dum1,1.d-90)))
+                itabcoll(jj,ii,i,j,2) = sngl(dlog10(max(dp_dum2,1.d-90)))
              enddo
           enddo
        enddo  !ii
@@ -375,8 +373,6 @@
 
     endif IF_OK
     close(10)
-
-    itabcoll = sngl(itabcoll_dp)
 
     if (global_status == STATUS_ERROR) then
        if (err_abort) then
@@ -435,10 +431,9 @@
          !read in table for ice-rain collection
              do i = 1,isize
                 do j = 1,rcollsize
-                   read(10,*) dum,dum,dum,dum,dum,itabcoll_3mom_dp(zz,jj,ii,i,j,1),                  &
-                              itabcoll_3mom_dp(zz,jj,ii,i,j,2),dum                  
-                   itabcoll_3mom_dp(zz,jj,ii,i,j,1) = dlog10(max(itabcoll_3mom_dp(zz,jj,ii,i,j,1),1.d-90))
-                   itabcoll_3mom_dp(zz,jj,ii,i,j,2) = dlog10(max(itabcoll_3mom_dp(zz,jj,ii,i,j,2),1.d-90))
+                   read(10,*) dum,dum,dum,dum,dum,dp_dum1,dp_dum2                  
+                   itabcoll_3mom(zz,jj,ii,i,j,1) = sngl(dlog10(max(dp_dum1,1.d-90)))
+                   itabcoll_3mom(zz,jj,ii,i,j,2) = sngl(dlog10(max(dp_dum2,1.d-90)))
                 enddo
              enddo
           enddo  !ii
@@ -446,8 +441,6 @@
     enddo   !zz
    
     close(10)
-    
-    itabcoll_3mom = sngl(itabcoll_3mom_dp)
     
   endif TRIPLE_MOMENT_ICE
 
