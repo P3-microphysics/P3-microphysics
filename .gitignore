@@ -1,4 +1,6 @@
 module_mp_p3.F90-*
+create_p3_lookupTable_1.f90-*
+create_p3_lookupTable_2.f90-*
 kin1d-*
 attic
 work*
