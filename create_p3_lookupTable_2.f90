@@ -2,16 +2,117 @@ PROGRAM create_p3_lookuptable_2
 
 !______________________________________________________________________________________
 !
-! This program creates the lookup tables for two-category interactions used by
-! the P3 microphysics scheme.
+! This program creates the lookup table 'p3_lookupTable_2.dat' for inter-category ice-ice
+! interactions for the multi-ice-category configuration of the P3 microphysics scheme.
 !
-!  Note:  compile with double-precision (pgf90 -r8 create_p3_lookupTable_2.f90)
-!                       (gfortran -fdefault-real-8 create_p3_lookupTable_2.f90)
-! Version:       v4+
-! Last modified: 2021-02-04
+!--------------------------------------------------------------------------------------
+! Version:       5.0
+! Last modified: 2021-02-03
 !______________________________________________________________________________________
 
+!______________________________________________________________________________________
+!
+! To generate 'p3_lookupTable_2.dat' using this code, do the following steps :
+!
+! 1. Break up this code into two parts (-top.f90 and -bottom.90).  Search for the string
+!    'RUNNING IN PARALLEL MODE' and follow instructions.  (In the future, a script
+!    will be written to automate this.)
+!
+! 2. Copy the 3 pieces of text below to create indivudual executable shell scripts.
+
+! 3. Run script 1 (./go_1-compile.ksh).  This script will recreate several
+!    versions of the full code, concatenating the -top.f90 and the -bottom.90 with
+!    the following code (e.g.) in between (looping through values of i1:
+!
+!    i1  = 1
+!
+!    Each version of full_code.f90 is then compiled, with a unique executable name.
+!    Note, this is done is place the outer i1 loop in order to parallelized .
+!
+! 4. Run script 2 (./go_2-submit.csh)  This create temporary work directories,
+!    moves each executable to each work directory, and runs the executables
+!    simultaneously.  (Note, it is assumed that the machine on which this is done
+!    has multiple processors, though it is not necessary.)
+!
+! 5. Run script 3 (./go_3-concatenate.ksh).  This concatenates the individual
+!    partial tables (the output in each working directory) into a single, final
+!    file 'p3_lookupTable_2.dat'  Once it is confirmed that the table is correct,
+!    the work directories and their contents can be removed.
+!
+!  Note:  For testing or to run in serial, compile with double-precision
+!         e.g. ifort -r8 create_p3_lookupTable_2.f90                  
+!              gfortran -fdefault-real-8 create_p3_lookupTable_2.f90
+!______________________________________________________________________________________
+
+!--------------------------------------------------------------------------------------------
+!# Parallel script 1 (of 3):  [copy text below (uncommented) to file 'go_1-compile.ksh']
+!#  - creates individual parallel codes, compiles each
+
+!#!/bin/ksh
+! 
+! for i1 in 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25
+! do
+! 
+! rm cfg_input full_code.f90
+! 
+! cat > cfg_input << EOF
+!  i1  = ${i1}
+! EOF
+! 
+! cat create_p3_lookupTable_2-top.f90 cfg_input create_p3_lookupTable_2-bottom.f90 > full_code.f90
+! 
+! echo 'Compiling 'exec_${i1}
+! #pgf90 -r8 full_code.f90
+! #gfortran -fdefault-real-8 full_code.f90
+! ifort -r8 full_code.f90
+! mv a.out exec_${i1}
+! 
+! done
+! 
+! rm cfg_input full_code.f90
+
+!--------------------------------------------------------------------------------------------
+!# Parallel script 2 (of 3):   [copy text below (uncommented) to file 'go_2-submit.ksh']
+!#  - creates individual work directories, launches each executable
+
+!#!/bin/ksh
+
+!for exec in `ls exec_*`
+!do 
+!   echo Submitting: ${exec}
+!   mkdir ${exec}-workdir
+!   mv ${exec} ${exec}-workdir
+!   cd ${exec}-workdir
+!   ./${exec} > log &
+!   cd ..
+!done
+
+!--------------------------------------------------------------------------------------------
+!# Parallel script 3 (of 3):   [copy text below (uncommented) to file 'go_3-concatenate.ksh]
+!#  - concatenates the output of each parallel job into a single output file.
+
+!#!/bin/ksh
+! 
+! rm lt_total
+! 
+! for i in `ls exec*/*dat`
+! do
+!    echo $i
+!    cat lt_total $i > lt_total_tmp
+!    mv lt_total_tmp lt_total
+! done
+! 
+! mv lt_total p3_lookupTable_2.dat
+! 
+! echo 'Done.  Work directories and contents can now be removed.'
+! echo 'Be sure to re-name the file with the appropriate extension, with the version number
+! echo 'corresponding to that in the header.  (e.g. 'p3_lookupTable_2.dat-v5.0')'
+
+!--------------------------------------------------------------------------------------------
+
  implicit none
+ 
+ character(len=16), parameter :: version = '5.0'
 
  logical, parameter :: log_diagmu_orig = .true.  !switch for original diagnostic-mu_i relation [to be removed eventually]
  
@@ -22,10 +123,6 @@ PROGRAM create_p3_lookuptable_2
  integer, parameter :: n_Fr    =  4
  integer, parameter :: n_Qnorm = 25
 
-!  integer, parameter :: n_rhor    =  5   !formerly densize
-!  integer, parameter :: n_Fr      =  2   !formerly rimsize
-!  integer, parameter :: n_Qnorm   =  25   !search TEST    !formerly isize
-
  integer            :: i_rhor,i_rhor1,i_rhor2  ! indices for rho_rime                 [1 .. n_rhor]
  integer            :: i_Fr,i_Fr1,i_Fr2        ! indices for rime-mass-fraction loop  [1 .. n_Fr]
  integer            :: i,i1,i2                 ! indices for normalized (by N) Q loop [1 .. n_Qnorm]  (i is i_Qnorm in LT1)
@@ -33,7 +130,7 @@ PROGRAM create_p3_lookuptable_2
  real :: N,q,qdum,dum1,dum2,cs1,ds1,lam,n0,lamf,qerror,del0,c0,c1,c2,dd,sum1,sum2,       &
          sum3,sum4,xx,a0,b0,a1,b1,dum,bas1,aas1,aas2,bas2,gammq,d1,d2,delu,lamold,       &
          cap,lamr,dia,amg,dv,n0dum,sum5,sum6,sum7,sum8,dg,cg,bag,aag,dcritg,dcrits,      &
-         dcritr,Fr,csr,dsr,duml,dum3,rhodep,cgpold,m1,m2,m3,dt,mur,initlamr,lamv,        &
+         dcritr,csr,dsr,duml,dum3,rhodep,cgpold,m1,m2,m3,dt,mur,initlamr,lamv,Fr,        &
          rdumii,lammin,lammax,cs2,ds2,intgrR1,intgrR2,intgrR3,intgrR4
 
 
@@ -51,6 +148,7 @@ PROGRAM create_p3_lookuptable_2
  real, dimension(n_rhor,n_Fr)            :: dcrits1,dcritr1,csr1,dsr1,dcrits2,dcritr2,csr2,dsr2
  real, dimension(n_rhor,n_Fr,n_Qnorm)    :: n01,mu_i1,lam1,n02,mu_i2,lam2,true
  real, dimension(n_rhor)                 :: cgp1,cgp2,cgp,crp
+ real, dimension(n_Fr)                   :: Fr_arr 
  real, dimension(1000)                   :: fall1,fall2,num1,num2
  
  logical, dimension(n_rhor,n_Fr,n_Qnorm) :: log_lamIsMax
@@ -63,13 +161,12 @@ PROGRAM create_p3_lookuptable_2
 
 ! assume 600 hPa, 253 K for p and T for fallspeed calcs (for reference air density)
  pi  = acos(-1.)
-!pi  = 3.14159  !=acos(-1.)
- g   = 9.861               ! gravity
- p   = 60000.              ! air pressure (pa)
- t   = 253.15              ! temp (K)
- rho = p/(287.15*t)      ! air density (kg m-3)
+ g   = 9.861                           ! gravity
+ p   = 60000.                          ! air pressure (pa)
+ t   = 253.15                          ! temp (K)
+ rho = p/(287.15*t)                    ! air density (kg m-3)
  mu  = 1.496E-6*t**1.5/(t+120.)/rho    ! viscosity of air
- dv  = 8.794E-5*t**1.81/p  ! diffusivity of water vapor in air
+ dv  = 8.794E-5*t**1.81/p              ! diffusivity of water vapor in air
  dt  = 10.
 
 ! parameters for surface roughness of ice particle
@@ -163,6 +260,12 @@ PROGRAM create_p3_lookuptable_2
  crp(4) = 650.*pi*sxth
  crp(5) = 900.*pi*sxth
 
+! array for rime fraction, Fr
+ Fr_arr(1) = 0.
+ Fr_arr(2) = 0.333
+ Fr_arr(3) = 0.667
+ Fr_arr(4) = 1.
+ 
 !...........................................................................................
 
 ! parameters for category 1
@@ -177,17 +280,11 @@ PROGRAM create_p3_lookuptable_2
 ! find threshold with rimed mass added
 
 ! loop over rimed mass fraction (4 points)
-! Fr below are values of rime mass fraction for the lookup table
-! specific values in model are interpolated between these four points
-
-!- note:  should move outside of rime density loop
-!     Fr(1)=0.
-!     Fr(2)=0.333
-!     Fr(3)=0.667
-!     Fr(4)=1.
-!=
 
     i_Fr_loop_1: do i_Fr = 1,n_Fr   ! loop for rime mass fraction, Fr
+    
+      ! Rime mass fraction for the lookup table (specific values in model are interpolated between points)
+       Fr = Fr_arr(i_Fr)
 
 ! ! ! calculate critical dimension separate graupel and nonspherical ice
 ! ! ! "Dgr" in morrison and grabowski (2008)
@@ -216,13 +313,6 @@ PROGRAM create_p3_lookuptable_2
 ! ! !         write(6,'5e15.5')dd,aas*dd**bas,pi/4.*dd**2,
 ! ! !     1      cs*dd**ds,pi*sxth*917.*dd**3
 ! ! !      end do
-
-!-- these lines to be replaced by Fr(i_Fr) initialization outside of loops
-       if (i_Fr.eq.1) Fr = 0.
-       if (i_Fr.eq.2) Fr = 0.333
-       if (i_Fr.eq.3) Fr = 0.667
-       if (i_Fr.eq.4) Fr = 1.
-!==
 
 ! calculate mass-dimension relationship for partially-rimed crystals
 ! msr = csr*D^dsr
@@ -353,7 +443,6 @@ PROGRAM create_p3_lookuptable_2
 !
 ! q = normalized ice mass mixing ratio = q/N, units are kg^-1
 
-!      i_Qnorm_loop_1: do i = 10,13              ! TEST
        i_Qnorm_loop_1: do i = 1,n_Qnorm              ! q loop
 
 ! normalized q (range of mean mass diameter from ~ 1 micron to 1 cm)
@@ -363,10 +452,6 @@ PROGRAM create_p3_lookuptable_2
  !        q = 800.**((i_Qnorm+10)*0.1)*1.e-18     ! new lambda limiter
  !===
  
-! test values
-!            N=5.e3
-!            q=0.01e-3
-
           print*,'i,Fr,i_rhor ',i,i_Fr,i_rhor
           print*,'q* ',q
 
@@ -394,9 +479,9 @@ PROGRAM create_p3_lookuptable_2
 
              mu_i1(i_rhor,i_Fr,i) = diagnostic_mui(log_diagmu_orig,lam1(i_rhor,i_Fr,i),q,cgp1(i_rhor),Fr,pi)               
                 
-! set min lam corresponding to 2000 micron for mean size
+! set min lam corresponding to Dm_max
              lam1(i_rhor,i_Fr,i) = max(lam1(i_rhor,i_Fr,i),(mu_i1(i_rhor,i_Fr,i)+1.)/Dm_max)
-! set max lam corresponding to 2 micron mean size
+! set max lam corresponding to Dm_min
              lam1(i_rhor,i_Fr,i) = min(lam1(i_rhor,i_Fr,i),(mu_i1(i_rhor,i_Fr,i)+1.)/Dm_min)
 ! this range corresponds to range of lam of 500 to 5000000
 
@@ -484,13 +569,8 @@ PROGRAM create_p3_lookuptable_2
 
     i_Fr_loop_2: do i_Fr = 1,n_Fr
 
-!-- these lines to be replaced by Fr(i_Fr) initialization outside of loops
-       if (i_Fr.eq.1) Fr = 0.
-       if (i_Fr.eq.2) Fr = 0.333
-       if (i_Fr.eq.3) Fr = 0.667
-       if (i_Fr.eq.4) Fr = 1.
-!==
-
+       Fr = Fr_arr(i_Fr)
+       
 ! calculate mass-dimension relationship for partially-rimed crystals
 ! msr = csr*D^dsr
 ! formula from morrison grabowski 2008
@@ -625,8 +705,7 @@ PROGRAM create_p3_lookuptable_2
 !
 ! q = total ice mixing ratio (vapor dep. plus rime mixing ratios), normalized by N
 
-!      i_Qnorm_loop_2: do i = 10,13  !TEST
-       i_Qnorm_loop_2: do i = 1,n_Qnorm              ! q loop
+       i_Qnorm_loop_2: do i = 1,n_Qnorm
 
           lamold = 0.
 ! normalized q (range of mean mass diameter from ~ 1 micron to 1 cm)
@@ -635,10 +714,6 @@ PROGRAM create_p3_lookuptable_2
       !   !q = 261.7**((i_Qnorm+10)*0.1)*1.e-18    ! old (strict) lambda limiter
       !    q = 800.**((i_Qnorm+10)*0.1)*1.e-18     ! new lambda limiter
   !===
-
-! test values
-!            N=5.e3
-!            q=0.01e-3
 
           print*,'&&&&&&&&&&&i_rhor',i_rhor
           print*,'***************',i,k
@@ -788,25 +863,25 @@ PROGRAM create_p3_lookuptable_2
  write (filename, "(A12,I0.2,A4)") "lookupTable_2-",i1,".dat"
  filename = trim(filename)
  open(unit=1, file=filename, status='unknown')
-! !header:
-!  if (i1==1) then
-!     write(1,*) 'LOOKUP_TABLE_2: ',trim(version)
-!     write(1,*)
-!  endif
+
+ !header:
+ if (i1==1) then
+    write(1,*) 'LOOKUP_TABLE_2-version:  ',trim(version)
+    write(1,*)
+ endif
 
  
  ! Note: i1 loop (do/enddo statements) is commented out for parallelization; i1 gets initizatized there
  ! - to run in serial, uncomment the 'do i1' statement and the corresponding 'enddo'
-!do i1 = 10,13  !TEST   do i1 = 1,n_Qnorm    ! COMMENTED OUT FOR PARALLELIZATION
-!do i1 = 1,n_Qnorm    ! COMMENTED OUT FOR PARALLELIZATION
+ 
+ do i1 = 1,n_Qnorm    ! COMMENTED OUT FOR PARALLELIZATION
    do i_Fr1 = 1,n_Fr
      do i_rhor1 = 1,n_rhor
-!      do i2=10,13   !TEST  do i2 = 1,n_Qnorm
        do i2 = 1,n_Qnorm
          do i_Fr2 = 1,n_Fr
            do i_rhor2 = 1,n_rhor 
                                
-             lamIsMax: if (.not. log_lamIsMax(i_rhor2,i_Fr2,i2)) then
+                lamIsMax: if (.not. log_lamIsMax(i_rhor2,i_Fr2,i2)) then
 
                 sum1 = 0.
                 sum2 = 0.
@@ -979,7 +1054,7 @@ PROGRAM create_p3_lookuptable_2
        enddo   ! i2 loop
      enddo   ! i_rhor1 loop
    enddo   ! i_Fr1
-! enddo   ! i1 loop  (Qnorm)     ! COMMENTED OUT FOR PARALLELIZATION
+ enddo   ! i1 loop  (Qnorm)     ! COMMENTED OUT FOR PARALLELIZATION
  
  close(1)
              
@@ -997,7 +1072,6 @@ END PROGRAM create_p3_lookuptable_2
 ! Returns the incomplete gamma function Q(a,x) = 1-P(a,x)
 
       real gammcf,gammser,gln
-!     if (x.lt.0..or.a.le.0) pause 'bad argument in gammq'
       if (x.lt.0..or.a.le.0) print*, 'bad argument in gammq'
       if (x.lt.a+1.) then
          call gser(gamser,a,x,gln)
@@ -1019,7 +1093,6 @@ END PROGRAM create_p3_lookuptable_2
       real ap,del,sum,gamma
       gln = log(gamma(a))
       if (x.le.0.) then
-!        if (x.lt.0.) pause 'x < 0 in gser'
          if (x.lt.0.) print*, 'x < 0 in gser'
          gamser = 0.
          return
@@ -1033,7 +1106,6 @@ END PROGRAM create_p3_lookuptable_2
          sum=sum+del
          if (abs(del).lt.abs(sum)*eps) goto 1
       end do
-!     pause 'a too large, itmax too small in gser'
       print*, 'a too large, itmax too small in gser'
  1    gamser=sum*exp(-x+a*log(x)-gln)
       return
@@ -1070,50 +1142,6 @@ END PROGRAM create_p3_lookuptable_2
       return
       end
 
-
-!--------------------------------------------------------------------------
-! subroutine get_mass_size
-!
-! !----- get mass-size and projected area-size relationships for given size (d1)
-!           if (d1.le.dcrit) then
-!              cs1 = pi*sxth*900.
-!              ds1 = 3.
-!              bas1 = 2.
-!              aas1 = pi/4.
-!           else if (d1.gt.dcrit.and.d1.le.dcrits) then
-!              cs1  = cs
-!              ds1  = ds
-!              bas1 = bas
-!              aas1 = aas
-!           else if (d1.gt.dcrits.and.d1.le.dcritr) then
-!               cs1  = cgp(i_rhor)
-!               ds1  = dg
-!               bas1 = bag
-!               aas1 = aag
-!           else if (d1.gt.dcritr) then
-!              cs1 = csr
-!              ds1 = dsr
-!              if (i_Fr.eq.1) then
-!                 aas1 = aas
-!                 bas1 = bas
-!              else
-!
-! ! for projected area, keep bas1 constant, but modify aas1 according to rimed fraction
-!                 bas1 = bas
-!                 dum1 = aas*d1**bas
-!                 dum2 = aag*d1**bag
-!                 m1   = cs1*d1**ds1
-!                 m2   = cs*d1**ds
-!                 m3   = cgp(i_rhor)*d1**dg
-! ! linearly interpolate based on particle mass
-!                 dum3 = dum1+(m1-m2)*(dum2-dum1)/(m3-m2)
-! !               dum3 = (1.-Fr)*dum1+Fr*dum2
-!                 aas1 = dum3/(d1**bas)
-!              endif
-!           endif
-! !=====
-!
-! end subroutine get_mass_size
 !______________________________________________________________________________________
 
  real function diagnostic_mui(log_diagmu_orig,lam,q,cgp,Fr,pi)
