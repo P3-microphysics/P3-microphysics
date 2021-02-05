@@ -6,7 +6,7 @@ PROGRAM create_p3_lookuptable_2
 ! interactions for the multi-ice-category configuration of the P3 microphysics scheme.
 !
 !--------------------------------------------------------------------------------------
-! Version:       5.1_BETA
+! Version:       5.0
 ! Last modified: 2021-FEBRUARY
 !______________________________________________________________________________________
 
@@ -112,7 +112,7 @@ PROGRAM create_p3_lookuptable_2
 
  implicit none
  
- character(len=16), parameter :: version = '5.1_beta'
+ character(len=16), parameter :: version = '5.0'
 
  real    :: pi,g,p,t,rho,mu,pgam,ds,cs,bas,aas,dcrit,eii
  integer :: k,ii,jj,kk,dumii,j2
@@ -332,7 +332,7 @@ PROGRAM create_p3_lookuptable_2
 
        if (i_Fr.eq.1) then
        
-          dcrits1(i_rhor,i_Fr) = 1.e6
+          dcrits1(i_rhor,i_Fr) = 1.e+6
           dcritr1(i_rhor,i_Fr) = dcrits1(i_rhor,i_Fr)
           csr1(i_rhor,i_Fr)    = cs
           dsr1(i_rhor,i_Fr)    = ds
@@ -381,7 +381,7 @@ PROGRAM create_p3_lookuptable_2
        jj_loop_1: do jj = 1,num_bins1
 
 ! particle size
-          d1 = real(jj)*20.*1.e-6 - 10.e-6
+          d1 = real(jj)*dd - 0.5*dd
 
           if (d1.le.dcrit) then
              cs1  = pi*sxth*900.
@@ -583,7 +583,7 @@ PROGRAM create_p3_lookuptable_2
 
        if (i_Fr.eq.1) then
        
-          dcrits2(i_rhor,i_Fr) = 1.e6
+          dcrits2(i_rhor,i_Fr) = 1.e+6
           dcritr2(i_rhor,i_Fr) = dcrits2(i_rhor,i_Fr)
           csr2(i_rhor,i_Fr)    = cs
           dsr2(i_rhor,i_Fr)    = ds
@@ -613,7 +613,7 @@ PROGRAM create_p3_lookuptable_2
 
 ! set threshold size for pure graupel arbitrary large
           dcrits2(i_rhor,i_Fr) = (cs/cgp2(i_rhor))**(1./(dg-ds))
-          dcritr2(i_rhor,i_Fr) = 1.e6
+          dcritr2(i_rhor,i_Fr) = 1.e+6
           csr2(i_rhor,i_Fr)    = cgp2(i_rhor)
           dsr2(i_rhor,i_Fr)    = dg
 
@@ -632,7 +632,7 @@ PROGRAM create_p3_lookuptable_2
        jj_loop_2: do jj = 1,num_bins1
 
 ! particle size
-          d1 = real(jj)*20.*1.e-6 - 10.e-6
+          d1 = real(jj)*dd - 0.5*dd
 
           if (d1.le.dcrit) then
              cs1  = pi*sxth*900.
@@ -698,8 +698,7 @@ PROGRAM create_p3_lookuptable_2
 
 
 !---------------------------------------------------------------------------------
-! produces 30 x 30 x 4 x 5 table
-!
+
 ! q = total ice mixing ratio (vapor dep. plus rime mixing ratios), normalized by N
 
        i_Qnorm_loop_2: do i = 1,n_Qnorm
@@ -866,7 +865,7 @@ PROGRAM create_p3_lookuptable_2
  ! Note: i1 loop (do/enddo statements) is commented out for parallelization; i1 gets initizatized there
  ! - to run in serial, uncomment the 'do i1' statement and the corresponding 'enddo'
  
-do i1 = 1,n_Qnorm    ! COMMENTED OUT FOR PARALLELIZATION
+! Qnorm_loop_3: do i1 = 1,n_Qnorm    ! COMMENT OUT FOR PARALLELIZATION
  
    do i_Fr1 = 1,n_Fr
      do i_rhor1 = 1,n_rhor
@@ -878,31 +877,15 @@ do i1 = 1,n_Qnorm    ! COMMENTED OUT FOR PARALLELIZATION
 
                 sum1 = 0.
                 sum2 = 0.
-!               dd   = 20.e-6
-
-!                 do jj = num_bins1,1,-1   !???  DIRECTION OF LOOP PROBABLY DOES NOT MATTER [ALSO; CAN COMBINE NUM2 CALC HERE
-! ! set up binned distribution of ice from category 1, note the distribution is normalized by N
-!                    d1 = real(jj)*20.*1.e-6 - 10.e-6
-!                    num1(jj) = n01(i_rhor1,i_Fr1,i1)*d1**mu_i1(i_rhor1,i_Fr1,i1)*         &
-!                               exp(-lam1(i_rhor1,i_Fr1,i1)*d1)*dd
-!                 enddo !jj-loop
-! 
-!                 do jj = num_bins1,1,-1   !???  DIRECTION OF LOOP PROBABLY DOES NOT MATTER
-! ! set up binned distribution of ice from category 2, note the distribution is normalized by N
-!                    d2 = real(jj)*20.*1.e-6 - 10.e-6
-!                    num2(jj) = n02(i_rhor2,i_Fr2,i2)*d2**mu_i2(i_rhor2,i_Fr2,i2)*         &
-!                               exp(-lam2(i_rhor2,i_Fr2,i2)*d2)*dd
-!                 enddo !jj-loop
 
               !set up binned distribution of ice from categories 1 and 2 (distributions normalized by N)
                 do jj = 1,num_bins1
-!                  d1 = real(jj)*20.*1.e-6 - 10.e-6
-                   d1 = real(jj)*dd - 10.e-6
+                   d1 = real(jj)*dd - 0.5*dd
                    num1(jj) = n01(i_rhor1,i_Fr1,i1)*d1**mu_i1(i_rhor1,i_Fr1,i1)*         &
                               exp(-lam1(i_rhor1,i_Fr1,i1)*d1)*dd
                    num2(jj) = n02(i_rhor2,i_Fr2,i2)*d1**mu_i2(i_rhor2,i_Fr2,i2)*         &
                               exp(-lam2(i_rhor2,i_Fr2,i2)*d1)*dd
-                enddo !jj-loop
+                enddo
 
 ! loop over size distribution
 ! note: collection of ice within the same bin is neglected
@@ -910,8 +893,7 @@ do i1 = 1,n_Qnorm    ! COMMENTED OUT FOR PARALLELIZATION
 ! loop over particle 1
                 jj_loop_3: do jj = num_bins1,1,-1
 
-!                  d1 = real(jj)*20.*1.e-6 - 10.e-6
-                   d1 = real(jj)*dd - 10.e-6
+                   d1 = real(jj)*dd - 0.5*dd
 
                    if (d1.le.dcrit) then
                       cs1  = pi*sxth*900.
@@ -951,8 +933,7 @@ do i1 = 1,n_Qnorm    ! COMMENTED OUT FOR PARALLELIZATION
 ! loop over particle 2
                    kk_loop: do kk = num_bins1,1,-1
 
-!                     d2 = real(kk)*20.*1.e-6 - 10.e-6
-                      d2 = real(kk)*dd - 10.e-6
+                      d2 = real(kk)*dd - 0.5*dd
 
 ! parameters for particle 2
                       if (d2.le.dcrit) then
@@ -998,7 +979,7 @@ do i1 = 1,n_Qnorm    ! COMMENTED OUT FOR PARALLELIZATION
 
                       if (fall2(kk).gt.fall1(jj)) then
                       
-                         delu=fall2(kk)-fall1(jj)
+                         delu = fall2(kk)-fall1(jj)
 
 ! note: in micro code we have to multiply by air density
 ! correction factor for fallspeed, and collection efficiency
@@ -1060,7 +1041,7 @@ do i1 = 1,n_Qnorm    ! COMMENTED OUT FOR PARALLELIZATION
      enddo   ! i_rhor1 loop
    enddo   ! i_Fr1
    
- enddo   ! i1 loop  (Qnorm)     ! COMMENTED OUT FOR PARALLELIZATION
+! enddo Qnorm_loop_3  ! i1 loop  (Qnorm)     ! COMMENTED OUT FOR PARALLELIZATION
  
  close(1)
              
