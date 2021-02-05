@@ -134,7 +134,7 @@ PROGRAM create_p3_lookuptable_2
          sum3,sum4,xx,a0,b0,a1,b1,dum,bas1,aas1,aas2,bas2,gammq,d1,d2,delu,lamold,       &
          cap,lamr,dia,amg,dv,n0dum,sum5,sum6,sum7,sum8,dg,cg,bag,aag,dcritg,dcrits,      &
          dcritr,csr,dsr,duml,dum3,rhodep,cgpold,m1,m2,m3,dt,mur,initlamr,lamv,Fr,        &
-         rdumii,lammin,lammax,cs2,ds2,intgrR1,intgrR2,intgrR3,intgrR4
+         rdumii,lammin,lammax,cs2,ds2,intgrR1,intgrR2,intgrR3,intgrR4,q_agg,n_agg
 
  real :: diagnostic_mui ! function to return diagnostic value of shape paramter, mu_i
  real :: Q_normalized
@@ -147,13 +147,12 @@ PROGRAM create_p3_lookuptable_2
  real, parameter :: thrd = 1./3.
  real, parameter :: sxth = 1./6.
  
- real, dimension(n_Qnorm,n_Fr,n_rhor,n_Qnorm,n_Fr,n_rhor) :: qagg,nagg
  real, dimension(n_Qnorm,n_Fr,n_rhor)    :: qsave,nsave,qon1
  real, dimension(n_rhor,n_Fr)            :: dcrits1,dcritr1,csr1,dsr1,dcrits2,dcritr2,csr2,dsr2
  real, dimension(n_rhor,n_Fr,n_Qnorm)    :: n01,mu_i1,lam1,n02,mu_i2,lam2
  real, dimension(n_rhor)                 :: cgp1,cgp2,cgp,crp
  real, dimension(n_Fr)                   :: Fr_arr 
- real, dimension(num_bins1)               :: fall1,fall2,num1,num2
+ real, dimension(num_bins1)              :: fall1,fall2,num1,num2
  
  logical, dimension(n_rhor,n_Fr,n_Qnorm) :: log_lamIsMax
  
@@ -865,7 +864,7 @@ PROGRAM create_p3_lookuptable_2
  ! Note: i1 loop (do/enddo statements) is commented out for parallelization; i1 gets initizatized there
  ! - to run in serial, uncomment the 'do i1' statement and the corresponding 'enddo'
  
-! Qnorm_loop_3: do i1 = 1,n_Qnorm    ! COMMENT OUT FOR PARALLELIZATION
+ Qnorm_loop_3: do i1 = 1,n_Qnorm    ! COMMENT OUT FOR PARALLELIZATION
  
    do i_Fr1 = 1,n_Fr
      do i_rhor1 = 1,n_rhor
@@ -1016,23 +1015,22 @@ PROGRAM create_p3_lookuptable_2
                 enddo jj_loop_3
 
 ! save for output
-                nagg(i1,i_Fr1,i_rhor1,i2,i_Fr2,i_rhor2) = sum1
-                qagg(i1,i_Fr1,i_rhor1,i2,i_Fr2,i_rhor2) = sum2
+                n_agg = sum1
+                q_agg = sum2
 
              else
              
                 print*,'&&&&&&, skip'
+                n_agg = -999.
+                q_agg = -999.
              
              endif lamIsMax
 
-             write(6,221) 'index:',i1,i_Fr1,i_rhor1,i2,i_Fr2,i_rhor2,  &
-                          nagg(i1,i_Fr1,i_rhor1,i2,i_Fr2,i_rhor2),     &
-                          qagg(i1,i_Fr1,i_rhor1,i2,i_Fr2,i_rhor2)
+             write(6,221) 'index:',i1,i_Fr1,i_rhor1,i2,i_Fr2,i_rhor2,n_agg,q_agg
 
              write(1,222) i_rhor1,i_Fr1,qon1(i1,i_Fr1,i_rhor1),                            &
                           i_rhor2,i_Fr2,qsave(i2,i_Fr2,i_rhor2),nsave(i2,i_Fr2,i_rhor2),   &
-                          nagg(i1,i_Fr1,i_rhor1,i2,i_Fr2,i_rhor2),                         &
-                          qagg(i1,i_Fr1,i_rhor1,i2,i_Fr2,i_rhor2)
+                          n_agg,q_agg
 
               
            enddo   ! i_rhor2 loop
@@ -1041,7 +1039,7 @@ PROGRAM create_p3_lookuptable_2
      enddo   ! i_rhor1 loop
    enddo   ! i_Fr1
    
-! enddo Qnorm_loop_3  ! i1 loop  (Qnorm)     ! COMMENTED OUT FOR PARALLELIZATION
+ enddo Qnorm_loop_3  ! i1 loop  (Qnorm)     ! COMMENTED OUT FOR PARALLELIZATION
  
  close(1)
              
