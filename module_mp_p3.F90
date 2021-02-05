@@ -19,8 +19,8 @@
 !    Jason Milbrandt (jason.milbrandt@canada.ca)                                           !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       4.0.19                                                                    !
-! Last updated:  2021-02-02                                                                !
+! Version:       4.2_BETA                                                                  !
+! Last updated:  2021-FEBRUARY                                                             !
 !__________________________________________________________________________________________!
 
  MODULE MODULE_MP_P3
@@ -6142,10 +6142,11 @@ SUBROUTINE access_lookup_table_coll_3mom(dumzz,dumjj,dumii,dumj,dumi,index,dum1,
 
            ! find index for qi (normalized ice mass mixing ratio = qitot/nitot)
 
-           ! we are inverting this equation from the lookup table to solve for i:
-           ! qitot/nitot=800**((i+10)*0.1)*1.e-18, for lookup table beta >= 9
-            !dum1 = (alog10(qitot/nitot)+18.)/(0.1*alog10(800.)) - 10.
-             dum1 = (alog10(qitot/nitot)+18.)*3.444606 - 10.  !optimized
+           ! we are inverting this equation from the lookup table to solve for i_Qnorm:
+           ! from create_LT1:  q = 800.**((i_Qnorm+10)*0.1)*1.e-18   [where q = qitot/nitot]
+            !dum1 = (alog10(qitot/nitot)+18.)/(0.1*alog10(800.)) - 10.   !original
+             dum1 = (alog10(qitot/nitot)+18.)*3.444606 - 10.             !optimized
+             
              dumi = int(dum1)
              ! set limits (to make sure the calculated index doesn't exceed range of lookup table)
              dum1 = min(dum1,real(isize))
@@ -6292,9 +6293,19 @@ SUBROUTINE access_lookup_table_coll_3mom(dumzz,dumjj,dumii,dumj,dumi,index,dum1,
                     ! find index in lookup table for collector category
 
                     ! find index for qi (total ice mass mixing ratio)
-! replace with new inversion for new lookup table 2 w/ reduced dimensionality
-!                      dum1 = (alog10(qitot_1/nitot_1)+18.)/(0.2*alog10(261.7))-5. !orig
-                      dum1 = (alog10(qitot_1/nitot_1)+18.)*(2.06799)-5. !optimization
+                    
+             !-- For LT2-5.0 (Dm_max = 2000.)
+             !   inverting the following (from create_LT2):  q = 261.7**((i+5)*0.2)*1.e-18
+             !   where q = qitot/nitot (normalized)
+                     !dum1 = (alog10(qitot_1/nitot_1)+18.)/(0.2*alog10(261.7))-5.   !orig
+                      dum1 = (alog10(qitot_1/nitot_1)+18.)*(2.06799)-5.             !optimization
+
+             !-- For LT2-5.0 (Dm_max = 2000.)
+             !   inverting this equation from the lookup table to solve for i_Qnorm:
+             !   from create_LT2:  q = 800.**((i_Qnorm+10)*0.1)*1.e-18   [where q = qitot/nitot]
+                     !dum1 = (alog10(qitot/nitot)+18.)/(0.1*alog10(800.)) - 10.   !original
+                      dum1 = (alog10(qitot/nitot)+18.)*3.444606 - 10.             !optimized
+                      
                       dumi = int(dum1)
                       dum1 = min(dum1,real(iisize))
                       dum1 = max(dum1,1.)

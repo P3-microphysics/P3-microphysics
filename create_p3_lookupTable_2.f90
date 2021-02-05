@@ -6,8 +6,8 @@ PROGRAM create_p3_lookuptable_2
 ! interactions for the multi-ice-category configuration of the P3 microphysics scheme.
 !
 !--------------------------------------------------------------------------------------
-! Version:       5.0
-! Last modified: 2021-02-03
+! Version:       5.1_BETA
+! Last modified: 2021-FEBRUARY
 !______________________________________________________________________________________
 
 !______________________________________________________________________________________
@@ -112,9 +112,9 @@ PROGRAM create_p3_lookuptable_2
 
  implicit none
  
- character(len=16), parameter :: version = '5.0'
+ character(len=16), parameter :: version = '5.1_beta'
 
- logical, parameter :: log_diagmu_orig = .true.  !switch for original diagnostic-mu_i relation [to be removed eventually]
+!  logical, parameter :: log_diagmu_orig = .true.  !switch for original diagnostic-mu_i relation [to be removed eventually]
  
  real    :: pi,g,p,t,rho,mu,pgam,ds,cs,bas,aas,dcrit,eii
  integer :: k,ii,jj,kk,dumii,j2
@@ -122,6 +122,10 @@ PROGRAM create_p3_lookuptable_2
  integer, parameter :: n_rhor  =  5
  integer, parameter :: n_Fr    =  4
  integer, parameter :: n_Qnorm = 25
+ 
+ integer, parameter :: num_bins1 =  1000   ! number of bins for numerical integration of fall speeds and total N
+ integer, parameter :: num_bins2 =  9000   ! number of bins for solving PSD parameters  [based on Dm_max = 2000.]
+!integer, parameter :: num_bins2 = 11000   ! number of bins for solving PSD parameters  [based on Dm_max = 400000.]
 
  integer            :: i_rhor,i_rhor1,i_rhor2  ! indices for rho_rime                 [1 .. n_rhor]
  integer            :: i_Fr,i_Fr1,i_Fr2        ! indices for rime-mass-fraction loop  [1 .. n_Fr]
@@ -133,9 +137,10 @@ PROGRAM create_p3_lookuptable_2
          dcritr,csr,dsr,duml,dum3,rhodep,cgpold,m1,m2,m3,dt,mur,initlamr,lamv,Fr,        &
          rdumii,lammin,lammax,cs2,ds2,intgrR1,intgrR2,intgrR3,intgrR4
 
-
  real :: diagnostic_mui ! function to return diagnostic value of shape paramter, mu_i
-
+ real :: Q_normalized
+ real :: lambdai
+ 
 !real, parameter :: Dm_max = 40000.e-6   ! max. mean ice [m] size for lambda limiter
  real, parameter :: Dm_max =  2000.e-6   ! max. mean ice [m] size for lambda limiter
  real, parameter :: Dm_min =     2.e-6   ! min. mean ice [m] size for lambda limiter
@@ -146,10 +151,10 @@ PROGRAM create_p3_lookuptable_2
  real, dimension(n_Qnorm,n_Fr,n_rhor,n_Qnorm,n_Fr,n_rhor) :: qagg,nagg
  real, dimension(n_Qnorm,n_Fr,n_rhor)    :: qsave,nsave,qon1
  real, dimension(n_rhor,n_Fr)            :: dcrits1,dcritr1,csr1,dsr1,dcrits2,dcritr2,csr2,dsr2
- real, dimension(n_rhor,n_Fr,n_Qnorm)    :: n01,mu_i1,lam1,n02,mu_i2,lam2,true
+ real, dimension(n_rhor,n_Fr,n_Qnorm)    :: n01,mu_i1,lam1,n02,mu_i2,lam2
  real, dimension(n_rhor)                 :: cgp1,cgp2,cgp,crp
  real, dimension(n_Fr)                   :: Fr_arr 
- real, dimension(1000)                   :: fall1,fall2,num1,num2
+ real, dimension(num_bins1)               :: fall1,fall2,num1,num2
  
  logical, dimension(n_rhor,n_Fr,n_Qnorm) :: log_lamIsMax
  
@@ -374,7 +379,7 @@ PROGRAM create_p3_lookuptable_2
 ! ****
 !  note: this part could be incorporated into the longer (every 2 micron) loop
 ! ****
-       jj_loop_1: do jj = 1,1000
+       jj_loop_1: do jj = 1,num_bins1
 
 ! particle size
           d1 = real(jj)*20.*1.e-6 - 10.e-6
@@ -445,18 +450,20 @@ PROGRAM create_p3_lookuptable_2
 
        i_Qnorm_loop_1: do i = 1,n_Qnorm              ! q loop
 
-! normalized q (range of mean mass diameter from ~ 1 micron to 1 cm)
-	      q = 261.7**((i+5)*0.2)*1.e-18
- !--- from LT1:
- !       !q = 261.7**((i_Qnorm+10)*0.1)*1.e-18    ! old (strict) lambda limiter
- !        q = 800.**((i_Qnorm+10)*0.1)*1.e-18     ! new lambda limiter
- !===
+          q = Q_normalized(i)
+          
+!	      q = 261.7**((i+5)*0.2)*1.e-18           ! normalized q (range of mean mass diameter from ~ 1 micron to 1 cm)
+!           q = 800.**((i+10)*0.1)*1.e-18     ! normalized q (for now range, with new Dm_max [new lambda limiter]
+!  !--- from LT1:  [TO BE DELTED]
+!  !       !q = 261.7**((i_Qnorm+10)*0.1)*1.e-18    ! old (strict) lambda limiter
+!  !         q = 800.**((i_Qnorm+10)*0.1)*1.e-18     ! new lambda limiter
+!  !===
  
           print*,'i,Fr,i_rhor ',i,i_Fr,i_rhor
           print*,'q* ',q
 
 ! initialize qerror to arbitrarily large value
-          qerror = 1.e20
+          qerror = 1.e+20
 
 !.....................................................................................
 ! find parameters for gamma distribution
@@ -472,12 +479,14 @@ PROGRAM create_p3_lookuptable_2
 ! start with lam, range of lam from 100 to 5 x 10^6 is large enough to
 ! cover full range over mean size from 2 to 5000 micron
 
-          ii_loop: do ii = 1,9000
-          
-             lam1(i_rhor,i_Fr,i) = 1.0013**ii*100.  ! old (strict) lambda_i limiter
-!            lam1(i_rhor,i_Fr,i) = 1.0013**ii*10.   ! new lambda_i limiter
+          ii_loop: do ii = 1,num_bins2
 
-             mu_i1(i_rhor,i_Fr,i) = diagnostic_mui(log_diagmu_orig,lam1(i_rhor,i_Fr,i),q,cgp1(i_rhor),Fr,pi)               
+              lam1(i_rhor,i_Fr,i) = lambdai(ii)
+! !              lam1(i_rhor,i_Fr,i) = 1.0013**ii*100.  ! old (strict) lambda_i limiter
+! !            lam1(i_rhor,i_Fr,i) = 1.0013**ii*10.   ! new lambda_i limiter
+
+!            mu_i1(i_rhor,i_Fr,i) = diagnostic_mui(log_diagmu_orig,lam1(i_rhor,i_Fr,i),q,cgp1(i_rhor),Fr,pi)               
+             mu_i1(i_rhor,i_Fr,i) = diagnostic_mui(lam1(i_rhor,i_Fr,i),q,cgp1(i_rhor),Fr,pi)               
                 
 ! set min lam corresponding to Dm_max
              lam1(i_rhor,i_Fr,i) = max(lam1(i_rhor,i_Fr,i),(mu_i1(i_rhor,i_Fr,i)+1.)/Dm_max)
@@ -531,7 +540,8 @@ PROGRAM create_p3_lookuptable_2
 ! this is the value of lam with the smallest qerror
           lam1(i_rhor,i_Fr,i) = lamf
 ! recalculate mu_i based on final lam
-          mu_i1(i_rhor,i_Fr,i) = diagnostic_mui(log_diagmu_orig,lam1(i_rhor,i_Fr,i),q,cgp1(i_rhor),Fr,pi)
+!         mu_i1(i_rhor,i_Fr,i) = diagnostic_mui(log_diagmu_orig,lam1(i_rhor,i_Fr,i),q,cgp1(i_rhor),Fr,pi)
+          mu_i1(i_rhor,i_Fr,i) = diagnostic_mui(lam1(i_rhor,i_Fr,i),q,cgp1(i_rhor),Fr,pi)
 
 !            n0 = N*lam**(pgam+1.)/(gamma(pgam+1.))
 
@@ -631,7 +641,7 @@ PROGRAM create_p3_lookuptable_2
 ! ****
 !  note: this part could be incorporated into the longer (every 2 micron) loop
 ! ****
-       jj_loop_2: do jj = 1,1000
+       jj_loop_2: do jj = 1,num_bins1
 
 ! particle size
           d1 = real(jj)*20.*1.e-6 - 10.e-6
@@ -708,12 +718,16 @@ PROGRAM create_p3_lookuptable_2
        i_Qnorm_loop_2: do i = 1,n_Qnorm
 
           lamold = 0.
-! normalized q (range of mean mass diameter from ~ 1 micron to 1 cm)
-          q = 261.7**((i+5)*0.2)*1.e-18
-  !--- from LT1:           
-      !   !q = 261.7**((i_Qnorm+10)*0.1)*1.e-18    ! old (strict) lambda limiter
-      !    q = 800.**((i_Qnorm+10)*0.1)*1.e-18     ! new lambda limiter
-  !===
+          
+          q = Q_normalized(i)
+          
+! ! normalized q (range of mean mass diameter from ~ 1 micron to 1 cm)
+!           q = 261.7**((i+5)*0.2)*1.e-18
+!           q = 800.**((i+10)*0.1)*1.e-18     ! normalized q (for new range, with new Dm_max [new lambda limiter]
+!   !--- from LT1:     [TO BE DELETED]
+!       !   !q = 261.7**((i_Qnorm+10)*0.1)*1.e-18    ! old (strict) lambda limiter
+!       !    q = 800.**((i_Qnorm+10)*0.1)*1.e-18     ! new lambda limiter
+!   !===
 
           print*,'&&&&&&&&&&&i_rhor',i_rhor
           print*,'***************',i,k
@@ -737,11 +751,14 @@ PROGRAM create_p3_lookuptable_2
 ! start with lam, range of lam from 100 to 5 x 10^6 is large enough to
 ! cover full range over mean size from 2 to 5000 micron
 
-          ii_loop_2: do ii = 1,9000
+          ii_loop_2: do ii = 1,num_bins2
           
-             lam2(i_rhor,i_Fr,i) = 1.0013**ii*100.
+              lam2(i_rhor,i_Fr,i) = lambdai(ii)
+!              lam2(i_rhor,i_Fr,i) = 1.0013**ii*100.
+! !            lam2(i_rhor,i_Fr,i) = 1.0013**ii*10.   ! new lambda_i limiter
 
-             mu_i2(i_rhor,i_Fr,i) = diagnostic_mui(log_diagmu_orig,lam2(i_rhor,i_Fr,i),q,cgp1(i_rhor),Fr,pi)
+!            mu_i2(i_rhor,i_Fr,i) = diagnostic_mui(log_diagmu_orig,lam2(i_rhor,i_Fr,i),q,cgp1(i_rhor),Fr,pi)
+             mu_i2(i_rhor,i_Fr,i) = diagnostic_mui(lam2(i_rhor,i_Fr,i),q,cgp1(i_rhor),Fr,pi)
 
 ! set min lam corresponding to Dm_max microns (mean size)
              lam2(i_rhor,i_Fr,i) = max(lam2(i_rhor,i_Fr,i),(mu_i2(i_rhor,i_Fr,i)+1.)/Dm_max)
@@ -792,7 +809,8 @@ PROGRAM create_p3_lookuptable_2
           lam2(i_rhor,i_Fr,i) = lamf
              
 ! recalculate mu based on final lam
-          mu_i2(i_rhor,i_Fr,i) = diagnostic_mui(log_diagmu_orig,lam2(i_rhor,i_Fr,i),q,cgp1(i_rhor),Fr,pi)
+!         mu_i2(i_rhor,i_Fr,i) = diagnostic_mui(log_diagmu_orig,lam2(i_rhor,i_Fr,i),q,cgp1(i_rhor),Fr,pi)
+          mu_i2(i_rhor,i_Fr,i) = diagnostic_mui(lam2(i_rhor,i_Fr,i),q,cgp1(i_rhor),Fr,pi)
 
 !            n0 = N*lam**(pgam+1.)/(gamma(pgam+1.))
 
@@ -874,7 +892,8 @@ PROGRAM create_p3_lookuptable_2
  ! Note: i1 loop (do/enddo statements) is commented out for parallelization; i1 gets initizatized there
  ! - to run in serial, uncomment the 'do i1' statement and the corresponding 'enddo'
  
- do i1 = 1,n_Qnorm    ! COMMENTED OUT FOR PARALLELIZATION
+do i1 = 1,n_Qnorm    ! COMMENTED OUT FOR PARALLELIZATION
+ 
    do i_Fr1 = 1,n_Fr
      do i_rhor1 = 1,n_rhor
        do i2 = 1,n_Qnorm
@@ -887,14 +906,14 @@ PROGRAM create_p3_lookuptable_2
                 sum2 = 0.
                 dd   = 20.e-6
 
-                do jj = 1000,1,-1
+                do jj = num_bins1,1,-1   !???  DIRECTION OF LOOP PROBABLY DOES NOT MATTER [ALSO; CAN COMBINE NUM2 CALC HERE
 ! set up binned distribution of ice from category 1, note the distribution is normalized by N
                    d1 = real(jj)*20.*1.e-6 - 10.e-6
                    num1(jj) = n01(i_rhor1,i_Fr1,i1)*d1**mu_i1(i_rhor1,i_Fr1,i1)*         &
                               exp(-lam1(i_rhor1,i_Fr1,i1)*d1)*dd
                 enddo !jj-loop
 
-                do jj = 1000,1,-1
+                do jj = num_bins1,1,-1   !???  DIRECTION OF LOOP PROBABLY DOES NOT MATTER
 ! set up binned distribution of ice from category 2, note the distribution is normalized by N
                    d2 = real(jj)*20.*1.e-6 - 10.e-6
                    num2(jj) = n02(i_rhor2,i_Fr2,i2)*d2**mu_i2(i_rhor2,i_Fr2,i2)*         &
@@ -905,7 +924,7 @@ PROGRAM create_p3_lookuptable_2
 ! note: collection of ice within the same bin is neglected
 
 ! loop over particle 1
-                jj_loop_3: do jj = 1000,1,-1
+                jj_loop_3: do jj = num_bins1,1,-1
 
                    d1 = real(jj)*20.*1.e-6 - 10.e-6
 
@@ -945,7 +964,7 @@ PROGRAM create_p3_lookuptable_2
                    endif
 
 ! loop over particle 2
-                   kk_loop: do kk = 1000,1,-1
+                   kk_loop: do kk = num_bins1,1,-1
 
                       d2 = real(kk)*20.*1.e-6 - 10.e-6
 
@@ -1054,6 +1073,7 @@ PROGRAM create_p3_lookuptable_2
        enddo   ! i2 loop
      enddo   ! i_rhor1 loop
    enddo   ! i_Fr1
+   
  enddo   ! i1 loop  (Qnorm)     ! COMMENTED OUT FOR PARALLELIZATION
  
  close(1)
@@ -1144,7 +1164,8 @@ END PROGRAM create_p3_lookuptable_2
 
 !______________________________________________________________________________________
 
- real function diagnostic_mui(log_diagmu_orig,lam,q,cgp,Fr,pi)
+!real function diagnostic_mui(log_diagmu_orig,lam,q,cgp,Fr,pi)
+ real function diagnostic_mui(lam,q,cgp,Fr,pi)
 
 !----------------------------------------------------------!
 ! Compute mu_i diagnostically.
@@ -1153,40 +1174,35 @@ END PROGRAM create_p3_lookuptable_2
  implicit none
  
 !Arguments:
- logical :: log_diagmu_orig
- real    :: lam,q,cgp,Fr,pi
+! logical :: log_diagmu_orig
+ real :: lam,q,cgp,Fr,pi
 
 ! Local variables:
  real            :: mu_i,dum1,dum2,dum3
  real, parameter :: mu_i_min =  0.
- real, parameter :: mu_i_max = 20. !note: for orig 2-mom, mu_i_max=6.
- real, parameter :: Di_thres = 0.2 !diameter threshold [mm]
+ real, parameter :: mu_i_max = 20.  !note: for orig 2-mom, mu_i_max=6.
+ real, parameter :: Di_thres = 0.2  !diameter threshold [mm]
 
- if (log_diagmu_orig) then                   
-
- !diagnostic mu_i, original formulation: (from Heymsfield, 2003)
-    mu_i = 0.076*(lam/100.)**0.8-2.   ! /100 is to convert m-1 to cm-1
-    mu_i = max(mu_i,mu_i_min)  ! make sure mu_i >= 0, otherwise size dist is infinity at D = 0
-    mu_i = min(mu_i,6.)
+!-- original formulation: (from Heymsfield, 2003)
+ mu_i = 0.076*(lam/100.)**0.8-2.   ! /100 is to convert m-1 to cm-1
+ mu_i = max(mu_i,0.)  ! make sure mu_i >= 0, otherwise size dist is infinity at D = 0
+ mu_i = min(mu_i,6.)
     
- else
+
+!-- formulation based on 3-moment results (see 2021 JAS article)
+!  dum1 = (q/cgp)**(1./3)*1000.              ! estimated Dmvd [mm], assuming spherical
+!  if (dum1<=Di_thres) then
+!     !diagnostic mu_i, original formulation: (from Heymsfield, 2003)
+!     mu_i = 0.076*(lam*0.01)**0.8-2.        ! /100 is to convert m-1 to cm-1
+!     mu_i = min(mu_i,6.)
+!  else
+!     dum2 = (6./pi)*cgp                     ! mean density (total)
+!     dum3 = max(1., 1.+0.00842*(dum2-400.)) ! adjustment factor for density
+!     mu_i = 4.*(dum1-Di_thres)*dum3*Fr
+!  endif
+!  mu_i = max(mu_i,mu_i_min)
+!  mu_i = min(mu_i,mu_i_max)
  
- !diagnostic mu_i, 3-moment-based formulation:
-    dum1 = (q/cgp)**(1./3)*1000.              ! estimated Dmvd [mm], assuming spherical
-    if (dum1<=Di_thres) then
-       !diagnostic mu_i, original formulation: (from Heymsfield, 2003)
-       mu_i = 0.076*(lam*0.01)**0.8-2.        ! /100 is to convert m-1 to cm-1
-       mu_i = min(mu_i,6.)
-    else
-       dum2 = (6./pi)*cgp                     ! mean density (total)
-       dum3 = max(1., 1.+0.00842*(dum2-400.)) ! adjustment factor for density
-       mu_i = 4.*(dum1-Di_thres)*dum3*Fr
-    endif
-    mu_i = max(mu_i,mu_i_min)  ! make sure mu_i >= 0, otherwise size dist is infinity at D = 0
-    mu_i = min(mu_i,mu_i_max)
-    
- endif
-
  diagnostic_mui = mu_i
  
  end function diagnostic_mui
@@ -1228,3 +1244,50 @@ END PROGRAM create_p3_lookuptable_2
  return
  
  end subroutine intgrl_section               
+
+
+!______________________________________________________________________________________
+
+ real function Q_normalized(i_qnorm)
+ 
+ !-----------------  
+ ! Computes the normalized Q (qitot/nitot) based on a given index (used in the Qnorm loops)
+ !-----------------  
+ 
+ implicit none
+
+!arguments:
+ integer :: i_qnorm
+ 
+ Q_normalized = 261.7**((i_qnorm+5)*0.2)*1.e-18     ! v4, v5.0 (range of mean mass diameter from ~ 1 micron to 1 cm)   (for n_Qnorm = 25)
+!Q_normalized = 800.**((i_qnorm+10)*0.1)*1.e-18     ! based on LT1-v5.2 (range for Dm_max = 400000.)                   (for n_Qnorm = 50)
+          
+ !--- from LT1:  [TO BE DELTED]
+ !       !q = 261.7**((i_Qnorm+10)*0.1)*1.e-18    ! old (strict) lambda limiter
+ !         q = 800.**((i_Qnorm+10)*0.1)*1.e-18     ! new lambda limiter
+ !===
+
+ return
+ 
+ end function Q_normalized
+ 
+ 
+!______________________________________________________________________________________
+
+ real function lambdai(i)
+ 
+ !-----------------  
+ ! Computes the lambda_i for a given index (used in loops to solve for PSD parameters)
+ !-----------------  
+ 
+ implicit none
+
+!arguments:
+ integer, intent(in) :: i
+ 
+ lambdai = 1.0013**i*100.   !used with Dm_max =   2000.
+!lambdai = 1.0013**i*10.    !used with Dm_max = 400000.
+
+ return
+ 
+ end function lambdai
