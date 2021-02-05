@@ -114,8 +114,6 @@ PROGRAM create_p3_lookuptable_2
  
  character(len=16), parameter :: version = '5.1_beta'
 
-!  logical, parameter :: log_diagmu_orig = .true.  !switch for original diagnostic-mu_i relation [to be removed eventually]
- 
  real    :: pi,g,p,t,rho,mu,pgam,ds,cs,bas,aas,dcrit,eii
  integer :: k,ii,jj,kk,dumii,j2
  
@@ -452,13 +450,6 @@ PROGRAM create_p3_lookuptable_2
 
           q = Q_normalized(i)
           
-!	      q = 261.7**((i+5)*0.2)*1.e-18           ! normalized q (range of mean mass diameter from ~ 1 micron to 1 cm)
-!           q = 800.**((i+10)*0.1)*1.e-18     ! normalized q (for now range, with new Dm_max [new lambda limiter]
-!  !--- from LT1:  [TO BE DELTED]
-!  !       !q = 261.7**((i_Qnorm+10)*0.1)*1.e-18    ! old (strict) lambda limiter
-!  !         q = 800.**((i_Qnorm+10)*0.1)*1.e-18     ! new lambda limiter
-!  !===
- 
           print*,'i,Fr,i_rhor ',i,i_Fr,i_rhor
           print*,'q* ',q
 
@@ -481,18 +472,14 @@ PROGRAM create_p3_lookuptable_2
 
           ii_loop: do ii = 1,num_bins2
 
-              lam1(i_rhor,i_Fr,i) = lambdai(ii)
-! !              lam1(i_rhor,i_Fr,i) = 1.0013**ii*100.  ! old (strict) lambda_i limiter
-! !            lam1(i_rhor,i_Fr,i) = 1.0013**ii*10.   ! new lambda_i limiter
-
-!            mu_i1(i_rhor,i_Fr,i) = diagnostic_mui(log_diagmu_orig,lam1(i_rhor,i_Fr,i),q,cgp1(i_rhor),Fr,pi)               
+             lam1(i_rhor,i_Fr,i) = lambdai(ii)
              mu_i1(i_rhor,i_Fr,i) = diagnostic_mui(lam1(i_rhor,i_Fr,i),q,cgp1(i_rhor),Fr,pi)               
                 
 ! set min lam corresponding to Dm_max
              lam1(i_rhor,i_Fr,i) = max(lam1(i_rhor,i_Fr,i),(mu_i1(i_rhor,i_Fr,i)+1.)/Dm_max)
 ! set max lam corresponding to Dm_min
              lam1(i_rhor,i_Fr,i) = min(lam1(i_rhor,i_Fr,i),(mu_i1(i_rhor,i_Fr,i)+1.)/Dm_min)
-! this range corresponds to range of lam of 500 to 5000000
+! this range corresponds to range of min/max of lambda
 
 ! get normalized n0 = n0/N
              n01(i_rhor,i_Fr,i) = lam1(i_rhor,i_Fr,i)**(mu_i1(i_rhor,i_Fr,i)+1.)/(gamma(mu_i1(i_rhor,i_Fr,i)+1.))
@@ -669,8 +656,7 @@ PROGRAM create_p3_lookuptable_2
                 bas1 = bas
              else
 ! for area,
-! keep bas1 constant, but modify aas1 according
-! to rimed fraction
+! keep bas1 constant, but modify aas1 according to rimed fraction
                 bas1 = bas
                 dum1 = aas*d1**bas
                 dum2 = aag*d1**bag
@@ -721,21 +707,12 @@ PROGRAM create_p3_lookuptable_2
           
           q = Q_normalized(i)
           
-! ! normalized q (range of mean mass diameter from ~ 1 micron to 1 cm)
-!           q = 261.7**((i+5)*0.2)*1.e-18
-!           q = 800.**((i+10)*0.1)*1.e-18     ! normalized q (for new range, with new Dm_max [new lambda limiter]
-!   !--- from LT1:     [TO BE DELETED]
-!       !   !q = 261.7**((i_Qnorm+10)*0.1)*1.e-18    ! old (strict) lambda limiter
-!       !    q = 800.**((i_Qnorm+10)*0.1)*1.e-18     ! new lambda limiter
-!   !===
-
           print*,'&&&&&&&&&&&i_rhor',i_rhor
           print*,'***************',i,k
           print*,'Fr',Fr
           print*,'q,N',q,N
 
-! initialize qerror to arbitrarily large value
-          qerror = 1.e20
+          qerror = 1.e+20   ! initialize qerror to arbitrarily large value
 
 !.....................................................................................
 ! find parameters for gamma distribution
@@ -753,11 +730,7 @@ PROGRAM create_p3_lookuptable_2
 
           ii_loop_2: do ii = 1,num_bins2
           
-              lam2(i_rhor,i_Fr,i) = lambdai(ii)
-!              lam2(i_rhor,i_Fr,i) = 1.0013**ii*100.
-! !            lam2(i_rhor,i_Fr,i) = 1.0013**ii*10.   ! new lambda_i limiter
-
-!            mu_i2(i_rhor,i_Fr,i) = diagnostic_mui(log_diagmu_orig,lam2(i_rhor,i_Fr,i),q,cgp1(i_rhor),Fr,pi)
+             lam2(i_rhor,i_Fr,i) = lambdai(ii)
              mu_i2(i_rhor,i_Fr,i) = diagnostic_mui(lam2(i_rhor,i_Fr,i),q,cgp1(i_rhor),Fr,pi)
 
 ! set min lam corresponding to Dm_max microns (mean size)
@@ -1164,7 +1137,6 @@ END PROGRAM create_p3_lookuptable_2
 
 !______________________________________________________________________________________
 
-!real function diagnostic_mui(log_diagmu_orig,lam,q,cgp,Fr,pi)
  real function diagnostic_mui(lam,q,cgp,Fr,pi)
 
 !----------------------------------------------------------!
@@ -1174,7 +1146,6 @@ END PROGRAM create_p3_lookuptable_2
  implicit none
  
 !Arguments:
-! logical :: log_diagmu_orig
  real :: lam,q,cgp,Fr,pi
 
 ! Local variables:
