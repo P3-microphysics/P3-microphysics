@@ -124,12 +124,13 @@ PROGRAM create_p3_lookuptable_2
  integer, parameter :: num_bins1 =  1000   ! number of bins for numerical integration of fall speeds and total N
  integer, parameter :: num_bins2 =  9000   ! number of bins for solving PSD parameters  [based on Dm_max = 2000.]
 !integer, parameter :: num_bins2 = 11000   ! number of bins for solving PSD parameters  [based on Dm_max = 400000.]
+ real,    parameter :: dd        = 20.e-6  ! width of size bin (m)
 
  integer            :: i_rhor,i_rhor1,i_rhor2  ! indices for rho_rime                 [1 .. n_rhor]
  integer            :: i_Fr,i_Fr1,i_Fr2        ! indices for rime-mass-fraction loop  [1 .. n_Fr]
  integer            :: i,i1,i2                 ! indices for normalized (by N) Q loop [1 .. n_Qnorm]  (i is i_Qnorm in LT1)
 
- real :: N,q,qdum,dum1,dum2,cs1,ds1,lam,n0,lamf,qerror,del0,c0,c1,c2,dd,sum1,sum2,       &
+ real :: N,q,qdum,dum1,dum2,cs1,ds1,lam,n0,lamf,qerror,del0,c0,c1,c2,sum1,sum2,          &
          sum3,sum4,xx,a0,b0,a1,b1,dum,bas1,aas1,aas2,bas2,gammq,d1,d2,delu,lamold,       &
          cap,lamr,dia,amg,dv,n0dum,sum5,sum6,sum7,sum8,dg,cg,bag,aag,dcritg,dcrits,      &
          dcritr,csr,dsr,duml,dum3,rhodep,cgpold,m1,m2,m3,dt,mur,initlamr,lamv,Fr,        &
@@ -877,20 +878,30 @@ do i1 = 1,n_Qnorm    ! COMMENTED OUT FOR PARALLELIZATION
 
                 sum1 = 0.
                 sum2 = 0.
-                dd   = 20.e-6
+!               dd   = 20.e-6
 
-                do jj = num_bins1,1,-1   !???  DIRECTION OF LOOP PROBABLY DOES NOT MATTER [ALSO; CAN COMBINE NUM2 CALC HERE
-! set up binned distribution of ice from category 1, note the distribution is normalized by N
-                   d1 = real(jj)*20.*1.e-6 - 10.e-6
+!                 do jj = num_bins1,1,-1   !???  DIRECTION OF LOOP PROBABLY DOES NOT MATTER [ALSO; CAN COMBINE NUM2 CALC HERE
+! ! set up binned distribution of ice from category 1, note the distribution is normalized by N
+!                    d1 = real(jj)*20.*1.e-6 - 10.e-6
+!                    num1(jj) = n01(i_rhor1,i_Fr1,i1)*d1**mu_i1(i_rhor1,i_Fr1,i1)*         &
+!                               exp(-lam1(i_rhor1,i_Fr1,i1)*d1)*dd
+!                 enddo !jj-loop
+! 
+!                 do jj = num_bins1,1,-1   !???  DIRECTION OF LOOP PROBABLY DOES NOT MATTER
+! ! set up binned distribution of ice from category 2, note the distribution is normalized by N
+!                    d2 = real(jj)*20.*1.e-6 - 10.e-6
+!                    num2(jj) = n02(i_rhor2,i_Fr2,i2)*d2**mu_i2(i_rhor2,i_Fr2,i2)*         &
+!                               exp(-lam2(i_rhor2,i_Fr2,i2)*d2)*dd
+!                 enddo !jj-loop
+
+              !set up binned distribution of ice from categories 1 and 2 (distributions normalized by N)
+                do jj = 1,num_bins1
+!                  d1 = real(jj)*20.*1.e-6 - 10.e-6
+                   d1 = real(jj)*dd - 10.e-6
                    num1(jj) = n01(i_rhor1,i_Fr1,i1)*d1**mu_i1(i_rhor1,i_Fr1,i1)*         &
                               exp(-lam1(i_rhor1,i_Fr1,i1)*d1)*dd
-                enddo !jj-loop
-
-                do jj = num_bins1,1,-1   !???  DIRECTION OF LOOP PROBABLY DOES NOT MATTER
-! set up binned distribution of ice from category 2, note the distribution is normalized by N
-                   d2 = real(jj)*20.*1.e-6 - 10.e-6
-                   num2(jj) = n02(i_rhor2,i_Fr2,i2)*d2**mu_i2(i_rhor2,i_Fr2,i2)*         &
-                              exp(-lam2(i_rhor2,i_Fr2,i2)*d2)*dd
+                   num2(jj) = n02(i_rhor2,i_Fr2,i2)*d1**mu_i2(i_rhor2,i_Fr2,i2)*         &
+                              exp(-lam2(i_rhor2,i_Fr2,i2)*d1)*dd
                 enddo !jj-loop
 
 ! loop over size distribution
@@ -899,7 +910,8 @@ do i1 = 1,n_Qnorm    ! COMMENTED OUT FOR PARALLELIZATION
 ! loop over particle 1
                 jj_loop_3: do jj = num_bins1,1,-1
 
-                   d1 = real(jj)*20.*1.e-6 - 10.e-6
+!                  d1 = real(jj)*20.*1.e-6 - 10.e-6
+                   d1 = real(jj)*dd - 10.e-6
 
                    if (d1.le.dcrit) then
                       cs1  = pi*sxth*900.
@@ -939,7 +951,8 @@ do i1 = 1,n_Qnorm    ! COMMENTED OUT FOR PARALLELIZATION
 ! loop over particle 2
                    kk_loop: do kk = num_bins1,1,-1
 
-                      d2 = real(kk)*20.*1.e-6 - 10.e-6
+!                     d2 = real(kk)*20.*1.e-6 - 10.e-6
+                      d2 = real(kk)*dd - 10.e-6
 
 ! parameters for particle 2
                       if (d2.le.dcrit) then
