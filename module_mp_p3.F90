@@ -128,12 +128,10 @@
  character(len=1024)            :: lookup_file_1                   !lookup table, main
  character(len=1024)            :: lookup_file_2                   !lookup table for ice-ice interactions (for nCat>1 only)
  character(len=1024)            :: dumstr,read_path
- integer                        :: i,j,ii,jj,kk,jjj,jjj2,jjjj,jjjj2,end_status,zz,procnum,istat
- real                           :: lamr,mu_r,dum,dm,dum1,dum2,dum3,dum4,dum5,  &
-                                   dd,amg,vt,dia
+ integer                        :: i,j,ii,jj,kk,jjj,jjj2,jjjj,jjjj2,end_status,zz,procnum,istat,ierr
+ real                           :: lamr,mu_r,dum,dm,dum1,dum2,dum3,dum4,dum5,dd,amg,vt,dia
  double precision               :: dp_dum1, dp_dum2
  logical                        :: err_abort
- integer                        :: ierr
 
 !------------------------------------------------------------------------------------------!
 
@@ -161,6 +159,7 @@
 
 ! mathematical/optimization constants
  pi    = 3.14159265
+!pi    = acos(-1.)
  thrd  = 1./3.
  sxth  = 1./6.
  piov3 = pi*thrd
@@ -1371,15 +1370,15 @@ END subroutine p3_init
    endif
 
   !contruct full ice arrays from individual category arrays:
+   qitot(:,:,1) = qitot_1(:,:)
+   qirim(:,:,1) = qirim_1(:,:)
+   nitot(:,:,1) = nitot_1(:,:)
+   birim(:,:,1) = birim_1(:,:)
+   diag_effi(:,:,1) = diag_effi_1(:,:)
+   if (present(zitot_1)) zitot(:,:,1) = zitot_1(:,:)
+
    if (n_iceCat >= 2) then
-      qitot(:,:,1) = qitot_1(:,:)
-      qirim(:,:,1) = qirim_1(:,:)
-      nitot(:,:,1) = nitot_1(:,:)
-      birim(:,:,1) = birim_1(:,:)
-      diag_effi(:,:,1) = diag_effi_1(:,:)
-
-      if (present(zitot_1)) zitot(:,:,1) = zitot_1(:,:)
-
+   
       qitot(:,:,2) = qitot_2(:,:)
       qirim(:,:,2) = qirim_2(:,:)
       nitot(:,:,2) = nitot_2(:,:)
@@ -1406,7 +1405,6 @@ END subroutine p3_init
       endif
    endif
 
-
   !--- substepping microphysics
    if (n_substep > 1) then
       prt_liq_ave(:) = 0.
@@ -1429,38 +1427,7 @@ END subroutine p3_init
       theta_m = temp_m*tmparr_ik
       theta   = temp*tmparr_ik
 
-      if (n_iceCat == 1) then
-        !optimized for nCat = 1:
-         if (log_trplMomI) then
-            call p3_main(qc,nc,qr,nr,theta_m,theta,qvap_m,qvap,dt_mp,qitot_1(:,:),qirim_1(:,:), &
-                   nitot_1(:,:),birim_1(:,:),ssat,ww,pres,DZ,kount,prt_liq,prt_sol,i_strt,ni,   &
-                   k_strt,nk,n_iceCat,diag_Zet,diag_effc,diag_effi_1(:,:),diag_vmi,diag_di,     &
-                   diag_rhoi,n_diag_2d,diag_2d,n_diag_3d,diag_3d,log_predictNc,typeDiags_ON,    &
-                   trim(model),clbfact_dep,clbfact_sub,debug_on,scpf_on,scpf_pfrac,             &
-                   scpf_resfact,cldfrac,prt_drzl,prt_rain,prt_crys,prt_snow,prt_grpl,           &
-                   prt_pell,prt_hail,prt_sndp,qi_type,                                          &
-                   zitot     = zitot_1(:,:),                                                    &
-                   diag_vis  = diag_vis,                                                        &
-                   diag_vis1 = diag_vis1,                                                       &
-                   diag_vis2 = diag_vis2,                                                       &
-                   diag_vis3 = diag_vis3)
-         else
-            call p3_main(qc,nc,qr,nr,theta_m,theta,qvap_m,qvap,dt_mp,qitot_1(:,:),qirim_1(:,:), &
-                   nitot_1(:,:),birim_1(:,:),ssat,ww,pres,DZ,kount,prt_liq,prt_sol,i_strt,ni,   &
-                   k_strt,nk,n_iceCat,diag_Zet,diag_effc,diag_effi_1(:,:),diag_vmi,diag_di,     &
-                   diag_rhoi,n_diag_2d,diag_2d,n_diag_3d,diag_3d,log_predictNc,typeDiags_ON,    &
-                   trim(model),clbfact_dep,clbfact_sub,debug_on,scpf_on,scpf_pfrac,             &
-                   scpf_resfact,cldfrac,prt_drzl,prt_rain,prt_crys,prt_snow,prt_grpl,           &
-                   prt_pell,prt_hail,prt_sndp,qi_type,                                          &
-                   diag_vis  = diag_vis,                                                        &
-                   diag_vis1 = diag_vis1,                                                       &
-                   diag_vis2 = diag_vis2,                                                       &
-                   diag_vis3 = diag_vis3)
-         endif
-
-      else
-        !general (nCat >= 1):
-         if (log_trplMomI) then
+      if (log_trplMomI) then
             call p3_main(qc,nc,qr,nr,theta_m,theta,qvap_m,qvap,dt_mp,qitot,qirim,nitot,birim,   &
                    ssat,ww,pres,DZ,kount,prt_liq,prt_sol,i_strt,ni,k_strt,nk,n_iceCat,          &
                    diag_Zet,diag_effc,diag_effi,diag_vmi,diag_di,diag_rhoi,n_diag_2d,diag_2d,   &
@@ -1484,8 +1451,8 @@ END subroutine p3_init
                    diag_vis2 = diag_vis2,                                                       &
                    diag_vis3 = diag_vis3)
          endif
-      endif
-      if (global_status /= STATUS_OK) return
+
+         if (global_status /= STATUS_OK) return
 
      !convert back to temperature:
       temp = theta/tmparr_ik    !i.e.: temp = theta*(pres*1.e-5)**0.286
@@ -1523,14 +1490,15 @@ END subroutine p3_init
 
 
   !decompose full ice arrays back into individual category arrays:
-   if (n_iceCat >= 2) then
-      qitot_1(:,:) = qitot(:,:,1)
-      qirim_1(:,:) = qirim(:,:,1)
-      nitot_1(:,:) = nitot(:,:,1)
-      birim_1(:,:) = birim(:,:,1)
-      diag_effi_1(:,:) = diag_effi(:,:,1)
-      if (present(zitot_1)) zitot_1(:,:) = zitot(:,:,1)
 
+   qitot_1(:,:) = qitot(:,:,1)
+   qirim_1(:,:) = qirim(:,:,1)
+   nitot_1(:,:) = nitot(:,:,1)
+   birim_1(:,:) = birim(:,:,1)
+   diag_effi_1(:,:) = diag_effi(:,:,1)
+   if (present(zitot_1)) zitot_1(:,:) = zitot(:,:,1)
+
+   if (n_iceCat >= 2) then
       qitot_2(:,:) = qitot(:,:,2)
       qirim_2(:,:) = qirim(:,:,2)
       nitot_2(:,:) = nitot(:,:,2)

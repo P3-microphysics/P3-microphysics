@@ -112,7 +112,7 @@ PROGRAM create_p3_lookuptable_2
 
  implicit none
  
- character(len=16), parameter :: version = '5.1-beta'
+ character(len=16), parameter :: version = '5.1_beta'
 
  real    :: pi,g,p,t,rho,mu,pgam,ds,cs,bas,aas,dcrit,eii
  integer :: k,ii,jj,kk,dumii,j2
@@ -447,7 +447,7 @@ PROGRAM create_p3_lookuptable_2
 !
 ! q = normalized ice mass mixing ratio = q/N, units are kg^-1
 
-       i_Qnorm_loop_1: do i = 1,n_Qnorm              ! q loop
+       i_Qnorm_loop_1: do i = 1,n_Qnorm
 
           q = Q_normalized(i)
           
@@ -625,14 +625,10 @@ PROGRAM create_p3_lookuptable_2
 ! following mitchell and heymsfield (2005), jas
 
 ! set up array of particle fallspeed to make computationally efficient
-!.........................................................
-! ****
-!  note: this part could be incorporated into the longer (every 2 micron) loop
-! ****
+
        jj_loop_2: do jj = 1,num_bins1
 
-! particle size
-          d1 = real(jj)*dd - 0.5*dd
+          d1 = real(jj)*dd - 0.5*dd   !particle size [m]
 
           if (d1.le.dcrit) then
              cs1  = pi*sxth*900.
@@ -656,8 +652,7 @@ PROGRAM create_p3_lookuptable_2
                 aas1 = aas
                 bas1 = bas
              else
-! for area,
-! keep bas1 constant, but modify aas1 according to rimed fraction
+! for area, keep bas1 constant, but modify aas1 according to rimed fraction
                 bas1 = bas
                 dum1 = aas*d1**bas
                 dum2 = aag*d1**bag
@@ -665,8 +660,7 @@ PROGRAM create_p3_lookuptable_2
                 m1   = cs1*d1**ds1
                 m2   = cs*d1**ds
                 m3   = cgp2(i_rhor)*d1**dg
-! linearly interpolate based on particle mass
-                dum3 = dum1+(m1-m2)*(dum2-dum1)/(m3-m2)
+                dum3 = dum1+(m1-m2)*(dum2-dum1)/(m3-m2)  !linearly interpolate based on particle mass
                 aas1 = dum3/(d1**bas)
              endif
           endif
@@ -733,13 +727,11 @@ PROGRAM create_p3_lookuptable_2
              lam2(i_rhor,i_Fr,i) = lambdai(ii)
              mu_i2(i_rhor,i_Fr,i) = diagnostic_mui(lam2(i_rhor,i_Fr,i),q,cgp1(i_rhor),Fr,pi)
 
-! set min lam corresponding to Dm_max microns (mean size)
+            !set min,max lam corresponding to Dm_max, Dm_min
              lam2(i_rhor,i_Fr,i) = max(lam2(i_rhor,i_Fr,i),(mu_i2(i_rhor,i_Fr,i)+1.)/Dm_max)
-! set max lam corresponding to Dm_min microns *mean size)
              lam2(i_rhor,i_Fr,i) = min(lam2(i_rhor,i_Fr,i),(mu_i2(i_rhor,i_Fr,i)+1.)/Dm_min)
-! this range corresponds to range of lam of 500 to 5000000
 
-! get n0, note this is normalized
+            !get n0, note this is normalized
              n02(i_rhor,i_Fr,i) = lam2(i_rhor,i_Fr,i)**(mu_i2(i_rhor,i_Fr,i)+1.)/ &
                    (gamma(mu_i2(i_rhor,i_Fr,i)+1.))
 
@@ -795,14 +787,12 @@ PROGRAM create_p3_lookuptable_2
                                  dsr2(i_rhor,i_Fr),dcrit,dcrits2(i_rhor,i_Fr),             &
                                  dcritr2(i_rhor,i_Fr),intgrR1,intgrR2,intgrR3,intgrR4)                    
                
-! n0 is normalized
-          n02(i_rhor,i_Fr,i) = q/(cs1*intgrR1 + cs*intgrR2 + cgp2(i_rhor)*intgrR3 +        &
+          n02(i_rhor,i_Fr,i) = q/(cs1*intgrR1 + cs*intgrR2 + cgp2(i_rhor)*intgrR3 +        &  ! n0 is normalized
                                csr2(i_rhor,i_Fr)*intgrR4)
           print*,'lam,N0:',lam2(i_rhor,i_Fr,i),n02(i_rhor,i_Fr,i)
           print*,'pgam:',mu_i2(i_rhor,i_Fr,i)
 
-! !           nsave(i,i_Fr,i_rhor) = 1.   ! normalized N is always 1  --  LEGACY; TO BE REMOVED --         
-          qsave(i,i_Fr,i_rhor) = q    ! q is normalized as Q/N
+          qsave(i,i_Fr,i_rhor) = q      ! q is normalized (Q/N)
 
           log_lamIsMax = abs(lam2(i_rhor,i_Fr,i)-lamold) .lt. 1.e-8                     
           lamold = lam2(i_rhor,i_Fr,i)
@@ -848,7 +838,6 @@ PROGRAM create_p3_lookuptable_2
 !.....................................................................................
 
 221 format(a5,6i5,2e15.5)
-!222 format(2i5,e15.5,2i5,4e15.5)
 222 format(4i5,3e15.5)
 
  write (filename, "(A12,I0.2,A4)") "lookupTable_2-",i1,".dat"
@@ -866,7 +855,6 @@ PROGRAM create_p3_lookuptable_2
  ! - to run in serial, uncomment the 'do i1' statement and the corresponding 'enddo'
  
 ! Qnorm_loop_3: do i1 = 1,n_Qnorm    ! COMMENT OUT FOR PARALLELIZATION
- 
    do i_Fr1 = 1,n_Fr
      do i_rhor1 = 1,n_rhor
        do i2 = 1,n_Qnorm
@@ -893,7 +881,7 @@ PROGRAM create_p3_lookuptable_2
 ! loop over particle 1
                 jj_loop_3: do jj = num_bins1,1,-1
 
-                   d1 = real(jj)*dd - 0.5*dd
+                   d1 = real(jj)*dd - 0.5*dd   !particle size [m]
 
                    if (d1.le.dcrit) then
                       cs1  = pi*sxth*900.
@@ -933,7 +921,7 @@ PROGRAM create_p3_lookuptable_2
 ! loop over particle 2
                    kk_loop: do kk = num_bins1,1,-1
 
-                      d2 = real(kk)*dd - 0.5*dd
+                      d2 = real(kk)*dd - 0.5*dd   !particle size [m]
 
 ! parameters for particle 2
                       if (d2.le.dcrit) then
@@ -1030,9 +1018,6 @@ PROGRAM create_p3_lookuptable_2
              write(6,221) 'index:',i1,i_Fr1,i_rhor1,i2,i_Fr2,i_rhor2,n_agg,q_agg
 
              write(1,222) i_rhor1,i_Fr1,i_rhor2,i_Fr2,qsave(i2,i_Fr2,i_rhor2),n_agg,q_agg
-!              write(1,222) i_rhor1,i_Fr1,qon1(i1,i_Fr1,i_rhor1),                            &
-!                           i_rhor2,i_Fr2,qsave(i2,i_Fr2,i_rhor2),nsave(i2,i_Fr2,i_rhor2),   &
-!                           n_agg,q_agg
 
               
            enddo   ! i_rhor2 loop
@@ -1040,7 +1025,6 @@ PROGRAM create_p3_lookuptable_2
        enddo   ! i2 loop
      enddo   ! i_rhor1 loop
    enddo   ! i_Fr1
-   
 ! enddo Qnorm_loop_3  ! i1 loop  (Qnorm)     ! COMMENTED OUT FOR PARALLELIZATION
  
  close(1)
