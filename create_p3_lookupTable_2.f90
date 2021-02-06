@@ -6,7 +6,7 @@ PROGRAM create_p3_lookuptable_2
 ! interactions for the multi-ice-category configuration of the P3 microphysics scheme.
 !
 !--------------------------------------------------------------------------------------
-! Version:       5.0
+! Version:       5.1_BETA
 ! Last modified: 2021-FEBRUARY
 !______________________________________________________________________________________
 
@@ -112,7 +112,7 @@ PROGRAM create_p3_lookuptable_2
 
  implicit none
  
- character(len=16), parameter :: version = '5.0'
+ character(len=16), parameter :: version = '5.1-beta'
 
  real    :: pi,g,p,t,rho,mu,pgam,ds,cs,bas,aas,dcrit,eii
  integer :: k,ii,jj,kk,dumii,j2
@@ -147,7 +147,8 @@ PROGRAM create_p3_lookuptable_2
  real, parameter :: thrd = 1./3.
  real, parameter :: sxth = 1./6.
  
- real, dimension(n_Qnorm,n_Fr,n_rhor)    :: qsave,nsave,qon1
+!real, dimension(n_Qnorm,n_Fr,n_rhor)    :: qsave,nsave,qon1
+ real, dimension(n_Qnorm,n_Fr,n_rhor)    :: qsave
  real, dimension(n_rhor,n_Fr)            :: dcrits1,dcritr1,csr1,dsr1,dcrits2,dcritr2,csr2,dsr2
  real, dimension(n_rhor,n_Fr,n_Qnorm)    :: n01,mu_i1,lam1,n02,mu_i2,lam2
  real, dimension(n_rhor)                 :: cgp1,cgp2,cgp,crp
@@ -800,7 +801,7 @@ PROGRAM create_p3_lookuptable_2
           print*,'lam,N0:',lam2(i_rhor,i_Fr,i),n02(i_rhor,i_Fr,i)
           print*,'pgam:',mu_i2(i_rhor,i_Fr,i)
 
-          nsave(i,i_Fr,i_rhor) = 1.   ! normalized N is always 1  --  LEGACY; TO BE REMOVED --         
+! !           nsave(i,i_Fr,i_rhor) = 1.   ! normalized N is always 1  --  LEGACY; TO BE REMOVED --         
           qsave(i,i_Fr,i_rhor) = q    ! q is normalized as Q/N
 
           log_lamIsMax = abs(lam2(i_rhor,i_Fr,i)-lamold) .lt. 1.e-8                     
@@ -846,9 +847,9 @@ PROGRAM create_p3_lookuptable_2
 ! collection of category 1 by category 2
 !.....................................................................................
 
-!21 format(a5,7i5,2e15.5)
 221 format(a5,6i5,2e15.5)
-222 format(2i5,e15.5,2i5,4e15.5)
+!222 format(2i5,e15.5,2i5,4e15.5)
+222 format(4i5,3e15.5)
 
  write (filename, "(A12,I0.2,A4)") "lookupTable_2-",i1,".dat"
  filename = trim(filename)
@@ -864,7 +865,7 @@ PROGRAM create_p3_lookuptable_2
  ! Note: i1 loop (do/enddo statements) is commented out for parallelization; i1 gets initizatized there
  ! - to run in serial, uncomment the 'do i1' statement and the corresponding 'enddo'
  
- Qnorm_loop_3: do i1 = 1,n_Qnorm    ! COMMENT OUT FOR PARALLELIZATION
+! Qnorm_loop_3: do i1 = 1,n_Qnorm    ! COMMENT OUT FOR PARALLELIZATION
  
    do i_Fr1 = 1,n_Fr
      do i_rhor1 = 1,n_rhor
@@ -1028,9 +1029,10 @@ PROGRAM create_p3_lookuptable_2
 
              write(6,221) 'index:',i1,i_Fr1,i_rhor1,i2,i_Fr2,i_rhor2,n_agg,q_agg
 
-             write(1,222) i_rhor1,i_Fr1,qon1(i1,i_Fr1,i_rhor1),                            &
-                          i_rhor2,i_Fr2,qsave(i2,i_Fr2,i_rhor2),nsave(i2,i_Fr2,i_rhor2),   &
-                          n_agg,q_agg
+             write(1,222) i_rhor1,i_Fr1,i_rhor2,i_Fr2,qsave(i2,i_Fr2,i_rhor2),n_agg,q_agg
+!              write(1,222) i_rhor1,i_Fr1,qon1(i1,i_Fr1,i_rhor1),                            &
+!                           i_rhor2,i_Fr2,qsave(i2,i_Fr2,i_rhor2),nsave(i2,i_Fr2,i_rhor2),   &
+!                           n_agg,q_agg
 
               
            enddo   ! i_rhor2 loop
@@ -1039,7 +1041,7 @@ PROGRAM create_p3_lookuptable_2
      enddo   ! i_rhor1 loop
    enddo   ! i_Fr1
    
- enddo Qnorm_loop_3  ! i1 loop  (Qnorm)     ! COMMENTED OUT FOR PARALLELIZATION
+! enddo Qnorm_loop_3  ! i1 loop  (Qnorm)     ! COMMENTED OUT FOR PARALLELIZATION
  
  close(1)
              

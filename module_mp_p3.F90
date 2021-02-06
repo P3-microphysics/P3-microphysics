@@ -19,8 +19,8 @@
 !    Jason Milbrandt (jason.milbrandt@canada.ca)                                           !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       4.0.20                                                                    !
-! Last updated:  2021-02-05                                                                !
+! Version:       4.2_BETA                                                                  !
+! Last updated:  2021-FEBRUARY                                                             !
 !__________________________________________________________________________________________!
 
  MODULE MODULE_MP_P3
@@ -117,10 +117,10 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '4.0.20' 
+ character(len=1024), parameter :: version_p3                    = '4.2_beta' 
  character(len=1024), parameter :: version_intended_table_1_2mom = '5.2-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '5.3-3momI'
- character(len=1024), parameter :: version_intended_table_2      = '5.0'
+ character(len=1024), parameter :: version_intended_table_2      = '5.1_beta'
  
  character(len=1024)            :: version_header_table_1_2mom
  character(len=1024)            :: version_header_table_1_3mom
@@ -476,8 +476,8 @@
                 do ii = 1,iisize
                    do jjj2 = 1,rimsize
                       do jjjj2 = 1,densize
-                         read(10,*) dum,dum,dum,dum,dum,dum,dum,                &
-                         itabcolli1(i,jjj,jjjj,ii,jjj2,jjjj2),                  &
+                         read(10,*) dum,dum,dum,dum,dum,                       &
+                         itabcolli1(i,jjj,jjjj,ii,jjj2,jjjj2),                 &
                          itabcolli2(i,jjj,jjjj,ii,jjj2,jjjj2)
                       enddo
                    enddo
@@ -6142,10 +6142,11 @@ SUBROUTINE access_lookup_table_coll_3mom(dumzz,dumjj,dumii,dumj,dumi,index,dum1,
 
            ! find index for qi (normalized ice mass mixing ratio = qitot/nitot)
 
-           ! we are inverting this equation from the lookup table to solve for i:
-           ! qitot/nitot=800**((i+10)*0.1)*1.e-18, for lookup table beta >= 9
-            !dum1 = (alog10(qitot/nitot)+18.)/(0.1*alog10(800.)) - 10.
-             dum1 = (alog10(qitot/nitot)+18.)*3.444606 - 10.  !optimized
+           ! we are inverting this equation from the lookup table to solve for i_Qnorm:
+           ! from create_LT1:  q = 800.**((i_Qnorm+10)*0.1)*1.e-18   [where q = qitot/nitot]
+            !dum1 = (alog10(qitot/nitot)+18.)/(0.1*alog10(800.)) - 10.   !original
+             dum1 = (alog10(qitot/nitot)+18.)*3.444606 - 10.             !optimized
+             
              dumi = int(dum1)
              ! set limits (to make sure the calculated index doesn't exceed range of lookup table)
              dum1 = min(dum1,real(isize))
@@ -6292,9 +6293,19 @@ SUBROUTINE access_lookup_table_coll_3mom(dumzz,dumjj,dumii,dumj,dumi,index,dum1,
                     ! find index in lookup table for collector category
 
                     ! find index for qi (total ice mass mixing ratio)
-! replace with new inversion for new lookup table 2 w/ reduced dimensionality
-!                      dum1 = (alog10(qitot_1/nitot_1)+18.)/(0.2*alog10(261.7))-5. !orig
-                      dum1 = (alog10(qitot_1/nitot_1)+18.)*(2.06799)-5. !optimization
+                    
+             !-- For LT2-5.0 (Dm_max = 2000.)
+             !   inverting the following (from create_LT2):  q = 261.7**((i+5)*0.2)*1.e-18
+             !   where q = qitot/nitot (normalized)
+                     !dum1 = (alog10(qitot_1/nitot_1)+18.)/(0.2*alog10(261.7))-5.   !orig
+                      dum1 = (alog10(qitot_1/nitot_1)+18.)*(2.06799)-5.             !optimization
+
+!              !-- For LT2-5.1 (Dm_max = 400000.)
+!              !   inverting this equation from the lookup table to solve for i_Qnorm:
+!              !   from create_LT2:  q = 800.**((i_Qnorm+10)*0.1)*1.e-18   [where q = qitot/nitot]
+!                      !dum1 = (alog10(qitot/nitot)+18.)/(0.1*alog10(800.)) - 10.   !original
+!                       dum1 = (alog10(qitot/nitot)+18.)*3.444606 - 10.             !optimized
+                      
                       dumi = int(dum1)
                       dum1 = min(dum1,real(iisize))
                       dum1 = max(dum1,1.)
