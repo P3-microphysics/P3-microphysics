@@ -122,8 +122,8 @@ PROGRAM create_p3_lookuptable_2
  integer, parameter :: n_Qnorm = 25
  
  integer, parameter :: num_bins1 =  1000   ! number of bins for numerical integration of fall speeds and total N
- integer, parameter :: num_bins2 =  9000   ! number of bins for solving PSD parameters  [based on Dm_max = 2000.]
-!integer, parameter :: num_bins2 = 11000   ! number of bins for solving PSD parameters  [based on Dm_max = 400000.]
+!integer, parameter :: num_bins2 =  9000   ! number of bins for solving PSD parameters  [based on Dm_max = 2000.]
+ integer, parameter :: num_bins2 = 11000   ! number of bins for solving PSD parameters  [based on Dm_max = 400000.]
  real,    parameter :: dd        = 20.e-6  ! width of size bin (m)
 
  integer            :: i_rhor,i_rhor1,i_rhor2  ! indices for rho_rime                 [1 .. n_rhor]
@@ -140,8 +140,8 @@ PROGRAM create_p3_lookuptable_2
  real :: Q_normalized
  real :: lambdai
  
-!real, parameter :: Dm_max = 40000.e-6   ! max. mean ice [m] size for lambda limiter
- real, parameter :: Dm_max =  2000.e-6   ! max. mean ice [m] size for lambda limiter
+ real, parameter :: Dm_max = 40000.e-6   ! max. mean ice [m] size for lambda limiter
+!real, parameter :: Dm_max =  2000.e-6   ! max. mean ice [m] size for lambda limiter
  real, parameter :: Dm_min =     2.e-6   ! min. mean ice [m] size for lambda limiter
  
  real, parameter :: thrd = 1./3.
@@ -380,8 +380,7 @@ PROGRAM create_p3_lookuptable_2
 ! ****
        jj_loop_1: do jj = 1,num_bins1
 
-! particle size
-          d1 = real(jj)*dd - 0.5*dd
+          d1 = real(jj)*dd - 0.5*dd   !particle size [m]
 
           if (d1.le.dcrit) then
              cs1  = pi*sxth*900.
@@ -405,9 +404,7 @@ PROGRAM create_p3_lookuptable_2
                 aas1 = aas
                 bas1 = bas
              else
-! for area,
-! keep bas1 constant, but modify aas1 according
-! to rimed fraction
+! for area, keep bas1 constant, but modify aas1 according to rimed fraction
                 bas1 = bas
                 dum1 = aas*d1**bas
                 dum2 = aag*d1**bag
@@ -415,8 +412,7 @@ PROGRAM create_p3_lookuptable_2
                 m1   = cs1*d1**ds1
                 m2   = cs*d1**ds
                 m3   = cgp1(i_rhor)*d1**dg
-! linearly interpolate based on particle mass
-                dum3 = dum1+(m1-m2)*(dum2-dum1)/(m3-m2)
+                dum3 = dum1+(m1-m2)*(dum2-dum1)/(m3-m2)  !linearly interpolate based on particle mass
                 aas1 = dum3/(d1**bas)
              endif
           endif
@@ -454,8 +450,7 @@ PROGRAM create_p3_lookuptable_2
           print*,'i,Fr,i_rhor ',i,i_Fr,i_rhor
           print*,'q* ',q
 
-! initialize qerror to arbitrarily large value
-          qerror = 1.e+20
+          qerror = 1.e+20   !initialize qerror to arbitrarily large value
 
 !.....................................................................................
 ! find parameters for gamma distribution
@@ -475,13 +470,10 @@ PROGRAM create_p3_lookuptable_2
 
              lam1(i_rhor,i_Fr,i) = lambdai(ii)
              mu_i1(i_rhor,i_Fr,i) = diagnostic_mui(lam1(i_rhor,i_Fr,i),q,cgp1(i_rhor),Fr,pi)               
-                
-! set min lam corresponding to Dm_max
+               
+! set min,max lam corresponding to Dm_max,Dm_min:
              lam1(i_rhor,i_Fr,i) = max(lam1(i_rhor,i_Fr,i),(mu_i1(i_rhor,i_Fr,i)+1.)/Dm_max)
-! set max lam corresponding to Dm_min
              lam1(i_rhor,i_Fr,i) = min(lam1(i_rhor,i_Fr,i),(mu_i1(i_rhor,i_Fr,i)+1.)/Dm_min)
-! this range corresponds to range of min/max of lambda
-
 ! get normalized n0 = n0/N
              n01(i_rhor,i_Fr,i) = lam1(i_rhor,i_Fr,i)**(mu_i1(i_rhor,i_Fr,i)+1.)/(gamma(mu_i1(i_rhor,i_Fr,i)+1.))
 
@@ -528,7 +520,6 @@ PROGRAM create_p3_lookuptable_2
 ! this is the value of lam with the smallest qerror
           lam1(i_rhor,i_Fr,i) = lamf
 ! recalculate mu_i based on final lam
-!         mu_i1(i_rhor,i_Fr,i) = diagnostic_mui(log_diagmu_orig,lam1(i_rhor,i_Fr,i),q,cgp1(i_rhor),Fr,pi)
           mu_i1(i_rhor,i_Fr,i) = diagnostic_mui(lam1(i_rhor,i_Fr,i),q,cgp1(i_rhor),Fr,pi)
 
 !            n0 = N*lam**(pgam+1.)/(gamma(pgam+1.))
@@ -554,7 +545,7 @@ PROGRAM create_p3_lookuptable_2
 ! adjusted, so that mean size will fall within allowed bounds. Thus, we do
 ! not apply a lambda limiter here.
 
-       enddo i_Qnorm_loop_1  ! (index: i)
+       enddo i_Qnorm_loop_1
        
     enddo i_Fr_loop_1
  enddo i_rhor_loop_1 
@@ -1133,25 +1124,25 @@ END PROGRAM create_p3_lookuptable_2
  real, parameter :: Di_thres = 0.2  !diameter threshold [mm]
 
 !-- original formulation: (from Heymsfield, 2003)
- mu_i = 0.076*(lam/100.)**0.8-2.   ! /100 is to convert m-1 to cm-1
- mu_i = max(mu_i,0.)  ! make sure mu_i >= 0, otherwise size dist is infinity at D = 0
- mu_i = min(mu_i,6.)
+!  mu_i = 0.076*(lam/100.)**0.8-2.   ! /100 is to convert m-1 to cm-1
+!  mu_i = max(mu_i,0.)  ! make sure mu_i >= 0, otherwise size dist is infinity at D = 0
+!  mu_i = min(mu_i,6.)
     
 
 !-- formulation based on 3-moment results (see 2021 JAS article)
-!  dum1 = (q/cgp)**(1./3)*1000.              ! estimated Dmvd [mm], assuming spherical
-!  if (dum1<=Di_thres) then
-!     !diagnostic mu_i, original formulation: (from Heymsfield, 2003)
-!     mu_i = 0.076*(lam*0.01)**0.8-2.        ! /100 is to convert m-1 to cm-1
-!     mu_i = min(mu_i,6.)
-!  else
-!     dum2 = (6./pi)*cgp                     ! mean density (total)
-!     dum3 = max(1., 1.+0.00842*(dum2-400.)) ! adjustment factor for density
-!     mu_i = 4.*(dum1-Di_thres)*dum3*Fr
-!  endif
-!  mu_i = max(mu_i,mu_i_min)
-!  mu_i = min(mu_i,mu_i_max)
- 
+ dum1 = (q/cgp)**(1./3)*1000.              ! estimated Dmvd [mm], assuming spherical
+ if (dum1<=Di_thres) then
+    !diagnostic mu_i, original formulation: (from Heymsfield, 2003)
+    mu_i = 0.076*(lam*0.01)**0.8-2.        ! /100 is to convert m-1 to cm-1
+    mu_i = min(mu_i,6.)
+ else
+    dum2 = (6./pi)*cgp                     ! mean density (total)
+    dum3 = max(1., 1.+0.00842*(dum2-400.)) ! adjustment factor for density
+    mu_i = 4.*(dum1-Di_thres)*dum3*Fr
+ endif
+ mu_i = max(mu_i, mu_i_min)
+ mu_i = min(mu_i, mu_i_max)
+  
  diagnostic_mui = mu_i
  
  end function diagnostic_mui
@@ -1208,12 +1199,13 @@ END PROGRAM create_p3_lookuptable_2
 !arguments:
  integer :: i_qnorm
  
- Q_normalized = 261.7**((i_qnorm+5)*0.2)*1.e-18     ! v4, v5.0 (range of mean mass diameter from ~ 1 micron to 1 cm)   (for n_Qnorm = 25)
+!Q_normalized = 261.7**((i_qnorm+5)*0.2)*1.e-18     ! v4, v5.0 (range of mean mass diameter from ~ 1 micron to 1 cm)   (for n_Qnorm = 25)
 !Q_normalized = 800.**((i_qnorm+10)*0.1)*1.e-18     ! based on LT1-v5.2 (range for Dm_max = 400000.)                   (for n_Qnorm = 50)
+ Q_normalized = 800.**(0.2*(i_qnorm+5))*1.e-18      ! (range for Dm_max = 400000.)                                     (for n_Qnorm = 25)
           
  !--- from LT1:  [TO BE DELTED]
- !       !q = 261.7**((i_Qnorm+10)*0.1)*1.e-18    ! old (strict) lambda limiter
- !         q = 800.**((i_Qnorm+10)*0.1)*1.e-18     ! new lambda limiter
+ !       !q = 261.7**((i_Qnorm+10)*0.1)*1.e-18     ! old (strict) lambda limiter
+ !         q = 800.**((i_Qnorm+10)*0.1)*1.e-18     ! new lambda limiter               (for n_Qnorm = 50)
  !===
 
  return
@@ -1234,8 +1226,8 @@ END PROGRAM create_p3_lookuptable_2
 !arguments:
  integer, intent(in) :: i
  
- lambdai = 1.0013**i*100.   !used with Dm_max =   2000.
-!lambdai = 1.0013**i*10.    !used with Dm_max = 400000.
+!lambdai = 1.0013**i*100.   !used with Dm_max =   2000.
+ lambdai = 1.0013**i*10.    !used with Dm_max = 400000.
 
  return
  

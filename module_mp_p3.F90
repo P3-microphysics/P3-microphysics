@@ -118,9 +118,11 @@
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
  character(len=1024), parameter :: version_p3                    = '4.2_beta' 
- character(len=1024), parameter :: version_intended_table_1_2mom = '5.2-2momI'
- character(len=1024), parameter :: version_intended_table_1_3mom = '5.3-3momI'
- character(len=1024), parameter :: version_intended_table_2      = '5.1_beta'
+!character(len=1024), parameter :: version_intended_table_1_2mom = '5.2-2momI'
+ character(len=1024), parameter :: version_intended_table_1_2mom = '20210212.1-newDiag3-2momI'
+ character(len=1024), parameter :: version_intended_table_1_3mom = '20210218.1-3momI'
+!character(len=1024), parameter :: version_intended_table_2      = '5.0'
+ character(len=1024), parameter :: version_intended_table_2      = '5.1_beta20210208.1'
  
  character(len=1024)            :: version_header_table_1_2mom
  character(len=1024)            :: version_header_table_1_3mom
@@ -138,14 +140,17 @@
  read_path = lookup_file_dir           ! path for lookup tables from official model library
 !read_path = '/MY/LOOKUP_TABLE/PATH'   ! path for lookup tables from specified location
 
- read_path ='/users/dor/armn/gr8/ords/p3_lookup_tables'  !JM only
+!read_path ='/users/dor/armn/gr8/ords/p3_lookup_tables'  !JM only
  
  if (trplMomI) then
-    lookup_file_1 = trim(read_path)//'/'//'p3_lookupTable_1.dat-v'//trim(version_intended_table_1_3mom)
+!   lookup_file_1 = trim(read_path)//'/'//'p3_lookupTable_1.dat-v'//trim(version_intended_table_1_3mom)
+    lookup_file_1 = trim(read_path)//'/'//'p3_lookupTable_1.dat-'//trim(version_intended_table_1_3mom)
  else
-    lookup_file_1 = trim(read_path)//'/'//'p3_lookupTable_1.dat-v'//trim(version_intended_table_1_2mom)
+ !  lookup_file_1 = trim(read_path)//'/'//'p3_lookupTable_1.dat-v'//trim(version_intended_table_1_2mom)
+    lookup_file_1 = trim(read_path)//'/'//'p3_lookupTable_1.dat-'//trim(version_intended_table_1_2mom)
  endif
- lookup_file_2 = trim(read_path)//'/'//'p3_lookupTable_2.dat-v'//trim(version_intended_table_2)
+!lookup_file_2 = trim(read_path)//'/'//'p3_lookupTable_2.dat-v'//trim(version_intended_table_2)
+ lookup_file_2 = trim(read_path)//'/'//'p3_lookupTable_2.dat-'//trim(version_intended_table_2)
 
 !------------------------------------------------------------------------------------------!
 
@@ -352,17 +357,25 @@
      do jj = 1,densize
        do ii = 1,rimsize
           do i = 1,isize
-             read(10,*) dum,dum,dum,dum,itab(jj,ii,i, 1),itab(jj,ii,i, 2),                &
+!              read(10,*) dum,dum,dum,dum,itab(jj,ii,i, 1),itab(jj,ii,i, 2),                &
+!                     itab(jj,ii,i, 3),itab(jj,ii,i, 4),itab(jj,ii,i, 5),                   &
+!                     itab(jj,ii,i, 6),itab(jj,ii,i, 7),itab(jj,ii,i, 8),dum,               &
+!                     itab(jj,ii,i, 9),itab(jj,ii,i,10),itab(jj,ii,i,11),itab(jj,ii,i,12),  &
+!                     itab(jj,ii,i,13),itab(jj,ii,i,14)
+             read(10,*) dum,dum,dum, itab(jj,ii,i, 1),itab(jj,ii,i, 2),                   &
                     itab(jj,ii,i, 3),itab(jj,ii,i, 4),itab(jj,ii,i, 5),                   &
-                    itab(jj,ii,i, 6),itab(jj,ii,i, 7),itab(jj,ii,i, 8),dum,               &
-                    itab(jj,ii,i, 9),itab(jj,ii,i,10),itab(jj,ii,i,11),itab(jj,ii,i,12),  &
-                    itab(jj,ii,i,13),itab(jj,ii,i,14)
+                    itab(jj,ii,i, 6),itab(jj,ii,i, 7),itab(jj,ii,i, 8),                   &
+                    itab(jj,ii,i, 9),itab(jj,ii,i,10),itab(jj,ii,i,11),                   &
+                    itab(jj,ii,i,12),itab(jj,ii,i,13),itab(jj,ii,i,14)
            enddo
 
          !read in table for ice-rain collection
           do i = 1,isize
              do j = 1,rcollsize
-                read(10,*) dum,dum,dum,dum,dum,dp_dum1,dp_dum2,dum
+!                 read(10,*) dum,dum,dum,dum,dum,dp_dum1,dp_dum2,dum
+!                 itabcoll(jj,ii,i,j,1) = sngl(dlog10(max(dp_dum1,1.d-90)))
+!                 itabcoll(jj,ii,i,j,2) = sngl(dlog10(max(dp_dum2,1.d-90)))
+                read(10,*) dum,dum,dum, dp_dum1,dp_dum2
                 itabcoll(jj,ii,i,j,1) = sngl(dlog10(max(dp_dum1,1.d-90)))
                 itabcoll(jj,ii,i,j,2) = sngl(dlog10(max(dp_dum2,1.d-90)))
              enddo
@@ -422,7 +435,7 @@
              do i = 1,isize
                 read(10,*) dum,dum,dum,dum,   itab_3mom(zz,jj,ii,i, 1),itab_3mom(zz,jj,ii,i, 2),     &
                      itab_3mom(zz,jj,ii,i, 3),itab_3mom(zz,jj,ii,i, 4),itab_3mom(zz,jj,ii,i, 5),     &
-                     itab_3mom(zz,jj,ii,i, 6),itab_3mom(zz,jj,ii,i, 7),itab_3mom(zz,jj,ii,i, 8),dum, &
+                     itab_3mom(zz,jj,ii,i, 6),itab_3mom(zz,jj,ii,i, 7),itab_3mom(zz,jj,ii,i, 8),     &
                      itab_3mom(zz,jj,ii,i, 9),itab_3mom(zz,jj,ii,i,10),itab_3mom(zz,jj,ii,i,11),     &
                      itab_3mom(zz,jj,ii,i,12),itab_3mom(zz,jj,ii,i,13),itab_3mom(zz,jj,ii,i,14),     &
                      itab_3mom(zz,jj,ii,i,15),itab_3mom(zz,jj,ii,i,16),itab_3mom(zz,jj,ii,i,17)
@@ -430,7 +443,8 @@
          !read in table for ice-rain collection
              do i = 1,isize
                 do j = 1,rcollsize
-                   read(10,*) dum,dum,dum,dum,dum,dp_dum1,dp_dum2                  
+!                  read(10,*) dum,dum,dum,dum,dum,dp_dum1,dp_dum2                  
+                   read(10,*) dum,dum,dum, dp_dum1,dp_dum2                  
                    itabcoll_3mom(zz,jj,ii,i,j,1) = sngl(dlog10(max(dp_dum1,1.d-90)))
                    itabcoll_3mom(zz,jj,ii,i,j,2) = sngl(dlog10(max(dp_dum2,1.d-90)))
                 enddo
@@ -6262,17 +6276,17 @@ SUBROUTINE access_lookup_table_coll_3mom(dumzz,dumjj,dumii,dumj,dumi,index,dum1,
 
                     ! find index for qi (total ice mass mixing ratio)
                     
-             !-- For LT2-5.0 (Dm_max = 2000.)
-             !   inverting the following (from create_LT2):  q = 261.7**((i+5)*0.2)*1.e-18
-             !   where q = qitot/nitot (normalized)
-                     !dum1 = (alog10(qitot_1/nitot_1)+18.)/(0.2*alog10(261.7))-5.   !orig
-                      dum1 = (alog10(qitot_1/nitot_1)+18.)*(2.06799)-5.             !optimization
+!              !-- For LT2-5.0 (Dm_max = 2000.)
+!              !   inverting the following (from create_LT2):  q = 261.7**((i+5)*0.2)*1.e-18
+!              !   where q = qitot/nitot (normalized)
+!                      !dum1 = (alog10(qitot_1/nitot_1)+18.)/(0.2*alog10(261.7))-5.   !orig
+!                       dum1 = (alog10(qitot_1/nitot_1)+18.)*(2.06799)-5.             !optimization
 
-!              !-- For LT2-5.1 (Dm_max = 400000.)
-!              !   inverting this equation from the lookup table to solve for i_Qnorm:
-!              !   from create_LT2:  q = 800.**((i_Qnorm+10)*0.1)*1.e-18   [where q = qitot/nitot]
-!                      !dum1 = (alog10(qitot/nitot)+18.)/(0.1*alog10(800.)) - 10.   !original
-!                       dum1 = (alog10(qitot/nitot)+18.)*3.444606 - 10.             !optimized
+             !-- For LT2-5.1 (Dm_max = 400000.)
+             !   inverting this equation from the lookup table to solve for i_Qnorm:
+             !   from create_LT2:  q = 800.**(0.2*(i_Qnorm+5))*1.e-18   [where q = qitot/nitot]
+                     !dum1 = (alog10(qitot_1/nitot_1)+18.)/(0.2*alog10(800.)) - 5.   !original
+                      dum1 = (alog10(qitot_1/nitot_1)+18.)*1.722303 - 5.             !optimized
                       
                       dumi = int(dum1)
                       dum1 = min(dum1,real(iisize))
@@ -6316,8 +6330,17 @@ SUBROUTINE access_lookup_table_coll_3mom(dumzz,dumjj,dumii,dumj,dumi,index,dum1,
 
                     ! find index in lookup table for collectee category, here 'q' is a scaled q/N
                     ! find index for qi (total ice mass mixing ratio)
-!                     dum1c = (alog10(qitot_2/nitot_2)+18.)/(0.2*alog10(261.7))-5. !orig
-                      dum1c = (alog10(qitot_2/nitot_2)+18.)/(0.483561)-5. !for computational efficiency
+!                      !dum1c = (alog10(qitot_2/nitot_2)+18.)/(0.2*alog10(261.7))-5. !orig
+!                       dum1c = (alog10(qitot_2/nitot_2)+18.)/(0.483561)-5. !for computational efficiency
+
+             !-- For LT2-5.1 (Dm_max = 400000.)
+             !   inverting this equation from the lookup table to solve for i_Qnorm:
+             !   from create_LT2:  q = 800.**(0.2*(i_Qnorm+5))*1.e-18   [where q = qitot/nitot]
+                     !dum1c = (alog10(qitot_1/nitot_1)+18.)/(0.2*alog10(800.)) - 5.   !original
+                      dum1c = (alog10(qitot_2/nitot_2)+18.)*1.722303 - 5.             !optimized
+                      
+                      
+                      
                       dumic = int(dum1c)
                       dum1c = min(dum1c,real(iisize))
                       dum1c = max(dum1c,1.)

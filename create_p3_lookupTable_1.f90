@@ -13,7 +13,7 @@ PROGRAM create_p3_lookuptable_1
 ! All other parameter settings are linked uniquely to the version number.
 !
 !--------------------------------------------------------------------------------------
-! Version:       5.3
+! Version:       5.1.7_b04 + mods
 ! Last modified: 2021-FEBRUARY
 !______________________________________________________________________________________
 
@@ -132,7 +132,7 @@ PROGRAM create_p3_lookuptable_1
 !    mv lt_total_tmp lt_total
 ! done
 ! 
-! mv lt_total p3_lookupTable_3.dat
+! mv lt_total p3_lookupTable_1.dat
 ! 
 ! echo 'Done.  Work directories and contents can now be removed.'
 ! echo 'Be sure to re-name the file with the appropriate extension, with the version number'
@@ -143,11 +143,9 @@ PROGRAM create_p3_lookuptable_1
  implicit none
 
  !-----
- character(len=16), parameter :: version   = '5.3'
+ character(len=20), parameter :: version   = '20210223.1'
  logical, parameter           :: log_3momI = .true.    !switch to create table for 2momI (.false.) or 3momI (.true.)
  !-----                                                
-                                                 
- logical, parameter :: log_diagmu_orig = .true.  !switch for original diagnostic-mu_i relation [to be removed eventually]
 
  integer            :: i_Znorm         ! index for normalized (by Q) Z (passed in through script; [1 .. n_Znorm])
  integer            :: i_rhor          ! index for rho_rime (passed in through script; [1 .. n_rhor])
@@ -166,27 +164,20 @@ PROGRAM create_p3_lookuptable_1
  integer, parameter :: n_Qnorm   = 50  ! number of indices for i_Qnorm loop           (4th loop)
  integer, parameter :: n_Drscale = 30  ! number of indices for scaled mean rain size  (5th [inner] loop)
 
-!--- TEST (reduced loops):
-!integer, parameter :: n_rhor    =  5  ! number of indices for i_rhor  loop           (2nd "loop")
-!integer, parameter :: n_Fr      =  2  ! number of indices for i_Fr    loop           (3rd loop)
-!integer, parameter :: n_Qnorm   =  2  ! number of indices for i_Qnorm loop           (4th loop)
-!integer, parameter :: n_Drscale =  2  ! number of indices for scaled mean rain size  (5th [inner] loop)
-!===
-
  integer, parameter :: num_int_bins      = 40000 ! number of bins for numerical integration of ice processes
  integer, parameter :: num_int_coll_bins =  1500 ! number of bins for numerical integration of ice-ice and ice-rain collection
 
  real, parameter :: mu_i_min = 0.
- real, parameter :: mu_i_max = 20. !for orig 2-mom, mu_i_max=6.
+ real, parameter :: mu_i_max = 20.
 
  integer :: i,ii,iii,jj,kk,kkk,dumii,i_iter,n_iter_psdSolve
 
  real :: N,q,qdum,dum1,dum2,cs1,ds1,lam,n0,lamf,qerror,del0,c0,c1,c2,dd,ddd,sum1,sum2,   &
          sum3,sum4,xx,a0,b0,a1,b1,dum,bas1,aas1,aas2,bas2,gammq,gamma,d1,d2,delu,lamold, &
          cap,lamr,dia,amg,dv,n0dum,sum5,sum6,sum7,sum8,dg,cg,bag,aag,dcritg,dcrits,      &
-         dcritr,csr,dsr,duml,dum3,rhodep,cgpold,m1,m2,m3,dt,mu_r,initlamr,lamv,cs2,ds2,  &
+         dcritr,Fr,csr,dsr,duml,dum3,rhodep,cgpold,m1,m2,m3,dt,mu_r,initlamr,lamv,       &
          rdumii,lammin,lammax,pi,g,p,t,rho,mu,mu_i,ds,cs,bas,aas,dcrit,mu_dum,gdum,      &
-         Z_value,sum9,mom3,mom6,intgrR1,intgrR2,intgrR3,intgrR4
+         Z_value,sum9,mom3,mom6,intgrR1,intgrR2,intgrR3,intgrR4,dum4,cs2,ds2
 
 ! function to compute mu for triple moment
  real :: compute_mu_3moment
@@ -207,7 +198,6 @@ PROGRAM create_p3_lookuptable_1
  real, dimension(num_int_bins)      :: fall1
  real, dimension(num_int_coll_bins) :: fall2,fallr,num,numi
  real, dimension(n_rhor)            :: cgp,crp
- real, dimension(n_Fr)              :: Fr
  real, dimension(150)               :: mu_r_table
 
  real, parameter                    :: Dm_max = 40000.e-6   ! max. mean ice [m] size for lambda limiter
@@ -248,7 +238,6 @@ PROGRAM create_p3_lookuptable_1
 !   Before running ./go_1-compile.ksh, delete all lines below this point and
 !   and save as 'create_p3_lookupTable_1-bottom.f90'
 !------------------------------------------------------------------------------------
-
 
 ! set constants and parameters
 
@@ -400,14 +389,6 @@ PROGRAM create_p3_lookuptable_1
 ! compute Z value from input Z index whose value is "passed in" through the script
  Z_value = 2.1**(i_Znorm)*1.e-23 ! range from 2x10^(-23) to 600 using 80 values
 
-!-- testing:
-! print Z values
-! do i=1,80
-!    print*,i,2.1**(i)*1.e-23
-! enddo
-! stop
-!==
-
 
 ! alpha parameter of m-D for rimed ice
  crp(1) =  50.*pi*sxth
@@ -416,12 +397,6 @@ PROGRAM create_p3_lookuptable_1
  crp(4) = 650.*pi*sxth
  crp(5) = 900.*pi*sxth
 
-! array for rime fraction, Fr
- Fr(1) = 0.
- Fr(2) = 0.333
- Fr(3) = 0.667
- Fr(4) = 1.
- 
 !------------------------------------------------------------------------
 
 ! open file to write to lookup table:
@@ -446,16 +421,18 @@ PROGRAM create_p3_lookuptable_1
    i_rhor_loop: do i_rhor = 1,n_rhor    !comment for parallelized 2-moment; uncomment (usually) for 3-moment 
 !==
 
-! write header to first file:
- if (log_3momI .and. i_Znorm==1 .and. i_rhor==1) then
-    write(1,*) 'LOOKUP_TABLE_1-version:  ',trim(version),'-3momI'
-    write(1,*)
- elseif (i_rhor==1) then
-    write(1,*) 'LOOKUP_TABLE_1-version:  ',trim(version),'-2momI'
-    write(1,*)
- endif
 
 !------------------------------------------------------------------------
+
+! ! write header to first file:
+!  if (log_3momI .and. i_Znorm==1 .and. i_rhor==1) then
+!     write(1,*) 'LOOKUP_TABLE_1-version:  ',trim(version),'-3momI'
+!     write(1,*)
+! ! elseif (i_rhor==1) then
+!  elseif (i_rhor==1 .and. i_Fr==1) then
+!     write(1,*) 'LOOKUP_TABLE_1-version:  ',trim(version),'-2momI'
+!     write(1,*)
+!  endif
 
 ! find threshold with rimed mass added
 
@@ -463,7 +440,32 @@ PROGRAM create_p3_lookuptable_1
 ! Fr below are values of rime mass fraction for the lookup table
 ! specific values in model are interpolated between these four points
 
-    i_Fr_loop_1: do i_Fr = 1,n_Fr   ! loop for rime mass fraction, Fr
+!- note:  add this code eventually (outside of i_Fr loop)
+!     Fr(1) = 0.
+!     Fr(2) = 0.333
+!     Fr(3) = 0.667
+!     Fr(4) = 1.
+!=
+
+    i_Fr_loop_1: do i_Fr = 1,n_Fr   ! loop for rime mass fraction, Fr   !COMMENTED OUT FOR PARALLELIZATION (2-MOMENT ONLY)
+
+       ! write header to first file:
+       if (log_3momI .and. i_Znorm==1 .and. i_rhor==1 .and. i_Fr==1) then
+          write(1,*) 'LOOKUP_TABLE_1-version:  ',trim(version),'-3momI'
+          write(1,*)
+       ! elseif (i_rhor==1) then
+       elseif (.not.log_3momI .and. i_rhor==1 .and. i_Fr==1) then
+          write(1,*) 'LOOKUP_TABLE_1-version:  ',trim(version),'-2momI'
+          write(1,*)
+       endif
+
+!-- these lines to be replaced by Fr(i_Fr) initialization outside of loops
+!  OR:  replace with: Fr = 1./float(n_Fr-1)
+       if (i_Fr.eq.1) Fr = 0.
+       if (i_Fr.eq.2) Fr = 0.333
+       if (i_Fr.eq.3) Fr = 0.667
+       if (i_Fr.eq.4) Fr = 1.
+!==
 
 ! calculate mass-dimension relationship for partially-rimed crystals
 ! msr = csr*D^dsr
@@ -484,15 +486,15 @@ PROGRAM create_p3_lookuptable_1
 
           do
              dcrits = (cs/cgp(i_rhor))**(1./(dg-ds))
-             dcritr = ((1.+Fr(i_Fr)/(1.-Fr(i_Fr)))*cs/cgp(i_rhor))**(1./(dg-ds))
-             csr    = cs*(1.+Fr(i_Fr)/(1.-Fr(i_Fr)))
+             dcritr = ((1.+Fr/(1.-Fr))*cs/cgp(i_rhor))**(1./(dg-ds))
+             csr    = cs*(1.+Fr/(1.-Fr))
              dsr    = ds
            ! get mean density of vapor deposition/aggregation grown ice
              rhodep = 1./(dcritr-dcrits)*6.*cs/(pi*(ds-2.))*(dcritr**(ds-2.)-dcrits**(ds-2.))
            ! get density of fully-rimed ice as rime mass fraction weighted rime density plus
            ! density of vapor deposition/aggregation grown ice
              cgpold      = cgp(i_rhor)
-             cgp(i_rhor) = crp(i_rhor)*Fr(i_Fr) + rhodep*(1.-Fr(i_Fr))*pi*sxth
+             cgp(i_rhor) = crp(i_rhor)*Fr+rhodep*(1.-Fr)*pi*sxth
              if (abs((cgp(i_rhor)-cgpold)/cgp(i_rhor)).lt.0.01) goto 115
           enddo
 115       continue
@@ -559,7 +561,7 @@ PROGRAM create_p3_lookuptable_1
                 m3   = cgp(i_rhor)*d1**dg
               ! linearly interpolate based on particle mass
                 dum3 = dum1+(m1-m2)*(dum2-dum1)/(m3-m2)
-              ! dum3 = (1.-Fr(i_Fr))*dum1 + Fr(i_Fr)*dum2              !DELETE?
+              ! dum3 = (1.-Fr)*dum1+Fr*dum2              !DELETE?
                 aas1 = dum3/(d1**bas)
              endif
           endif
@@ -623,7 +625,7 @@ PROGRAM create_p3_lookuptable_1
                 bas1 = bas
                 dum1 = aas*d1**bas
                 dum2 = aag*d1**bag
-              ! dum3 = (1.-Fr(i_Fr))*dum1 + Fr(i_Fr)*dum2
+              ! dum3 = (1.-Fr)*dum1+Fr*dum2
                 m1   = cs1*d1**ds1
                 m2   = cs*d1**ds
                 m3   = cgp(i_rhor)*d1**dg
@@ -696,6 +698,16 @@ PROGRAM create_p3_lookuptable_1
          !q = 261.7**((i_Qnorm+10)*0.1)*1.e-18    ! old (strict) lambda limiter
           q = 800.**((i_Qnorm+10)*0.1)*1.e-18     ! new lambda limiter
 
+!--uncomment to test and print proposed values of qovn
+!         print*,i_Qnorm,(6./(pi*500.)*q)**0.3333
+!      enddo
+!      stop
+!==
+
+! test values
+!  N = 5.e+3
+!  q = 0.01e-3
+
         ! initialize qerror to arbitrarily large value:
           qerror = 1.e+20
 
@@ -739,11 +751,13 @@ PROGRAM create_p3_lookuptable_1
                 lam = 1.0013**ii*10.    ! new lambda_i limiter
 
               ! solve for mu_i for 2-moment-ice:
-                if (.not. log_3momI) mu_i = diagnostic_mui(log_diagmu_orig,mu_i_min,mu_i_max,lam,q,cgp(i_rhor),Fr(i_Fr),pi)
+                if (.not. log_3momI) mu_i = diagnostic_mui(mu_i_min,mu_i_max,lam,q,cgp(i_rhor),Fr,pi)
 
-              ! apply lambda limiter:
-                lam = max(lam,(mu_i+1.)/Dm_max)  ! set min lam corresponding to max. mean size
-                lam = min(lam,(mu_i+1.)/Dm_min)  ! set max lam corresponding to min. mean size
+              ! for lambda limiter:
+               !dum = Dm_max+Fr*(3000.e-6)
+                dum = Dm_max
+                lam = max(lam,(mu_i+1.)/dum)     ! set min lam corresponding to mean size of x
+                lam = min(lam,(mu_i+1.)/Dm_min)  ! set max lam corresponding to mean size of Dm_min (2 micron)
 
               ! normalized n0:
                 n0 = lam**(mu_i+1.)/(gamma(mu_i+1.))
@@ -764,6 +778,21 @@ PROGRAM create_p3_lookuptable_1
               ! sum of the integrals from the 4 regions of the size distribution:
                 qdum = n0*(cs1*intgrR1 + cs*intgrR2 + cgp(i_rhor)*intgrR3 + csr*intgrR4)
 
+!--- numerical integration for test to make sure incomplete gamma function is working
+!               sum1 = 0.
+!               dd = 1.e-6
+!               do iii=1,50000
+!                  dum=real(iii)*dd
+!                  if (dum.lt.dcrit) then
+!                     sum1 = sum1+n0*dum**mu_i*cs1*dum**ds1*exp(-lam*dum)*dd
+!                  else
+!                     sum1 = sum1+n0*dum**mu_i*cs*dum**ds*exp(-lam*dum)*dd
+!                  end if
+!               enddo
+!               print*,'sum1=',sum1
+!               stop
+!===
+
                 if (ii.eq.1) then
                    qerror = abs(q-qdum)
                    lamf   = lam
@@ -779,7 +808,7 @@ PROGRAM create_p3_lookuptable_1
 
            ! check and print relative error in q to make sure it is not too large
            ! note: large error is possible if size bounds are exceeded!!!!!!!!!!
-           ! print*,'qerror (%)',qerror/q*100.
+!            print*,'qerror (%)',qerror/q*100.
 
            ! find n0 based on final lam value
            ! set final lamf to 'lam' variable
@@ -787,7 +816,7 @@ PROGRAM create_p3_lookuptable_1
              lam = lamf
 
            ! recalculate mu_i based on final lam  (for 2-moment-ice only; not needed for 3-moment-ice)
-             if (.not. log_3momI) mu_i = diagnostic_mui(log_diagmu_orig,mu_i_min,mu_i_max,lam,q,cgp(i_rhor),Fr(i_Fr),pi)
+             if (.not. log_3momI) mu_i = diagnostic_mui(mu_i_min,mu_i_max,lam,q,cgp(i_rhor),Fr,pi)
 
            ! n0 = N*lam**(mu_i+1.)/(gamma(mu_i+1.))
 
@@ -982,7 +1011,7 @@ PROGRAM create_p3_lookuptable_1
           enddo !jj-loop
 
        ! loop over exponential size distribution
-       !   note: collection of ice within the same bin is neglected
+!        !   note: collection of ice within the same bin is neglected
 
           jj_loop_3: do jj = num_int_coll_bins,1,-1
              kk_loop_1: do kk = 1,jj-1
@@ -1054,8 +1083,6 @@ PROGRAM create_p3_lookuptable_1
               !  (note: in P3_MAIN  must multiply by air density correction factor, and collection efficiency
                 delu = abs(fall2(jj)-fall2(kk))
 
-
-
               ! sum for integral
 
               ! sum1 = # of collision pairs
@@ -1063,7 +1090,7 @@ PROGRAM create_p3_lookuptable_1
               !  number mixing ratio by 1 kg^-1 s^-1 per kg/m^3 of air (this is
               !  why we need to multiply by air density, to get units of 1/kg^-1 s^-1)
 
-                sum1 = sum1 + (aas1*d1**bas1+aas2*d2**bas2)*delu*num(jj)*num(kk)
+                sum1 = sum1+(aas1*d1**bas1+aas2*d2**bas2)*delu*num(jj)*num(kk)
 
                  ! remove collected particles from distribution over time period dt, update num
                  !  note -- dt is time scale for removal, not model time step
@@ -1080,6 +1107,8 @@ PROGRAM create_p3_lookuptable_1
 
           nagg(i_Qnorm,i_Fr) = sum1  ! save to write to output
 
+!         print*,'nagg',nagg(i_Qnorm,i_Fr)
+
 !.....................................................................................
 ! collection of cloud droplets
 !.....................................................................................
@@ -1087,6 +1116,7 @@ PROGRAM create_p3_lookuptable_1
 !       Also needs to be multiplied by air density correction factor for fallspeed,
 ! !       air density, and cloud water mixing ratio or number concentration
 
+        ! initialize sum for integral
           sum1 = 0.
           sum2 = 0.
 
@@ -1167,7 +1197,6 @@ PROGRAM create_p3_lookuptable_1
         ! loop around lambda for rain
           i_Drscale_loop:  do i_Drscale = 1,n_Drscale
 
-!            print*,'** STATUS: ',i_Znorm, i_rhor, i_Fr, i_Qnorm, i_Drscale
              print*,'** STATUS: ',i_rhor, i_Fr, i_Qnorm, i_Drscale
 
              dum = 1.24**i_Drscale*10.e-6
@@ -1475,42 +1504,18 @@ PROGRAM create_p3_lookuptable_1
         ! calculate for eff rad for twp ice:
           eff(i_Qnorm,i_Fr) = 3.*sum1/(4.*sum2*916.7)
 
-         !a_100(i_Qnorm,i_Fr)=sum4
-         !n_100(i_Qnorm,i_Fr)=sum3
-
-!         print*,'eff rad',eff(i_Qnorm,i_Fr)
 !.....................................................................................
 
 522  continue
 
-         !-- this column is not used (for v2.2 and after)
-         ! (kept temporarly in order to preserve order of columns in lookup_table_1)
-          nsave(i_Qnorm,i_Fr) = 1.  ! HM, set to 1 for consistency w/ old lookup table file (to verify bit matching)
-         !==
-          qsave(i_Qnorm,i_Fr) = q
-          lsave(i_Qnorm,i_Fr) = lam
-
        enddo i_Qnorm_loop
-
-    enddo i_Fr_loop_1  !i_Fr-loop
-
-
-!.....................................................................................
-! Output variables to ascii lookup table:
-
-222 format(2i5,17e15.5)   !for 2momI
-223 format(2i5,20e15.5)   !for 3momI
-224 format(2i5,6e15.5)
+       
 
     !-- ice table
-    i_Fr_loop_2: do i_Fr = 1,n_Fr
-
-       do i_Qnorm = 1,n_Qnorm
+       i_Qnorm_loop_2:  do i_Qnorm = 1,n_Qnorm
 
         ! Set values less than 1.e-99 set to 0: (otherwise the 'E' is left off in
-        ! write statements for floting pointnumbers using some compilers)
-          if (qsave(i_Qnorm,i_Fr)    .lt.1.e-99) qsave(i_Qnorm,i_Fr)     = 0.
-          if (nsave(i_Qnorm,i_Fr)    .lt.1.e-99) nsave(i_Qnorm,i_Fr)     = 0.
+        ! write statements for floting point numbers using some compilers)
           if (uns(i_Qnorm,i_Fr)      .lt.1.e-99) uns(i_Qnorm,i_Fr)       = 0.
           if (ums(i_Qnorm,i_Fr)      .lt.1.e-99) ums(i_Qnorm,i_Fr)       = 0.
           if (nagg(i_Qnorm,i_Fr)     .lt.1.e-99) nagg(i_Qnorm,i_Fr)      = 0.
@@ -1519,7 +1524,6 @@ PROGRAM create_p3_lookuptable_1
           if (eff(i_Qnorm,i_Fr)      .lt.1.e-99) eff(i_Qnorm,i_Fr)       = 0.
           if (i_qsmall(i_Qnorm,i_Fr) .lt.1.e-99) i_qsmall(i_Qnorm,i_Fr)  = 0.
           if (i_qlarge(i_Qnorm,i_Fr) .lt.1.e-99) i_qlarge(i_Qnorm,i_Fr)  = 0.
-          if (lsave(i_Qnorm,i_Fr)    .lt.1.e-99) lsave(i_Qnorm,i_Fr)     = 0.
           if (refl(i_Qnorm,i_Fr)     .lt.1.e-99) refl(i_Qnorm,i_Fr)      = 0.
           if (vdep1(i_Qnorm,i_Fr)    .lt.1.e-99) vdep1(i_Qnorm,i_Fr)     = 0.
           if (dmm(i_Qnorm,i_Fr)      .lt.1.e-99) dmm(i_Qnorm,i_Fr)       = 0.
@@ -1527,54 +1531,73 @@ PROGRAM create_p3_lookuptable_1
           if (uzs(i_Qnorm,i_Fr)      .lt.1.e-99) uzs(i_Qnorm,i_Fr)       = 0.
           if (zlarge(i_Qnorm,i_Fr)   .lt.1.e-99) zlarge(i_Qnorm,i_Fr)    = 0.
           if (zsmall(i_Qnorm,i_Fr)   .lt.1.e-99) zsmall(i_Qnorm,i_Fr)    = 0.
+          if (lambda_i_save(i_Qnorm,i_Fr).lt.1.e-99) lambda_i_save(i_Qnorm,i_Fr) = 0.
           if (mu_i_save(i_Qnorm,i_Fr).lt.1.e-99) mu_i_save(i_Qnorm,i_Fr) = 0.
 
           if (log_3momI) then
-             write(1,223)i_rhor,i_Fr,qsave(i_Qnorm,i_Fr),nsave(i_Qnorm,i_Fr),uns(i_Qnorm,i_Fr),                &
-                         ums(i_Qnorm,i_Fr),nagg(i_Qnorm,i_Fr),nrwat(i_Qnorm,i_Fr),vdep(i_Qnorm,i_Fr),          &
-                         eff(i_Qnorm,i_Fr),i_qsmall(i_Qnorm,i_Fr),i_qlarge(i_Qnorm,i_Fr),lsave(i_Qnorm,i_Fr),  &
-                         refl(i_Qnorm,i_Fr),vdep1(i_Qnorm,i_Fr),dmm(i_Qnorm,i_Fr),rhomm(i_Qnorm,i_Fr),         &
-                         uzs(i_Qnorm,i_Fr),zlarge(i_Qnorm,i_Fr),zsmall(i_Qnorm,i_Fr),                          &
-                         lambda_i_save(i_Qnorm,i_Fr),mu_i_save(i_Qnorm,i_Fr)
+             write(1,'(4i5,20e15.5)')                        &
+                         i_Znorm,i_rhor,i_Fr,i_Qnorm,        &
+                         uns(i_Qnorm,i_Fr),                  &
+                         ums(i_Qnorm,i_Fr),                  &
+                         nagg(i_Qnorm,i_Fr),                 &
+                         nrwat(i_Qnorm,i_Fr),                &
+                         vdep(i_Qnorm,i_Fr),                 &
+                         eff(i_Qnorm,i_Fr),                  &
+                         i_qsmall(i_Qnorm,i_Fr),             &
+                         i_qlarge(i_Qnorm,i_Fr),             &
+                         refl(i_Qnorm,i_Fr),                 &
+                         vdep1(i_Qnorm,i_Fr),                &
+                         dmm(i_Qnorm,i_Fr),                  &
+                         rhomm(i_Qnorm,i_Fr),                &
+                         uzs(i_Qnorm,i_Fr),                  &
+                         zlarge(i_Qnorm,i_Fr),               &
+                         zsmall(i_Qnorm,i_Fr),               &
+                         lambda_i_save(i_Qnorm,i_Fr),        &
+                         mu_i_save(i_Qnorm,i_Fr)
           else
-             write(1,222)i_rhor,i_Fr,qsave(i_Qnorm,i_Fr),nsave(i_Qnorm,i_Fr),uns(i_Qnorm,i_Fr),                &
-                         ums(i_Qnorm,i_Fr),nagg(i_Qnorm,i_Fr),nrwat(i_Qnorm,i_Fr),vdep(i_Qnorm,i_Fr),          &
-                         eff(i_Qnorm,i_Fr),i_qsmall(i_Qnorm,i_Fr),i_qlarge(i_Qnorm,i_Fr),lsave(i_Qnorm,i_Fr),  &
-                         refl(i_Qnorm,i_Fr),vdep1(i_Qnorm,i_Fr),dmm(i_Qnorm,i_Fr),rhomm(i_Qnorm,i_Fr),         &
-                         lambda_i_save(i_Qnorm,i_Fr),mu_i_save(i_Qnorm,i_Fr)
+             write(1,'(3i5,20e15.5)')                        &
+                         i_rhor,i_Fr,i_Qnorm,                &
+                         uns(i_Qnorm,i_Fr),                  &
+                         ums(i_Qnorm,i_Fr),                  &
+                         nagg(i_Qnorm,i_Fr),                 &
+                         nrwat(i_Qnorm,i_Fr),                &
+                         vdep(i_Qnorm,i_Fr),                 &
+                         eff(i_Qnorm,i_Fr),                  &
+                         i_qsmall(i_Qnorm,i_Fr),             &
+                         i_qlarge(i_Qnorm,i_Fr),             &
+                         refl(i_Qnorm,i_Fr),                 &
+                         vdep1(i_Qnorm,i_Fr),                &
+                         dmm(i_Qnorm,i_Fr),                  &
+                         rhomm(i_Qnorm,i_Fr),                &
+                         lambda_i_save(i_Qnorm,i_Fr),        &
+                         mu_i_save(i_Qnorm,i_Fr)
           endif
 
-       enddo !i_Qnorm-loop
+       enddo i_Qnorm_loop_2
 
    !-- ice-rain collection table:
        do i_Qnorm = 1,n_Qnorm
           do i_Drscale = 1,n_Drscale
 
         ! Set values less than 1.e-99 set to 0: (otherwise the 'E' is left off in
-        ! write statements for floting pointnumbers using some compilers)
-             if (qsave(i_Qnorm,i_Fr)           .lt.1.e-99) qsave(i_Qnorm,i_Fr)            = 0.
-             if (nsave(i_Qnorm,i_Fr)           .lt.1.e-99) nsave(i_Qnorm,i_Fr)            = 0.
-             if (lamrs(i_Drscale)              .lt.1.e-99) lamrs(i_Drscale)               = 0.
+        ! write statements for floting point numbers using some compilers)
              if (nrrain(i_Qnorm,i_Drscale,i_Fr).lt.1.e-99) nrrain(i_Qnorm,i_Drscale,i_Fr) = 0.
              if (qrrain(i_Qnorm,i_Drscale,i_Fr).lt.1.e-99) qrrain(i_Qnorm,i_Drscale,i_Fr) = 0.
              if (qsrain(i_Qnorm,i_Drscale,i_Fr).lt.1.e-99) qsrain(i_Qnorm,i_Drscale,i_Fr) = 0.
 
-             write(1,224) i_rhor,i_Fr,qsave(i_Qnorm,i_Fr),nsave(i_Qnorm,i_Fr),lamrs(i_Drscale),   &
-                          nrrain(i_Qnorm,i_Drscale,i_Fr),qrrain(i_Qnorm,i_Drscale,i_Fr),          &
-                          qsrain(i_Qnorm,i_Drscale,i_Fr)
+             write(1,'(3i5,2e15.5)')                         &
+                         i_Qnorm,i_Drscale,i_Fr,             &
+                         nrrain(i_Qnorm,i_Drscale,i_Fr),     &
+                         qrrain(i_Qnorm,i_Drscale,i_Fr)
 
-          enddo !i_Drscale-loop
+          enddo !i_Drscale-loop          
        enddo !i_Qnorm-loop
-
-    enddo i_Fr_loop_2
-
+       
 !--
-! Parrallelization:
-! The 'enddo (x)_loop' statements are commented out accordingly for parallelization,
-! corresponding to the commented/uncommented 'do'  statements above, depending on the
-! choice of parallelization (and if 2-moment or 3-moment).
-!
-  enddo i_rhor_loop !(main loop over variable rime density)
+! The values of i_Znorm (3-momI) and i_rhor/i_Fr (2-momI) are "passed in" for parallelized
+! version of code, thus the loops are commented out.
+     enddo i_Fr_loop_1
+   enddo i_rhor_loop
 !enddo i_Znorm_loop
 !==
 
@@ -1668,52 +1691,6 @@ END PROGRAM create_p3_lookuptable_1
       return
       end
 
-
-!______________________________________________________________________________________
-!
-! subroutine get_mass_size
-!
-! !----- get mass-size and projected area-size relationships for given size (d1)
-!           if (d1.le.dcrit) then
-!              cs1 = pi*sxth*900.
-!              ds1 = 3.
-!              bas1 = 2.
-!              aas1 = pi/4.
-!           else if (d1.gt.dcrit.and.d1.le.dcrits) then
-!              cs1  = cs
-!              ds1  = ds
-!              bas1 = bas
-!              aas1 = aas
-!           else if (d1.gt.dcrits.and.d1.le.dcritr) then
-!               cs1  = cgp(i_rhor)
-!               ds1  = dg
-!               bas1 = bag
-!               aas1 = aag
-!           else if (d1.gt.dcritr) then
-!              cs1 = csr
-!              ds1 = dsr
-!              if (i_Fr.eq.1) then
-!                 aas1 = aas
-!                 bas1 = bas
-!              else
-!
-! ! for projected area, keep bas1 constant, but modify aas1 according to rimed fraction
-!                 bas1 = bas
-!                 dum1 = aas*d1**bas
-!                 dum2 = aag*d1**bag
-!                 m1   = cs1*d1**ds1
-!                 m2   = cs*d1**ds
-!                 m3   = cgp(i_rhor)*d1**dg
-! ! linearly interpolate based on particle mass
-!                 dum3 = dum1+(m1-m2)*(dum2-dum1)/(m3-m2)
-! !               dum3 = (1.-Fr)*dum1+Fr*dum2
-!                 aas1 = dum3/(d1**bas)
-!              endif
-!           endif
-! !=====
-!
-! end subroutine get_mass_size
-
 !______________________________________________________________________________________
 
  real function compute_mu_3moment(mom3,mom6,mu_max)
@@ -1774,7 +1751,7 @@ END PROGRAM create_p3_lookuptable_1
 
 !______________________________________________________________________________________
 
- real function diagnostic_mui(log_diagmu_orig,mu_i_min,mu_i_max,lam,q,cgp,Fr,pi)
+ real function diagnostic_mui(mu_i_min,mu_i_max,lam,q,cgp,Fr,pi)
 
 !----------------------------------------------------------!
 ! Compute mu_i diagnostically.
@@ -1783,38 +1760,47 @@ END PROGRAM create_p3_lookuptable_1
  implicit none
  
 !Arguments:
- logical :: log_diagmu_orig
  real    :: mu_i_min,mu_i_max,lam,q,cgp,Fr,pi
 
 ! Local variables:
- real, parameter :: Di_thres = 0.2 !diameter threshold [mm]
+!real, parameter :: Di_thres = 0.2 !diameter threshold [mm]
+ real, parameter :: Di_thres = 0.6 !diameter threshold [mm]
  real            :: mu_i,dum1,dum2,dum3
 
- if (log_diagmu_orig) then                   
 
- !diagnostic mu_i, original formulation: (from Heymsfield, 2003)
-    mu_i = 0.076*(lam/100.)**0.8-2.   ! /100 is to convert m-1 to cm-1
-    mu_i = max(mu_i,mu_i_min)  ! make sure mu_i >= 0, otherwise size dist is infinity at D = 0
+!-- diagnostic mu_i, original formulation: (from Heymsfield, 2003)
+!  mu_i = 0.076*(lam/100.)**0.8-2.   ! /100 is to convert m-1 to cm-1
+!  mu_i = max(mu_i,0.)
+!  mu_i = min(mu_i,6.)
+    
+!-- diagnostic mu_i, 3-moment-based formulation:
+!  dum1 = (q/cgp)**(1./3)*1000.              ! estimated Dmvd [mm], assuming spherical
+!  if (dum1<=Di_thres) then
+!     !diagnostic mu_i, original formulation: (from Heymsfield, 2003)
+!     mu_i = 0.076*(lam*0.01)**0.8-2.        ! /100 is to convert m-1 to cm-1
+!     mu_i = min(mu_i,6.)
+!  else
+!     dum2 = (6./pi)*cgp                     ! mean density (total)
+!     dum3 = max(1., 1.+0.00842*(dum2-400.)) ! adjustment factor for density
+!     mu_i = 4.*(dum1-Di_thres)*dum3*Fr
+!  endif
+!  mu_i = max(mu_i,mu_i_min)  ! make sure mu_i >= 0, otherwise size dist is infinity at D = 0
+!  mu_i = min(mu_i,mu_i_max)
+    
+ dum1 = (q/cgp)**(1./3)*1000.              ! estimated Dmvd [mm], assuming spherical
+ if (dum1<=Di_thres) then
+    !diagnostic mu_i, original formulation: (from Heymsfield, 2003)
+    mu_i = 0.076*(lam*0.01)**0.8-2.        ! /100 is to convert m-1 to cm-1
     mu_i = min(mu_i,6.)
-    
  else
- 
- !diagnostic mu_i, 3-moment-based formulation:
-    dum1 = (q/cgp)**(1./3)*1000.              ! estimated Dmvd [mm], assuming spherical
-    if (dum1<=Di_thres) then
-       !diagnostic mu_i, original formulation: (from Heymsfield, 2003)
-       mu_i = 0.076*(lam*0.01)**0.8-2.        ! /100 is to convert m-1 to cm-1
-       mu_i = min(mu_i,6.)
-    else
-       dum2 = (6./pi)*cgp                     ! mean density (total)
-       dum3 = max(1., 1.+0.00842*(dum2-400.)) ! adjustment factor for density
-       mu_i = 4.*(dum1-Di_thres)*dum3*Fr
-    endif
-    mu_i = max(mu_i,mu_i_min)  ! make sure mu_i >= 0, otherwise size dist is infinity at D = 0
-    mu_i = min(mu_i,mu_i_max)
-    
+    dum2 = (6./pi)*cgp                     ! mean density (total)
+!   dum3 = max(1., 1.+0.00842*(dum2-400.)) ! adjustment factor for density
+    dum3 = max(1., 1.+0.00842*(dum2-400.)) ! adjustment factor for density
+    mu_i = 0.25*(dum1-Di_thres)*dum3*Fr
  endif
-
+ mu_i = max(mu_i,mu_i_min)  ! make sure mu_i >= 0, otherwise size dist is infinity at D = 0
+ mu_i = min(mu_i,mu_i_max)
+    
  diagnostic_mui = mu_i
  
  end function diagnostic_mui
