@@ -112,7 +112,7 @@ PROGRAM create_p3_lookuptable_2
 
  implicit none
  
- character(len=16), parameter :: version = '5.1_beta'
+ character(len=16), parameter :: version = '20210225.1'
 
  real    :: pi,g,p,t,rho,mu,pgam,ds,cs,bas,aas,dcrit,eii
  integer :: k,ii,jj,kk,dumii,j2
@@ -137,8 +137,8 @@ PROGRAM create_p3_lookuptable_2
          rdumii,lammin,lammax,cs2,ds2,intgrR1,intgrR2,intgrR3,intgrR4,q_agg,n_agg
 
  real :: diagnostic_mui ! function to return diagnostic value of shape paramter, mu_i
- real :: Q_normalized
- real :: lambdai
+ real :: Q_normalized   ! function
+ real :: lambdai        ! function
  
  real, parameter :: Dm_max = 40000.e-6   ! max. mean ice [m] size for lambda limiter
 !real, parameter :: Dm_max =  2000.e-6   ! max. mean ice [m] size for lambda limiter
@@ -828,9 +828,6 @@ PROGRAM create_p3_lookuptable_2
 ! collection of category 1 by category 2
 !.....................................................................................
 
-221 format(a5,6i5,2e15.5)
-222 format(4i5,3e15.5)
-
  write (filename, "(A12,I0.2,A4)") "lookupTable_2-",i1,".dat"
  filename = trim(filename)
  open(unit=1, file=filename, status='unknown')
@@ -1006,9 +1003,11 @@ PROGRAM create_p3_lookuptable_2
              
              endif lamIsMax
 
-             write(6,221) 'index:',i1,i_Fr1,i_rhor1,i2,i_Fr2,i_rhor2,n_agg,q_agg
+             n_agg = dim(n_agg, 1.e-50)
+             q_agg = dim(q_agg, 1.e-50)
 
-             write(1,222) i_rhor1,i_Fr1,i_rhor2,i_Fr2,qsave(i2,i_Fr2,i_rhor2),n_agg,q_agg
+            !write(6,'(a5,6i5,2e15.5)') 'index:',i1,i_Fr1,i_rhor1,i2,i_Fr2,i_rhor2,n_agg,q_agg             
+             write(1,'(6i5,2e15.6)') i1,i_Fr1,i_rhor1,i2,i_Fr2,i_rhor2,n_agg,q_agg
 
               
            enddo   ! i_rhor2 loop

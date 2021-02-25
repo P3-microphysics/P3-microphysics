@@ -143,8 +143,8 @@ PROGRAM create_p3_lookuptable_1
  implicit none
 
  !-----
- character(len=20), parameter :: version   = '20210223.1'
- logical, parameter           :: log_3momI = .true.    !switch to create table for 2momI (.false.) or 3momI (.true.)
+ character(len=20), parameter :: version   = '20210224.1'
+ logical, parameter           :: log_3momI = .false.    !switch to create table for 2momI (.false.) or 3momI (.true.)
  !-----                                                
 
  integer            :: i_Znorm         ! index for normalized (by Q) Z (passed in through script; [1 .. n_Znorm])
@@ -187,7 +187,7 @@ PROGRAM create_p3_lookuptable_1
  
 ! outputs from lookup table (i.e. "f1prxx" read by access_lookup_table in s/r p3_main)
  real, dimension(n_Qnorm,n_Fr) :: uns,ums,refl,dmm,rhomm,nagg,nrwat,qsave,nsave,vdep,    &
-        eff,lsave,a_100,n_100,vdep1,i_qsmall,i_qlarge,nrwats,lambda_i_save,mu_i_save
+        eff,lsave,a_100,n_100,vdep1,i_qsmall,i_qlarge,nrwats,lambda_i,mu_i_save
 
 ! outputs for triple moment
  real, dimension(n_Qnorm,n_Fr) :: uzs,zlarge,zsmall
@@ -204,13 +204,12 @@ PROGRAM create_p3_lookuptable_1
 !real, parameter                    :: Dm_max =  2000.e-6   ! max. mean ice [m] size for lambda limiter
  real, parameter                    :: Dm_min =     2.e-6   ! min. mean ice [m] size for lambda limiter
 
- real, parameter                    :: thrd = 1./3.
- real, parameter                    :: sxth = 1./6.
-
+ real, parameter                    :: thrd   = 1./3.
+ real, parameter                    :: sxth   = 1./6.
+ real, parameter                    :: cutoff = 1.e-90
  character(len=2014)                :: filename
 
 !===   end of variable declaration ===
-
 
  if (log_3momI) then
     n_iter_psdSolve = 3   ! 3 iterations found to be sufficient (trial-and-error)
@@ -418,36 +417,8 @@ PROGRAM create_p3_lookuptable_1
 ! Thus, the loops 'i_Znorm_loop' and 'i_rhor_loop' are commented out accordingingly.
 !
 !i_Znorm_loop: do i_Znorm = 1,n_Znorm   !normally commented (kept to illustrate the structure (and to run in serial)
-   i_rhor_loop: do i_rhor = 1,n_rhor    !comment for parallelized 2-moment; uncomment (usually) for 3-moment 
-!==
-
-
-!------------------------------------------------------------------------
-
-! ! write header to first file:
-!  if (log_3momI .and. i_Znorm==1 .and. i_rhor==1) then
-!     write(1,*) 'LOOKUP_TABLE_1-version:  ',trim(version),'-3momI'
-!     write(1,*)
-! ! elseif (i_rhor==1) then
-!  elseif (i_rhor==1 .and. i_Fr==1) then
-!     write(1,*) 'LOOKUP_TABLE_1-version:  ',trim(version),'-2momI'
-!     write(1,*)
-!  endif
-
-! find threshold with rimed mass added
-
-! loop over rimed mass fraction (4 points)
-! Fr below are values of rime mass fraction for the lookup table
-! specific values in model are interpolated between these four points
-
-!- note:  add this code eventually (outside of i_Fr loop)
-!     Fr(1) = 0.
-!     Fr(2) = 0.333
-!     Fr(3) = 0.667
-!     Fr(4) = 1.
-!=
-
-    i_Fr_loop_1: do i_Fr = 1,n_Fr   ! loop for rime mass fraction, Fr   !COMMENTED OUT FOR PARALLELIZATION (2-MOMENT ONLY)
+!    i_rhor_loop: do i_rhor = 1,n_rhor    !COMMENT OUT FOR PARALLELIZATION (2-MOMENT ONLY)
+!     i_Fr_loop_1: do i_Fr = 1,n_Fr       !COMMENT OUT FOR PARALLELIZATION (2-MOMENT ONLY)
 
        ! write header to first file:
        if (log_3momI .and. i_Znorm==1 .and. i_rhor==1 .and. i_Fr==1) then
@@ -859,7 +830,7 @@ PROGRAM create_p3_lookuptable_1
 
           enddo iteration_loop1
 
-          lambda_i_save(i_Qnorm,i_Fr) = lam
+          lambda_i(i_Qnorm,i_Fr) = lam
           mu_i_save(i_Qnorm,i_Fr)     = mu_i
 
 !.....................................................................................
@@ -1514,25 +1485,28 @@ PROGRAM create_p3_lookuptable_1
     !-- ice table
        i_Qnorm_loop_2:  do i_Qnorm = 1,n_Qnorm
 
-        ! Set values less than 1.e-99 set to 0: (otherwise the 'E' is left off in
-        ! write statements for floting point numbers using some compilers)
-          if (uns(i_Qnorm,i_Fr)      .lt.1.e-99) uns(i_Qnorm,i_Fr)       = 0.
-          if (ums(i_Qnorm,i_Fr)      .lt.1.e-99) ums(i_Qnorm,i_Fr)       = 0.
-          if (nagg(i_Qnorm,i_Fr)     .lt.1.e-99) nagg(i_Qnorm,i_Fr)      = 0.
-          if (nrwat(i_Qnorm,i_Fr)    .lt.1.e-99) nrwat(i_Qnorm,i_Fr)     = 0.
-          if (vdep(i_Qnorm,i_Fr)     .lt.1.e-99) vdep(i_Qnorm,i_Fr)      = 0.
-          if (eff(i_Qnorm,i_Fr)      .lt.1.e-99) eff(i_Qnorm,i_Fr)       = 0.
-          if (i_qsmall(i_Qnorm,i_Fr) .lt.1.e-99) i_qsmall(i_Qnorm,i_Fr)  = 0.
-          if (i_qlarge(i_Qnorm,i_Fr) .lt.1.e-99) i_qlarge(i_Qnorm,i_Fr)  = 0.
-          if (refl(i_Qnorm,i_Fr)     .lt.1.e-99) refl(i_Qnorm,i_Fr)      = 0.
-          if (vdep1(i_Qnorm,i_Fr)    .lt.1.e-99) vdep1(i_Qnorm,i_Fr)     = 0.
-          if (dmm(i_Qnorm,i_Fr)      .lt.1.e-99) dmm(i_Qnorm,i_Fr)       = 0.
-          if (rhomm(i_Qnorm,i_Fr)    .lt.1.e-99) rhomm(i_Qnorm,i_Fr)     = 0.
-          if (uzs(i_Qnorm,i_Fr)      .lt.1.e-99) uzs(i_Qnorm,i_Fr)       = 0.
-          if (zlarge(i_Qnorm,i_Fr)   .lt.1.e-99) zlarge(i_Qnorm,i_Fr)    = 0.
-          if (zsmall(i_Qnorm,i_Fr)   .lt.1.e-99) zsmall(i_Qnorm,i_Fr)    = 0.
-          if (lambda_i_save(i_Qnorm,i_Fr).lt.1.e-99) lambda_i_save(i_Qnorm,i_Fr) = 0.
-          if (mu_i_save(i_Qnorm,i_Fr).lt.1.e-99) mu_i_save(i_Qnorm,i_Fr) = 0.
+
+        ! Set values less than cutoff (1.e-99) to 0.
+        !   note: dim(x,cutoff) actually returns x-cutoff (if x>cutoff; else 0.), but this difference will
+        !   have no effect since the values will be read in single precision in P3_INIT. The purppse
+        !   here is to avoid problems trying to writevalues with 3-digit exponents (e.g. 0.123456E-100)
+          uns(i_Qnorm,i_Fr)       = dim( uns(i_Qnorm,i_Fr),       cutoff)
+          ums(i_Qnorm,i_Fr)       = dim( ums(i_Qnorm,i_Fr),       cutoff)
+          nagg(i_Qnorm,i_Fr)      = dim( nagg(i_Qnorm,i_Fr),      cutoff)
+          nrwat(i_Qnorm,i_Fr)     = dim( nrwat(i_Qnorm,i_Fr),     cutoff)
+          vdep(i_Qnorm,i_Fr)      = dim( vdep(i_Qnorm,i_Fr),      cutoff)
+          eff(i_Qnorm,i_Fr)       = dim( eff(i_Qnorm,i_Fr),       cutoff)
+          i_qsmall(i_Qnorm,i_Fr)  = dim( i_qsmall(i_Qnorm,i_Fr),  cutoff)
+          i_qlarge(i_Qnorm,i_Fr)  = dim( i_qlarge(i_Qnorm,i_Fr),  cutoff)
+          refl(i_Qnorm,i_Fr)      = dim( refl(i_Qnorm,i_Fr),      cutoff)
+          vdep1(i_Qnorm,i_Fr)     = dim( vdep1(i_Qnorm,i_Fr),     cutoff)
+          dmm(i_Qnorm,i_Fr)       = dim( dmm(i_Qnorm,i_Fr),       cutoff)
+          rhomm(i_Qnorm,i_Fr)     = dim( rhomm(i_Qnorm,i_Fr),     cutoff)
+          uzs(i_Qnorm,i_Fr)       = dim( uzs(i_Qnorm,i_Fr),       cutoff)
+          zlarge(i_Qnorm,i_Fr)    = dim( zlarge(i_Qnorm,i_Fr),    cutoff)
+          zsmall(i_Qnorm,i_Fr)    = dim( zsmall(i_Qnorm,i_Fr),    cutoff)
+          lambda_i(i_Qnorm,i_Fr)  = dim( lambda_i(i_Qnorm,i_Fr),  cutoff)
+          mu_i_save(i_Qnorm,i_Fr) = dim( mu_i_save(i_Qnorm,i_Fr), cutoff)
 
           if (log_3momI) then
              write(1,'(4i5,20e15.5)')                        &
@@ -1552,7 +1526,7 @@ PROGRAM create_p3_lookuptable_1
                          uzs(i_Qnorm,i_Fr),                  &
                          zlarge(i_Qnorm,i_Fr),               &
                          zsmall(i_Qnorm,i_Fr),               &
-                         lambda_i_save(i_Qnorm,i_Fr),        &
+                         lambda_i(i_Qnorm,i_Fr),             &
                          mu_i_save(i_Qnorm,i_Fr)
           else
              write(1,'(3i5,20e15.5)')                        &
@@ -1569,7 +1543,7 @@ PROGRAM create_p3_lookuptable_1
                          vdep1(i_Qnorm,i_Fr),                &
                          dmm(i_Qnorm,i_Fr),                  &
                          rhomm(i_Qnorm,i_Fr),                &
-                         lambda_i_save(i_Qnorm,i_Fr),        &
+                         lambda_i(i_Qnorm,i_Fr),             &
                          mu_i_save(i_Qnorm,i_Fr)
           endif
 
@@ -1579,13 +1553,12 @@ PROGRAM create_p3_lookuptable_1
        do i_Qnorm = 1,n_Qnorm
           do i_Drscale = 1,n_Drscale
 
-        ! Set values less than 1.e-99 set to 0: (otherwise the 'E' is left off in
-        ! write statements for floting point numbers using some compilers)
-             if (nrrain(i_Qnorm,i_Drscale,i_Fr).lt.1.e-99) nrrain(i_Qnorm,i_Drscale,i_Fr) = 0.
-             if (qrrain(i_Qnorm,i_Drscale,i_Fr).lt.1.e-99) qrrain(i_Qnorm,i_Drscale,i_Fr) = 0.
-             if (qsrain(i_Qnorm,i_Drscale,i_Fr).lt.1.e-99) qsrain(i_Qnorm,i_Drscale,i_Fr) = 0.
+            !Set values less than cutoff (1.e-99) to 0.
+             nrrain(i_Qnorm,i_Drscale,i_Fr) = dim(nrrain(i_Qnorm,i_Drscale,i_Fr), cutoff)
+             qrrain(i_Qnorm,i_Drscale,i_Fr) = dim(qrrain(i_Qnorm,i_Drscale,i_Fr), cutoff)
+             qsrain(i_Qnorm,i_Drscale,i_Fr) = dim(qsrain(i_Qnorm,i_Drscale,i_Fr), cutoff)
 
-             write(1,'(3i5,2e15.5)')                         &
+             write(1,'(3i5,2e15.6)')                         &
                          i_Qnorm,i_Drscale,i_Fr,             &
                          nrrain(i_Qnorm,i_Drscale,i_Fr),     &
                          qrrain(i_Qnorm,i_Drscale,i_Fr)
@@ -1596,8 +1569,8 @@ PROGRAM create_p3_lookuptable_1
 !--
 ! The values of i_Znorm (3-momI) and i_rhor/i_Fr (2-momI) are "passed in" for parallelized
 ! version of code, thus the loops are commented out.
-     enddo i_Fr_loop_1
-   enddo i_rhor_loop
+!      enddo i_Fr_loop_1
+!    enddo i_rhor_loop
 !enddo i_Znorm_loop
 !==
 

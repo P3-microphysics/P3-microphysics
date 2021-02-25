@@ -119,8 +119,8 @@
  logical, save                  :: is_init = .false.
  character(len=1024), parameter :: version_p3                    = '4.2_beta' 
 !character(len=1024), parameter :: version_intended_table_1_2mom = '5.2-2momI'
- character(len=1024), parameter :: version_intended_table_1_2mom = '20210212.1-newDiag3-2momI'
- character(len=1024), parameter :: version_intended_table_1_3mom = '20210218.1-3momI'
+ character(len=1024), parameter :: version_intended_table_1_2mom = '20210224.1-2momI'
+ character(len=1024), parameter :: version_intended_table_1_3mom = '20210223.1-3momI'
 !character(len=1024), parameter :: version_intended_table_2      = '5.0'
  character(len=1024), parameter :: version_intended_table_2      = '5.1_beta20210208.1'
  
@@ -372,12 +372,12 @@
          !read in table for ice-rain collection
           do i = 1,isize
              do j = 1,rcollsize
-!                 read(10,*) dum,dum,dum,dum,dum,dp_dum1,dp_dum2,dum
-!                 itabcoll(jj,ii,i,j,1) = sngl(dlog10(max(dp_dum1,1.d-90)))
-!                 itabcoll(jj,ii,i,j,2) = sngl(dlog10(max(dp_dum2,1.d-90)))
                 read(10,*) dum,dum,dum, dp_dum1,dp_dum2
                 itabcoll(jj,ii,i,j,1) = sngl(dlog10(max(dp_dum1,1.d-90)))
                 itabcoll(jj,ii,i,j,2) = sngl(dlog10(max(dp_dum2,1.d-90)))
+!                 read(10,*) dum,dum,dum,             &
+!                            itabcoll(jj,ii,i,j,1),   &
+!                            itabcoll(jj,ii,i,j,2)
              enddo
           enddo
        enddo  !ii
@@ -443,10 +443,12 @@
          !read in table for ice-rain collection
              do i = 1,isize
                 do j = 1,rcollsize
-!                  read(10,*) dum,dum,dum,dum,dum,dp_dum1,dp_dum2                  
                    read(10,*) dum,dum,dum, dp_dum1,dp_dum2                  
                    itabcoll_3mom(zz,jj,ii,i,j,1) = sngl(dlog10(max(dp_dum1,1.d-90)))
                    itabcoll_3mom(zz,jj,ii,i,j,2) = sngl(dlog10(max(dp_dum2,1.d-90)))
+!                    read(10,*) dum,dum,dum,         &                  
+!                    itabcoll_3mom(zz,jj,ii,i,j,1),  &
+!                    itabcoll_3mom(zz,jj,ii,i,j,2)
                 enddo
              enddo
           enddo  !ii
@@ -489,9 +491,14 @@
                 do ii = 1,iisize
                    do jjj2 = 1,rimsize
                       do jjjj2 = 1,densize
-                         read(10,*) dum,dum,dum,dum,dum,                       &
-                         itabcolli1(i,jjj,jjjj,ii,jjj2,jjjj2),                 &
-                         itabcolli2(i,jjj,jjjj,ii,jjj2,jjjj2)
+                         read(10,*) dum,dum,dum,dum,dum,dum,                  &
+                                    itabcolli1(i,jjj,jjjj,ii,jjj2,jjjj2),     &
+                                    itabcolli2(i,jjj,jjjj,ii,jjj2,jjjj2)
+! !                         row = row + 1
+! !                         itab1_B(row) = itabcolli1(i,jjj,jjjj,ii,jjj2,jjjj2)
+! !                         itab2_B(row) = itabcolli2(i,jjj,jjjj,ii,jjj2,jjjj2)
+! !                         keys(row) = i*100000  + jjj*10000 + jjjj*100
+                        
                       enddo
                    enddo
                 enddo
