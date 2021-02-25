@@ -118,10 +118,8 @@
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
  character(len=1024), parameter :: version_p3                    = '4.2_beta' 
-!character(len=1024), parameter :: version_intended_table_1_2mom = '5.2-2momI'
  character(len=1024), parameter :: version_intended_table_1_2mom = '20210224.1-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '20210223.1-3momI'
-!character(len=1024), parameter :: version_intended_table_2      = '5.0'
  character(len=1024), parameter :: version_intended_table_2      = '5.1_beta20210208.1'
  
  character(len=1024)            :: version_header_table_1_2mom
@@ -357,11 +355,6 @@
      do jj = 1,densize
        do ii = 1,rimsize
           do i = 1,isize
-!              read(10,*) dum,dum,dum,dum,itab(jj,ii,i, 1),itab(jj,ii,i, 2),                &
-!                     itab(jj,ii,i, 3),itab(jj,ii,i, 4),itab(jj,ii,i, 5),                   &
-!                     itab(jj,ii,i, 6),itab(jj,ii,i, 7),itab(jj,ii,i, 8),dum,               &
-!                     itab(jj,ii,i, 9),itab(jj,ii,i,10),itab(jj,ii,i,11),itab(jj,ii,i,12),  &
-!                     itab(jj,ii,i,13),itab(jj,ii,i,14)
              read(10,*) dum,dum,dum, itab(jj,ii,i, 1),itab(jj,ii,i, 2),                   &
                     itab(jj,ii,i, 3),itab(jj,ii,i, 4),itab(jj,ii,i, 5),                   &
                     itab(jj,ii,i, 6),itab(jj,ii,i, 7),itab(jj,ii,i, 8),                   &
@@ -375,9 +368,6 @@
                 read(10,*) dum,dum,dum, dp_dum1,dp_dum2
                 itabcoll(jj,ii,i,j,1) = sngl(dlog10(max(dp_dum1,1.d-90)))
                 itabcoll(jj,ii,i,j,2) = sngl(dlog10(max(dp_dum2,1.d-90)))
-!                 read(10,*) dum,dum,dum,             &
-!                            itabcoll(jj,ii,i,j,1),   &
-!                            itabcoll(jj,ii,i,j,2)
              enddo
           enddo
        enddo  !ii
@@ -446,9 +436,6 @@
                    read(10,*) dum,dum,dum, dp_dum1,dp_dum2                  
                    itabcoll_3mom(zz,jj,ii,i,j,1) = sngl(dlog10(max(dp_dum1,1.d-90)))
                    itabcoll_3mom(zz,jj,ii,i,j,2) = sngl(dlog10(max(dp_dum2,1.d-90)))
-!                    read(10,*) dum,dum,dum,         &                  
-!                    itabcoll_3mom(zz,jj,ii,i,j,1),  &
-!                    itabcoll_3mom(zz,jj,ii,i,j,2)
                 enddo
              enddo
           enddo  !ii
@@ -494,6 +481,7 @@
                          read(10,*) dum,dum,dum,dum,dum,dum,                  &
                                     itabcolli1(i,jjj,jjjj,ii,jjj2,jjjj2),     &
                                     itabcolli2(i,jjj,jjjj,ii,jjj2,jjjj2)
+! ! Note -- for future (liquid-fraction; when 8 indices will be needed)                                    
 ! !                         row = row + 1
 ! !                         itab1_B(row) = itabcolli1(i,jjj,jjjj,ii,jjj2,jjjj2)
 ! !                         itab2_B(row) = itabcolli2(i,jjj,jjjj,ii,jjj2,jjjj2)
@@ -5742,7 +5730,7 @@ SUBROUTINE access_lookup_table_coll_3mom(dumzz,dumjj,dumii,dumj,dumi,index,dum1,
 
    gproc1  = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
    tmp2    = iproc1+(dum4-real(dumii))*(gproc1-iproc1)
-
+ 
 ! interpolate over density
    rproc1    = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
 
