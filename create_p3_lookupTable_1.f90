@@ -143,8 +143,8 @@ PROGRAM create_p3_lookuptable_1
  implicit none
 
  !-----
- character(len=20), parameter :: version   = '20210224.1'
- logical, parameter           :: log_3momI = .false.    !switch to create table for 2momI (.false.) or 3momI (.true.)
+ character(len=20), parameter :: version   = '20210226.1'
+ logical, parameter           :: log_3momI = .true.    !switch to create table for 2momI (.false.) or 3momI (.true.)
  !-----                                                
 
  integer            :: i_Znorm         ! index for normalized (by Q) Z (passed in through script; [1 .. n_Znorm])
@@ -417,8 +417,8 @@ PROGRAM create_p3_lookuptable_1
 ! Thus, the loops 'i_Znorm_loop' and 'i_rhor_loop' are commented out accordingingly.
 !
 !i_Znorm_loop: do i_Znorm = 1,n_Znorm   !normally commented (kept to illustrate the structure (and to run in serial)
-!    i_rhor_loop: do i_rhor = 1,n_rhor    !COMMENT OUT FOR PARALLELIZATION (2-MOMENT ONLY)
-!     i_Fr_loop_1: do i_Fr = 1,n_Fr       !COMMENT OUT FOR PARALLELIZATION (2-MOMENT ONLY)
+   i_rhor_loop: do i_rhor = 1,n_rhor    !COMMENT OUT FOR PARALLELIZATION (2-MOMENT ONLY)
+    i_Fr_loop_1: do i_Fr = 1,n_Fr       !COMMENT OUT FOR PARALLELIZATION (2-MOMENT ONLY)
 
        ! write header to first file:
        if (log_3momI .and. i_Znorm==1 .and. i_rhor==1 .and. i_Fr==1) then
@@ -1553,12 +1553,13 @@ PROGRAM create_p3_lookuptable_1
        do i_Qnorm = 1,n_Qnorm
           do i_Drscale = 1,n_Drscale
 
-            !Set values less than cutoff (1.e-99) to 0.
-             nrrain(i_Qnorm,i_Drscale,i_Fr) = dim(nrrain(i_Qnorm,i_Drscale,i_Fr), cutoff)
-             qrrain(i_Qnorm,i_Drscale,i_Fr) = dim(qrrain(i_Qnorm,i_Drscale,i_Fr), cutoff)
-             qsrain(i_Qnorm,i_Drscale,i_Fr) = dim(qsrain(i_Qnorm,i_Drscale,i_Fr), cutoff)
+! !             !Set values less than cutoff (1.e-99) to 0.
+! !              nrrain(i_Qnorm,i_Drscale,i_Fr) = dim(nrrain(i_Qnorm,i_Drscale,i_Fr), cutoff)
+! !              qrrain(i_Qnorm,i_Drscale,i_Fr) = dim(qrrain(i_Qnorm,i_Drscale,i_Fr), cutoff)
+             nrrain(i_Qnorm,i_Drscale,i_Fr) = log10(max(nrrain(i_Qnorm,i_Drscale,i_Fr), 1.e-99))
+             qrrain(i_Qnorm,i_Drscale,i_Fr) = log10(max(qrrain(i_Qnorm,i_Drscale,i_Fr), 1.e-99))
 
-             write(1,'(3i5,2e15.6)')                         &
+             write(1,'(3i5,2e15.5)')                         &
                          i_Qnorm,i_Drscale,i_Fr,             &
                          nrrain(i_Qnorm,i_Drscale,i_Fr),     &
                          qrrain(i_Qnorm,i_Drscale,i_Fr)
@@ -1569,8 +1570,8 @@ PROGRAM create_p3_lookuptable_1
 !--
 ! The values of i_Znorm (3-momI) and i_rhor/i_Fr (2-momI) are "passed in" for parallelized
 ! version of code, thus the loops are commented out.
-!      enddo i_Fr_loop_1
-!    enddo i_rhor_loop
+      enddo i_Fr_loop_1
+    enddo i_rhor_loop
 !enddo i_Znorm_loop
 !==
 

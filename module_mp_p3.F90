@@ -118,9 +118,9 @@
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
  character(len=1024), parameter :: version_p3                    = '4.2_beta' 
- character(len=1024), parameter :: version_intended_table_1_2mom = '20210224.1-2momI'
- character(len=1024), parameter :: version_intended_table_1_3mom = '20210223.1-3momI'
- character(len=1024), parameter :: version_intended_table_2      = '5.1_beta20210208.1'
+ character(len=1024), parameter :: version_intended_table_1_2mom = '20210226.1-2momI'
+ character(len=1024), parameter :: version_intended_table_1_3mom = '20210226.1-3momI'
+ character(len=1024), parameter :: version_intended_table_2      = '20210225.1'
  
  character(len=1024)            :: version_header_table_1_2mom
  character(len=1024)            :: version_header_table_1_3mom
@@ -130,7 +130,6 @@
  character(len=1024)            :: dumstr,read_path
  integer                        :: i,j,ii,jj,kk,jjj,jjj2,jjjj,jjjj2,end_status,zz,procnum,istat,ierr
  real                           :: lamr,mu_r,dum,dm,dum1,dum2,dum3,dum4,dum5,dd,amg,vt,dia
- double precision               :: dp_dum1, dp_dum2
  logical                        :: err_abort
 
 !------------------------------------------------------------------------------------------!
@@ -365,9 +364,9 @@
          !read in table for ice-rain collection
           do i = 1,isize
              do j = 1,rcollsize
-                read(10,*) dum,dum,dum, dp_dum1,dp_dum2
-                itabcoll(jj,ii,i,j,1) = sngl(dlog10(max(dp_dum1,1.d-90)))
-                itabcoll(jj,ii,i,j,2) = sngl(dlog10(max(dp_dum2,1.d-90)))
+                read(10,*) dum,dum,dum,             &
+                           itabcoll(jj,ii,i,j,1),   &
+                           itabcoll(jj,ii,i,j,2)
              enddo
           enddo
        enddo  !ii
@@ -433,9 +432,9 @@
          !read in table for ice-rain collection
              do i = 1,isize
                 do j = 1,rcollsize
-                   read(10,*) dum,dum,dum, dp_dum1,dp_dum2                  
-                   itabcoll_3mom(zz,jj,ii,i,j,1) = sngl(dlog10(max(dp_dum1,1.d-90)))
-                   itabcoll_3mom(zz,jj,ii,i,j,2) = sngl(dlog10(max(dp_dum2,1.d-90)))
+                   read(10,*) dum,dum,dum,                     &
+                              itabcoll_3mom(zz,jj,ii,i,j,1),   &
+                              itabcoll_3mom(zz,jj,ii,i,j,2)
                 enddo
              enddo
           enddo  !ii
@@ -2579,7 +2578,7 @@ END subroutine p3_init
           if (qitot(i,k,iice).ge.qsmall .and. qr(i,k).ge.qsmall .and. t(i,k).le.273.15) then
            ! qrcol(iice)=f1pr08*logn0r(i,k)*rho(i,k)*rhofaci(i,k)*eri*nitot(i,k,iice)
            ! nrcol(iice)=f1pr07*logn0r(i,k)*rho(i,k)*rhofaci(i,k)*eri*nitot(i,k,iice)
-           ! note: f1pr08 and logn0r are already calculated as log_10
+           ! note: f1pr08 and logn0r are already calculated as log10
              qrcol(iice) = 10.**(f1pr08+logn0r(i,k))*rho(i,k)*rhofaci(i,k)*eri*nitot(i,k,iice)*iSCF(k)*(SPF(k)-SPF_clr(k))
              nrcol(iice) = 10.**(f1pr07+logn0r(i,k))*rho(i,k)*rhofaci(i,k)*eri*nitot(i,k,iice)*iSCF(k)*(SPF(k)-SPF_clr(k))
           endif
