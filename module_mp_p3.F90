@@ -1,3 +1,9 @@
+!COMP_ARCH=intel-2016.1.156 ; -suppress=-warn all ; -suppress=-std08
+!COMP_ARCH=PrgEnv-intel-5.2.82 ; -suppress=-warn all ; -suppress=-std08
+!COMP_ARCH=intel-19.0.3.199 ; -suppress=-warn all ; -suppress=-std08
+!COMP_ARCH=PrgEnv-intel-6.0.5 ; -suppress=-warn all ; -suppress=-std08
+!COMP_ARCH=PrgEnv-intel-6.0.5-19.0.5.281 ; -suppress=-warn all ; -suppress=-std08
+
 !__________________________________________________________________________________________
 ! This module contains the Predicted Particle Property (P3) bulk microphysics scheme.      !
 !                                                                                          !
@@ -22,8 +28,8 @@
 !    Jason Milbrandt (jason.milbrandt@canada.ca)                                           !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       3.1.1                                                                     !
-! Last updated:  2018-06-29                                                                !
+! Version:       3.1.6                                                                     !
+! Last updated:  2018-12-10                                                                !
 !__________________________________________________________________________________________!
 
  MODULE MODULE_MP_P3
@@ -80,40 +86,47 @@
                    inv_rhow,qsmall,nsmall,bsmall,zsmall,cp,g,rd,rv,ep_2,inv_cp,mw,osm,   &
                    vi,epsm,rhoa,map,ma,rr,bact,inv_rm1,inv_rm2,sig1,nanew1,f11,f21,sig2, &
                    nanew2,f12,f22,pi,thrd,sxth,piov3,piov6,diff_nucthrs,rho_rimeMin,     &
-                   rho_rimeMax,inv_rho_rimeMax,max_total_Ni,dbrk,nmltratio,minVIS,maxVIS
+                   rho_rimeMax,inv_rho_rimeMax,max_total_Ni,dbrk,nmltratio,minVIS,maxVIS,&
+                   mu_r_constant
 
  contains
 
 !==================================================================================================!
 
- subroutine p3_init(lookup_file_dir,nCat,stat)
+ subroutine p3_init(lookup_file_dir,nCat,stat,abort_on_err)
 
 !------------------------------------------------------------------------------------------!
 ! This subroutine initializes all physical constants and parameters needed by the P3       !
 ! scheme, including reading in two lookup table files and creating a third.                !
 ! 'P3_INIT' be called at the first model time step, prior to first call to 'P3_MAIN'.      !
 !------------------------------------------------------------------------------------------!
+#ifdef ECCCGEM
+ use iso_c_binding
+ use rpn_comm_itf_mod
+#endif
 
-  implicit none
+ implicit none
 
 ! Passed arguments:
- character*(*), intent(in)            :: lookup_file_dir            !directory of the lookup tables
+ character(len=*), intent(in)            :: lookup_file_dir            !directory of the lookup tables
  integer,       intent(in)            :: nCat                       !number of free ice categories
  integer,       intent(out), optional :: stat                       !return status of subprogram
+ logical,       intent(in), optional  :: abort_on_err               !abort when an error is encountered [.false.]
 
 ! Local variables and parameters:
  logical, save                :: is_init = .false.
- character(len=16), parameter :: version_p3               = '3.1.1 '!version number of P3
- character(len=16), parameter :: version_intended_table_1 = '3'     !lookupTable_1 version intended for this P3 version
- character(len=16), parameter :: version_intended_table_2 = '3'     !lookupTable_2 version intended for this P3 version
+ character(len=16), parameter :: version_p3               = '3.1.6 '!version number of P3
+ character(len=16), parameter :: version_intended_table_1 = '4'     !lookupTable_1 version intended for this P3 version
+ character(len=16), parameter :: version_intended_table_2 = '4'     !lookupTable_2 version intended for this P3 version
  character(len=1024)          :: version_header_table_1             !version number read from header, table 1
  character(len=1024)          :: version_header_table_2             !version number read from header, table 2
  character(len=1024)          :: lookup_file_1                      !lookup table, main
  character(len=1024)          :: lookup_file_2                      !lookup table for ice-ice interactions
  character(len=1024)          :: dumstr
- integer                      :: i,j,k,ii,jj,kk,jjj,jjj2,jjjj,jjjj2,end_status
+ integer                      :: i,j,k,ii,jj,kk,jjj,jjj2,jjjj,jjjj2,end_status,procnum,istat
  real                         :: lamr,mu_r,lamold,dum,initlamr,dm,dum1,dum2,dum3,dum4,dum5,  &
                                  dum6,dd,amg,vt,dia,vn,vm
+ logical                      :: err_abort
 
 
  !------------------------------------------------------------------------------------------!
@@ -122,13 +135,17 @@
  lookup_file_2 = trim(lookup_file_dir)//'/'//'p3_lookup_table_2.dat-v'//trim(version_intended_table_2)
 
 !-- override for local path/filenames:
-! lookup_file_1 = '/data/ords/armn/armngr8/storage_model/p3_lookup_tables/p3_lookup_table_1.dat-v'//trim(version_intended_table_1)
-! lookup_file_2 = '/data/ords/armn/armngr8/storage_model/p3_lookup_tables/p3_lookup_table_2.dat-v'//trim(version_intended_table_2)
+!lookup_file_1 = '/data/ords/armn/armngr8/storage_model/p3_lookup_tables/p3_lookup_table_1.dat-v'//trim(version_intended_table_1)
+!lookup_file_2 = '/data/ords/armn/armngr8/storage_model/p3_lookup_tables/p3_lookup_table_2.dat-v'//trim(version_intended_table_2)
+!lookup_file_1 = '/fs/site1/dev/eccc/mrd/rpnatm/jam003/storage_model/p3_lookup_tables/p3_lookup_table_1.dat-v'//trim(version_intended_table_1)
+!lookup_file_2 = '/fs/site1/dev/eccc/mrd/rpnatm/jam003/storage_model/p3_lookup_tables/p3_lookup_table_2.dat-v'//trim(version_intended_table_2)
 !==
 
 !------------------------------------------------------------------------------------------!
 
  end_status = STATUS_ERROR
+ err_abort = .false.
+ if (present(abort_on_err)) err_abort = abort_on_err
  if (is_init) then
     if (present(stat)) stat = STATUS_OK
     return
@@ -142,7 +159,7 @@
  piov6 = pi*sxth
 
 ! maximum total ice concentration (sum of all categories)
- max_total_Ni = 500.e+3  !(m)
+ max_total_Ni = 2000.e+3  !(m)
 
 ! switch for warm-rain parameterization
 ! = 1 Seifert and Beheng 2001
@@ -174,6 +191,7 @@
  rhow   = 997.
  cpw    = 4218.
  inv_rhow = 1.e-3  !inverse of (max.) density of liquid water
+ mu_r_constant = 1.  !fixed shape parameter for mu_r
 
 ! limits for rime density [kg m-3]
  rho_rimeMin     =  50.
@@ -202,7 +220,7 @@
 ! mean size for soft lambda_r limiter [microns]
  dbrk   = 600.e-6
 ! ratio of rain number produced to ice number loss from melting
- nmltratio = 0.2
+ nmltratio = 0.5
 
 ! saturation pressure at T = 0 C
  e0    = polysvp1(273.15,0)
@@ -268,15 +286,27 @@
 !------------------------------------------------------------------------------------------!
 ! read in ice microphysics table
 
+ procnum = 0
+#ifdef ECCCGEM
+ call rpn_comm_rank(RPN_COMM_GRID,procnum,istat)
+ itab = 0.
+ itabcoll = 0.D0
+ itabcolli1 = 0.D0
+ itabcolli2 = 0.D0
+#endif
+
+ IF_PROC0: if (procnum == 0) then
+
  print*
  print*, ' P3 microphysics: v',version_p3
  print*, '   P3_INIT (reading/creating look-up tables [v',trim(version_intended_table_1), &
          ', v',trim(version_intended_table_2),']) ...'
 
- open(unit=10,file=lookup_file_1, status='old')
+ open(unit=10, file=lookup_file_1, status='old', action='read')
 
  !-- check that table version is correct:
- !   note:  to override and use a different lookup table, simply comment out the 'return' below
+ !   note:  to override and use a different lookup table, simply comment out
+ !   the 'return' below, and the 'stop' if using WRF
  read(10,*) dumstr,version_header_table_1
  if (trim(version_intended_table_1) /= trim(version_header_table_1)) then
     print*
@@ -288,10 +318,10 @@
     print*, '************************************************'
     print*
     global_status = STATUS_ERROR
-    return
  endif
- read(10,*)
 
+ IF_OK: if (global_status /= STATUS_ERROR) then
+ read(10,*)
 
  do jj = 1,densize
     do ii = 1,rimsize
@@ -307,14 +337,35 @@
           do j = 1,rcollsize
              read(10,*) dum,dum,dum,dum,dum,itabcoll(jj,ii,i,j,1),              &
               itabcoll(jj,ii,i,j,2),dum
-              itabcoll(jj,ii,i,j,1) = dlog10(itabcoll(jj,ii,i,j,1))
-              itabcoll(jj,ii,i,j,2) = dlog10(itabcoll(jj,ii,i,j,2))
+              itabcoll(jj,ii,i,j,1) = dlog10(max(itabcoll(jj,ii,i,j,1),1.d-90))
+              itabcoll(jj,ii,i,j,2) = dlog10(max(itabcoll(jj,ii,i,j,2),1.d-90))
           enddo
        enddo
     enddo
  enddo
+ endif IF_OK
 
  close(10)
+
+ endif IF_PROC0
+
+#ifdef ECCCGEM
+ call rpn_comm_bcast(global_status,1,RPN_COMM_INTEGER,0,RPN_COMM_GRID,istat)
+#endif
+
+ if (global_status == STATUS_ERROR) then
+    if (err_abort) then
+       print*,'Stopping in P3 init'
+       call flush(6)
+       stop
+    endif
+    return
+ endif
+
+#ifdef ECCCGEM
+ call rpn_comm_bcast(itab,size(itab),RPN_COMM_REAL,0,RPN_COMM_GRID,istat)
+ call rpn_comm_bcast(itabcoll,size(itabcoll),RPN_COMM_DOUBLE_PRECISION,0,RPN_COMM_GRID,istat)
+#endif
 
 ! read in ice-ice collision lookup table
 
@@ -322,12 +373,16 @@
 
 !                   *** used for multicategory only ***
 
- if (nCat>1) then
+ IF_NCAT: if (nCat>1) then
+
+   IF_PROC0B: if (procnum == 0) then
 
     open(unit=10,file=lookup_file_2,status='old')
 
     !--check that table version is correct:
-    !  note:  to override and use a different lookup table, simply comment out the 'return' below
+    !  note:  to override and use a different lookup table, simply comment out
+    !  the 'return' below, and 'stop' if using WRF
+
     read(10,*) dumstr,version_header_table_2
     if (trim(version_intended_table_2) /= trim(version_header_table_2)) then
        print*
@@ -339,8 +394,8 @@
        print*, '************************************************'
        print*
        global_status = STATUS_ERROR
-       return
     endif
+    IF_OKB: if (global_status /= STATUS_ERROR) then
     read(10,*)
 
     do i = 1,iisize
@@ -358,15 +413,36 @@
           enddo
        enddo
     enddo
+    endif IF_OKB
 
     close(unit=10)
 
- else ! for single cat
+   endif IF_PROC0B
+
+#ifdef ECCCGEM
+   call rpn_comm_bcast(global_status,1,RPN_COMM_INTEGER,0,RPN_COMM_GRID,istat)
+#endif
+
+   if (global_status == STATUS_ERROR) then
+      if (err_abort) then
+         print*,'Stopping in P3 init'
+         call flush(6)
+         stop
+      endif
+      return
+   endif
+
+#ifdef ECCCGEM
+   call rpn_comm_bcast(itabcolli1,size(itabcolli1),RPN_COMM_DOUBLE_PRECISION,0,RPN_COMM_GRID,istat)
+   call rpn_comm_bcast(itabcolli2,size(itabcolli2),RPN_COMM_DOUBLE_PRECISION,0,RPN_COMM_GRID,istat)
+#endif
+
+ else ! IF_NCAT for single cat
 
     itabcolli1 = 0.
     itabcolli2 = 0.
 
- endif
+ endif IF_NCAT
 
 !------------------------------------------------------------------------------------------!
 
@@ -378,37 +454,38 @@
 !print*, '   Generating rain lookup-table ...'
 
  do i = 1,150              ! loop over lookup table values
-    initlamr = 1./((real(i)*2.)*1.e-6 + 250.e-6)
-
-! iterate to get mu_r
-! mu_r-lambda relationship is from Cao et al. (2008), eq. (7)
-
-! start with first guess, mu_r = 0
-
-    mu_r = 0.
-
-    do ii=1,50
-       lamr = initlamr*((mu_r+3.)*(mu_r+2.)*(mu_r+1.)/6.)**thrd
-
-! new estimate for mu_r based on lambda
-! set max lambda in formula for mu_r to 20 mm-1, so Cao et al.
-! formula is not extrapolated beyond Cao et al. data range
-       dum  = min(20.,lamr*1.e-3)
-       mu_r = max(0.,-0.0201*dum**2+0.902*dum-1.718)
-
-! if lambda is converged within 0.1%, then exit loop
-       if (ii.ge.2) then
-          if (abs((lamold-lamr)/lamr).lt.0.001) goto 111
-       end if
-
-       lamold = lamr
-
-    enddo
-
-111 continue
+! ! !     initlamr = 1./((real(i)*2.)*1.e-6 + 250.e-6)
+! ! !
+! ! ! ! iterate to get mu_r
+! ! ! ! mu_r-lambda relationship is from Cao et al. (2008), eq. (7)
+! ! !
+! ! ! ! start with first guess, mu_r = 0
+! ! !
+! ! !     mu_r = 0.
+! ! !
+! ! !     do ii=1,50
+! ! !        lamr = initlamr*((mu_r+3.)*(mu_r+2.)*(mu_r+1.)/6.)**thrd
+! ! !
+! ! ! ! new estimate for mu_r based on lambda
+! ! ! ! set max lambda in formula for mu_r to 20 mm-1, so Cao et al.
+! ! ! ! formula is not extrapolated beyond Cao et al. data range
+! ! !        dum  = min(20.,lamr*1.e-3)
+! ! !        mu_r = max(0.,-0.0201*dum**2+0.902*dum-1.718)
+! ! !
+! ! ! ! if lambda is converged within 0.1%, then exit loop
+! ! !        if (ii.ge.2) then
+! ! !           if (abs((lamold-lamr)/lamr).lt.0.001) goto 111
+! ! !        end if
+! ! !
+! ! !        lamold = lamr
+! ! !
+! ! !     enddo
+! ! !
+! ! ! 111 continue
 
 ! assign lookup table values
-    mu_r_table(i) = mu_r
+! ! !     mu_r_table(i) = mu_r
+    mu_r_table(i) = mu_r_constant
 
  enddo
 
@@ -420,7 +497,8 @@
  mu_r_loop: do ii = 1,10   !** change 10 to 9, since range of mu_r is 0-8  CONFIRM
 !mu_r_loop: do ii = 1,9   !** change 10 to 9, since range of mu_r is 0-8
 
-    mu_r = real(ii-1)  ! values of mu
+! ! !     mu_r = real(ii-1)  ! values of mu
+    mu_r = mu_r_constant
 
 ! loop over number-weighted mean size
     meansize_loop: do jj = 1,300
@@ -484,8 +562,10 @@
 
 !.......................................................................
 
- print*, '   P3_INIT DONE.'
- print*
+ if (procnum == 0) then
+    print*, '   P3_INIT DONE.'
+    print*
+ endif
 
  end_status = STATUS_OK
  if (present(stat)) stat = end_status
@@ -658,6 +738,11 @@ END subroutine p3_init
     !  where (qitot < 1.e-14) diag_effi = 25.e-6
 
    enddo ! j loop
+
+   if (global_status /= STATUS_OK) then
+      print*,'Stopping in P3, problem in P3 main'
+      stop
+   endif
 
    END SUBROUTINE mp_p3_wrapper_wrf
 
@@ -899,6 +984,11 @@ END subroutine p3_init
 
    enddo ! j loop
 
+   if (global_status /= STATUS_OK) then
+      print*,'Stopping in P3, problem in P3 main'
+      stop
+   endif
+
    END SUBROUTINE mp_p3_wrapper_wrf_2cat
 
 !==================================================================================================!
@@ -1046,8 +1136,6 @@ END subroutine p3_init
  character(len=16), parameter :: model = 'GEM'
 
 !----------------------------------------------------------------------------------------!
-
-!#include "tdpack_const.hf"  !No longer used .. commented code kept in for now
 
    end_status = STATUS_ERROR
 
@@ -1362,7 +1450,7 @@ END subroutine p3_init
     Loop_SCPF_k: do k = ktop-kdir,kbot,-kdir
 
        Sigma = Pres(k)/Pres(kbot)                     ! Corresponding Sigma level
-       RHoo  = RHoo_min + slope*( Sigma-SIG_min )     ! Compute critical relative humidity
+       RHoo  = RHoo_min - slope*( Sigma-SIG_min )     ! Compute critical relative humidity
        RHoo  = max( RHoo_min, min( RHoo_max, RHoo ) ) ! bounded
 
        !------------------------------------------------------------
@@ -1665,6 +1753,7 @@ END subroutine p3_init
             deltaD_init,dum1c,dum4c,dum5c,dumt,qcon_satadj,qdep_satadj,sources,sinks,    &
             drhop,timeScaleFactor,dt_left,tmp4,tmp5,tmp6,tmp7,tmp8,tmp9
 
+ double precision :: tmpdbl1,tmpdbl2,tmpdbl3
 
  integer :: dumi,i,k,kk,ii,jj,iice,iice_dest,j,dumk,dumj,dumii,dumjj,dumzz,n,nstep,      &
             tmpint1,tmpint2,ktop,kbot,kdir,qcindex,qrindex,qiindex,dumic,dumiic,dumjjc,  &
@@ -2063,12 +2152,12 @@ END subroutine p3_init
        end if
 
 
-       call get_cloud_dsd2(qc(i,k)*iSCF(k),nc(i,k),mu_c(i,k),rho(i,k),nu(i,k),dnu,lamc(i,k),    &
-                          lammin,lammax,cdist(i,k),cdist1(i,k),iSCF(k))
+       call get_cloud_dsd2(qc(i,k)*iSCF(k),nc(i,k),mu_c(i,k),rho(i,k),nu(i,k),dnu,       &
+                           lamc(i,k),lammin,lammax,cdist(i,k),cdist1(i,k),iSCF(k))
 
 
-       call get_rain_dsd2(qr(i,k)*iSPF(k),nr(i,k),mu_r(i,k),rdumii,dumii,lamr(i,k),             &
-                           mu_r_table,cdistr(i,k),logn0r(i,k),iSPF(k))
+       call get_rain_dsd2(qr(i,k)*iSPF(k),nr(i,k),mu_r(i,k),lamr(i,k),mu_r_table,        &
+                          cdistr(i,k),logn0r(i,k),iSPF(k))
 
      ! initialize inverse supersaturation relaxation timescale for combined ice categories
        epsi_tot = 0.
@@ -2208,7 +2297,6 @@ END subroutine p3_init
      ! expected to lead to shedding)
      !             nrshdr(iice) = dum*1.923e+6   ! 1./5.2e-7, 5.2e-7 is the mass of a 1 mm raindrop
           endif
-
 
 !...................................
 ! collection between ice categories
@@ -2423,7 +2511,7 @@ END subroutine p3_init
 
           else
              rhorime_c(iice) = 400.
-!             rhorime_r(iice) = 400.
+!            rhorime_r(iice) = 400.
           endif ! qi > qsmall and T < 273.15
 
     !--------------------
@@ -2446,8 +2534,14 @@ END subroutine p3_init
           dum   = (1./lamc(i,k))**3
 !         qcheti(iice_dest) = cons6*cdist1(i,k)*gamma(7.+pgam(i,k))*exp(aimm*(273.15-t(i,k)))*dum**2
 !         ncheti(iice_dest) = cons5*cdist1(i,k)*gamma(pgam(i,k)+4.)*exp(aimm*(273.15-t(i,k)))*dum
-          Q_nuc = cons6*cdist1(i,k)*gamma(7.+mu_c(i,k))*exp(aimm*(273.15-t(i,k)))*dum**2
-          N_nuc = cons5*cdist1(i,k)*gamma(mu_c(i,k)+4.)*exp(aimm*(273.15-t(i,k)))*dum
+
+!         Q_nuc = cons6*cdist1(i,k)*gamma(7.+mu_c(i,k))*exp(aimm*(273.15-t(i,k)))*dum**2
+!         N_nuc = cons5*cdist1(i,k)*gamma(mu_c(i,k)+4.)*exp(aimm*(273.15-t(i,k)))*dum
+          tmpdbl1  = dexp(dble(aimm*(273.15-t(i,k))))
+          tmpdbl2  = dble(dum)
+          Q_nuc = cons6*cdist1(i,k)*gamma(7.+mu_c(i,k))*tmpdbl1*tmpdbl2**2
+          N_nuc = cons5*cdist1(i,k)*gamma(mu_c(i,k)+4.)*tmpdbl1*tmpdbl2
+
           if (nCat>1) then
             !determine destination ice-phase category:
              dum1  = 900.     !density of new ice
@@ -2468,10 +2562,15 @@ END subroutine p3_init
 ! for future: get rid of log statements below for rain freezing
 
        if (qr(i,k)*iSPF(k).ge.qsmall.and.t(i,k).le.269.15) then
-          Q_nuc = cons6*exp(log(cdistr(i,k))+log(gamma(7.+mu_r(i,k)))-6.*log(lamr(i,k)))* &
-                  exp(aimm*(273.15-T(i,k)))*SPF(k)
-          N_nuc = cons5*exp(log(cdistr(i,k))+log(gamma(mu_r(i,k)+4.))-3.*log(lamr(i,k)))* &
-                  exp(aimm*(273.15-T(i,k)))*SPF(k)
+
+!         Q_nuc = cons6*exp(log(cdistr(i,k))+log(gamma(7.+mu_r(i,k)))-6.*log(lamr(i,k)))*exp(aimm*(273.15-t(i,k)))*SPF(k)
+!         N_nuc = cons5*exp(log(cdistr(i,k))+log(gamma(mu_r(i,k)+4.))-3.*log(lamr(i,k)))*exp(aimm*(273.15-t(i,k)))*SPF(k)
+          tmpdbl1 = dexp(dble(log(cdistr(i,k))+log(gamma(7.+mu_r(i,k)))-6.*log(lamr(i,k))))
+          tmpdbl2 = dexp(dble(log(cdistr(i,k))+log(gamma(mu_r(i,k)+4.))-3.*log(lamr(i,k))))
+          tmpdbl3 = dexp(dble(aimm*(273.15-t(i,k))))
+          Q_nuc = cons6*tmpdbl1*tmpdbl3*SPF(k)
+          N_nuc = cons5*tmpdbl2*tmpdbl3*SPF(k)
+
           if (nCat>1) then
              !determine destination ice-phase category:
              dum1  = 900.     !density of new ice
@@ -2710,8 +2809,8 @@ END subroutine p3_init
        endif
 
        if (t(i,k).lt.258.15 .and. supi_cld.ge.0.05) then
-!         dum = exp(-0.639+0.1296*100.*supi(i,k))*1000.*inv_rho(i,k)  !Meyers et al. (1992)
-          dum = 0.005*exp(0.304*(273.15-t(i,k)))*1000.*inv_rho(i,k)   !Cooper (1986)
+!         dum = 0.005*exp(0.304*(273.15-t(i,k)))*1000.*inv_rho(i,k)         !Cooper (1986)
+          dum = 0.005*dexp(dble(0.304*(273.15-t(i,k))))*1000.*inv_rho(i,k)  !Cooper (1986)
           dum = min(dum,100.e3*inv_rho(i,k)*SCF(k))
           N_nuc = max(0.,(dum-sum(nitot(i,k,:)))*odt)
 
@@ -2824,7 +2923,9 @@ END subroutine p3_init
                 dum1  = 39.36 + (nc(i,k)*iSCF(k)*1.e-6*rho(i,k)-100.)*(30.72-39.36)*5.e-3
                 qcaut = dum+(mu_c(i,k)-5.)*(dum1-dum)*0.1
               ! 1000/rho is for conversion from g cm-3/s to kg/kg
-                qcaut = exp(qcaut)*(1.e-3*rho(i,k)*qc(i,k)*iSCF(k))**4.7*1000.*inv_rho(i,k)*SCF(k)
+!               qcaut = exp(qcaut)*(1.e-3*rho(i,k)*qc(i,k)*iSCF(k))**4.7*1000.*inv_rho(i,k)*SCF(k)
+                qcaut = dexp(dble(qcaut))*(1.e-3*rho(i,k)*qc(i,k)*iSCF(k))**4.7*1000.*   &
+                        inv_rho(i,k)*SCF(k)
              endif
              ncautc = 7.7e+9*qcaut
 
@@ -2913,7 +3014,8 @@ END subroutine p3_init
           if (dum2.lt.dum1) then
              dum = 1.
           else if (dum2.ge.dum1) then
-             dum = 2.-exp(2300.*(dum2-dum1))
+!            dum = 2.-exp(2300.*(dum2-dum1))
+             dum = 2.-dexp(dble(2300.*(dum2-dum1)))
           endif
 
           if (iparam.eq.1.) then
@@ -3393,8 +3495,8 @@ END subroutine p3_init
 
                !Compute Vq, Vn:
                 nr(i,k)  = max(nr(i,k),nsmall)
-                call get_rain_dsd2(qr(i,k)*iSPF(k),nr(i,k),mu_r(i,k),rdumii,dumii,       &
-                                   lamr(i,k),mu_r_table,tmp1,tmp2,iSPF(k))
+                call get_rain_dsd2(qr(i,k)*iSPF(k),nr(i,k),mu_r(i,k),lamr(i,k),          &
+                          mu_r_table,cdistr(i,k),logn0r(i,k),iSPF(k))
 
                 call find_lookupTable_indices_3(dumii,dumjj,dum1,rdumii,rdumjj,inv_dum3, &
                                         mu_r(i,k),lamr(i,k))
@@ -3619,7 +3721,6 @@ END subroutine p3_init
 
 !------------------------------------------------------------------------------------------!
 
-
 !     if (debug_on) call check_values(qv(i,:),T(i,:),qc(i,:),nc(i,:),qr(i,:),nr(i,:),      &
 !                          qitot(i,:,:),qirim(i,:,:),nitot(i,:,:),birim(i,:,:),i,it,       &
 !                          debug_ABORT,600)
@@ -3720,8 +3821,7 @@ END subroutine p3_init
     ! rain:
        if (qr(i,k).ge.qsmall) then
 
-          call get_rain_dsd2(qr(i,k),nr(i,k),mu_r(i,k),rdumii,dumii,lamr(i,k),mu_r_table, &
-                             tmp1,tmp2,1.)
+          call get_rain_dsd2(qr(i,k),nr(i,k),mu_r(i,k),lamr(i,k),mu_r_table,tmp1,tmp2,1.)
 
          ! hm, turn off soft lambda limiter
          ! impose size limits for rain with 'soft' lambda limiter
@@ -5319,7 +5419,8 @@ SUBROUTINE access_lookup_table_coll(dumjj,dumii,dumj,dumi,index,dum1,dum3,      
 !             dum1 = (alog10(qitot)+16.)*1.41328
 ! we are inverting this equation from the lookup table to solve for i:
 ! qitot/nitot=261.7**((i+10)*0.1)*1.e-18
-             dum1 = (alog10(qitot/nitot)+18.)/(0.1*alog10(261.7))-10.
+!             dum1 = (alog10(qitot/nitot)+18.)/(0.1*alog10(261.7))-10. ! orig
+             dum1 = (alog10(qitot/nitot)+18.)/(0.241780)-10. ! for computational efficiency
              dumi = int(dum1)
              ! set limits (to make sure the calculated index doesn't exceed range of lookup table)
              dum1 = min(dum1,real(isize))
@@ -5434,7 +5535,8 @@ SUBROUTINE access_lookup_table_coll(dumjj,dumii,dumj,dumi,index,dum1,dum3,      
 
                     ! find index for qi (total ice mass mixing ratio)
 ! replace with new inversion for new lookup table 2 w/ reduced dimensionality
-                      dum1 = (alog10(qitot_1/nitot_1)+18.)/(0.2*alog10(261.7))-5.
+!                      dum1 = (alog10(qitot_1/nitot_1)+18.)/(0.2*alog10(261.7))-5. !orig
+                      dum1 = (alog10(qitot_1/nitot_1)+18.)/(0.483561)-5. !for computational efficiency
                       dumi = int(dum1)
                       dum1 = min(dum1,real(iisize))
                       dum1 = max(dum1,1.)
@@ -5477,8 +5579,8 @@ SUBROUTINE access_lookup_table_coll(dumjj,dumii,dumj,dumi,index,dum1,dum3,      
 
                     ! find index in lookup table for collectee category, here 'q' is a scaled q/N
                     ! find index for qi (total ice mass mixing ratio)
-!                      dum1c = (alog10(qitot_2/nitot_2)+16.)   ! TO BE REMOVED
-      		      dum1c = (alog10(qitot_2/nitot_2)+18.)/(0.2*alog10(261.7))-5.
+!      		      dum1c = (alog10(qitot_2/nitot_2)+18.)/(0.2*alog10(261.7))-5. !orig
+      		      dum1c = (alog10(qitot_2/nitot_2)+18.)/(0.483561)-5. !for computational efficiency
                       dumic = int(dum1c)
                       dum1c = min(dum1c,real(iisize))
                       dum1c = max(dum1c,1.)
@@ -5630,7 +5732,7 @@ SUBROUTINE access_lookup_table_coll(dumjj,dumii,dumj,dumi,index,dum1,dum3,      
 
 
 !===========================================================================================
- subroutine get_rain_dsd2(qr,nr_grd,mu_r,rdumii,dumii,lamr,mu_r_table,cdistr,logn0r,iPF)
+ subroutine get_rain_dsd2(qr,nr_grd,mu_r,lamr,mu_r_table,cdistr,logn0r,iPF)
 
 ! Computes and returns rain size distribution parameters
 
@@ -5640,12 +5742,12 @@ SUBROUTINE access_lookup_table_coll(dumjj,dumii,dumj,dumi,index,dum1,dum3,      
  real, dimension(:), intent(in)  :: mu_r_table
  real,     intent(in)            :: qr
  real,     intent(inout)         :: nr_grd       !grid-mean value
- real,     intent(out)           :: rdumii,lamr,mu_r,cdistr,logn0r
+ real,     intent(out)           :: lamr,mu_r,cdistr,logn0r
  real,     intent(in)            :: iPF
- integer,  intent(out)           :: dumii
 
 !local variables:
- real                            :: inv_dum,lammax,lammin,nr
+ real                            :: inv_dum,lammax,lammin,nr,rdumii
+ integer                         :: dumii
 
 !--------------------------------------------------------------------------
 
@@ -5661,21 +5763,25 @@ SUBROUTINE access_lookup_table_coll(dumjj,dumii,dumj,dumi,index,dum1,dum3,      
           nr      = max(nr,nsmall)
           inv_dum = (qr/(cons1*nr*6.))**thrd
 
-          if (inv_dum.lt.282.e-6) then
-             mu_r = 8.282
-          elseif (inv_dum.ge.282.e-6 .and. inv_dum.lt.502.e-6) then
-           ! interpolate
-             rdumii = (inv_dum-250.e-6)*1.e+6*0.5
-             rdumii = max(rdumii,1.)
-             rdumii = min(rdumii,150.)
-             dumii  = int(rdumii)
-             dumii  = min(149,dumii)
-             mu_r   = mu_r_table(dumii)+(mu_r_table(dumii+1)-mu_r_table(dumii))*(rdumii-  &
-                        real(dumii))
-          elseif (inv_dum.ge.502.e-6) then
-             mu_r = 0.
-          endif
+        ! apply constant mu_r:
+          mu_r = mu_r_constant
 
+!--- apply diagnostic (variable) mu_r:
+!          if (inv_dum.lt.282.e-6) then
+!             mu_r = 8.282
+!          elseif (inv_dum.ge.282.e-6 .and. inv_dum.lt.502.e-6) then
+!           ! interpolate
+!             rdumii = (inv_dum-250.e-6)*1.e+6*0.5
+!             rdumii = max(rdumii,1.)
+!             rdumii = min(rdumii,150.)
+!             dumii  = int(rdumii)
+!             dumii  = min(149,dumii)
+!             mu_r   = mu_r_table(dumii)+(mu_r_table(dumii+1)-mu_r_table(dumii))*(rdumii-  &
+!                        real(dumii))
+!          elseif (inv_dum.ge.502.e-6) then
+!             mu_r = 0.
+!          endif
+!===
           lamr   = (cons1*nr*(mu_r+3.)*(mu_r+2)*(mu_r+1.)/(qr))**thrd  ! recalculate slope based on mu_r
           lammax = (mu_r+1.)*1.e+5   ! check for slope
           lammin = (mu_r+1.)*1250.   ! set to small value since breakup is explicitly included (mean size 0.8 mm)
@@ -5869,20 +5975,20 @@ SUBROUTINE access_lookup_table_coll(dumjj,dumii,dumj,dumi,index,dum1,dum3,      
      endif
 
    ! check for NANs:
-      if (.not.(T(k)  == T(k))  .and.            &
-          .not.(Qv(k) == Qv(k)) .and.            &
-          .not.(Qc(k) == Qc(k)) .and.            &
-          .not.(Nc(k) == Nc(k)) .and.            &
-          .not.(Qr(k) == Qr(k)) .and.            &
+      if (.not.(T(k)  == T(k))  .or.            &
+          .not.(Qv(k) == Qv(k)) .or.            &
+          .not.(Qc(k) == Qc(k)) .or.            &
+          .not.(Nc(k) == Nc(k)) .or.            &
+          .not.(Qr(k) == Qr(k)) .or.            &
           .not.(Nr(k) == Nr(k)) ) then
          write(6,'(a56,4i5,6e15.6)') '*A WARNING IN P3_MAIN -- src,i,k,step,T,Qv,Qc,Nc,Qr,Nr: ', &
               source_ind,i,k,timestepcount,T(k),Qv(k),Qc(k),Nc(k),Qr(k),Nr(k)
          badvalue_found = .true.
       endif
       do iice = 1,ncat
-         if (.not.(Qitot(k,iice) == Qitot(k,iice)) .and.            &
-             .not.(Qirim(k,iice) == Qirim(k,iice)) .and.            &
-             .not.(Nitot(k,iice) == Nitot(k,iice)) .and.            &
+         if (.not.(Qitot(k,iice) == Qitot(k,iice)) .or.            &
+             .not.(Qirim(k,iice) == Qirim(k,iice)) .or.            &
+             .not.(Nitot(k,iice) == Nitot(k,iice)) .or.            &
              .not.(Birim(k,iice) == Birim(k,iice)) ) then
             write(6,'(a68,5i5,4e15.6)') '*B WARNING IN P3_MAIN -- src,i,k,step,iice,Qitot,Qirim,Nitot,Birim: ',  &
                  source_ind,i,k,timestepcount,iice,Qitot(k,iice),Qirim(k,iice),Nitot(k,iice),Birim(k,iice)
