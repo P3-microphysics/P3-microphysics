@@ -1,0 +1,4 @@
+The following subdirectories contain the GEM interface files that have been modified fromj
+the versions in the GEM library (for a particular version of GEM) that need to be
+included in the compilation of GEM for the version of P3 indicated.
+
