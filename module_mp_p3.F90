@@ -22,8 +22,8 @@
 !    Jason Milbrandt (jason.milbrandt@canada.ca)                                           !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       3.1.6.4                                                                   !
-! Last updated:  2021-09-10                                                                !
+! Version:       3.1.6.5                                                                   !
+! Last updated:  2021-10-28                                                                !
 !__________________________________________________________________________________________!
 
  MODULE MODULE_MP_P3
@@ -109,7 +109,7 @@
 
  ! Local variables and parameters:
  logical, save                :: is_init = .false.
- character(len=16), parameter :: version_p3               = '3.1.6.4 '!version number of P3
+ character(len=16), parameter :: version_p3               = '3.1.6.5 '!version number of P3
  character(len=16), parameter :: version_intended_table_1 = '4'     !lookupTable_1 version intended for this P3 version
  character(len=16), parameter :: version_intended_table_2 = '4'     !lookupTable_2 version intended for this P3 version
  character(len=1024)          :: version_header_table_1             !version number read from header, table 1
@@ -1155,10 +1155,10 @@ END subroutine p3_init
    dt_mp = dt/float(n_substep)
 
    ! External forcings are distributed evenly over steps
-   qqdelta = (qvap-qvap_m) / float(n_substep)
+   qqdelta = (qvap/(1-qvap)-qvap_m/(1-qvap_m)) / float(n_substep)
    ttdelta = (temp-temp_m) / float(n_substep)
    ! initialise for the 1st substepping
-   qvap = qvap_m
+   qvap = qvap_m/(1-qvap_m) ! mixing ratio instead of specific humidity
    temp = temp_m
 
   !if (kount == 0) then
@@ -1280,6 +1280,9 @@ END subroutine p3_init
       endif
 
    enddo  !i_substep loop
+
+   ! retransferring mixing ratio to specific humidity (only t* is needed)
+   qvap = qvap/(1+qvap)
 
    if (n_substep > 1) then
       tmp1 = 1./float(n_substep)
