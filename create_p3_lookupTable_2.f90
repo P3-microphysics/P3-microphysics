@@ -6,8 +6,8 @@ PROGRAM create_p3_lookuptable_2
 ! interactions for the multi-ice-category configuration of the P3 microphysics scheme.
 !
 !--------------------------------------------------------------------------------------
-! Version:       5.1_BETA
-! Last modified: 2021-FEBRUARY
+! Version:       5.2.3
+! Last modified: 2021-OCT
 !______________________________________________________________________________________
 
 !______________________________________________________________________________________
@@ -112,7 +112,7 @@ PROGRAM create_p3_lookuptable_2
 
  implicit none
  
- character(len=16), parameter :: version = '20210225.1'
+ character(len=16), parameter :: version = '5.2.3'
 
  real    :: pi,g,p,t,rho,mu,pgam,ds,cs,bas,aas,dcrit,eii
  integer :: k,ii,jj,kk,dumii,j2
@@ -151,9 +151,11 @@ PROGRAM create_p3_lookuptable_2
  real, dimension(n_Qnorm,n_Fr,n_rhor)    :: qsave
  real, dimension(n_rhor,n_Fr)            :: dcrits1,dcritr1,csr1,dsr1,dcrits2,dcritr2,csr2,dsr2
  real, dimension(n_rhor,n_Fr,n_Qnorm)    :: n01,mu_i1,lam1,n02,mu_i2,lam2
- real, dimension(n_rhor)                 :: cgp1,cgp2,cgp,crp
+ real, dimension(n_rhor)                 :: cgp,crp
+ real, dimension(n_rhor,n_Fr)            :: cgp1,cgp2
  real, dimension(n_Fr)                   :: Fr_arr 
- real, dimension(num_bins1)              :: fall1,fall2,num1,num2
+ real, dimension(n_rhor,n_Fr,num_bins1)  :: fall1,fall2
+ real, dimension(num_bins1)              :: num1,num2
  
  logical, dimension(n_rhor,n_Fr,n_Qnorm) :: log_lamIsMax
  
@@ -326,7 +328,7 @@ PROGRAM create_p3_lookuptable_2
 ! same as "Dcr" in morrison and grabowski 2008
 
 ! first guess, set cgp=crp
-       cgp1(i_rhor) = crp(i_rhor)
+       cgp1(i_rhor,i_Fr) = crp(i_rhor)
 
 ! case of no riming (Fr = 0%), then we need to set dcrits and dcritr to arbitrary large values
 
@@ -341,8 +343,8 @@ PROGRAM create_p3_lookuptable_2
        elseif (i_Fr.eq.2.or.i_Fr.eq.3) then
        
           do
-             dcrits1(i_rhor,i_Fr) = (cs/cgp1(i_rhor))**(1./(dg-ds))
-             dcritr1(i_rhor,i_Fr) = ((1.+Fr/(1.-Fr))*cs/cgp1(i_rhor))**(1./(dg-ds))
+             dcrits1(i_rhor,i_Fr) = (cs/cgp1(i_rhor,i_Fr))**(1./(dg-ds))
+             dcritr1(i_rhor,i_Fr) = ((1.+Fr/(1.-Fr))*cs/cgp1(i_rhor,i_Fr))**(1./(dg-ds))
              csr1(i_rhor,i_Fr)    = cs*(1.+Fr/(1.-Fr))
              dsr1(i_rhor,i_Fr)    = ds
 ! get mean density of vapor deposition/aggregation grown ice
@@ -350,9 +352,9 @@ PROGRAM create_p3_lookuptable_2
                       (dcritr1(i_rhor,i_Fr)**(ds-2.)-dcrits1(i_rhor,i_Fr)**(ds-2.))
 ! get graupel density as rime mass fraction weighted rime density plus
 ! density of vapor deposition/aggregation grown ice
-             cgpold = cgp1(i_rhor)
-             cgp1(i_rhor) = crp(i_rhor)*Fr+rhodep*(1.-Fr)*pi*sxth
-             if (abs((cgp1(i_rhor)-cgpold)/cgp1(i_rhor)).lt.0.01) goto 115
+             cgpold = cgp1(i_rhor,i_Fr)
+             cgp1(i_rhor,i_Fr) = crp(i_rhor)*Fr+rhodep*(1.-Fr)*pi*sxth
+             if (abs((cgp1(i_rhor,i_Fr)-cgpold)/cgp1(i_rhor,i_Fr)).lt.0.01) goto 115
           enddo
 
  115  continue
@@ -361,9 +363,9 @@ PROGRAM create_p3_lookuptable_2
        else
 
 ! set threshold size for pure graupel arbitrary large
-          dcrits1(i_rhor,i_Fr) = (cs/cgp1(i_rhor))**(1./(dg-ds))
+          dcrits1(i_rhor,i_Fr) = (cs/cgp1(i_rhor,i_Fr))**(1./(dg-ds))
           dcritr1(i_rhor,i_Fr) = 1.e6
-          csr1(i_rhor,i_Fr)    = cgp1(i_rhor)
+          csr1(i_rhor,i_Fr)    = cgp1(i_rhor,i_Fr)
           dsr1(i_rhor,i_Fr)    = dg
 
        endif  !if i_Fr.eq.1
@@ -393,7 +395,7 @@ PROGRAM create_p3_lookuptable_2
              bas1 = bas
              aas1 = aas
           else if (d1.gt.dcrits1(i_rhor,i_Fr).and.d1.le.dcritr1(i_rhor,i_Fr)) then
-             cs1  = cgp1(i_rhor)
+             cs1  = cgp1(i_rhor,i_Fr)
              ds1  = dg
              bas1 = bag
              aas1 = aag
@@ -411,7 +413,7 @@ PROGRAM create_p3_lookuptable_2
 !               dum3 = (1.-Fr)*dum1+Fr*dum2
                 m1   = cs1*d1**ds1
                 m2   = cs*d1**ds
-                m3   = cgp1(i_rhor)*d1**dg
+                m3   = cgp1(i_rhor,i_Fr)*d1**dg
                 dum3 = dum1+(m1-m2)*(dum2-dum1)/(m3-m2)  !linearly interpolate based on particle mass
                 aas1 = dum3/(d1**bas)
              endif
@@ -434,7 +436,7 @@ PROGRAM create_p3_lookuptable_2
                b0/(c2*((1.+c1*xx**0.5)**0.5-1.)**2)
           a1 = (c2*((1.+c1*xx**0.5)**0.5-1.)**2-a0*xx**b0)/xx**b1
 ! velocity in terms of drag terms
-          fall1(jj) = a1*mu**(1.-2.*b1)*(2.*cs1*g/(rho*aas1))**b1*d1**(b1*(ds1-bas1+2.)-1.)
+          fall1(i_rhor,i_Fr,jj) = a1*mu**(1.-2.*b1)*(2.*cs1*g/(rho*aas1))**b1*d1**(b1*(ds1-bas1+2.)-1.)
 
        enddo jj_loop_1
        
@@ -469,7 +471,7 @@ PROGRAM create_p3_lookuptable_2
           ii_loop: do ii = 1,num_bins2
 
              lam1(i_rhor,i_Fr,i) = lambdai(ii)
-             mu_i1(i_rhor,i_Fr,i) = diagnostic_mui(lam1(i_rhor,i_Fr,i),q,cgp1(i_rhor),Fr,pi)               
+             mu_i1(i_rhor,i_Fr,i) = diagnostic_mui(lam1(i_rhor,i_Fr,i),q,cgp1(i_rhor,i_Fr),Fr,pi)               
                
 ! set min,max lam corresponding to Dm_max,Dm_min:
              lam1(i_rhor,i_Fr,i) = max(lam1(i_rhor,i_Fr,i),(mu_i1(i_rhor,i_Fr,i)+1.)/Dm_max)
@@ -494,7 +496,7 @@ PROGRAM create_p3_lookuptable_2
 ! intgrR4 is integral from dcritr to inf (rimed snow)
 
 ! sum of the integrals from the 4 regions of the size distribution
-             qdum = n01(i_rhor,i_Fr,i)*(cs1*intgrR1 + cs*intgrR2 + cgp1(i_rhor)*intgrR3 +   &
+             qdum = n01(i_rhor,i_Fr,i)*(cs1*intgrR1 + cs*intgrR2 + cgp1(i_rhor,i_Fr)*intgrR3 +   &
                      csr1(i_rhor,i_Fr)*intgrR4)
 
              if (ii.eq.1) then
@@ -520,7 +522,7 @@ PROGRAM create_p3_lookuptable_2
 ! this is the value of lam with the smallest qerror
           lam1(i_rhor,i_Fr,i) = lamf
 ! recalculate mu_i based on final lam
-          mu_i1(i_rhor,i_Fr,i) = diagnostic_mui(lam1(i_rhor,i_Fr,i),q,cgp1(i_rhor),Fr,pi)
+          mu_i1(i_rhor,i_Fr,i) = diagnostic_mui(lam1(i_rhor,i_Fr,i),q,cgp1(i_rhor,i_Fr),Fr,pi)
 
 !            n0 = N*lam**(pgam+1.)/(gamma(pgam+1.))
 
@@ -533,7 +535,7 @@ PROGRAM create_p3_lookuptable_2
                                  dcritr1(i_rhor,i_Fr),intgrR1,intgrR2,intgrR3,intgrR4)                    
                  
 ! normalized n0
-          n01(i_rhor,i_Fr,i) = q/(cs1*intgrR1 + cs*intgrR2 + cgp1(i_rhor)*intgrR3 +       &
+          n01(i_rhor,i_Fr,i) = q/(cs1*intgrR1 + cs*intgrR2 + cgp1(i_rhor,i_Fr)*intgrR3 +       &
                                csr1(i_rhor,i_Fr)*intgrR4)
           print*,'lam,N0:',lam1(i_rhor,i_Fr,i),n01(i_rhor,i_Fr,i)
           print*,'mu_i:',mu_i1(i_rhor,i_Fr,i)
@@ -568,7 +570,7 @@ PROGRAM create_p3_lookuptable_2
 ! same as "Dcr" in morrison and grabowski 2008
 
 ! first guess, set cgp=crp
-       cgp2(i_rhor) = crp(i_rhor)
+       cgp2(i_rhor,i_Fr) = crp(i_rhor)
 
 ! case of no riming (Fr = 0%), then we need to set dcrits and dcritr to arbitrary large values
 
@@ -583,8 +585,8 @@ PROGRAM create_p3_lookuptable_2
        elseif (i_Fr.eq.2.or.i_Fr.eq.3) then
        
           do
-             dcrits2(i_rhor,i_Fr) = (cs/cgp2(i_rhor))**(1./(dg-ds))
-             dcritr2(i_rhor,i_Fr) = ((1.+Fr/(1.-Fr))*cs/cgp2(i_rhor))**(1./(dg-ds))
+             dcrits2(i_rhor,i_Fr) = (cs/cgp2(i_rhor,i_Fr))**(1./(dg-ds))
+             dcritr2(i_rhor,i_Fr) = ((1.+Fr/(1.-Fr))*cs/cgp2(i_rhor,i_Fr))**(1./(dg-ds))
              csr2(i_rhor,i_Fr)    = cs*(1.+Fr/(1.-Fr))
              dsr2(i_rhor,i_Fr)    = ds
 ! get mean density of vapor deposition/aggregation grown ice
@@ -592,9 +594,9 @@ PROGRAM create_p3_lookuptable_2
                       (dcritr2(i_rhor,i_Fr)**(ds-2.)-dcrits2(i_rhor,i_Fr)**(ds-2.))
 ! get graupel density as rime mass fraction weighted rime density plus
 ! density of vapor deposition/aggregation grown ice
-             cgpold = cgp2(i_rhor)
-             cgp2(i_rhor) = crp(i_rhor)*Fr+rhodep*(1.-Fr)*pi*sxth
-             if (abs((cgp2(i_rhor)-cgpold)/cgp2(i_rhor)).lt.0.01) goto 116
+             cgpold = cgp2(i_rhor,i_Fr)
+             cgp2(i_rhor,i_Fr) = crp(i_rhor)*Fr+rhodep*(1.-Fr)*pi*sxth
+             if (abs((cgp2(i_rhor,i_Fr)-cgpold)/cgp2(i_rhor,i_Fr)).lt.0.01) goto 116
           enddo
 
  116  continue
@@ -603,9 +605,9 @@ PROGRAM create_p3_lookuptable_2
        else
 
 ! set threshold size for pure graupel arbitrary large
-          dcrits2(i_rhor,i_Fr) = (cs/cgp2(i_rhor))**(1./(dg-ds))
+          dcrits2(i_rhor,i_Fr) = (cs/cgp2(i_rhor,i_Fr))**(1./(dg-ds))
           dcritr2(i_rhor,i_Fr) = 1.e+6
-          csr2(i_rhor,i_Fr)    = cgp2(i_rhor)
+          csr2(i_rhor,i_Fr)    = cgp2(i_rhor,i_Fr)
           dsr2(i_rhor,i_Fr)    = dg
 
        endif
@@ -632,7 +634,7 @@ PROGRAM create_p3_lookuptable_2
              bas1 = bas
              aas1 = aas
           else if (d1.gt.dcrits2(i_rhor,i_Fr).and.d1.le.dcritr2(i_rhor,i_Fr)) then
-             cs1  = cgp2(i_rhor)
+             cs1  = cgp2(i_rhor,i_Fr)
              ds1  = dg
              bas1 = bag
              aas1 = aag
@@ -650,7 +652,7 @@ PROGRAM create_p3_lookuptable_2
 !               dum3 = (1.-Fr)*dum1+Fr*dum2
                 m1   = cs1*d1**ds1
                 m2   = cs*d1**ds
-                m3   = cgp2(i_rhor)*d1**dg
+                m3   = cgp2(i_rhor,i_Fr)*d1**dg
                 dum3 = dum1+(m1-m2)*(dum2-dum1)/(m3-m2)  !linearly interpolate based on particle mass
                 aas1 = dum3/(d1**bas)
              endif
@@ -676,7 +678,7 @@ PROGRAM create_p3_lookuptable_2
           a1 = (c2*((1.+c1*xx**0.5)**0.5-1.)**2-a0*xx**b0)/xx**b1
 
 ! velocity in terms of drag terms
-          fall2(jj) = a1*mu**(1.-2.*b1)*(2.*cs1*g/(rho*aas1))**b1*d1**(b1*(ds1-bas1+2.)-1.)
+          fall2(i_rhor,i_Fr,jj) = a1*mu**(1.-2.*b1)*(2.*cs1*g/(rho*aas1))**b1*d1**(b1*(ds1-bas1+2.)-1.)
 
 !---------------------------------------------------------------
        enddo jj_loop_2
@@ -716,7 +718,7 @@ PROGRAM create_p3_lookuptable_2
           ii_loop_2: do ii = 1,num_bins2
           
              lam2(i_rhor,i_Fr,i) = lambdai(ii)
-             mu_i2(i_rhor,i_Fr,i) = diagnostic_mui(lam2(i_rhor,i_Fr,i),q,cgp1(i_rhor),Fr,pi)
+             mu_i2(i_rhor,i_Fr,i) = diagnostic_mui(lam2(i_rhor,i_Fr,i),q,cgp2(i_rhor,i_Fr),Fr,pi)
 
             !set min,max lam corresponding to Dm_max, Dm_min
              lam2(i_rhor,i_Fr,i) = max(lam2(i_rhor,i_Fr,i),(mu_i2(i_rhor,i_Fr,i)+1.)/Dm_max)
@@ -738,7 +740,7 @@ PROGRAM create_p3_lookuptable_2
                                  dcritr2(i_rhor,i_Fr),intgrR1,intgrR2,intgrR3,intgrR4)                    
                     
 ! sum of the integrals from the 4 regions of the size distribution
-             qdum = n02(i_rhor,i_Fr,i)*(cs1*intgrR1 + cs*intgrR2 + cgp2(i_rhor)*intgrR3 +  &
+             qdum = n02(i_rhor,i_Fr,i)*(cs1*intgrR1 + cs*intgrR2 + cgp2(i_rhor,i_Fr)*intgrR3 +  &
                     csr2(i_rhor,i_Fr)*intgrR4)
 
              if (ii.eq.1) then
@@ -765,8 +767,8 @@ PROGRAM create_p3_lookuptable_2
           lam2(i_rhor,i_Fr,i) = lamf
              
 ! recalculate mu based on final lam
-!         mu_i2(i_rhor,i_Fr,i) = diagnostic_mui(log_diagmu_orig,lam2(i_rhor,i_Fr,i),q,cgp1(i_rhor),Fr,pi)
-          mu_i2(i_rhor,i_Fr,i) = diagnostic_mui(lam2(i_rhor,i_Fr,i),q,cgp1(i_rhor),Fr,pi)
+!         mu_i2(i_rhor,i_Fr,i) = diagnostic_mui(log_diagmu_orig,lam2(i_rhor,i_Fr,i),q,cgp2(i_rhor,i_Fr),Fr,pi)
+          mu_i2(i_rhor,i_Fr,i) = diagnostic_mui(lam2(i_rhor,i_Fr,i),q,cgp2(i_rhor,i_Fr),Fr,pi)
 
 !            n0 = N*lam**(pgam+1.)/(gamma(pgam+1.))
 
@@ -778,14 +780,14 @@ PROGRAM create_p3_lookuptable_2
                                  dsr2(i_rhor,i_Fr),dcrit,dcrits2(i_rhor,i_Fr),             &
                                  dcritr2(i_rhor,i_Fr),intgrR1,intgrR2,intgrR3,intgrR4)                    
                
-          n02(i_rhor,i_Fr,i) = q/(cs1*intgrR1 + cs*intgrR2 + cgp2(i_rhor)*intgrR3 +        &  ! n0 is normalized
+          n02(i_rhor,i_Fr,i) = q/(cs1*intgrR1 + cs*intgrR2 + cgp2(i_rhor,i_Fr)*intgrR3 +        &  ! n0 is normalized
                                csr2(i_rhor,i_Fr)*intgrR4)
           print*,'lam,N0:',lam2(i_rhor,i_Fr,i),n02(i_rhor,i_Fr,i)
           print*,'pgam:',mu_i2(i_rhor,i_Fr,i)
 
           qsave(i,i_Fr,i_rhor) = q      ! q is normalized (Q/N)
 
-          log_lamIsMax = abs(lam2(i_rhor,i_Fr,i)-lamold) .lt. 1.e-8                     
+          log_lamIsMax(i_rhor,i_Fr,i) = abs(lam2(i_rhor,i_Fr,i)-lamold) .lt. 1.e-8                     
           lamold = lam2(i_rhor,i_Fr,i)
 
        enddo i_Qnorm_loop_2
@@ -842,7 +844,7 @@ PROGRAM create_p3_lookuptable_2
  ! Note: i1 loop (do/enddo statements) is commented out for parallelization; i1 gets initizatized there
  ! - to run in serial, uncomment the 'do i1' statement and the corresponding 'enddo'
  
-! Qnorm_loop_3: do i1 = 1,n_Qnorm    ! COMMENT OUT FOR PARALLELIZATION
+ Qnorm_loop_3: do i1 = 1,n_Qnorm    ! COMMENT OUT FOR PARALLELIZATION
    do i_Fr1 = 1,n_Fr
      do i_rhor1 = 1,n_rhor
        do i2 = 1,n_Qnorm
@@ -882,7 +884,7 @@ PROGRAM create_p3_lookuptable_2
                       bas1 = bas
                       aas1 = aas
                    else if (d1.gt.dcrits1(i_rhor1,i_Fr1).and.d1.le.dcritr1(i_rhor1,i_Fr1)) then
-                      cs1  = cgp1(i_rhor1)
+                      cs1  = cgp1(i_rhor1,i_Fr1)
                       ds1  = dg
                       bas1 = bag
                       aas1 = aag
@@ -899,7 +901,7 @@ PROGRAM create_p3_lookuptable_2
                          dum2 = aag*d1**bag
                          m1   = cs1*d1**ds1
                          m2   = cs*d1**ds
-                         m3   = cgp1(i_rhor1)*d1**dg
+                         m3   = cgp1(i_rhor1,i_Fr1)*d1**dg
 ! linearly interpolate based on particle mass
                          dum3 = dum1+(m1-m2)*(dum2-dum1)/(m3-m2)
                          aas1 = dum3/(d1**bas)
@@ -923,7 +925,7 @@ PROGRAM create_p3_lookuptable_2
                          bas2 = bas
                          aas2 = aas
                       else if (d2.gt.dcrits2(i_rhor2,i_Fr2).and.d2.le.dcritr2(i_rhor2,i_Fr2)) then
-!                        cs2  = cgp2(i_rhor)
+!                        cs2  = cgp2(i_rhor2,i_Fr2)
 !                        ds2  = dg
                          bas2 = bag
                          aas2 = aag
@@ -940,7 +942,7 @@ PROGRAM create_p3_lookuptable_2
                             dum2 = aag*d2**bag
                             m1   = cs2*d2**ds2
                             m2   = cs*d2**ds
-                            m3   = cgp2(i_rhor2)*d2**dg
+                            m3   = cgp2(i_rhor2,i_Fr2)*d2**dg
 ! linearly interpolate based on particle mass
                             dum3 = dum1+(m1-m2)*(dum2-dum1)/(m3-m2)
                             aas2 = dum3/(d2**bas)
@@ -948,14 +950,14 @@ PROGRAM create_p3_lookuptable_2
                       endif
 
 ! absolute value, differential fallspeed
-!                   delu = abs(fall2(kk)-fall1(jj))
+!                   delu = abs(fall2(i_rhor2,i_Fr2,kk)-fall1(i_rhor1,i_Fr1,jj))
 
 ! calculate collection of category 1 by category 2, which occurs
 ! in fallspeed of particle in category 2 is greater than category 1
 
-                      if (fall2(kk).gt.fall1(jj)) then
+                      if (fall2(i_rhor2,i_Fr2,kk).gt.fall1(i_rhor1,i_Fr1,jj)) then
                       
-                         delu = fall2(kk)-fall1(jj)
+                         delu = fall2(i_rhor2,i_Fr2,kk)-fall1(i_rhor1,i_Fr1,jj)
 
 ! note: in micro code we have to multiply by air density
 ! correction factor for fallspeed, and collection efficiency
@@ -986,7 +988,7 @@ PROGRAM create_p3_lookuptable_2
 ! remove collected particles from distribution over time period dt, update num1
 !  note -- dt is time scale for removal, not necessarily the model time step
 
-                      endif ! fall2(kk) > fall1(jj)
+                      endif ! fall2(i_rhor2,i_Fr2,kk) > fall1(i_rhor1,i_Fr1,jj)
 
                    enddo kk_loop
                 enddo jj_loop_3
@@ -1015,7 +1017,7 @@ PROGRAM create_p3_lookuptable_2
        enddo   ! i2 loop
      enddo   ! i_rhor1 loop
    enddo   ! i_Fr1
-! enddo Qnorm_loop_3  ! i1 loop  (Qnorm)     ! COMMENTED OUT FOR PARALLELIZATION
+ enddo Qnorm_loop_3  ! i1 loop  (Qnorm)     ! COMMENTED OUT FOR PARALLELIZATION
  
  close(1)
              
@@ -1231,3 +1233,5 @@ END PROGRAM create_p3_lookuptable_2
  return
  
  end function lambdai
+
+

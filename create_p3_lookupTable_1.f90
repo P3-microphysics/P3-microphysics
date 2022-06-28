@@ -13,8 +13,8 @@ PROGRAM create_p3_lookuptable_1
 ! All other parameter settings are linked uniquely to the version number.
 !
 !--------------------------------------------------------------------------------------
-! Version:       5.1.7_b04 + mods
-! Last modified: 2021-FEBRUARY
+! Version:       5.4
+! Last modified: 2021-June-25 (HM)
 !______________________________________________________________________________________
 
 !______________________________________________________________________________________
@@ -63,10 +63,10 @@ PROGRAM create_p3_lookuptable_1
 ! For 2-MOMENT-ICE:
 
 ! #!/bin/ksh
-! 
+!
 ! for i_rhor in 01 02 03 04 05
 ! do
-! 
+!
 !    rm cfg_input full_code.f90
 !    cat > cfg_input << EOF
 !     i_rhor  = ${i_rhor}
@@ -75,9 +75,9 @@ PROGRAM create_p3_lookuptable_1
 !    echo 'Compiling 'exec_${i_rhor}
 !    ifort -r8 full_code.f90
 !    mv a.out exec_${i_rhor}
-! 
+!
 ! done
-! 
+!
 ! rm cfg_input full_code.f90
 
 !-----------------------------
@@ -93,12 +93,12 @@ PROGRAM create_p3_lookuptable_1
 !     i_Znorm = ${i_Znorm}
 ! EOF
 !    cat create_p3_lookupTable_1-top.f90 cfg_input create_p3_lookupTable_1-bottom.f90 > full_code.f90
-!    echo 'Compiling 'exec_${i_Znorm} 
+!    echo 'Compiling 'exec_${i_Znorm}
 !    ifort -r8 full_code.f90
 !    mv a.out exec_${i_Znorm}
-! 
+!
 ! done
-! 
+!
 ! rm cfg_input full_code.f90
 
 !--------------------------------------------------------------------------------------------
@@ -122,18 +122,18 @@ PROGRAM create_p3_lookuptable_1
 !#  - concatenates the output of each parallel job into a single output file.
 
 !#!/bin/ksh
-! 
+!
 ! rm lt_total
-! 
+!
 ! for i in `ls exec*/*dat`
 ! do
 !    echo $i
 !    cat lt_total $i > lt_total_tmp
 !    mv lt_total_tmp lt_total
 ! done
-! 
+!
 ! mv lt_total p3_lookupTable_1.dat
-! 
+!
 ! echo 'Done.  Work directories and contents can now be removed.'
 ! echo 'Be sure to re-name the file with the appropriate extension, with the version number'
 ! echo 'corresponding to that in the header.  (e.g. 'p3_lookupTable_1.dat-v5.3-3momI')'
@@ -143,9 +143,9 @@ PROGRAM create_p3_lookuptable_1
  implicit none
 
  !-----
- character(len=20), parameter :: version   = '20210226.1'
+ character(len=20), parameter :: version   = '5.4'
  logical, parameter           :: log_3momI = .true.    !switch to create table for 2momI (.false.) or 3momI (.true.)
- !-----                                                
+ !-----
 
  integer            :: i_Znorm         ! index for normalized (by Q) Z (passed in through script; [1 .. n_Znorm])
  integer            :: i_rhor          ! index for rho_rime (passed in through script; [1 .. n_rhor])
@@ -158,7 +158,7 @@ PROGRAM create_p3_lookuptable_1
 !       with resulting sub-tables subsequently concatenated.  The same is true for the second (i_rhor) "loop"; however, n_rhor
 !       is used to decare the ranges of other arrays, hence it is declared/initialized here
 
-!integer, parameter :: n_Znorm   = 80  ! number of indices for i_Znorm loop           (1nd "loop")  [not used in parallelized version]
+ integer, parameter :: n_Znorm   =  5  ! number of indices for i_Znorm loop           (1nd "loop")  [not used in parallelized version]
  integer, parameter :: n_rhor    =  5  ! number of indices for i_rhor  loop           (2nd "loop")
  integer, parameter :: n_Fr      =  4  ! number of indices for i_Fr    loop           (3rd loop)
  integer, parameter :: n_Qnorm   = 50  ! number of indices for i_Qnorm loop           (4th loop)
@@ -190,7 +190,9 @@ PROGRAM create_p3_lookuptable_1
         eff,lsave,a_100,n_100,vdep1,i_qsmall,i_qlarge,nrwats,lambda_i,mu_i_save
 
 ! outputs for triple moment
- real, dimension(n_Qnorm,n_Fr) :: uzs,zlarge,zsmall
+! HM zsmall, zlarge no longer needed
+! real, dimension(n_Qnorm,n_Fr) :: uzs,zlarge,zsmall
+ real, dimension(n_Qnorm,n_Fr) :: uzs
 
  real, dimension(n_Qnorm,n_Drscale,n_Fr) :: qrrain,nrrain,nsrain,qsrain,ngrain
 
@@ -204,15 +206,18 @@ PROGRAM create_p3_lookuptable_1
 !real, parameter                    :: Dm_max =  2000.e-6   ! max. mean ice [m] size for lambda limiter
  real, parameter                    :: Dm_min =     2.e-6   ! min. mean ice [m] size for lambda limiter
 
- real, parameter                    :: thrd   = 1./3.
- real, parameter                    :: sxth   = 1./6.
+ real, parameter                    :: thrd = 1./3.
+ real, parameter                    :: sxth = 1./6.
  real, parameter                    :: cutoff = 1.e-90
+
  character(len=2014)                :: filename
 
 !===   end of variable declaration ===
 
  if (log_3momI) then
-    n_iter_psdSolve = 3   ! 3 iterations found to be sufficient (trial-and-error)
+! HM, no longer need iteration loop
+!    n_iter_psdSolve = 3   ! 3 iterations found to be sufficient (trial-and-error)
+    n_iter_psdSolve = 1
  else
     n_iter_psdSolve = 1
  endif
@@ -386,8 +391,7 @@ PROGRAM create_p3_lookuptable_1
 
 ! 3-moment-ice only:
 ! compute Z value from input Z index whose value is "passed in" through the script
- Z_value = 2.1**(i_Znorm)*1.e-23 ! range from 2x10^(-23) to 600 using 80 values
-
+! Z_value = 2.1**(i_Znorm)*1.e-23 ! range from 2x10^(-23) to 600 using 80 values
 
 ! alpha parameter of m-D for rimed ice
  crp(1) =  50.*pi*sxth
@@ -401,7 +405,7 @@ PROGRAM create_p3_lookuptable_1
 ! open file to write to lookup table:
  if (log_3momI) then
 !   write (filename, "(A12,I0.2,A1,I0.2,A4)") "lookupTable_1-",i_Znorm,"_",i_rhor,".dat"   !if parallelized over both i_Znorm and i_rhor
-    write (filename, "(A12,I0.2,A4)") "lookupTable_1-",i_Znorm,".dat"
+    write (filename, "(A12,I0.2,A4)") "lookupTable_1-LT1.dat"
     filename = trim(filename)
     open(unit=1, file=filename, status='unknown')
  else
@@ -410,15 +414,20 @@ PROGRAM create_p3_lookuptable_1
     open(unit=1, file=filename, status='unknown')
  endif
 
-
 !--
 ! The values of i_Znorm (and possibly i_rhor) are "passed in" for parallelized version of code for 3-moment.
 ! The values of i_rhor are "passed in" for parallelized version of code for 2-moment.
 ! Thus, the loops 'i_Znorm_loop' and 'i_rhor_loop' are commented out accordingingly.
 !
+ ! temporary... 5 mu indices, use 10 otherwise, note for 2-mom we can keep the loop but set n_Znorm = 1
 !i_Znorm_loop: do i_Znorm = 1,n_Znorm   !normally commented (kept to illustrate the structure (and to run in serial)
-   i_rhor_loop: do i_rhor = 1,n_rhor    !COMMENT OUT FOR PARALLELIZATION (2-MOMENT ONLY)
-    i_Fr_loop_1: do i_Fr = 1,n_Fr       !COMMENT OUT FOR PARALLELIZATION (2-MOMENT ONLY)
+
+! Z_value = 5.*(i_Znorm-1) ! mu values of 0,5,10,15,20, temporary.... NOTE IF 2 MOM JUST SET TO ARBITRARY VALUE, WILL BE OVERWRITTEN LATER
+
+    Z_value = 0. ! temporary, assign mu
+
+    i_rhor_loop: do i_rhor = 1,n_rhor    !COMMENT OUT FOR PARALLELIZATION (2-MOMENT ONLY)
+     i_Fr_loop_1: do i_Fr = 1,n_Fr       !COMMENT OUT FOR PARALLELIZATION (2-MOMENT ONLY)
 
        ! write header to first file:
        if (log_3momI .and. i_Znorm==1 .and. i_rhor==1 .and. i_Fr==1) then
@@ -696,24 +705,27 @@ PROGRAM create_p3_lookuptable_1
    ! start with lam, range of lam from 100 to 1 x 10^7 is large enough to
    ! cover full range over mean size from approximately 1 micron to x cm
 
-          if (log_3momI) then
-             ! assign provisional values for mom3 (first guess for mom3)
-             ! NOTE: these are normalized: mom3 = M3/M0, mom6 = M6/M3 (M3 = 3rd moment, etc.)
-             mom3 = q/cgp(i_rhor)     !note: cgp is pi/6*(mean_density), computed above
-             ! update normalized mom6 based on the updated ratio of normalized mom3 and normalized Q
-             ! (we want mom6 normalized by mom3 not q)
-             dum = mom3/q
-             mom6 = Z_value/dum
-          endif  !log_3momI
+! HM, no longer needed
+!          if (log_3momI) then
+!             ! assign provisional values for mom3 (first guess for mom3)
+!             ! NOTE: these are normalized: mom3 = M3/M0, mom6 = M6/M3 (M3 = 3rd moment, etc.)
+!             mom3 = q/cgp(i_rhor)     !note: cgp is pi/6*(mean_density), computed above
+!             ! update normalized mom6 based on the updated ratio of normalized mom3 and normalized Q
+!             ! (we want mom6 normalized by mom3 not q)
+!             dum = mom3/q
+!             mom6 = Z_value/dum
+!          endif  !log_3momI
           !==
 
           iteration_loop1: do i_iter = 1,n_iter_psdSolve
 
              if (log_3momI) then
               ! compute mu_i from normalized mom3 and mom6:
-                mu_i = compute_mu_3moment(mom3,mom6,mu_i_max)
-                mu_i = max(mu_i,mu_i_min)  ! make sure mu_i >= 0 (otherwise size dist is infinity at D = 0)
-                mu_i = min(mu_i,mu_i_max)  ! set upper limit
+! HM set to loop value of mu (temporarily called Z_value)
+!                mu_i = compute_mu_3moment(mom3,mom6,mu_i_max)
+!                mu_i = max(mu_i,mu_i_min)  ! make sure mu_i >= 0 (otherwise size dist is infinity at D = 0)
+!                mu_i = min(mu_i,mu_i_max)  ! set upper limit
+                mu_i = Z_value
              endif
 
              ii_loop_1: do ii = 1,11000 ! this range of ii to calculate lambda chosen by trial and error for the given lambda limiter values
@@ -820,13 +832,14 @@ PROGRAM create_p3_lookuptable_1
 !===
 
            ! calculate normalized mom3 directly from PSD parameters (3-moment-ice only)
-             if (log_3momI) then
-                mom3 = n0*gamma(4.+mu_i)/lam**(4.+mu_i)
-              ! update normalized mom6 based on the updated ratio of normalized mom3 and normalized Q
-              ! (we want mom6 normalized by mom3 not q)
-                dum  = mom3/q
-                mom6 = Z_value/dum
-             endif  !log_3momI
+! HM no longer needed
+!             if (log_3momI) then
+!                mom3 = n0*gamma(4.+mu_i)/lam**(4.+mu_i)
+!              ! update normalized mom6 based on the updated ratio of normalized mom3 and normalized Q
+!              ! (we want mom6 normalized by mom3 not q)
+!                dum  = mom3/q
+!                mom6 = Z_value/dum
+!             endif  !log_3momI
 
           enddo iteration_loop1
 
@@ -837,20 +850,19 @@ PROGRAM create_p3_lookuptable_1
 ! At this point, we have solved for all of the ice size distribution parameters (n0, lam, mu_i)
 !.....................................................................................
 
-
 !.....................................................................................
 ! find max/min Q* to constrain mean size (i.e. lambda limiter), this is stored and passed to
 ! lookup table, so that N (nitot) can be adjusted during the simulation to constrain mean size
 ! (computed and written as the inverses (i_qsmall,i_qlarge) to avoid run-time division in p3_main)
 
    ! limit based on min size, Dm_min (2 micron):
-          duml = (mu_i+1.)/Dm_min         
-          call intgrl_section(duml,mu_i, ds1,ds,dg,dsr, dcrit,dcrits,dcritr,intgrR1,intgrR2,intgrR3,intgrR4)                    
+          duml = (mu_i+1.)/Dm_min
+          call intgrl_section(duml,mu_i, ds1,ds,dg,dsr, dcrit,dcrits,dcritr,intgrR1,intgrR2,intgrR3,intgrR4)
           n0dum = q/(cs1*intgrR1 + cs*intgrR2 + cgp(i_rhor)*intgrR3 + csr*intgrR4)
           
          !find maximum N applying the lambda limiter (lower size limit)
           dum =	n0dum/(duml**(mu_i+1.)/(gamma(mu_i+1.)))
-          
+
          !calculate the lower limit of normalized Q to use in P3 main
          !(this is based on the lower limit of mean size so we call this 'qsmall')
          !qsmall(i_Qnorm,i_Fr) = q/dum
@@ -859,6 +871,7 @@ PROGRAM create_p3_lookuptable_1
 
    ! limit based on max size, Dm_max:
           duml = (mu_i+1.)/Dm_max
+
           call intgrl_section(duml,mu_i, ds1,ds,dg,dsr, dcrit,dcrits,dcritr,intgrR1,intgrR2,intgrR3,intgrR4)                    
           n0dum = q/(cs1*intgrR1 + cs*intgrR2 + cgp(i_rhor)*intgrR3 + csr*intgrR4)
 
@@ -869,18 +882,18 @@ PROGRAM create_p3_lookuptable_1
         ! (this is based on the upper limit of mean size so we call this 'qlarge')
          !qlarge(i_Qnorm,i_Fr) = q/dum
           i_qlarge(i_Qnorm,i_Fr) = dum/q
-
 	  
         ! calculate bounds for normalized Z based on min/max allowed mu: (3-moment-ice only)
-          if (log_3momI) then
-             mu_dum = mu_i_min
-             gdum   = (6.+mu_dum)*(5.+mu_dum)*(4.+mu_dum)/((3.+mu_dum)*(2.+mu_dum)*(1.+mu_dum))
-             dum    = mom3/q
-             zlarge(i_Qnorm,i_Fr) = gdum*mom3*dum
-             mu_dum = mu_i_max
-             gdum   = (6.+mu_dum)*(5.+mu_dum)*(4.+mu_dum)/((3.+mu_dum)*(2.+mu_dum)*(1.+mu_dum))
-             zsmall(i_Qnorm,i_Fr) = gdum*mom3*dum
-          endif  !if (log_3momI)
+! HM no longer needed, don't need to calculate or output zlarge and zsmall
+!          if (log_3momI) then
+!             mu_dum = mu_i_min
+!             gdum   = (6.+mu_dum)*(5.+mu_dum)*(4.+mu_dum)/((3.+mu_dum)*(2.+mu_dum)*(1.+mu_dum))
+!             dum    = mom3/q
+!             zlarge(i_Qnorm,i_Fr) = gdum*mom3*dum
+!             mu_dum = mu_i_max
+!             gdum   = (6.+mu_dum)*(5.+mu_dum)*(4.+mu_dum)/((3.+mu_dum)*(2.+mu_dum)*(1.+mu_dum))
+!             zsmall(i_Qnorm,i_Fr) = gdum*mom3*dum
+!          endif  !if (log_3momI)
 
 !.....................................................................................
 ! begin moment and microphysical process calculations for the lookup table
@@ -1168,7 +1181,7 @@ PROGRAM create_p3_lookuptable_1
         ! loop around lambda for rain
           i_Drscale_loop:  do i_Drscale = 1,n_Drscale
 
-             print*,'** STATUS: ',i_rhor, i_Fr, i_Qnorm, i_Drscale
+             print*,'** STATUS: ',i_Znorm, i_rhor, i_Fr, i_Qnorm, i_Drscale
 
              dum = 1.24**i_Drscale*10.e-6
 
@@ -1338,7 +1351,6 @@ PROGRAM create_p3_lookuptable_1
 
           enddo i_Drscale_loop !(loop around lambda for rain)
 
-!
 !.....................................................................................
 ! vapor deposition/melting/wet growth
 !.....................................................................................
@@ -1503,8 +1515,9 @@ PROGRAM create_p3_lookuptable_1
           dmm(i_Qnorm,i_Fr)       = dim( dmm(i_Qnorm,i_Fr),       cutoff)
           rhomm(i_Qnorm,i_Fr)     = dim( rhomm(i_Qnorm,i_Fr),     cutoff)
           uzs(i_Qnorm,i_Fr)       = dim( uzs(i_Qnorm,i_Fr),       cutoff)
-          zlarge(i_Qnorm,i_Fr)    = dim( zlarge(i_Qnorm,i_Fr),    cutoff)
-          zsmall(i_Qnorm,i_Fr)    = dim( zsmall(i_Qnorm,i_Fr),    cutoff)
+! HM no longer needed
+!          zlarge(i_Qnorm,i_Fr)    = dim( zlarge(i_Qnorm,i_Fr),    cutoff)
+!          zsmall(i_Qnorm,i_Fr)    = dim( zsmall(i_Qnorm,i_Fr),    cutoff)
           lambda_i(i_Qnorm,i_Fr)  = dim( lambda_i(i_Qnorm,i_Fr),  cutoff)
           mu_i_save(i_Qnorm,i_Fr) = dim( mu_i_save(i_Qnorm,i_Fr), cutoff)
 
@@ -1524,9 +1537,10 @@ PROGRAM create_p3_lookuptable_1
                          dmm(i_Qnorm,i_Fr),                  &
                          rhomm(i_Qnorm,i_Fr),                &
                          uzs(i_Qnorm,i_Fr),                  &
-                         zlarge(i_Qnorm,i_Fr),               &
-                         zsmall(i_Qnorm,i_Fr),               &
-                         lambda_i(i_Qnorm,i_Fr),             &
+! HM no longer needed
+!                         zlarge(i_Qnorm,i_Fr),               &
+!                         zsmall(i_Qnorm,i_Fr),               &
+                         lambda_i(i_Qnorm,i_Fr),        &
                          mu_i_save(i_Qnorm,i_Fr)
           else
              write(1,'(3i5,20e15.5)')                        &
@@ -1543,7 +1557,7 @@ PROGRAM create_p3_lookuptable_1
                          vdep1(i_Qnorm,i_Fr),                &
                          dmm(i_Qnorm,i_Fr),                  &
                          rhomm(i_Qnorm,i_Fr),                &
-                         lambda_i(i_Qnorm,i_Fr),             &
+                         lambda_i(i_Qnorm,i_Fr),        &
                          mu_i_save(i_Qnorm,i_Fr)
           endif
 
@@ -1566,13 +1580,13 @@ PROGRAM create_p3_lookuptable_1
 
           enddo !i_Drscale-loop          
        enddo !i_Qnorm-loop
-       
+
 !--
 ! The values of i_Znorm (3-momI) and i_rhor/i_Fr (2-momI) are "passed in" for parallelized
 ! version of code, thus the loops are commented out.
       enddo i_Fr_loop_1
     enddo i_rhor_loop
-!enddo i_Znorm_loop
+! enddo i_Znorm_loop
 !==
 
  close(1)
@@ -1737,8 +1751,8 @@ END PROGRAM create_p3_lookuptable_1
  real    :: mu_i_min,mu_i_max,lam,q,cgp,Fr,pi
 
 ! Local variables:
-!real, parameter :: Di_thres = 0.2 !diameter threshold [mm]
- real, parameter :: Di_thres = 0.6 !diameter threshold [mm]
+ real, parameter :: Di_thres = 0.2 !diameter threshold [mm]
+!real, parameter :: Di_thres = 0.6 !diameter threshold [mm]
  real            :: mu_i,dum1,dum2,dum3
 
 
@@ -1816,3 +1830,4 @@ END PROGRAM create_p3_lookuptable_1
  return
  
  end subroutine intgrl_section               
+
