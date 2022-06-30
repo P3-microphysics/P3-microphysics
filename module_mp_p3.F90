@@ -151,19 +151,9 @@
 ! lookup_file_2 = '/home/dormrb01/zephyr4/armn/mec/ords/lookupTables/work_LT2/v5.0/p3_lookupTable_2.dat-'//trim(version_intended_table_2)
 
 
-! for GEM --eccc-ppp3
-! read_path ='/users/dor/armn/gr8/ords/p3_lookup_tables'
- if (trplMomI) then
-    lookup_file_1 = '/fs/homeu1/eccc/mrd/ords/rpnatm/mec000/p3_lookup_tables/p3_lookupTable_1.dat-'//trim(version_intended_table_1_3mom)
- else
-    lookup_file_1 = '/fs/homeu1/eccc/mrd/ords/rpnatm/mec000/p3_lookup_tables/p3_lookupTable_1.dat-'//trim(version_intended_table_1_2mom)
- endif
- lookup_file_2 = '/fs/homeu1/eccc/mrd/ords/rpnatm/mec000/p3_lookup_tables/p3_lookupTable_2.dat-'//trim(version_intended_table_2)
-
-
 ! if (trplMomI) then
 !   lookup_file_1 = trim(read_path)//'/'//'p3_lookupTable_1.dat-v'//trim(version_intended_table_1_3mom)
-!    lookup_file_1 = trim(read_path)//'/'//'p3_lookupTable_1.dat-'//trim(version_intended_table_1_3mom)
+!   lookup_file_1 = trim(read_path)//'/'//'p3_lookupTable_1.dat-'//trim(version_intended_table_1_3mom)
 ! else
 ! !  lookup_file_1 = trim(read_path)//'/'//'p3_lookupTable_1.dat-v'//trim(version_intended_table_1_2mom)
 !    lookup_file_1 = trim(read_path)//'/'//'p3_lookupTable_1.dat-'//trim(version_intended_table_1_2mom)
@@ -172,12 +162,12 @@
 ! lookup_file_2 = trim(read_path)//'/'//'p3_lookupTable_2.dat-'//trim(version_intended_table_2)
 
 ! for 1D simulations
-! if (trplMomI) then
-!    lookup_file_1 = './lookup_tables/p3_lookupTable_1.dat-'//trim(version_intended_table_1_3mom)
-! else
-!    lookup_file_1 = './lookup_tables/p3_lookupTable_1.dat-'//trim(version_intended_table_1_2mom)
-! endif
-! lookup_file_2 = './lookup_tables/p3_lookupTable_2.dat-'//trim(version_intended_table_2)
+ if (trplMomI) then
+    lookup_file_1 = './lookup_tables/p3_lookupTable_1.dat-v'//trim(version_intended_table_1_3mom)
+ else
+    lookup_file_1 = './lookup_tables/p3_lookupTable_1.dat-v'//trim(version_intended_table_1_2mom)
+ endif
+ lookup_file_2 = './lookup_tables/p3_lookupTable_2.dat-v'//trim(version_intended_table_2)
 
 !------------------------------------------------------------------------------------------!
 
@@ -519,7 +509,7 @@
                 do ii = 1,iisize
                    do jjj2 = 1,rimsize
                       do jjjj2 = 1,densize
-                         read(10,*) dum,dum,dum,dum,dum,                       &
+                         read(10,*) dum,dum,dum,dum,dum,dum,                   &
                          itabcolli1(i,jjj,jjjj,ii,jjj2,jjjj2),                 &
                          itabcolli2(i,jjj,jjjj,ii,jjj2,jjjj2)
                       enddo
