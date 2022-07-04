@@ -19,7 +19,7 @@
 !    Jason Milbrandt (jason.milbrandt@canada.ca)                                           !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       4.3.2                                                                     !
+! Version:       4.3.3                                                                     !
 ! Last updated:  2021-OCT                                                                  !
 !__________________________________________________________________________________________!
 
@@ -118,7 +118,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '4.3.2' 
+ character(len=1024), parameter :: version_p3                    = '4.3.3' 
  character(len=1024), parameter :: version_intended_table_1_2mom = '5.4_2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '5.4_3momI'
  character(len=1024), parameter :: version_intended_table_2      = '5.2.3'
@@ -139,35 +139,13 @@
  read_path = lookup_file_dir           ! path for lookup tables from official model library
 !read_path = '/MY/LOOKUP_TABLE/PATH'   ! path for lookup tables from specified location
 
-!read_path ='/users/dor/armn/gr8/ords/p3_lookup_tables'  !JM only
- 
-! for GEM
-! read_path ='/users/dor/armn/gr8/ords/p3_lookup_tables'
-! if (trplMomI) then
-!    lookup_file_1 = '/home/dormrb01/zephyr4/armn/mec/ords/lookupTables/work/Feb2021/3momI-v5.3_orig/rundirA/p3_lookupTable_1.dat-'//trim(version_intended_table_1_3mom)
-! else
-!    lookup_file_1 = '/home/dormrb01/zephyr4/armn/mec/ords/lookupTables/work/Feb2021/2momI-v5.3_orig/p3_lookupTable_1.dat-'//trim(version_intended_table_1_2mom)
-! endif
-! lookup_file_2 = '/home/dormrb01/zephyr4/armn/mec/ords/lookupTables/work_LT2/v5.0/p3_lookupTable_2.dat-'//trim(version_intended_table_2)
-
-
-! if (trplMomI) then
-!   lookup_file_1 = trim(read_path)//'/'//'p3_lookupTable_1.dat-v'//trim(version_intended_table_1_3mom)
-!   lookup_file_1 = trim(read_path)//'/'//'p3_lookupTable_1.dat-'//trim(version_intended_table_1_3mom)
-! else
-! !  lookup_file_1 = trim(read_path)//'/'//'p3_lookupTable_1.dat-v'//trim(version_intended_table_1_2mom)
-!    lookup_file_1 = trim(read_path)//'/'//'p3_lookupTable_1.dat-'//trim(version_intended_table_1_2mom)
-! endif
-!!lookup_file_2 = trim(read_path)//'/'//'p3_lookupTable_2.dat-v'//trim(version_intended_table_2)
-! lookup_file_2 = trim(read_path)//'/'//'p3_lookupTable_2.dat-'//trim(version_intended_table_2)
-
-! for 1D simulations
  if (trplMomI) then
-    lookup_file_1 = './lookup_tables/p3_lookupTable_1.dat-v'//trim(version_intended_table_1_3mom)
+   lookup_file_1 = trim(read_path)//'/'//'p3_lookupTable_1.dat-v'//trim(version_intended_table_1_3mom)
  else
-    lookup_file_1 = './lookup_tables/p3_lookupTable_1.dat-v'//trim(version_intended_table_1_2mom)
+   lookup_file_1 = trim(read_path)//'/'//'p3_lookupTable_1.dat-v'//trim(version_intended_table_1_2mom)
  endif
- lookup_file_2 = './lookup_tables/p3_lookupTable_2.dat-v'//trim(version_intended_table_2)
+ lookup_file_2 = trim(read_path)//'/'//'p3_lookupTable_2.dat-v'//trim(version_intended_table_2)
+
 
 !------------------------------------------------------------------------------------------!
 
