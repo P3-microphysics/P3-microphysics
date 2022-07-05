@@ -128,7 +128,7 @@
  character(len=1024), parameter :: version_p3                    = '4.3.3+' 
  character(len=1024), parameter :: version_intended_table_1_2mom = '5.4_2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '5.4_3momI'
- character(len=1024), parameter :: version_intended_table_2      = '5.2.3'
+ character(len=1024), parameter :: version_intended_table_2      = '5.3'
 
  character(len=1024)            :: version_header_table_1_2mom
  character(len=1024)            :: version_header_table_1_3mom

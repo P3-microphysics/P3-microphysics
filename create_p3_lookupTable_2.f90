@@ -53,19 +53,19 @@ PROGRAM create_p3_lookuptable_2
 ! for i1 in 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25
 ! do
 ! 
-! rm cfg_input full_code.f90
+!  rm cfg_input full_code.f90
 ! 
-! cat > cfg_input << EOF
-!  i1  = ${i1}
-! EOF
+!  cat > cfg_input << EOF
+!   i1  = ${i1}
+!EOF
 ! 
-! cat create_p3_lookupTable_2-top.f90 cfg_input create_p3_lookupTable_2-bottom.f90 > full_code.f90
+!  cat create_p3_lookupTable_2-top.f90 cfg_input create_p3_lookupTable_2-bottom.f90 > full_code.f90
 ! 
-! echo 'Compiling 'exec_${i1}
-! #pgf90 -r8 full_code.f90
-! #gfortran -fdefault-real-8 full_code.f90
-! ifort -r8 full_code.f90
-! mv a.out exec_${i1}
+!  echo 'Compiling 'exec_${i1}
+!  #pgf90 -r8 full_code.f90
+!  #gfortran -fdefault-real-8 full_code.f90
+!  ifort -r8 full_code.f90
+!  mv a.out exec_${i1}
 ! 
 ! done
 ! 
@@ -842,9 +842,9 @@ PROGRAM create_p3_lookuptable_2
 
  
  ! Note: i1 loop (do/enddo statements) is commented out for parallelization; i1 gets initizatized there
- ! - to run in serial, uncomment the 'do i1' statement and the corresponding 'enddo'
+ ! - to run in serial, uncomment the 'Qnorm_loop_3: do i1' statement and the corresponding 'enddo'
  
- Qnorm_loop_3: do i1 = 1,n_Qnorm    ! COMMENT OUT FOR PARALLELIZATION
+!Qnorm_loop_3: do i1 = 1,n_Qnorm    ! COMMENTED OUT FOR PARALLELIZATION
    do i_Fr1 = 1,n_Fr
      do i_rhor1 = 1,n_rhor
        do i2 = 1,n_Qnorm
@@ -1017,7 +1017,7 @@ PROGRAM create_p3_lookuptable_2
        enddo   ! i2 loop
      enddo   ! i_rhor1 loop
    enddo   ! i_Fr1
- enddo Qnorm_loop_3  ! i1 loop  (Qnorm)     ! COMMENTED OUT FOR PARALLELIZATION
+!enddo Qnorm_loop_3  ! i1 loop  (Qnorm)     ! COMMENTED OUT FOR PARALLELIZATION
  
  close(1)
              
