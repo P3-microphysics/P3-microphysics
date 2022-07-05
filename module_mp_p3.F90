@@ -15,12 +15,13 @@
 !   Milbrandt et al. (2021)       [J. Atmos. Sci., 78, 439-458]   - triple-moment ice      !
 !                                                                                          !
 ! For questions or bug reports, please contact:                                            !
-!    Hugh Morrison   (morrison@ucar.edu), or                                               !
-!    Jason Milbrandt (jason.milbrandt@canada.ca)                                           !
+!    Hugh Morrison    (morrison@ucar.edu), or                                              !
+!    Jason Milbrandt  (jason.milbrandt@ec.gc.ca), or                                       !
+!    Melissa Cholette (melissa.cholette@ec.gc.ca)                                          !
 !__________________________________________________________________________________________!
 !                                                                                          !
 ! Version:       4.3.3+                                                                    !
-! Last updated:  2022-MAY                                                                  !
+! Last updated:  2022-JUNE                                                                 !
 !__________________________________________________________________________________________!
 
  MODULE MODULE_MP_P3
@@ -2726,8 +2727,7 @@ END subroutine p3_init
 ! collection between ice categories
 
 !        iceice_interaction1:  if (.false.) then       !for testing (to suppress ice-ice interaction)
-!        iceice_interaction1:  if (iice.ge.2) then
-         iceice_interaction1:  if (iice.ge.2 .and. .not.log_3momentIce) then
+         iceice_interaction1:  if (iice.ge.2) then
 
          !note:  In this version, lookupTable_2 (LT2, for ice category interactions) is computed for a maximum
          !       mean ice size of Dm_max=2000.e-6 m (the old lambda_i limiter); thus it is compatible with
@@ -3516,7 +3516,7 @@ END subroutine p3_init
        endif
 
     !Limit total deposition (incl. nucleation) and sublimation to saturation adjustment
-       qv_tmp = Qv_cld(k) + (-qcnuc-qcacc-qrcon+qcevp+qrevp)*dt                              !qv after cond/evap      
+       qv_tmp = Qv_cld(k) + (-qcnuc-qccon-qrcon+qcevp+qrevp)*dt                              !qv after cond/evap      
        t_tmp  = t(i,k) + (qcnuc+qccon+qrcon-qcevp-qrevp)*xxlv(i,k)*inv_cp*dt                 !T after cond/evap       
        dumqvi = qv_sat(t_tmp,pres(i,k),1)
        qdep_satadj = (qv_tmp-dumqvi)/(1.+xxls(i,k)**2*dumqvi/(cp*rv*t_tmp**2))*odt*SCF(k)
@@ -4624,7 +4624,7 @@ END subroutine p3_init
          !diag_effr(i,k) = 0.5*(mu_r(i,k)+3.)/lamr(i,k)    (currently not used)
         ! ze_rain(i,k) = n0r(i,k)*720./lamr(i,k)**3/lamr(i,k)**3/lamr(i,k)
           ! non-exponential rain:
-          ze_rain(i,k) = nr(i,k)*(mu_r(i,k)+6.)*(mu_r(i,k)+5.)*(mu_r(i,k)+4.)*           &
+          ze_rain(i,k) = rho(i,k)*nr(i,k)*(mu_r(i,k)+6.)*(mu_r(i,k)+5.)*(mu_r(i,k)+4.)*   &
                         (mu_r(i,k)+3.)*(mu_r(i,k)+2.)*(mu_r(i,k)+1.)/lamr(i,k)**6
           ze_rain(i,k) = max(ze_rain(i,k),1.e-22)
        else
