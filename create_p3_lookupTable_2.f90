@@ -6,8 +6,8 @@ PROGRAM create_p3_lookuptable_2
 ! interactions for the multi-ice-category configuration of the P3 microphysics scheme.
 !
 !--------------------------------------------------------------------------------------
-! Version:       5.2.3
-! Last modified: 2021-OCT
+! Version:       5.3   
+! Last modified: 2022 June 
 !______________________________________________________________________________________
 
 !______________________________________________________________________________________
@@ -112,7 +112,7 @@ PROGRAM create_p3_lookuptable_2
 
  implicit none
  
- character(len=16), parameter :: version = '5.2.3'
+ character(len=16), parameter :: version = '5.3'
 
  real    :: pi,g,p,t,rho,mu,pgam,ds,cs,bas,aas,dcrit,eii
  integer :: k,ii,jj,kk,dumii,j2
@@ -1139,7 +1139,7 @@ END PROGRAM create_p3_lookuptable_2
  else
     dum2 = (6./pi)*cgp                     ! mean density (total)
     dum3 = max(1., 1.+0.00842*(dum2-400.)) ! adjustment factor for density
-    mu_i = 4.*(dum1-Di_thres)*dum3*Fr
+    mu_i = 0.25*(dum1-Di_thres)*dum3*Fr
  endif
  mu_i = max(mu_i, mu_i_min)
  mu_i = min(mu_i, mu_i_max)
