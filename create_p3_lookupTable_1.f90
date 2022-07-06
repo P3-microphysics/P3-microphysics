@@ -14,7 +14,7 @@ PROGRAM create_p3_lookuptable_1
 !
 !--------------------------------------------------------------------------------------
 ! Version:       5.4
-! Last modified: 2021-June-25 (HM)
+! Last modified: 2021 June          
 !______________________________________________________________________________________
 
 !______________________________________________________________________________________
@@ -85,9 +85,9 @@ PROGRAM create_p3_lookuptable_1
 
 !#!/bin/ksh
 !
-! for i_Znorm in 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78 79 80
+! for i_Znorm in 01 02 03 04 05 06 07 08 09 10 11
 ! do
-
+!
 !    rm cfg_input full_code.f90
 !    cat > cfg_input << EOF
 !     i_Znorm = ${i_Znorm}
@@ -158,7 +158,7 @@ PROGRAM create_p3_lookuptable_1
 !       with resulting sub-tables subsequently concatenated.  The same is true for the second (i_rhor) "loop"; however, n_rhor
 !       is used to decare the ranges of other arrays, hence it is declared/initialized here
 
- integer, parameter :: n_Znorm   =  5  ! number of indices for i_Znorm loop           (1nd "loop")  [not used in parallelized version]
+ integer, parameter :: n_Znorm   = 10  ! number of indices for i_Znorm loop           (1nd "loop")  [not used in parallelized version]
  integer, parameter :: n_rhor    =  5  ! number of indices for i_rhor  loop           (2nd "loop")
  integer, parameter :: n_Fr      =  4  ! number of indices for i_Fr    loop           (3rd loop)
  integer, parameter :: n_Qnorm   = 50  ! number of indices for i_Qnorm loop           (4th loop)
@@ -418,15 +418,15 @@ PROGRAM create_p3_lookuptable_1
 ! The values of i_Znorm (and possibly i_rhor) are "passed in" for parallelized version of code for 3-moment.
 ! The values of i_rhor are "passed in" for parallelized version of code for 2-moment.
 ! Thus, the loops 'i_Znorm_loop' and 'i_rhor_loop' are commented out accordingingly.
-!
- ! temporary... 5 mu indices, use 10 otherwise, note for 2-mom we can keep the loop but set n_Znorm = 1
+ 
+ if (log_3momI) then
+    Z_value =2.*(i_Znorm-1)   !mu_i values set to 0., 2., 4., ... 20.
+ else
+    Z_value = -99.  !this gets overwritten below
+ endif    
+
 !i_Znorm_loop: do i_Znorm = 1,n_Znorm   !normally commented (kept to illustrate the structure (and to run in serial)
-
-! Z_value = 5.*(i_Znorm-1) ! mu values of 0,5,10,15,20, temporary.... NOTE IF 2 MOM JUST SET TO ARBITRARY VALUE, WILL BE OVERWRITTEN LATER
-
-    Z_value = 0. ! temporary, assign mu
-
-    i_rhor_loop: do i_rhor = 1,n_rhor    !COMMENT OUT FOR PARALLELIZATION (2-MOMENT ONLY)
+!   i_rhor_loop: do i_rhor = 1,n_rhor    !COMMENT OUT FOR PARALLELIZATION (2-MOMENT ONLY)
      i_Fr_loop_1: do i_Fr = 1,n_Fr       !COMMENT OUT FOR PARALLELIZATION (2-MOMENT ONLY)
 
        ! write header to first file:
@@ -1585,7 +1585,7 @@ PROGRAM create_p3_lookuptable_1
 ! The values of i_Znorm (3-momI) and i_rhor/i_Fr (2-momI) are "passed in" for parallelized
 ! version of code, thus the loops are commented out.
       enddo i_Fr_loop_1
-    enddo i_rhor_loop
+!   enddo i_rhor_loop
 ! enddo i_Znorm_loop
 !==
 
