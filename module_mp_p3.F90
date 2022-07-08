@@ -20,11 +20,16 @@
 !    Jason Milbrandt (jason.milbrandt@canada.ca)                                           !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.0.0                                                                     !
-! Last updated:  2021-OCT                                                                  !
+! Version:       5.0.1                                                                     !
+! Last updated:  2022-JAN                                                                  !
 !__________________________________________________________________________________________!
 
  MODULE MODULE_MP_P3
+
+#ifdef ECCCGEM
+ use tdpack, only: foew, foewa, fohrx, foewaf
+ use tdpack_const, only: aerk1w
+#endif
 
  implicit none
 
@@ -120,10 +125,10 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.0.0'
+ character(len=1024), parameter :: version_p3                    = '5.0.1'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.0.4.2-2momI'  
  character(len=1024), parameter :: version_intended_table_1_3mom = '6.2-3momI'
- character(len=1024), parameter :: version_intended_table_2      = 'v5.2.3' ! does not include Fi,liq
+ character(len=1024), parameter :: version_intended_table_2      = '2momI_v5.2.3' ! does not include Fi,liq
 
  character(len=1024)            :: version_header_table_1_2mom
  character(len=1024)            :: version_header_table_1_3mom
@@ -159,6 +164,14 @@
 !    lookup_file_1 = './lookup_tables/p3_lookupTable_1.dat-'//trim(version_intended_table_1_2mom)
 ! endif
 ! lookup_file_2 = './lookup_tables/p3_lookupTable_2.dat-'//trim(version_intended_table_2)
+
+ !if (trplMomI) then
+ !   lookup_file_1 = '/Users/CHO/Desktop/1D_b3_3momI_fliq0/lookup_fliq'//'/'//'p3_lookupTable_1.dat-' &
+ !                    //trim(version_intended_table_1_3mom)
+ !else
+ !   lookup_file_1 = trim(read_path)//'/'//'p3_lookupTable_1.dat-'//trim(version_intended_table_1_2mom)
+ !endif
+ !lookup_file_2 = trim(read_path)//'/'//'p3_lookupTable_2.dat-'//trim(version_intended_table_2)
 
 !------------------------------------------------------------------------------------------!
 
@@ -1355,10 +1368,11 @@ END subroutine p3_init
    dt_mp = dt/float(n_substep)
 
    ! External forcings are distributed evenly over steps
-   qqdelta = (qvap-qvap_m) / float(n_substep)
+   ! Note qqdelta is converted from specific to mixing ratio
+   qqdelta = (qvap/(1-qvap)-qvap_m/(1-qvap_m)) / float(n_substep)
    ttdelta = (temp-temp_m) / float(n_substep)
    ! initialise for the 1st substepping
-   qvap = qvap_m
+   qvap = qvap_m/(1-qvap_m) ! mixing ratio instead of specific humidity
    temp = temp_m
 
   !if (kount == 0) then
@@ -1466,9 +1480,9 @@ END subroutine p3_init
       snd_ave(:) = 0.
    endif
 
-   tmparr_ik = (1.e+5/pres)**0.286  !for optimization of calc of theta, temp
+   tmparr_ik = (1.e+5/pres)**(rd*inv_cp)  !for optimization of calc of theta, temp
 
-   subsetp_loop: do i_substep = 1, n_substep
+   substep_loop: do i_substep = 1, n_substep
 
      !convert to potential temperature:
      qvapm   = qvap
@@ -1535,7 +1549,7 @@ END subroutine p3_init
       if (global_status /= STATUS_OK) return
 
      !convert back to temperature:
-      temp = theta/tmparr_ik    !i.e.: temp = theta*(pres*1.e-5)**0.286
+      temp = theta/tmparr_ik    !i.e.: temp = theta*(pres*1.e-5)**(rd*inv_cp)
 
       if (n_substep > 1) then
          prt_liq_ave(:) = prt_liq_ave(:) + prt_liq(:)
@@ -1550,7 +1564,10 @@ END subroutine p3_init
          snd_ave(:) = snd_ave(:) + prt_sndp(:)
       endif
 
-   enddo subsetp_loop
+   enddo substep_loop
+
+   ! retransferring mixing ratio to specific humidity (only t* is needed)
+   qvap = qvap/(1+qvap)
 
    if (n_substep > 1) then
       tmp1 = 1./float(n_substep)
@@ -1966,6 +1983,8 @@ END subroutine p3_init
 
  real, dimension(its:ite,kts:kte,nCat) :: qiliq ! local variable for qiliq_in
 
+ logical, parameter      :: log_liqsatadj = .false.       ! temporary; to be put as GEM namelist
+
 ! 2D size distribution and fallspeed parameters:
 
  real, dimension(its:ite,kts:kte) :: lamc
@@ -2058,7 +2077,7 @@ END subroutine p3_init
 
  real, dimension(its:ite,kts:kte)      :: inv_dzq,inv_rho,ze_ice,ze_rain,prec,acn,rho,   &
             rhofacr,rhofaci,xxls,xxlv,xlf,qvs,qvi,sup,supi,vtrmi1,tmparr1,mflux_r,       &
-            mflux_i,invexn,ze_ice2
+            mflux_i,invexn,ze_ice2,temp1
 
  real, dimension(kts:kte) :: V_qr,V_qit,V_nit,V_nr,V_qc,V_nc,V_zit,flux_qit,flux_qx,     &
             flux_nx,flux_nit,flux_qir,flux_bir,flux_zit,flux_qil
@@ -2074,7 +2093,7 @@ END subroutine p3_init
             deltaD_init,dum1c,dum4c,dum5c,dumt,qcon_satadj,qdep_satadj,sources,sinks,    &
             timeScaleFactor,dt_left,dum7,fluxdiv_qil,epsiw_tot,qv_tmp,t_tmp,dum1z
 
- double precision :: tmpdbl1,tmpdbl2,tmpdbl3
+ double precision :: tmpdbl1,tmpdbl2,tmpdbl3,temp2
 
  integer :: dumi,i,k,ii,iice,iice_dest,dumj,dumii,dumjj,dumzz,tmpint1,ktop,kbot,kdir,    &
             dumic,dumiic,dumjjc,catcoll,k_qxbot,k_qxtop,k_temp,dumll,niter,iter
@@ -2136,6 +2155,9 @@ END subroutine p3_init
 ! add integers for mu_i index
  integer :: imu
  integer, parameter :: niter_mui = 5 ! number of iterations for find mu for lookup table
+
+ integer :: iter_satadj
+ integer, parameter :: niter_satadj = 5 ! number of iterations for saturation adj.
 
 !for testing
  real    :: tmp3,tmp4,tmp5,tmp6,tmp7,tmp8,sources_qr,sinks_qr,sources_qv,sinks_qv,sources_qc,  &
@@ -3137,13 +3159,13 @@ END subroutine p3_init
 
 !           Q_nuc = cons6*cdist1(i,k)*gamma(7.+mu_c(i,k))*exp(aimm*(273.15-t(i,k)))*dum**2
 !           N_nuc = cons5*cdist1(i,k)*gamma(mu_c(i,k)+4.)*exp(aimm*(273.15-t(i,k)))*dum
-          tmp1 = cdist1(i,k)*exp(aimm*(273.15-t(i,k)))
-          Q_nuc = cons6*gamma(7.+mu_c(i,k))*tmp1*dum**2
-          N_nuc = cons5*gamma(mu_c(i,k)+4.)*tmp1*dum
-!           tmpdbl1  = dexp(dble(aimm*(273.15-t(i,k))))
-!           tmpdbl2  = dble(dum)
-!           Q_nuc = cons6*cdist1(i,k)*gamma(7.+mu_c(i,k))*tmpdbl1*tmpdbl2**2
-!           N_nuc = cons5*cdist1(i,k)*gamma(mu_c(i,k)+4.)*tmpdbl1*tmpdbl2
+!          tmp1 = cdist1(i,k)*exp(aimm*(273.15-t(i,k)))
+!          Q_nuc = cons6*gamma(7.+mu_c(i,k))*tmp1*dum**2
+!          N_nuc = cons5*gamma(mu_c(i,k)+4.)*tmp1*dum
+           tmpdbl1  = dexp(dble(aimm*(273.15-t(i,k))))
+           tmpdbl2  = dble(dum)
+           Q_nuc = cons6*cdist1(i,k)*gamma(7.+mu_c(i,k))*tmpdbl1*tmpdbl2**2
+           N_nuc = cons5*cdist1(i,k)*gamma(mu_c(i,k)+4.)*tmpdbl1*tmpdbl2
 
 
           if (nCat>1) then
@@ -3759,7 +3781,7 @@ END subroutine p3_init
 
 
     !Limit total deposition (incl. nucleation) and sublimation to saturation adjustment  
-       qv_tmp = Qv_cld(k) + (-qcnuc-qcacc-qrcon-sum(qlcon)+qcevp+qrevp+sum(qlevp))*dt                              !qv after cond/evap      
+       qv_tmp = Qv_cld(k) + (-qcnuc-qccon-qrcon-sum(qlcon)+qcevp+qrevp+sum(qlevp))*dt                              !qv after cond/evap      
        t_tmp  = t(i,k) + (qcnuc+qccon+qrcon+sum(qlcon)-qcevp-qrevp-sum(qlevp))*xxlv(i,k)*inv_cp*dt                 !T after cond/evap       
        dumqvi = qv_sat(t_tmp,pres(i,k),1)
        qdep_satadj = (qv_tmp-dumqvi)/(1.+xxls(i,k)**2*dumqvi/(cp*rv*t_tmp**2))*odt*SCF(k)
@@ -3895,6 +3917,7 @@ END subroutine p3_init
           ncnuc  = ncnuc*ratio
        endif
 
+
 !------------------------------------------------------------------------------------------!
 ! Update ice reflectivity
 
@@ -3950,13 +3973,13 @@ END subroutine p3_init
 
             !estimate moment3 from updated qitot (dum2).
              if (qitot(i,k,iice).ge.qsmall) then
-               if (log_predictfliq) then
-                 !assume linear change with Filiq for density (rho_plus=rho_minus+dFiliq*rho-water)
-                 dumm3(iice) = 6./((f1pr16+(dumml(iice)/dumm3(iice)-qiliq(i,k,iice)/qitot(i,k,iice))*1000.)*pi)*dumm3(iice)
-               else
+             !  if (log_predictfliq) then
+             !    !assume linear change with Filiq for density (rho_plus=rho_minus+dFiliq*rho-water)
+             !    dumm3(iice) = 6./((f1pr16+(dumml(iice)/dumm3(iice)-qiliq(i,k,iice)/qitot(i,k,iice))*1000.)*pi)*dumm3(iice)
+             !  else
                  !need to use mean ice density (f1pr16) from beginning of step, since the updated value is not available
                  dumm3(iice) = 6./(f1pr16*pi)*dumm3(iice)
-               endif
+             !  endif
              else
                !if there is no existing ice, assume an ice density of 900 kg m-3
                 dumm3(iice) = 6./(900.*pi)*dumm3(iice)
@@ -4702,7 +4725,7 @@ END subroutine p3_init
                          call find_lookupTable_indices_1c(dumzz,dum6,zsize,qitot(i,k,iice),mu_i)
                          call access_lookup_table_3mom(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,f1pr16) ! find actual bulk density
                          dum1z =  6./(f1pr16*pi)*qitot(i,k,iice)  !estimate of moment3
-		      enddo
+		              enddo
 
                       !call find_lookupTable_indices_1c(dumzz,dum6,zsize,qitot(i,k,iice),zitot(i,k,iice)) !HM moved to above
 
@@ -4916,7 +4939,7 @@ END subroutine p3_init
 
     enddo k_loop_fz
 
-    
+
 ! note: This debug check is commented since small negative qx,nx values are possible here
 !       (but get adjusted below).  If uncommented, caution in interpreting results.
 !
@@ -5032,7 +5055,7 @@ END subroutine p3_init
                    call find_lookupTable_indices_1c(dumzz,dum6,zsize,qitot(i,k,iice),mu_i)
                    call access_lookup_table_3mom(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,f1pr16) ! find actual bulk density
                    dum1z =  6./(f1pr16*pi)*qitot(i,k,iice)  !estimate of moment3
-		enddo
+		        enddo
 
 
                 ! call find_lookupTable_indices_1c(dumzz,dum6,zsize,qitot(i,k,iice),zitot(i,k,iice)) !HM moved to above
@@ -5123,12 +5146,6 @@ END subroutine p3_init
      ! sum ze components and convert to dBZ
      ! for reflectivity paper
        diag_ze(i,k) = 10.*log10((ze_ice2(i,k)+ze_rain(i,k))*1.e+18)
-       diag_3d(i,k,1) = 10.*log10((ze_ice2(i,k))*1.e+18)
-
-       diag_3d(i,k,2) = 10.*log10((ze_ice(i,k)+ze_rain(i,k))*1.e+18)
-       diag_3d(i,k,3) = 10.*log10((ze_ice(i,k))*1.e+18)
-
-       diag_3d(i,k,4) = 10.*log10((ze_rain(i,k))*1.e+18)
 
      ! if qr is very small then set Nr to 0 (needs to be done here after call
      ! to ice lookup table because a minimum Nr of nsmall will be set otherwise even if qr=0)
@@ -5237,12 +5254,13 @@ END subroutine p3_init
     else
        do k = kbot,ktop,kdir
           SCF_out(i,k) = 0.
-          if (qc(i,k).ge.qsmall .and. sup(i,k).gt.1.e-6) SCF_out(i,k) = 1.
+          if (qc(i,k).ge.qsmall) SCF_out(i,k) = 1.
           do iice = 1,nCat
-             if (qitot(i,k,iice).ge.qsmall .and. diag_effi(i,k,iice).lt.100.e-6) SCF_out(i,k) = 1.
+             if (qitot(i,k,iice).ge.qsmall) SCF_out(i,k) = 1.
           enddo
        enddo
     endif
+
 
     if (debug_on) then
        location_ind = 900
@@ -5300,6 +5318,42 @@ END subroutine p3_init
        enddo !k-loop
 
     endif  !if present(diag_vis)
+
+   
+! Testing Cholette Jan. 2022
+! to remove any supersaturation w.r.t to water at the end of P3
+   if (log_liqsatadj) then
+     l_satadj:  do k = kbot,ktop,kdir
+       
+         t_tmp   = th(i,k)*(pres(i,k)*1.e-5)**(rd*inv_cp)
+         qv_tmp  = qv(i,k)
+         dumqvs  = qv_sat(t_tmp,pres(i,k),0)
+         diag_3d(i,k,17) = qv_tmp/dumqvs
+         if (qv_tmp .gt. dumqvs) then
+              dum     = (qv_tmp-dumqvs)/(1.+xxlv(i,k)**2*dumqvs/(cp*rv*t_tmp**2))*odt
+              qc(i,k) = qc(i,k)+dum*dt
+              qv(i,k) = qv(i,k)-dum*dt
+              th(i,k) = th(i,k) + 1./((pres(i,k)*1.e-5)**(rd*inv_cp))*(dum*xxlv(i,k)*inv_cp)*dt
+         endif
+      enddo l_satadj
+    endif 
+
+! note: This debug check is commented since small negative qx,nx values are possible here
+!       (but get adjusted below).  If uncommented, caution in interpreting results.
+!
+!   if (debug_on) then
+!      location_ind = 700
+!      force_abort  = debug_ABORT
+!      if (log_3momentIce) then
+!         call check_values(qv(i,:),T(i,:),qc(i,:),nc(i,:),qr(i,:),nr(i,:),qitot(i,:,:), &
+!                qirim(i,:,:),nitot(i,:,:),birim(i,:,:),i,it,force_abort,location_ind,   &
+!                Zitot=zitot(i,:,:))
+!      else
+!         call check_values(qv(i,:),T(i,:),qc(i,:),nc(i,:),qr(i,:),nr(i,:),qitot(i,:,:), &
+!                qirim(i,:,:),nitot(i,:,:),birim(i,:,:),i,it,force_abort,location_ind)
+!      endif
+!      if (global_status /= STATUS_OK) return
+!   endif
 
 !.....................................................
 
@@ -5528,24 +5582,63 @@ END subroutine p3_init
 ! output only
 !      do i = its,ite
 !       do k = kbot,ktop,kdir
+!   !..............................................
+!   !Diagnostics -- mean profiles:
+!      diag_3d(i,k,9)  = qv(i,k)
+!      diag_3d(i,k,10) = SCF_out(i,k)
+!      diag_3d(i,k,11) = SPF(k)
+!      diag_3d(i,k,12) = SPF_clr(k)
+!      diag_3d(i,k,13) = Qv_cld(k)
+!      diag_3d(i,k,14) = Qv_clr(k)
+!
+!      ! output for tdiag
+!        diag_3d(i,k,1) = diag_effc(i,k)
+!        !diag_3d(i,k,2) = diag_effr(i,k)
+!        diag_3d(i,k,3) = diag_vmi(i,k,1)
+!        diag_3d(i,k,4) = diag_effi(i,k,1)
+!        diag_3d(i,k,5) = diag_di(i,k,1)
+!        diag_3d(i,k,6) = diag_rhoi(i,k,1)
 !     !calculate temperature from theta
-!       t(i,k) = th(i,k)*(pres(i,k)*1.e-5)**(rd*inv_cp)
-!     !calculate some time-varying atmospheric variables
-!       qvs(i,k) = qv_sat(t(i,k),pres(i,k),0)
-!       if (qc(i,k).gt.1.e-5) then
-!          write(6,'(a10,2i5,5e15.5)')'after',i,k,qc(i,k),qr(i,k),nc(i,k),  &
-!           qv(i,k)/qvs(i,k),uzpl(i,k)
-!       end if
-!       end do
-!      enddo !i-loop
-!   !saturation ratio at end of microphysics step:
-!    do i = its,ite
-!     do k = kbot,ktop,kdir
 !        dum1     = th(i,k)*(pres(i,k)*1.e-5)**(rd*inv_cp)   !i.e. t(i,k)
-!        qvs(i,k) = qv_sat(dumt,pres(i,k),0)
-!        diag_3d(i,k,2) = qv(i,k)/qvs(i,k)
-!     enddo
-!    enddo !i-loop
+!        diag_3d(i,k,15) = dum1-273.15
+!        !diag_3d(i,k,17) = qv(i,k)
+!        diag_3d(i,k,16) = qv(i,k)/(1.+qv(i,k)) !specific humidity
+!     !calculate some time-varying atmospheric variables
+!        dumqvs = qv_sat(dum1,pres(i,k),0)
+!        diag_3d(i,k,18) = qv(i,k)/dumqvs
+!        temp2    = FOEWAF(dum1)
+!        temp2    = aerk1w*exp(temp2)
+!        diag_3d(i,k,20) = FOHRX(qv(i,k)/(1.+qv(i,k)),pres(i,k),temp2)
+!
+!        dumqvi = qv_sat(dum1,pres(i,k),1)
+!        diag_3d(i,k,19) = qv(i,k)/dumqvi
+!
+!!      !other diagnostic for tdiag
+!!        if (qr(i,k)>qsmall .and. nr(i,k)>nsmall) then
+!!           diag_3d(i,k,19) = (6.*qr(i,k)/(pi*rhow*nr(i,k)))**thrd   !mean-mass diameter
+!!        endif
+!
+!        if (.not.log_predictfliq) then
+!         if (qitot(i,k,1).ge.qsmall) then
+!             diag_3d(i,k,7) = qirim(i,k,1)/qitot(i,k,1)
+!         else
+!             diag_3d(i,k,7) = 0.
+!         endif
+!        else
+!          if (qitot(i,k,1).ge.qsmall) then
+!             diag_3d(i,k,8) = qiliq(i,k,1)/qitot(i,k,1)
+!         else
+!             diag_3d(i,k,8) = 0.
+!         endif
+!         if ((qitot(i,k,1)-qiliq(i,k,1)).ge.qsmall) then
+!             diag_3d(i,k,7) = qirim(i,k,1)/(qitot(i,k,1)-qiliq(i,k,1))
+!         else
+!             diag_3d(i,k,7) = 0.
+!         endif
+!        endif
+!       enddo !k-loop
+!      enddo !i-loop
+
 !.....................................................................................
 
  return
@@ -7583,8 +7676,18 @@ SUBROUTINE access_lookup_table_coll_3mom(dumzz,dumjj,dumii,dumll,dumj,dumi,index
 
  !------------------
 
- e_pres = polysvp1(t_atm,i_wrt)
- qv_sat = ep_2*e_pres/max(1.e-3,(p_atm-e_pres))
+#ifdef ECCCGEM
+
+  if (i_wrt.eq.1) e_pres = foew(t_atm)
+  if (i_wrt.eq.0) e_pres = foewa(t_atm)
+  qv_sat = ep_2*e_pres/max(1.e-3,(p_atm-e_pres))
+
+#else
+  e_pres = polysvp1(t_atm,i_wrt)
+  qv_sat = ep_2*e_pres/max(1.e-3,(p_atm-e_pres))
+
+#endif
+
 
  return
  end function qv_sat
