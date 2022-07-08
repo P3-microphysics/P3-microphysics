@@ -468,6 +468,7 @@ subroutine columnmodel
            call advec(Qg1(:,:,iice),w,H,H0,Hcld,nk,nkcld,dt)
            call advec(Ni1(:,:,iice),w,H,H0,Hcld,nk,nkcld,dt)
            call advec(Bg1(:,:,iice),w,H,H0,Hcld,nk,nkcld,dt)
+           call advec(Zi1(:,:,iice),w,H,H0,Hcld,nk,nkcld,dt)
         enddo
 
 
