@@ -1,4 +1,4 @@
-subroutine columnmodel
+ subroutine columnmodel
 
 !----------------------------------------------------------------------------!
 !  1-D kinematic cloud model driver for testing microphysics scheme.
@@ -35,6 +35,7 @@ subroutine columnmodel
 ! -----   ----
 !  QI     qitot  - total (deposition + rime) ice mass mixing ratio
 !  QG     qrim   - rime ice mass mixing ratio
+!  QL     qiliq_in  - liquid on ice mass mixing ratio (optional)
 !  NI     nitot  - ice number mixing ratio
 !  BG     birim  - rime volume mixing ratio
 !
@@ -60,9 +61,6 @@ subroutine columnmodel
 
       parameter (AMPA    = 2.     )     ! initial central updraft speed [m s-1] (evolving only)
       parameter (AMPB    = 5.     )     ! maximum central updraft speed [m s-1]
-!       parameter (Htop0   = 5000.  )     ! initial height of cloud top   [m]
-!       parameter (tscale1 = 5400.  )     ! period for evolving AMPB      [s]
-!       parameter (tscale2 = 5400.  )     ! period for evolving Hcld      [s]
       parameter (Htop0   = 5000.  )     ! initial height of cloud top   [m]
       parameter (tscale1 = 5400.  )     ! period for evolving AMPB      [s]
       parameter (tscale2 = 5400.  )     ! period for evolving Hcld      [s]
@@ -73,16 +71,16 @@ subroutine columnmodel
       parameter (dt      = 10.    )     ! time step                     [s]
       parameter (ttotmin = 90     )     ! total integration time	[min]
 
-      integer, parameter :: nCat     =  2
+      integer, parameter :: n_iceCat     =  1
       logical, parameter :: prog_nc_ssat = .true.
      !logical, parameter :: nk_BOTTOM    = .true.   !.T. --> nk at bottom
       logical, parameter :: typeDiags_ON = .true.   ! switch for hydrometeor/precip type diagnostics
       logical, parameter :: debug_on     = .true.   ! switch for run-time check-values in p3_main
 
       logical, parameter :: scpf_on      = .false.  ! switch for cloud fraction parameterization (SCPF)
-!     logical, parameter :: SCPF_on      = .true.    ! switch for cloud fraction parameterization
       real,    parameter :: scpf_pfrac   = 1.        ! precipitation fraction factor (SCPF)
       real,    parameter :: scpf_resfact = 1.        ! model resolution factor (SCPF)
+
 
       real, parameter    :: clbfact_dep = 1.0       !calibration factor for deposition
       real, parameter    :: clbfact_sub = 1.0       !calibration factor for sublimation
@@ -90,8 +88,9 @@ subroutine columnmodel
      character(len=16), parameter :: model = 'KIN1D'
 !    character(len=16), parameter :: model = 'WRF'  !for level tests
 
-     logical, parameter           :: trplMomIce   = .false.
-     logical, parameter           :: abort_on_err = .true.
+     logical, parameter           :: PredictFl    = .true.
+     logical, parameter           :: trplMomIce   = .true.
+     logical, parameter           :: abort_on_err = .false.
 
      character(len=1024), parameter :: LT_path  = './lookup_tables'
 !    character(len=1024), parameter :: LT_path = '/users/milbrand/mp_p3/lookupTables/tables'  ! override default
@@ -154,16 +153,17 @@ subroutine columnmodel
 
     ! Prognostic hydrometeor variables:
       !liquid:
-      real, dimension(ni,nk)      :: Qc0,Nc0,Qr0,Nr0,ssat0, Qc1,Nc1,Qr1,Nr1,ssat1
-      real, dimension(ni,nk,nCat) :: Qi0,Qg0,Ni0,Bg0,Zi0, Qi1,Qg1,Ni1,Bg1,Zi1
+      real, dimension(ni,nk) :: Qc0,Qc1,Nc0,Nc1,Qr0,Qr1,Nr0,Nr1,ssat1  !ssat0
+      !ice:
+      real, dimension(ni,nk,n_iceCat) :: Qi0,Qi1,Qg0,Qg1,Ni0,Zi0,Ni1,Bg0,Bg1,Zi1,Ql1,Ql0
 
     ! Source-Sink term arrays:
       integer, parameter               :: n_diag_2d = 20
-      integer, parameter               :: n_diag_3d = 20
+      integer, parameter               :: n_diag_3d = 38
       real, dimension(ni,n_diag_2d)    :: diag_2d     !user-defined 2D diagnostic arrays (for output)
       real, dimension(ni,nk,n_diag_3d) :: diag_3d     !user-defined 3D diagnostic arrays (for output)
-      real, dimension(ni,nk,nCat)      :: diag_reffi,diag_vmi,diag_di,diag_rhoi,diag_dhmax,  &
-                                          diag_lami,diag_mui
+      real, dimension(ni,nk,n_iceCat)  :: diag_reffi,diag_vmi,diag_di,diag_rhoi,diag_dhmax,  &
+                                          diag_lami,diag_mui,diag_vni,diag_vzi
       real, dimension(ni,nk)           :: diag_reffc
 
     ! Precipitation rates:
@@ -182,13 +182,9 @@ subroutine columnmodel
       integer, dimension(200)  :: kskiplevs
 !---------------------------------------------------------------------------------------!
 
-      print*
-      print*, '** Remember to use compiler debug options for testing new code (modfify Makefile appropriately) **'
-      print*
-
-      diag_dhmax = 0.
-
       open (unit=30, file='out_p3.dat')
+! for bit-pattern
+!      open (unit=30, file='out_p3_bit.dat')
 
       its = 1
       ite = 1
@@ -203,6 +199,7 @@ subroutine columnmodel
 
       H= 12000.
 !     open(unit=12, file='./soundings/snd_input.Alta_3.data')   !grnd=  0m
+!     open(unit=12, file='./Tsfc2.txt')
       open(unit=12, file='./soundings/snd_input.KOUN_00z1june2008.data')
 
 !  Input uninterpolated sounding data:
@@ -213,11 +210,12 @@ subroutine columnmodel
       read(12,*)
       read(12,*)
       do lv=1,nlvs
-!        read(12,*) dum,Pin(lv),Zin(lv),TTin(lv),TDin(lv)
+         !read(12,*) dum,Pin(lv),Zin(lv),TTin(lv),TDin(lv)
          read(12,*) Pin(lv),Zin(lv),TTin(lv),TDin(lv)   !new
          TTin(lv) = TTin(lv) + T0		        !convert from C to Kelvins
-         if(sndcase=='ALBERTA') TDin(lv) = TDin(lv) + T0 !        " "
-         if(sndcase=='HARP')    TDin(lv) = TDin(lv)      !'TD' is actually Qv
+	 TDin(lv) = TDin(lv) + T0
+         !if(sndcase=='ALBERTA') TDin(lv) = TDin(lv) + T0 !        " "
+         !if(sndcase=='HARP')    TDin(lv) = TDin(lv)      !'TD' is actually Qv
          Pin(lv)  = Pin(lv)*100                          !convert from mb to Pa
       enddo
       close(12)
@@ -225,9 +223,9 @@ subroutine columnmodel
 !-- Set up vertical level (evenly-spaced z-levels)
 !       RE-CODE if necessary
 
-!-- Read in levels from file:
-!     open(unit=20, file='./levels/levs_86.dat')
-!     open(unit=20, file='./levels/levs_62.dat')
+!!-- Read in levels from file:
+!!     open(unit=20, file='./levels/levs_86.dat')
+!!     open(unit=20, file='./levels/levs_62.dat')
       open(unit=20, file='./levels/levs_41.dat')
 
       read(20,*) nk_read
@@ -257,6 +255,18 @@ subroutine columnmodel
          dz2d(1,1) = dz2d(1,2)  !copy second highest DZ to highest
       endif
 
+!  Set up vertical level (evenly-spaced z-levels)
+!      z(nk) = Zin(1)
+!      delz = (H-Zin(1))/(nk-1)
+!      do k=1,nk
+!         z(k) = Zin(1) + delz*(nk-k)
+!         dz2d(1,k) = delz
+!      enddo
+!      dz = z(1)-z(2)
+!      dzsq = dz**2.
+!      H0= z(nk)
+!      GZ(1,:)= z*GRAV
+
 !  Interpolate p,tt,td from sounding data and initialize Q[x]:
       do k=1,nk
          call vertint2b( p(k),z(k),Pin, Zin,nk,nlvs)
@@ -279,13 +289,13 @@ subroutine columnmodel
 
          Qi0(1,k,:) = 0.   !qitot (total ice mass mixing ratio)
          Qg0(1,k,:) = 0.   !qirim (riming mass mixing ratio)
+         Ql0(1,k,:) = 0.   !qiliq (liquid on ice mass mixing ratio)
          Ni0(1,k,:) = 0.   !nitot (number mixing ratio)
          Bg0(1,k,:) = 0.   !birim (rime volume mixing ratio)
          Zi0(1,k,:) = 0.   !zitot (reflectivity mixing ratio)
 
          tt0(1,k) = tt(k)
          tt1(1,k) = tt(k)
-! print*, 'interp: ',tt(k),tt1(1,k)         
 
          Dmx(k) = 0.
       enddo
@@ -297,7 +307,7 @@ subroutine columnmodel
       enddo
 
 !  Define initial w-profiles (and profiles related to w):
-      H0 = 0.  !TEST
+      H0 = 0.
       Hcld = H
       nkcld= nk
       if (.not.EVOLVING) then
@@ -376,6 +386,7 @@ subroutine columnmodel
 
          Qi1(1,k,:)= Qi0(1,k,:)
          Qg1(1,k,:)= Qg0(1,k,:)
+         Ql1(1,k,:)= Ql0(1,k,:)
          Ni1(1,k,:)= Ni0(1,k,:)
          Bg1(1,k,:)= Bg0(1,k,:)
          Zi1(1,k,:)= Zi0(1,k,:)
@@ -388,23 +399,23 @@ subroutine columnmodel
 ! !       write(30,'(1f4.0)') dt
 ! !       write(30,'(1i4)')   nt
 ! !       write(30,'(1i4)')   nk
-! !       write(30,'(1i4)')   nCa[
+! !       write(30,'(1i4)')   n_iceCat
 ! !     !==
 
-!     call P3_INIT('./lookup_tables/',nCat)                  !v2.8.4
-!     call P3_INIT('./lookup_tables/',nCat,stat)             !v2.9.1, v2.10.1
-!     call P3_INIT('./lookup_tables/',nCat,1.,1.)            !v3.0.0
-!     call P3_INIT('./lookup_tables/',nCat,stat)             !v2.9.1, v2.10.1, v3.*
-!     call P3_INIT('./lookup_tables/',nCat,model,stat,abort_on_err)   !v3.1.6+
-!     call P3_INIT('./lookup_tables/',nCat,trplMomIce,stat)  !v4.0.0
-!     call P3_INIT('./lookup_tables/',override_path=my_LT_path,nCat,trplMomIce,stat)  !v4.0.0_b38
-      call P3_INIT(LT_path,nCat,trplMomIce,model,stat,abort_on_err)      !v4.0.x
+!     call P3_INIT('./lookup_tables/',n_iceCat)                  !v2.8.4
+!     call P3_INIT('./lookup_tables/',n_iceCat,stat)             !v2.9.1, v2.10.1
+!     call P3_INIT('./lookup_tables/',n_iceCat,1.,1.)            !v3.0.0
+!     call P3_INIT('./lookup_tables/',n_iceCat,stat)             !v2.9.1, v2.10.1, v3.1.0, v3.1.1
+!     call P3_INIT('./lookup_tables/',n_iceCat,trplMomIce,stat)  !v4.0.0
+!     call P3_INIT('./lookup_tables/',override_path=my_LT_path,n_iceCat,trplMomIce,stat)  !v4.0.0_b38
+
+      call P3_INIT(LT_path,n_iceCat,trplMomIce,model,stat,abort_on_err)      !v4.0.0_b42
 
 
       do k=1,nk
-         write(100,'(1f10.0, 1f8.1, 7e16.6, 1f10.2, 1f10.1, 1f10.3)') z(k),diag_ZET(1,k),          &
+         write(100,'(1f10.0, 1f8.1, 8e16.6, 1f10.2, 1f10.1, 1f10.3)') z(k),diag_ZET(1,k),          &
                     Qc1(1,k), Nc1(1,k), Qr1(1,k), Qi1(1,k,1), Qg1(1,k,1), Bg1(1,k,1), Ni1(1,k,1),  &
-                     w(1,k)  , tt1(1,k), scpf_cldfrac(1,k)
+                    Ql1(1,k,1), w(1,k)  , tt1(1,k), scpf_cldfrac(1,k)
 
 !        write(200,'(1i6,1f10.0,1f8.1,6e16.6,2f10.2,2e16.6)') k,z(k),diag_ZET(1,k),Qr1(1,k), Nr1(1,k)
 !        write(300,'(1f10.0,1f8.1,20e16.6)') z(k),diag_ZET(1,k),Qi1(1,k,1),Zi1(1,k,1)
@@ -423,11 +434,25 @@ subroutine columnmodel
 
 ! !         write(30,'(1f8.0,3f10.3)') tsec,prt_liq(1),prt_sol(1),maxval(w)
 
+! ******* CHO ***********
+! Initialize de la neige au top (qi0)
+!	do k = 2,2
+!	   Qi1(1,k,:) = 0.000265
+!	   Qg1(1,k,:) = 0.00017
+!	   Bg1(1,k,:) = Qg1(1,k,:)/500.
+!	   Ni1(1,k,:) = 5000
+!
+!	   Qi0(1,k,:) = Qi1(1,k,:)
+!	   Qg0(1,k,:) = Qg1(1,k,:)
+!	   Bg0(1,k,:) = Bg1(1,k,:)
+!	   Ni0(1,k,:) = Ni1(1,k,:)
+!	enddo
+! ******* CHO ***********
+
 !  tsec-dependent profiles: (evolving updraft only)
         if (EVOLVING) then
           wmaxH= AMPA + (AMPB-AMPA)*0.5*(cos((tsec/tscale1)*2.*pi+pi)+1.)
           if (tsec .gt. 3600.) wmaxH= 0.
-!           if (tsec .gt. tscale1) wmaxH= 0.
 
           Hcld=  Htop0+ (H-Htop0)*0.5*(cos((tsec/tscale2)*2.*pi+pi)+1.)
           k=1  !Find nkcld:
@@ -445,12 +470,6 @@ subroutine columnmodel
 
 !       goto 300  !skip advection (testing only)
 
-! print*, 'AA: '
-! print*, 'tt1: ',tt1
-! print*, 'w: ',w
-! print*, 'H0: ',H0
-! print*, 'others: ',H,H0,Hcld,nk,nkcld,dt
-
         call advec(tt1,w,H,H0,Hcld,nk,nkcld,dt) !T-adv
         call advec(Qv1,w,H,H0,Hcld,nk,nkcld,dt)
         call advec(Qc1,w,H,H0,Hcld,nk,nkcld,dt)
@@ -459,15 +478,13 @@ subroutine columnmodel
         call advec(Nr1,w,H,H0,Hcld,nk,nkcld,dt)
 !       call advec(ssat1,w,H,H0,Hcld,nk,nkcld,dt)
 
-! print*, 'BB: '
-! print*, 'tt1: ',tt1
-! print*, 'w: ',w
-
-        do iice = 1,nCat
+        do iice = 1,n_iceCat
            call advec(Qi1(:,:,iice),w,H,H0,Hcld,nk,nkcld,dt)
            call advec(Qg1(:,:,iice),w,H,H0,Hcld,nk,nkcld,dt)
+           call advec(Ql1(:,:,iice),w,H,H0,Hcld,nk,nkcld,dt)
            call advec(Ni1(:,:,iice),w,H,H0,Hcld,nk,nkcld,dt)
            call advec(Bg1(:,:,iice),w,H,H0,Hcld,nk,nkcld,dt)
+           call advec(Zi1(:,:,iice),w,H,H0,Hcld,nk,nkcld,dt)
         enddo
 
 
@@ -481,9 +498,10 @@ subroutine columnmodel
 !         ssat1(1,k)= ssat1(1,k)-ssat0(1,k)*(DIV(k)+COMP(k))*dt
 
 
-          do iice = 1,nCat
+          do iice = 1,n_iceCat
              Qi1(1,k,iice)= amax1(0., Qi1(1,k,iice)-Qi0(1,k,iice)*(DIV(k)+COMP(k))*dt)
              Qg1(1,k,iice)= amax1(0., Qg1(1,k,iice)-Qg0(1,k,iice)*(DIV(k)+COMP(k))*dt)
+             Ql1(1,k,iice)= amax1(0., Ql1(1,k,iice)-Ql0(1,k,iice)*(DIV(k)+COMP(k))*dt)
              Bg1(1,k,iice)= amax1(0., Bg1(1,k,iice)-Bg0(1,k,iice)*(DIV(k)+COMP(k))*dt)
              Ni1(1,k,iice)= amax1(0., Ni1(1,k,iice)-Ni0(1,k,iice)*(DIV(k)+COMP(k))*dt)
              Zi1(1,k,iice)= amax1(0., Zi1(1,k,iice)-Zi0(1,k,iice)*(DIV(k)+COMP(k))*dt)
@@ -503,7 +521,7 @@ subroutine columnmodel
 
 !v2.8.4, v2.9.1:
 !              CALL P3_MAIN(Qc1,Nc1,Qr1,Nr1,th2d0,th2d1,Qv0,Qv1,dt,Qi1,Qg1,Ni1,Bg1,ssat1, &
-!                           w,p2d,dz2d,step,prt_liq,prt_sol,its,ite,kts,kte,nCat,     &
+!                           w,p2d,dz2d,step,prt_liq,prt_sol,its,ite,kts,kte,n_iceCat,     &
 !                           diag_ZET,diag_reffc,diag_reffi,diag_vmi,diag_di,diag_rhoi,    &
 !                           n_diag_2d,diag_2d,n_diag_3d,diag_3d,log_predictNc,            &
 !                           typeDiags_ON,trim(model),clbfact_dep,clbfact_sub,debug_on,    &
@@ -512,7 +530,7 @@ subroutine columnmodel
 
 !v2.10.1:
 !              CALL P3_MAIN(Qc1,Nc1,Qr1,Nr1,th2d0,th2d1,Qv0,Qv1,dt,Qi1,Qg1,Ni1,Bg1,ssat1, &
-!                           w,p2d,dz2d,step,prt_liq,prt_sol,its,ite,kts,kte,nCat,         &
+!                           w,p2d,dz2d,step,prt_liq,prt_sol,its,ite,kts,kte,n_iceCat,     &
 !                           diag_ZET,diag_reffc,diag_reffi,diag_vmi,diag_di,diag_rhoi,    &
 !                           n_diag_2d,diag_2d,n_diag_3d,diag_3d,log_predictNc,            &
 !                           typeDiags_ON,trim(model),clbfact_dep,clbfact_sub,debug_on,    &
@@ -522,12 +540,12 @@ subroutine columnmodel
 !v3.0.0
 !              CALL P3_MAIN(Qc1,Nc1,Qr1,Nr1,th2d0,th2d1,Qv0,Qv1,dt,Qi1,Qg1,Ni1,Bg1,ssat1, &
 !                           w,p2d,dz2d,step,prt_liq,prt_sol,its,ite,kts,kte,.true.,       &
-!                           nCat,diag_ZET,diag_reffc,diag_reffi,n_diag_2d,diag_2d,        &
+!                           n_iceCat,diag_ZET,diag_reffc,diag_reffi,n_diag_2d,diag_2d,    &
 !                           n_diag_3d,diag_3d,log_predictNc,SCPF_on,cldfrac)
 
-!v3.1.0+
+!v3.1.0, v3.1.1
 !              CALL P3_MAIN(Qc1,Nc1,Qr1,Nr1,th2d0,th2d1,Qv0,Qv1,dt,Qi1,Qg1,Ni1,Bg1,ssat1, &
-!                           w,p2d,dz2d,step,prt_liq,prt_sol,its,ite,kts,kte,nCat,         &
+!                           w,p2d,dz2d,step,prt_liq,prt_sol,its,ite,kts,kte,n_iceCat,     &
 !                           diag_ZET,diag_reffc,diag_reffi,diag_vmi,diag_di,diag_rhoi,    &
 !                           n_diag_2d,diag_2d,n_diag_3d,diag_3d,log_predictNc,            &
 !                           typeDiags_ON,trim(model),clbfact_dep,clbfact_sub,debug_on,    &
@@ -535,36 +553,53 @@ subroutine columnmodel
 !                           prt_drzl,prt_rain,prt_crys,prt_snow,prt_grpl,prt_pell,        &
 !                           prt_hail,prt_sndp,qi_type)
 
-!v4.0.0
-
-! print*, 'BEFORE MICRO: '
-! print*, 'Qv0: ',Qv0
-! print*, 'Qv1: ',Qv1
-! print*, 'tt0: ',tt0
-! print*, 'tt1: ',tt1
-! print*, 'th2d0: ',th2d0
-! print*, 'th2d1: ',th2d1
+!v5.0.7
 
           if (.not. trplMomIce) then
 
-             CALL P3_MAIN(Qc1,Nc1,Qr1,Nr1,th2d0,th2d1,Qv0,Qv1,dt,Qi1,Qg1,Ni1,Bg1,ssat1, &
-                          w,p2d,dz2d,step,prt_liq,prt_sol,its,ite,kts,kte,nCat,         &
-                          diag_ZET,diag_reffc,diag_reffi,diag_vmi,diag_di,diag_rhoi,    &
-                          n_diag_2d,diag_2d,n_diag_3d,diag_3d,log_predictNc,            &
-                          typeDiags_ON,trim(model),clbfact_dep,clbfact_sub,debug_on,    &
-                          scpf_on,scpf_pfrac,scpf_resfact,scpf_cldfrac,                 &
-                          prt_drzl   = prt_drzl,   &
-                          prt_rain   = prt_rain,   &
-                          prt_crys   = prt_crys,   &
-                          prt_snow   = prt_snow,   &
-                          prt_grpl   = prt_grpl,   &
-                          prt_pell   = prt_pell,   &
-                          prt_hail   = prt_hail,   &
-                          prt_sndp   = prt_sndp,   &
-                          qi_type    = qi_type,    &
-                          diag_dhmax = diag_dhmax, &
-                          diag_lami  = diag_lami,  &
-                          diag_mui   = diag_mui)
+            if (.not. PredictFl) then
+
+                 CALL P3_MAIN(Qc1,Nc1,Qr1,Nr1,th2d0,th2d1,Qv0,Qv1,dt,Qi1,Qg1,Ni1,Bg1,ssat1,     &
+                              w,p2d,dz2d,step,prt_liq,prt_sol,its,ite,kts,kte,n_iceCat,         &
+                              diag_ZET,diag_reffc,diag_reffi,diag_vmi,diag_di,diag_rhoi,        &
+                              n_diag_2d,diag_2d,n_diag_3d,diag_3d,log_predictNc,                &
+                              typeDiags_ON,trim(model),clbfact_dep,clbfact_sub,debug_on,        &
+                              scpf_on,scpf_pfrac,scpf_resfact,scpf_cldfrac,                     &
+                              prt_drzl = prt_drzl,  &
+                              prt_rain = prt_rain,  &
+                              prt_crys = prt_crys,  &
+                              prt_snow = prt_snow,  &
+                              prt_grpl = prt_grpl,  &
+                              prt_pell = prt_pell,  &
+                              prt_hail = prt_hail,  &
+                              prt_sndp = prt_sndp,  &
+                              qi_type  = qi_type,   &
+                              diag_dhmax = diag_dhmax, &
+                              diag_lami  = diag_lami,  &
+                              diag_mui   = diag_mui)
+            else
+
+                 CALL P3_MAIN(Qc1,Nc1,Qr1,Nr1,th2d0,th2d1,Qv0,Qv1,dt,Qi1,Qg1,Ni1,Bg1,ssat1,     &
+                              w,p2d,dz2d,step,prt_liq,prt_sol,its,ite,kts,kte,n_iceCat,         &
+                              diag_ZET,diag_reffc,diag_reffi,diag_vmi,diag_di,diag_rhoi,        &
+                              n_diag_2d,diag_2d,n_diag_3d,diag_3d,log_predictNc,                &
+                              typeDiags_ON,trim(model),clbfact_dep,clbfact_sub,debug_on,        &
+                              scpf_on,scpf_pfrac,scpf_resfact,scpf_cldfrac,                     &
+                              prt_drzl = prt_drzl,  &
+                              prt_rain = prt_rain,  &
+                              prt_crys = prt_crys,  &
+                              prt_snow = prt_snow,  &
+                              prt_grpl = prt_grpl,  &
+                              prt_pell = prt_pell,  &
+                              prt_hail = prt_hail,  &
+                              prt_sndp = prt_sndp,  &
+                              qi_type  = qi_type,   &
+                              qiliq_in = Ql1,       &
+                              diag_dhmax = diag_dhmax, &
+                              diag_lami  = diag_lami,  &
+                              diag_mui   = diag_mui)
+            endif
+
 
           else
 
@@ -578,32 +613,58 @@ subroutine columnmodel
                endif
              enddo
 
-             CALL P3_MAIN(Qc1,Nc1,Qr1,Nr1,th2d0,th2d1,Qv0,Qv1,dt,Qi1,Qg1,Ni1,Bg1,ssat1, &
-                          w,p2d,dz2d,step,prt_liq,prt_sol,its,ite,kts,kte,nCat,         &
-                          diag_ZET,diag_reffc,diag_reffi,diag_vmi,diag_di,diag_rhoi,    &
-                          n_diag_2d,diag_2d,n_diag_3d,diag_3d,log_predictNc,            &
-                          typeDiags_ON,trim(model),clbfact_dep,clbfact_sub,debug_on,    &
-                          scpf_on,scpf_pfrac,scpf_resfact,scpf_cldfrac,                 &
-                          prt_drzl   = prt_drzl,   &
-                          prt_rain   = prt_rain,   &
-                          prt_crys   = prt_crys,   &
-                          prt_snow   = prt_snow,   &
-                          prt_grpl   = prt_grpl,   &
-                          prt_pell   = prt_pell,   &
-                          prt_hail   = prt_hail,   &
-                          prt_sndp   = prt_sndp,   &
-                          qi_type    = qi_type,    &
-                          zitot      = Zi1,        &   !***  <--- here is where it is different from above
-                          diag_dhmax = diag_dhmax, &
-                          diag_lami  = diag_lami,  &
-                          diag_mui   = diag_mui)
+
+             if (.not. PredictFl) then
+
+                CALL P3_MAIN(Qc1,Nc1,Qr1,Nr1,th2d0,th2d1,Qv0,Qv1,dt,Qi1,Qg1,Ni1,Bg1,ssat1,     &
+                             w,p2d,dz2d,step,prt_liq,prt_sol,its,ite,kts,kte,n_iceCat,         &
+                             diag_ZET,diag_reffc,diag_reffi,diag_vmi,diag_di,diag_rhoi,        &
+                             n_diag_2d,diag_2d,n_diag_3d,diag_3d,log_predictNc,                &
+                             typeDiags_ON,trim(model),clbfact_dep,clbfact_sub,debug_on,        &
+                             scpf_on,scpf_pfrac,scpf_resfact,scpf_cldfrac,                     &
+                             prt_drzl = prt_drzl,  &
+                             prt_rain = prt_rain,  &
+                             prt_crys = prt_crys,  &
+                             prt_snow = prt_snow,  &
+                             prt_grpl = prt_grpl,  &
+                             prt_pell = prt_pell,  &
+                             prt_hail = prt_hail,  &
+                             prt_sndp = prt_sndp,  &
+                             qi_type  = qi_type,   &
+                             zitot    = Zi1,       &
+                             diag_dhmax = diag_dhmax, &
+                             diag_lami  = diag_lami,  &
+                             diag_mui   = diag_mui)
+
+              else
+
+                CALL P3_MAIN(Qc1,Nc1,Qr1,Nr1,th2d0,th2d1,Qv0,Qv1,dt,Qi1,Qg1,Ni1,Bg1,ssat1,     &
+                             w,p2d,dz2d,step,prt_liq,prt_sol,its,ite,kts,kte,n_iceCat,         &
+                             diag_ZET,diag_reffc,diag_reffi,diag_vmi,diag_di,diag_rhoi,        &
+                             n_diag_2d,diag_2d,n_diag_3d,diag_3d,log_predictNc,                &
+                             typeDiags_ON,trim(model),clbfact_dep,clbfact_sub,debug_on,        &
+                             scpf_on,scpf_pfrac,scpf_resfact,scpf_cldfrac,                     &
+                             prt_drzl = prt_drzl,  &
+                             prt_rain = prt_rain,  &
+                             prt_crys = prt_crys,  &
+                             prt_snow = prt_snow,  &
+                             prt_grpl = prt_grpl,  &
+                             prt_pell = prt_pell,  &
+                             prt_hail = prt_hail,  &
+                             prt_sndp = prt_sndp,  &
+                             qi_type  = qi_type,   &
+                             zitot    = Zi1,       &
+                             qiliq_in = Ql1,       &
+                             diag_dhmax = diag_dhmax, &
+                             diag_lami  = diag_lami,  &
+                             diag_mui   = diag_mui)
+              endif
 
             !compute prog var from Z:    (for wrapper)
              Zi1(1,:,:) = (Ni1(1,:,:)*Zi1(1,:,:))**0.5
 
-          endif  !if trplMomIce
-          
-!------------------------------------------------------------------------!
+
+          endif
 
           tt1(1,:) = th2d1(1,:)*(p(:)*1.e-5)**0.286
 
@@ -619,6 +680,8 @@ subroutine columnmodel
          prt_hail = prt_hail*3.6e+6
          prt_sndp = prt_sndp*3.6e+6
 
+
+
 !*-----------------------------------------------------------------------*!
 
       ENDIF   !(microON)
@@ -633,6 +696,7 @@ subroutine columnmodel
             Nr0(1,k) = Nr1(1,k)
             Qi0(1,k,:) = Qi1(1,k,:)
             Qg0(1,k,:) = Qg1(1,k,:)
+            Ql0(1,k,:) = Ql1(1,k,:)
             Ni0(1,k,:) = Ni1(1,k,:)
             Bg0(1,k,:) = Bg1(1,k,:)
             Zi0(1,k,:) = Zi1(1,k,:)
@@ -661,15 +725,92 @@ subroutine columnmodel
 !    Precipitation rates at lowest level (surface):
          write(41,*) tminr, prt_liq(1), prt_sol(1), PR
 
+! if (tminr.eq.1) then
+!     print*, Zi1(1,2,1),Qi1(1,2,1),Ni1(1,2,1)
+! endif
 
-!        if (mod(tminr,float(1)) < 1.e-5) print*, 'time (min): ',tminr,(prt_liq(1) + prt_sol(1)),PR
-         if (mod(tminr,float(1)) < 1.e-5) print*, 'time (min): ',tminr,prt_liq(1), prt_sol(1),PR
-        !if (mod(tminr,float(5)) < 1.e-5) print*, 'time (min): ',tminr,(prt_liq(1) + prt_sol(1)),PR
+! if (tminr.eq.60) then
+! 	print*, Qr1(1,50)*100/(Qi1(1,50,1)+Qr1(1,50)), Qi1(1,50,1)*100/(Qi1(1,50,1)+Qr1(1,50))
+! endif
 
-        IF (mod(tminr,float(outfreq)) < 1.e-5) THEN  !output only every OUTFREQ min   !for TESING
- !       IF (.true.) then   !for output to 'plot_1d.pro'
+
+!	do k=2,50
+!	if (tminr.eq.30) then
+!		write(26,*) max(0.,Qg1(1,2,1)/(Qi1(1,2,1))), k, &
+!				max(0.,Qg1(1,k,1)/(Qi1(1,k,1))), &
+!				tt1(1,k)-T0,diag_vmi(1,k,1),diag_rhoi(1,k,1),diag_di(1,k,1)
+!	endif
+!	enddo
+
+!	do k=2,50
+!	if (tminr.eq.45) then
+!		write(36,*) max(0.,Qg1(1,2,1)/(Qi1(1,2,1))), k,  &
+!				max(0.,Qg1(1,k,1)/(Qi1(1,k,1))), &
+!				tt1(1,k)-T0,diag_vmi(1,k,1),diag_rhoi(1,k,1),diag_di(1,k,1)
+!	endif
+!	enddo
+
+	
+!	do k=2,50
+!	if (tminr.eq.60) then
+!		write(28,*) max(0.,Qg1(1,2,1)/(Qi1(1,2,1))), k,  &
+!				max(0.,Qg1(1,k,1)/(Qi1(1,k,1))), &
+!				tt1(1,k)-T0,diag_vmi(1,k,1),diag_rhoi(1,k,1),diag_di(1,k,1)
+!	endif
+!	enddo
+
+        ! if (mod(tminr,float(1)) < 1.e-5) print*, 'time (min): ',tminr,(prt_liq(1) + prt_sol(1)),PR
+        ! if (mod(tminr,float(5)) < 1.e-5) print*, 'time (min): ',tminr,prt_sol(1),PR
+
+        ! if (mod(tminr,float(1)) < 1.e-5) print*, Qg1(1,50,1)*100/(Qi1(1,50,1)+Qr1(1,50)), &
+	!			Qr1(1,50)*100/(Qi1(1,50,1)+Qr1(1,50)), 			&
+	!			(Qi1(1,50,1)-Qg1(1,50,1))*100/(Qi1(1,50,1)+Qr1(1,50))
+
+
+         IF (mod(tminr,float(outfreq)) < 1.e-5) THEN  !output only every OUTFREQ min   !for TESING
+ 
+
+	!	write(27,*), tminr, Qg1(1,2,1)/(Qi1(1,2,1)), 	&
+	!			Qr1(1,50)*100/(Qi1(1,50,1)+Qr1(1,50)), 		&
+	!			Qi1(1,50,1)*100/(Qi1(1,50,1)+Qr1(1,50)),	&
+	!			(Qg1(1,50,1))*100/(Qi1(1,50,1)+Qr1(1,50))
 
 	   do k=1,nk
+
+!    Hydrometeors mass content profiles:
+
+! for bit-matching
+!              write(20,'(1i5,2f7.0,11f15.5)') k,tminr,z(k),rho(k),p2d(1,k),	        &
+!                        tt1(1,k)-T0, &
+!			Qr1(1,k)*10**8,Qg1(1,k,1)*10**8,	   		   	&
+!			Qi1(1,k,1)*10**8,Qv1(1,k),diag_vmi(1,k,1),                      &
+!			diag_rhoi(1,k,1),Qg1(1,k,1)/(Qi1(1,k,1))
+
+
+!              write(20,'(1i5,1f7.0,16f15.5)') k,z(k),rho(k),p2d(1,k),	        &
+!                        tt1(1,k)-T0, &
+!			Qr1(1,k)*10**8,Qg1(1,k,1)*10**8,Ql1(1,k,1)*10**8,	   	&
+!			Qi1(1,k,1)*10**8,Qv1(1,k),diag_vmi(1,k,1),                      &
+!			diag_rhoi(1,k,1),Qg1(1,k,1)/(Qi1(1,k,1)-Ql1(1,k,1)),            &
+!	                Ql1(1,k,1)/Qi1(1,k,1),Qc1(1,k)
+
+!	      write(24,'(1i5,1f7.0,5f10.5)') k,z(k),  		    	&
+!		     Qc1(1,k), Qr1(1,k), Qi1(1,k,1),		    	&
+!		     Qg1(1,k,1),Ql1(1,k,1)
+
+!diag_di(1,k,1),diag_rhoi(1,k,1),  &
+!                     Zi1(1,k,1)*10**8,diag_mui(1,k,1),diag_lami(1,k,1),       &
+!                     diag_ZET(1,k),Qg1(1,k,1)
+
+
+
+        !if (mod(tminr,float(1)) < 1.e-5) print*, 'time (min): ',tminr,(prt_liq(1) + prt_sol(1)),PR
+        !if (mod(tminr,float(5)) < 1.e-5) print*, 'time (min): ',tminr,(prt_liq(1) + prt_sol(1)),PR
+
+ !       IF (mod(tminr,float(outfreq)) < 1.e-5) THEN  !output only every OUTFREQ min   !for TESING
+ !       IF (.true.) then   !for output to 'plot_1d.pro'
+
+!	   do k=1,nk
 
 !              write(300+tmin,'(i4,2f8.0,2e16.6,10f10.2)') k,diag_ss3d(1,k,10),diag_ss3d(1,k,11),Qr1(1,k),Nr1(1,k), &
 !                 diag_ss3d(1,k,1),diag_ss3d(1,k,2),diag_ss3d(1,k,3)
@@ -680,11 +821,9 @@ subroutine columnmodel
 
 
 !    Hydrometeors mass content profiles:
-!             write(100+tmin,'(1f10.0, 1f8.1, 7e16.6, 1f10.2, 1f10.1, 1f10.3)') z(k),diag_ZET(1,k),             &
-!                    Qc1(1,k), Nc1(1,k), Qr1(1,k), Qi1(1,k,1), Qg1(1,k,1), Bg1(1,k,1), Ni1(1,k,1),  &
-!                    w(1,k)  , tt1(1,k), scpf_cldfrac(1,k)
-!             write(100+tmin,'(1f10.0, 1f8.1, 7e16.6, 1f10.2, 1f10.1, 1f10.3)') z(k),diag_ZET(1,k),             &
-!                    Qc1(1,k), Nc1(1,k), Qr1(1,k), Qi1(1,k,1), Qi1(1,k,2)
+!              write(100+tmin,'(1f10.0, 1f8.1, 7e16.6, 1f10.2, 1f10.1, 1f10.3)') z(k),diag_ZET(1,k),             &
+!                     Qc1(1,k), Nc1(1,k), Qr1(1,k), Qi1(1,k,1), Qg1(1,k,1), Bg1(1,k,1), Ni1(1,k,1),  &
+!                     w(1,k)  , tt1(1,k), scpf_cldfrac(1,k)
 
 ! from P3_main:
 ! diag_3d(i,k,1) = mu_i
@@ -705,24 +844,24 @@ subroutine columnmodel
 !                      Qc1(1,k), Qr1(1,k), Qi1(1,k,1), Qg1(1,k,1), Bg1(1,k,1), Ni1(1,k,1), Zi1(1,k,1),         &
 !                      1000.*diag_3d(1,k,3),diag_3d(1,k,2),diag_3d(1,k,4)
 
-!               write(200+tmin,'(1f10.0, 1f8.1, 20e16.6)') z(k),diag_ZET(1,k), &
-!                      Qi1(1,k,1), Qg1(1,k,1), Bg1(1,k,1), Ni1(1,k,1), Zi1(1,k,1), &
-!                      diag_3d(1,k,1),diag_3d(1,k,2),diag_3d(1,k,3),diag_3d(1,k,4)
+!              write(200+tmin,'(1f10.0, 1f8.1, 20e16.6)') z(k),diag_ZET(1,k), &
+!                     Qi1(1,k,1), Qg1(1,k,1), Bg1(1,k,1), Ni1(1,k,1), Zi1(1,k,1), &
+!                     diag_3d(1,k,1),diag_3d(1,k,2),diag_3d(1,k,3),diag_3d(1,k,4)
 
 !                    Qi1(1,k,2), Qg1(1,k,2), Bg1(1,k,2), Ni1(1,k,2), Zi1(1,k,2)
 
-!compute n0:
-!   dum = Ni1(1,k,1)*diag_3d(1,k,11)**(diag_3d(1,k,12)+1.)/gamma(diag_3d(1,k,12)+1.)
-! 
-!               write(300+tmin,'(1f10.0, 1f8.1, 5e16.6, 2f10.2, 1e16.6, 3f10.2)') z(k),diag_ZET(1,k), &
-!                      Qi1(1,k,1), Qg1(1,k,1), Bg1(1,k,1), Ni1(1,k,1),    &
-!                      dum,                      &  ! n0_i
-!                      diag_3d(1,k,1),           &  ! mu_i (3mom only)
-!                      diag_mui(1,k,1),          &  ! mu_i, table
-!                      diag_lami(1,k,1),         &  ! lambda_i
-!                      diag_di(1,k,1) *1000. ,   &  ! di
-!                      diag_dhmax(1,k,1)*1000. , &  ! Dh_max
-!                      Qg1(1,k,1)/Qi1(1,k,1) ! , &  ! Frime
+!!compute n0:
+!  dum = Ni1(1,k,1)*diag_3d(1,k,11)**(diag_3d(1,k,12)+1.)/gamma(diag_3d(1,k,12)+1.)
+
+!              write(300+tmin,'(1f10.0, 1f8.1, 5e16.6, 2f10.2, 1e16.6, 3f10.2)') z(k),diag_ZET(1,k), &
+!                     Qi1(1,k,1), Qg1(1,k,1), Bg1(1,k,1), Ni1(1,k,1),    &
+!                     dum,                      &  ! n0_i
+!                     diag_3d(1,k,1),           &  ! mu_i (3mom only)
+!                     diag_mui(1,k,1),          &  ! mu_i, table
+!                     diag_lami(1,k,1),         &  ! lambda_i
+!                     diag_di(1,k,1) *1000. ,   &  ! di
+!                     diag_dhmax(1,k,1)*1000. , &  ! Dh_max
+!                     Qg1(1,k,1)/Qi1(1,k,1) ! , &  ! Frime
 
 
 
@@ -762,46 +901,39 @@ subroutine columnmodel
 ! diag_3d(i,k,6) = V_qit(k)
 ! diag_3d(i,k,7) = V_nit(k)
 
-!  write to output file for plotting (python scripts):
-
-! 1-category:
-!           if (nCat.eq.1) then
-            if (.true.) then
-            
-!              !JAS paper, submission:
-!               dum = Ni1(1,k,1)*diag_3d(1,k,11)**(diag_3d(1,k,12)+1.)/gamma(diag_3d(1,k,12)+1.)  !compute n0:
-!               write(300+tmin,'(1f10.0, 1f8.1, 5e16.6, 2f10.2, 1e16.6, 3f10.2)') z(k),diag_ZET(1,k), &
-!                      Qi1(1,k,1), Qg1(1,k,1), Bg1(1,k,1), Ni1(1,k,1),    &
-!                      dum,                      &  ! n0_i
-!                      diag_3d(1,k,1),           &  ! mu_i (3mom only)
-!                      diag_mui(1,k,1),          &  ! mu_i, table
-!                      diag_lami(1,k,1),         &  ! lambda_i
-!                      diag_di(1,k,1) *1000. ,   &  ! di
-!                      diag_dhmax(1,k,1)*1000. , &  ! Dh_max
-!                      Qg1(1,k,1)/Qi1(1,k,1) ! , &  ! Frime
+! for bit-pattern
+!! 1-category:
+!            if (n_iceCat.eq.1) then
+!              dum1 = 0.
+!              if (Qi1(1,k,1).gt.0.) dum1 = Qg1(1,k,1)/Qi1(1,k,1)  !rime fraction
+!              dum3 = 0.
+!              if (Nr1(1,k).gt.0) dum3 = (6.*Qr1(1,k)/(1000.*Nr1(1,k)*pi))**(1./3.)
+!              write(30,'(1f10.0, 2f8.1, 4e13.4, 1f8.2, 4e13.4, 2f8.2, 1e13.4, 8e13.4)')   &
+!                     z(k),w(1,k),diag_ZET(1,k),Qc1(1,k),Qr1(1,k),   &
+!                      Qi1(1,k,1),Ni1(1,k,1),  &
+!                      dum1,              &  ! F_rime
+!                      diag_vmi(1,k,1),   &
+!                      diag_rhoi(1,k,1),  &
+!                      diag_di(1,k,1),    &  ! Di
+!                      diag_dhmax(1,k,1), &  ! Dh_max
+!                      diag_3d(1,k,3) ,   &  ! mu_i     (calcualted)
+!                      diag_mui(1,k,1),   &  ! mu_i     (table)
+!                      diag_lami(1,k,1),  &  ! lambda_i (table)
+!                      tt1(1,k)-T0,       &  ! temperature (C)
+!                      Nc1(1,k),Nr1(1,k), & 
+!                      Ni1(1,k,1),Bg1(1,k,1)*10**8, &
+!                      Zi1(1,k,1),dum3,   &
+!                      Qv1(1,k)
+!             endif
       
               dum1 = 0.
-              if (Qi1(1,k,1).gt.0.) dum1 = Qg1(1,k,1)/Qi1(1,k,1)  !rime fraction
-            !P3_v4:
-!               write(30,'(1f10.0, 2f8.1, 4e13.4, 1f8.2, 4e13.4, 2f8.2, 1e13.4)')   &
-!                      z(k),w(1,k),diag_ZET(1,k),Qc1(1,k),Qr1(1,k),   &
-!                       Qi1(1,k,1),Ni1(1,k,1),  &
-!                       dum1,              &  ! F_rime
-!                       diag_vmi(1,k,1),   &  ! Vq_i
-!                       diag_rhoi(1,k,1),  &  ! rho_i
-!                       diag_di(1,k,1),    &  ! Di
-!                       diag_dhmax(1,k,1), &  ! Dh_max
-!                       diag_3d(1,k,1) ,   &  ! mu_i     (calcualted)
-!                       diag_mui(1,k,1),   &  ! mu_i     (table)
-!                       diag_lami(1,k,1)      ! lambda_i (table)
-!             !P3_v3
-!               write(30,'(1f10.0, 2f8.1, 4e13.4, 1f8.2, 4e13.4, 2f8.2, 1e13.4)')   &
-!                      z(k),w(1,k),diag_ZET(1,k),Qc1(1,k),Qr1(1,k),   &
-!                       Qi1(1,k,1),Ni1(1,k,1),  &
-!                       dum1,dum1,dum1,dum1,dum1,dum1,dum1,dum1
-
+              dum2 = 0.
+              dum3 = 0.
+              if (Qi1(1,k,1).gt.0.) dum1 = Qg1(1,k,1)/(Qi1(1,k,1)-Ql1(1,k,1))  !rime fraction
+              if (Qi1(1,k,1).gt.0.) dum2 = Ql1(1,k,1)/Qi1(1,k,1)  !liquid fraction
+              if (Nr1(1,k).gt.0.) dum3 = (6.*Qr1(1,k)/(pi*1000.*Nr1(1,k)))**(1./3.)  !Drm
             !for nCat=1: (misc)
-              write(30,'(20e13.4)')      &
+              write(30,'(26e13.4)')      &
                       z(k),              &  !col 0 (for python plot script)
                       w(1,k),            &  !col 1
                       diag_ZET(1,k),     &  !col 2
@@ -815,24 +947,100 @@ subroutine columnmodel
                       diag_di(1,k,1),    &  !col 8
                       diag_dhmax(1,k,1), &  !col 9 Dh_max
                       prt_liq(1),        &  !col 10
-                      prt_sol(1)            !col 11
-                      
-            !for nCat=2:
-!               write(30,'(20e13.4)')      &
-!                       z(k),              &  !col 0 (for python plot script)
-!                       w(1,k),            &  !col 1
-!                       diag_ZET(1,k),     &  !col 2
-!                       Qc1(1,k),          &  !col 3
-!                       Qr1(1,k),          &  !col 4
-!                       sum(Qi1(1,k,:)),   &  !col 5
-!                       Qi1(1,k,1),        &  !col 6
-!                       Qi1(1,k,2)            !col 7
-             endif
+                      prt_sol(1),         &   !col 11
+                      Nc1(1,k),          &  !col 12
+                      Nr1(1,k),          &  !col 13
+                      sum(Ni1(1,k,:)),   &  !col 14
+                      dum1,              &       !col 15
+                      dum2,     &  !col 16
+                      dum3,      & !col 17
+                      tt1(1,k)-T0  ! col 18
 
+! real outputs
+!! 1-category:
+!            if (n_iceCat.eq.1) then
+!              dum1 = 0.
+!              if ((Qi1(1,k,1)-Ql1(1,k,1)).gt.1.e-14) dum1 = Qg1(1,k,1)/(Qi1(1,k,1)-Ql1(1,k,1))  !rime fraction
+!              dum2 = 0.
+!              if (Qi1(1,k,1).gt.1.e-14) dum2 = Ql1(1,k,1)/Qi1(1,k,1)  !liquid fraction
+!              dum3 = 0.
+!              if (Nr1(1,k).gt.1.e-16) dum3 = (6.*Qr1(1,k)/(1000.*Nr1(1,k)*pi))**(1./3.)
+!              write(30,'(1f10.0, 44e13.4)')   &
+!                     z(k),w(1,k),diag_ZET(1,k),Qc1(1,k),Qr1(1,k),   &
+!                     Qi1(1,k,1),Ni1(1,k,1),  &
+!                      dum1,              &  ! F_rime
+!                      diag_vmi(1,k,1),   &
+!                      diag_rhoi(1,k,1),  &
+!                      diag_di(1,k,1),    &  ! Di
+!                      diag_dhmax(1,k,1), &  ! Dh_max
+!                      Qg1(1,k,1) ,   &  ! 
+!                      diag_mui(1,k,1),   &  ! mu_i     (table)
+!                      diag_lami(1,k,1),  &  ! lambda_i (table)
+!                      tt1(1,k)-T0,       &  ! temperature (C)
+!                      Nc1(1,k),Nr1(1,k), & 
+!                      Ni1(1,k,1),(Bg1(1,k,1))*10**8, &
+!                      Zi1(1,k,1),dum3,   &
+!                      Qv1(1,k),Ql1(1,k,1),dum2, &
+!                      diag_3d(1,k,1), &
+!                      diag_3d(1,k,2),diag_3d(1,k,3), &
+!                      diag_3d(1,k,4),diag_3d(1,k,5), diag_3d(1,k,6), &
+!                      diag_3d(1,k,7),diag_3d(1,k,8), &
+!                      diag_3d(1,k,9),diag_3d(1,k,10), &
+!                      diag_3d(1,k,11),diag_3d(1,k,12), &
+!                      diag_3d(1,k,13),diag_3d(1,k,14), &
+!                      diag_3d(1,k,15),diag_3d(1,k,16), &
+!                      diag_3d(1,k,17),diag_3d(1,k,18), &
+!                      diag_3d(1,k,19),diag_3d(1,k,20)
+!!             endif
+
+! real outputs
+!! 1-category:
+!            if (n_iceCat.eq.1) then
+!              dum1 = 0.
+!              if ((Qi1(1,k,1)-Ql1(1,k,1)).gt.0.) dum1 = Qg1(1,k,1)/(Qi1(1,k,1)-Ql1(1,k,1))  !rime fraction
+!              dum2 = 0.
+!              if (Qi1(1,k,1).gt.0.) dum2 = Ql1(1,k,1)/Qi1(1,k,1)  !liquid fraction
+!              dum3 = 0.
+!              if (Nr1(1,k).gt.0) dum3 = (6.*Qr1(1,k)/(1000.*Nr1(1,k)*pi))**(1./3.)
+!              write(30,'(1f10.0, 2f8.1, 4e13.4, 1f8.2, 4e13.4, 2f8.2, 1e13.4, 47e13.4)')   &
+!                     z(k),w(1,k),diag_ZET(1,k),Qc1(1,k),Qr1(1,k),   &
+!                      Qi1(1,k,1),Ni1(1,k,1),  &
+!                      dum1,              &  ! F_rime
+!                      diag_vmi(1,k,1),   &
+!                      diag_rhoi(1,k,1),  &
+!                      diag_di(1,k,1),    &  ! Di
+!                      diag_dhmax(1,k,1), &  ! Dh_max
+!                      diag_3d(1,k,3) ,   &  ! mu_i     (calcualted)
+!                      diag_mui(1,k,1),   &  ! mu_i     (table)
+!                      diag_lami(1,k,1),  &  ! lambda_i (table)
+!                      tt1(1,k)-T0,       &  ! temperature (C)
+!                      Nc1(1,k),Nr1(1,k), & 
+!                      Ni1(1,k,1),Bg1(1,k,1)*10**8, &
+!                      Zi1(1,k,1),dum3,   &
+!                      Qv1(1,k),diag_3d(1,k,4), &
+!                      diag_3d(1,k,5),diag_3d(1,k,6), &
+!                      diag_3d(1,k,7),diag_3d(1,k,8), &
+!                      diag_3d(1,k,9),diag_3d(1,k,10), &
+!                      diag_3d(1,k,11),diag_3d(1,k,12), &
+!                      diag_3d(1,k,13),diag_3d(1,k,14), &
+!                      diag_3d(1,k,15),diag_3d(1,k,16), &
+!                      diag_3d(1,k,17),diag_3d(1,k,18), &
+!                      diag_3d(1,k,19),diag_3d(1,k,20), &
+!                      diag_3d(1,k,21),diag_3d(1,k,22), &
+!                      diag_3d(1,k,23),diag_3d(1,k,24), &
+!                      diag_3d(1,k,25),diag_3d(i,k,26), &
+!                      diag_3d(1,k,27),diag_3d(1,k,28), &
+!                      diag_3d(1,k,29),diag_3d(1,k,30), &
+!                      diag_3d(1,k,31),diag_3d(i,k,32), &
+!                      diag_3d(1,k,33),diag_3d(i,k,34), &
+!                      Ql1(1,k,1),dum2,diag_3d(1,k,1),  &
+!                      diag_3d(1,k,2),diag_3d(i,k,3),   &
+!                      diag_3d(1,k,4),diag_3d(i,k,5)
+!             endif
 
 
 ! ! ! ! 2-category:
-! ! !             if (nCat.eq.2) then
+! ! !             if (n_iceCat.eq.2) then
 ! ! !               dum1 = 0.;  dum2 = 0.
 ! ! !               if (Qi1(1,k,1).gt.0.) dum1 = Qg1(1,k,1)/Qi1(1,k,1)
 ! ! !               if (Qi1(1,k,2).gt.0.) dum2 = Qg1(1,k,2)/Qi1(1,k,2)
@@ -842,10 +1050,10 @@ subroutine columnmodel
 ! ! !                      Qi1(1,k,1),Ni1(1,k,1),dum1,diag_vmi(1,k,1),diag_di(1,k,1)*1.e+6,diag_rhoi(1,k,1),        &
 ! ! !                      Qi1(1,k,2),Ni1(1,k,2),dum2,diag_vmi(1,k,2),diag_di(1,k,2)*1.e+6,diag_rhoi(1,k,2)
 ! ! !              endif
-! ! ! 
-! ! ! 
+! ! !
+! ! !
 ! ! ! ! 3-category:
-! ! !             if (nCat.eq.3) then
+! ! !             if (n_iceCat.eq.3) then
 ! ! !               dum1 = 0.;  dum2 = 0.;  dum3 = 0.
 ! ! !               if (Qi1(1,k,1).gt.0.) dum1 = Qg1(1,k,1)/Qi1(1,k,1)
 ! ! !               if (Qi1(1,k,2).gt.0.) dum2 = Qg1(1,k,2)/Qi1(1,k,2)
@@ -860,7 +1068,7 @@ subroutine columnmodel
 ! ! !              endif
 ! ! !
 ! ! ! ! 4-category:
-! ! !             if (nCat.eq.4) then
+! ! !             if (n_iceCat.eq.4) then
 ! ! !               dum1 = 0.;  dum2 = 0.;  dum3 = 0.;  dum4 = 0.
 ! ! !               if (Qi1(1,k,1).gt.0.) dum1 = Qg1(1,k,1)/Qi1(1,k,1)
 ! ! !               if (Qi1(1,k,2).gt.0.) dum2 = Qg1(1,k,2)/Qi1(1,k,2)
@@ -878,7 +1086,7 @@ subroutine columnmodel
 ! ! !              endif
 ! ! !
 ! ! ! ! 5-category:
-! ! !             if (nCat.eq.5) then
+! ! !             if (n_iceCat.eq.5) then
 ! ! !               dum1 = 0.;  dum2 = 0.;  dum3 = 0.;  dum4 = 0.;   dum5 = 0.
 ! ! !               if (Qi1(1,k,1).gt.0.) dum1 = Qg1(1,k,1)/Qi1(1,k,1)
 ! ! !               if (Qi1(1,k,2).gt.0.) dum2 = Qg1(1,k,2)/Qi1(1,k,2)
@@ -899,7 +1107,7 @@ subroutine columnmodel
 ! ! !              endif
 ! ! !
 ! ! ! ! 6-category:
-! ! !             if (nCat.eq.6) then
+! ! !             if (n_iceCat.eq.6) then
 ! ! !               dum1 = 0.;  dum2 = 0.;  dum3 = 0.;  dum4 = 0.;   dum5 = 0.;   dum6 = 0.
 ! ! !               if (Qi1(1,k,1).gt.0.) dum1 = Qg1(1,k,1)/Qi1(1,k,1)
 ! ! !               if (Qi1(1,k,2).gt.0.) dum2 = Qg1(1,k,2)/Qi1(1,k,2)
@@ -923,7 +1131,7 @@ subroutine columnmodel
 ! ! !              endif
 ! ! !
 ! ! ! ! 7-category:
-! ! !             if (nCat.eq.7) then
+! ! !             if (n_iceCat.eq.7) then
 ! ! !               dum1 = 0.;  dum2 = 0.;  dum3 = 0.;  dum4 = 0.;   dum5 = 0.;   dum6 = 0.;   dum7 = 0.
 ! ! !               if (Qi1(1,k,1).gt.0.) dum1 = Qg1(1,k,1)/Qi1(1,k,1)
 ! ! !               if (Qi1(1,k,2).gt.0.) dum2 = Qg1(1,k,2)/Qi1(1,k,2)
@@ -950,7 +1158,7 @@ subroutine columnmodel
 ! ! !              endif
 ! ! !
 ! ! ! ! 8-category:
-! ! !             if (nCat.eq.8) then
+! ! !             if (n_iceCat.eq.8) then
 ! ! !               dum1 = 0.;  dum2 = 0.;  dum3 = 0.;  dum4 = 0.;   dum5 = 0.;   dum6 = 0.;   dum7 = 0.;   dum8 = 0.
 ! ! !               if (Qi1(1,k,1).gt.0.) dum1 = Qg1(1,k,1)/Qi1(1,k,1)
 ! ! !               if (Qi1(1,k,2).gt.0.) dum2 = Qg1(1,k,2)/Qi1(1,k,2)

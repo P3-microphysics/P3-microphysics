@@ -10,7 +10,6 @@ MODULE SUBS_CLD1D
 CONTAINS
 
      SUBROUTINE advec(x,w,H,H0,Hcld,nk,nkcld,dt)
-     
 
 !     Performs Euler FIT-BIS advection step.
 !
@@ -64,7 +63,7 @@ CONTAINS
            xcld(k1) = x(k)
            endif
         enddo
-!       call rpnsl(xcld,wcld,dt,Hcld,H0,nkcld)   !Semi-Lagrangian advection
+!        call rpnsl(xcld,wcld,dt,Hcld,H0,nkcld)   !Semi-Lagrangian advection
        !flip back
         do k= nk-nkcld+1,nk
             k1= k-(nk-nkcld)
