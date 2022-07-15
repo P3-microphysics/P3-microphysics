@@ -17,18 +17,6 @@ subroutine columnmodel
 !  - add low-level moisture (to prevent depletion)
 !  - write output files
 !--------------------------------------------------------------------------!
-!  Modified; interfaced with P3-Ice microphysics scheme
-!  - 2014-03-28:  v1.0.0  (1-category ice)
-!  - 2014-07   :  v2.0    (multi-category ice)
-!  - 2016-12   :  v2.4    (prognostic Nc-SSAT)
-!  - 2017-02   :  v2.3.2  (prognostic Nc; WRF release + mods)
-!  - 2017-03   :  v2.4.0
-!  - 2017-04   :  v2.5.0
-!  - 2017-08   :  v2.5.1, v2.6.0
-!  - 2018-02   :  v2.9.1
-!  - 2018-0x   :  v3.1.0
-!  - 2018-08   :  v4.0.0
-!
 ! Variable names:
 ! -----   ----
 ! cld1d    p3
@@ -37,10 +25,11 @@ subroutine columnmodel
 !  QG     qrim   - rime ice mass mixing ratio
 !  NI     nitot  - ice number mixing ratio
 !  BG     birim  - rime volume mixing ratio
+!  ZI     zitot  - 6th moment mixing ratio
 !
 !--------------------------------------------------------------------------!
 !  Author:         Jason Milbrandt
-!  Last modified:  2019-07-30
+!  Last modified:  2022-07-15
 !--------------------------------------------------------------------------!
 
       use SUBS_CLD1D
@@ -53,16 +42,15 @@ subroutine columnmodel
       logical      :: microON,EVOLVING,TDMIN
       character*10 :: sndcase
 
+      integer, parameter :: nCat =  1
+      logical, parameter :: trplMomIce = .true.
+
       parameter (sndcase = 'ALBERTA')
       parameter (microON = .true. )     ! call microphysics SCHEME
       parameter (TDMIN   = .true. )     ! prevent low-level moisture depletion
       parameter (EVOLVING= .true. )     ! switch for evolving updraft
-
       parameter (AMPA    = 2.     )     ! initial central updraft speed [m s-1] (evolving only)
       parameter (AMPB    = 5.     )     ! maximum central updraft speed [m s-1]
-!       parameter (Htop0   = 5000.  )     ! initial height of cloud top   [m]
-!       parameter (tscale1 = 5400.  )     ! period for evolving AMPB      [s]
-!       parameter (tscale2 = 5400.  )     ! period for evolving Hcld      [s]
       parameter (Htop0   = 5000.  )     ! initial height of cloud top   [m]
       parameter (tscale1 = 5400.  )     ! period for evolving AMPB      [s]
       parameter (tscale2 = 5400.  )     ! period for evolving Hcld      [s]
@@ -73,28 +61,22 @@ subroutine columnmodel
       parameter (dt      = 10.    )     ! time step                     [s]
       parameter (ttotmin = 90     )     ! total integration time	[min]
 
-      integer, parameter :: nCat     =  2
       logical, parameter :: prog_nc_ssat = .true.
      !logical, parameter :: nk_BOTTOM    = .true.   !.T. --> nk at bottom
       logical, parameter :: typeDiags_ON = .true.   ! switch for hydrometeor/precip type diagnostics
       logical, parameter :: debug_on     = .true.   ! switch for run-time check-values in p3_main
+      logical, parameter :: abort_on_err = .true.
 
       logical, parameter :: scpf_on      = .false.  ! switch for cloud fraction parameterization (SCPF)
-!     logical, parameter :: SCPF_on      = .true.    ! switch for cloud fraction parameterization
-      real,    parameter :: scpf_pfrac   = 1.        ! precipitation fraction factor (SCPF)
-      real,    parameter :: scpf_resfact = 1.        ! model resolution factor (SCPF)
+      real,    parameter :: scpf_pfrac   = 1.       ! precipitation fraction factor (SCPF)
+      real,    parameter :: scpf_resfact = 1.       ! model resolution factor (SCPF)
+      real,    parameter :: clbfact_dep  = 1.0      ! calibration factor for deposition
+      real,    parameter :: clbfact_sub  = 1.0      ! calibration factor for sublimation
 
-      real, parameter    :: clbfact_dep = 1.0       !calibration factor for deposition
-      real, parameter    :: clbfact_sub = 1.0       !calibration factor for sublimation
-
-     character(len=16), parameter :: model = 'KIN1D'
-!    character(len=16), parameter :: model = 'WRF'  !for level tests
-
-     logical, parameter           :: trplMomIce   = .false.
-     logical, parameter           :: abort_on_err = .true.
-
-     character(len=1024), parameter :: LT_path  = './lookup_tables'
-!    character(len=1024), parameter :: LT_path = '/users/milbrand/mp_p3/lookupTables/tables'  ! override default
+      character(len=16),   parameter :: model = 'KIN1D'
+!     character(len=16),   parameter :: model = 'WRF'  !for level tests
+      character(len=1024), parameter :: LT_path = './lookup_tables'
+!     character(len=1024), parameter :: LT_path = '/my/specified/lookup_tables/directory' 
 
 
 !---------------------------------------------------------------------------------!
@@ -388,18 +370,11 @@ subroutine columnmodel
 ! !       write(30,'(1f4.0)') dt
 ! !       write(30,'(1i4)')   nt
 ! !       write(30,'(1i4)')   nk
-! !       write(30,'(1i4)')   nCa[
+! !       write(30,'(1i4)')   nCat
 ! !     !==
 
-!     call P3_INIT('./lookup_tables/',nCat)                  !v2.8.4
-!     call P3_INIT('./lookup_tables/',nCat,stat)             !v2.9.1, v2.10.1
-!     call P3_INIT('./lookup_tables/',nCat,1.,1.)            !v3.0.0
-!     call P3_INIT('./lookup_tables/',nCat,stat)             !v2.9.1, v2.10.1, v3.*
 !     call P3_INIT('./lookup_tables/',nCat,model,stat,abort_on_err)   !v3.1.6+
-!     call P3_INIT('./lookup_tables/',nCat,trplMomIce,stat)  !v4.0.0
-!     call P3_INIT('./lookup_tables/',override_path=my_LT_path,nCat,trplMomIce,stat)  !v4.0.0_b38
-      call P3_INIT(LT_path,nCat,trplMomIce,model,stat,abort_on_err)      !v4.0.x
-
+      call P3_INIT(LT_path,nCat,trplMomIce,model,stat,abort_on_err)   !v4.0.1+
 
       do k=1,nk
          write(100,'(1f10.0, 1f8.1, 7e16.6, 1f10.2, 1f10.1, 1f10.3)') z(k),diag_ZET(1,k),          &
@@ -445,12 +420,6 @@ subroutine columnmodel
 
 !       goto 300  !skip advection (testing only)
 
-! print*, 'AA: '
-! print*, 'tt1: ',tt1
-! print*, 'w: ',w
-! print*, 'H0: ',H0
-! print*, 'others: ',H,H0,Hcld,nk,nkcld,dt
-
         call advec(tt1,w,H,H0,Hcld,nk,nkcld,dt) !T-adv
         call advec(Qv1,w,H,H0,Hcld,nk,nkcld,dt)
         call advec(Qc1,w,H,H0,Hcld,nk,nkcld,dt)
@@ -458,10 +427,6 @@ subroutine columnmodel
         call advec(Nc1,w,H,H0,Hcld,nk,nkcld,dt)
         call advec(Nr1,w,H,H0,Hcld,nk,nkcld,dt)
 !       call advec(ssat1,w,H,H0,Hcld,nk,nkcld,dt)
-
-! print*, 'BB: '
-! print*, 'tt1: ',tt1
-! print*, 'w: ',w
 
         do iice = 1,nCat
            call advec(Qi1(:,:,iice),w,H,H0,Hcld,nk,nkcld,dt)
@@ -502,30 +467,6 @@ subroutine columnmodel
           th2d0(1,:) = tt0(1,:)*(1.e+5/p(:))**0.286
           th2d1(1,:) = tt1(1,:)*(1.e+5/p(:))**0.286
 
-!v2.8.4, v2.9.1:
-!              CALL P3_MAIN(Qc1,Nc1,Qr1,Nr1,th2d0,th2d1,Qv0,Qv1,dt,Qi1,Qg1,Ni1,Bg1,ssat1, &
-!                           w,p2d,dz2d,step,prt_liq,prt_sol,its,ite,kts,kte,nCat,     &
-!                           diag_ZET,diag_reffc,diag_reffi,diag_vmi,diag_di,diag_rhoi,    &
-!                           n_diag_2d,diag_2d,n_diag_3d,diag_3d,log_predictNc,            &
-!                           typeDiags_ON,trim(model),clbfact_dep,clbfact_sub,debug_on,    &
-!                           prt_drzl,prt_rain,prt_crys,prt_snow,prt_grpl,prt_pell,        &
-!                           prt_hail,prt_sndp,cldfrac)
-
-!v2.10.1:
-!              CALL P3_MAIN(Qc1,Nc1,Qr1,Nr1,th2d0,th2d1,Qv0,Qv1,dt,Qi1,Qg1,Ni1,Bg1,ssat1, &
-!                           w,p2d,dz2d,step,prt_liq,prt_sol,its,ite,kts,kte,nCat,         &
-!                           diag_ZET,diag_reffc,diag_reffi,diag_vmi,diag_di,diag_rhoi,    &
-!                           n_diag_2d,diag_2d,n_diag_3d,diag_3d,log_predictNc,            &
-!                           typeDiags_ON,trim(model),clbfact_dep,clbfact_sub,debug_on,    &
-!                           prt_drzl,prt_rain,prt_crys,prt_snow,prt_grpl,prt_pell,        &
-!                           prt_hail,prt_sndp,qi_type,cldfrac)
-
-!v3.0.0
-!              CALL P3_MAIN(Qc1,Nc1,Qr1,Nr1,th2d0,th2d1,Qv0,Qv1,dt,Qi1,Qg1,Ni1,Bg1,ssat1, &
-!                           w,p2d,dz2d,step,prt_liq,prt_sol,its,ite,kts,kte,.true.,       &
-!                           nCat,diag_ZET,diag_reffc,diag_reffi,n_diag_2d,diag_2d,        &
-!                           n_diag_3d,diag_3d,log_predictNc,SCPF_on,cldfrac)
-
 !v3.1.0+
 !              CALL P3_MAIN(Qc1,Nc1,Qr1,Nr1,th2d0,th2d1,Qv0,Qv1,dt,Qi1,Qg1,Ni1,Bg1,ssat1, &
 !                           w,p2d,dz2d,step,prt_liq,prt_sol,its,ite,kts,kte,nCat,         &
@@ -536,15 +477,7 @@ subroutine columnmodel
 !                           prt_drzl,prt_rain,prt_crys,prt_snow,prt_grpl,prt_pell,        &
 !                           prt_hail,prt_sndp,qi_type)
 
-!v4.0.0
-
-! print*, 'BEFORE MICRO: '
-! print*, 'Qv0: ',Qv0
-! print*, 'Qv1: ',Qv1
-! print*, 'tt0: ',tt0
-! print*, 'tt1: ',tt1
-! print*, 'th2d0: ',th2d0
-! print*, 'th2d1: ',th2d1
+!v4.0.0+
 
           if (.not. trplMomIce) then
 

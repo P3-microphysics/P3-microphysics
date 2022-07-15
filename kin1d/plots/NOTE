@@ -1,0 +1,6 @@
+To insert a title to plot, either modify the plot script or add
+the title as a command line argument when running the script:
+
+$ python3 plot_1col.py 'My title'
+ 
+

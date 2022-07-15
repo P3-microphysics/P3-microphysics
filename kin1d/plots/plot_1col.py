@@ -3,6 +3,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import colors, ticker,cm
+import sys
 
 #--------------------------------------------------------------------------------------------------
 def plot_column(col):
@@ -117,9 +118,13 @@ def plot_column(col):
 
 #-------- read in data from cld1d; store as individual field arrays:
 outputDir = './'
-path1 = './'
+path1 = '../'
 
-plotTitle0 = 'P3 v4'
+if len(sys.argv)==1:
+    plotTitle0 = 'TITLE'
+else:
+    plotTitle0 = sys.argv[1]
+
 data0 = np.loadtxt(path1 + 'out_p3.dat')
 data = [data0]
 plotTitle = [plotTitle0]
