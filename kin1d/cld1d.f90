@@ -71,7 +71,7 @@
       parameter (dt      = 10.    )     ! time step                     [s]
       parameter (ttotmin = 90     )     ! total integration time	[min]
 
-      integer, parameter :: n_iceCat     =  1
+      integer, parameter :: n_iceCat     =  2
       logical, parameter :: prog_nc_ssat = .true.
      !logical, parameter :: nk_BOTTOM    = .true.   !.T. --> nk at bottom
       logical, parameter :: typeDiags_ON = .true.   ! switch for hydrometeor/precip type diagnostics
@@ -89,7 +89,7 @@
 !    character(len=16), parameter :: model = 'WRF'  !for level tests
 
      logical, parameter           :: PredictFl    = .true.
-     logical, parameter           :: trplMomIce   = .false.
+     logical, parameter           :: trplMomIce   = .true.
      logical, parameter           :: abort_on_err = .false.
 
      character(len=1024), parameter :: LT_path  = './lookup_tables'

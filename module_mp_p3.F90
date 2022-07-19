@@ -20,8 +20,8 @@
 !    Jason Milbrandt (jason.milbrandt@canada.ca)                                           !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.0.4                                                                     !
-! Last updated:  2022-MAY                                                                  !
+! Version:       5.1.0                                                                     !
+! Last updated:  2022-JUN                                                                  !
 !__________________________________________________________________________________________!
 
  MODULE MICROPHY_P3
@@ -69,9 +69,15 @@
  real, dimension(zsize,densize,rimsize,liqsize,isize,rcollsize,colltabsize) :: itabcoll_3mom
 
  ! NOTE: TO DO, MAKE LOOKUP TABLE ARRAYS ALLOCATABLE SO MULTICAT NOT ALLOCATED WHEN NCAT = 1
-! separated into itabcolli1 and itabcolli2, due to max of 7 dimensional arrays on some FORTRAN compilers
- real, dimension(iisize,rimsize,densize,iisize,rimsize,densize)     :: itabcolli1
- real, dimension(iisize,rimsize,densize,iisize,rimsize,densize)     :: itabcolli2
+! separated into itabcolli001 and itabcolli002, due to max of 7 dimensional arrays on some FORTRAN compilers
+ real, dimension(iisize,rimsize,densize,iisize,rimsize,densize)     :: itabcolli001
+ real, dimension(iisize,rimsize,densize,iisize,rimsize,densize)     :: itabcolli002
+ real, dimension(iisize,rimsize,densize,iisize,rimsize,densize)     :: itabcolli011
+ real, dimension(iisize,rimsize,densize,iisize,rimsize,densize)     :: itabcolli012
+ real, dimension(iisize,rimsize,densize,iisize,rimsize,densize)     :: itabcolli101
+ real, dimension(iisize,rimsize,densize,iisize,rimsize,densize)     :: itabcolli102
+ real, dimension(iisize,rimsize,densize,iisize,rimsize,densize)     :: itabcolli111
+ real, dimension(iisize,rimsize,densize,iisize,rimsize,densize)     :: itabcolli112
 
 ! integer switch for warm rain autoconversion/accretion schemes
  integer :: iparam
@@ -131,10 +137,10 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.0.4'
+ character(len=1024), parameter :: version_p3                    = '5.1.0'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.3-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '6.3-3momI'
- character(len=1024), parameter :: version_intended_table_2      = '6.0-2momI_00'
+ character(len=1024), parameter :: version_intended_table_2      = '6.0'
 
  character(len=1024)            :: version_header_table_1_2mom
  character(len=1024)            :: version_header_table_1_3mom
@@ -328,8 +334,14 @@
     itabcoll = 0.
  endif
  if (nCat>1) then
-    itabcolli1 = 0.
-    itabcolli2 = 0.
+    itabcolli001 = 0.
+    itabcolli002 = 0.
+    itabcolli011 = 0.
+    itabcolli012 = 0.
+    itabcolli101 = 0.
+    itabcolli102 = 0.
+    itabcolli111 = 0.
+    itabcolli112 = 0.
  endif
 
  IF_PROC0: if (procnum == 0) then
@@ -503,9 +515,15 @@
                 do ii = 1,iisize
                    do jjj2 = 1,rimsize
                       do jjjj2 = 1,densize
-                         read(10,*) dum,dum,dum,dum,dum,dum,                   &
-                         itabcolli1(i,jjj,jjjj,ii,jjj2,jjjj2),                 &
-                         itabcolli2(i,jjj,jjjj,ii,jjj2,jjjj2)
+                         read(10,*) dum,dum,dum,dum,dum,dum,                     &
+                         itabcolli001(i,jjj,jjjj,ii,jjj2,jjjj2),                 &
+                         itabcolli002(i,jjj,jjjj,ii,jjj2,jjjj2),                 &
+                         itabcolli011(i,jjj,jjjj,ii,jjj2,jjjj2),                 &
+                         itabcolli012(i,jjj,jjjj,ii,jjj2,jjjj2),                 &
+                         itabcolli101(i,jjj,jjjj,ii,jjj2,jjjj2),                 &
+                         itabcolli102(i,jjj,jjjj,ii,jjj2,jjjj2),                 &
+                         itabcolli111(i,jjj,jjjj,ii,jjj2,jjjj2),                 &
+                         itabcolli112(i,jjj,jjjj,ii,jjj2,jjjj2)
                       enddo
                    enddo
                 enddo
@@ -542,8 +560,14 @@
     call rpn_comm_bcast(itabcoll,size(itabcoll),RPN_COMM_REAL,0,RPN_COMM_GRID,istat)
  endif
  if (nCat>1) then
-    call rpn_comm_bcast(itabcolli1,size(itabcolli1),RPN_COMM_REAL,0,RPN_COMM_GRID,istat)
-    call rpn_comm_bcast(itabcolli2,size(itabcolli2),RPN_COMM_REAL,0,RPN_COMM_GRID,istat)
+    call rpn_comm_bcast(itabcolli001,size(itabcolli001),RPN_COMM_REAL,0,RPN_COMM_GRID,istat)
+    call rpn_comm_bcast(itabcolli002,size(itabcolli002),RPN_COMM_REAL,0,RPN_COMM_GRID,istat)
+    call rpn_comm_bcast(itabcolli001,size(itabcolli011),RPN_COMM_REAL,0,RPN_COMM_GRID,istat)
+    call rpn_comm_bcast(itabcolli002,size(itabcolli012),RPN_COMM_REAL,0,RPN_COMM_GRID,istat)
+    call rpn_comm_bcast(itabcolli001,size(itabcolli101),RPN_COMM_REAL,0,RPN_COMM_GRID,istat)
+    call rpn_comm_bcast(itabcolli002,size(itabcolli102),RPN_COMM_REAL,0,RPN_COMM_GRID,istat)
+    call rpn_comm_bcast(itabcolli001,size(itabcolli111),RPN_COMM_REAL,0,RPN_COMM_GRID,istat)
+    call rpn_comm_bcast(itabcolli002,size(itabcolli112),RPN_COMM_REAL,0,RPN_COMM_GRID,istat)
  endif
 #endif
 
@@ -1743,7 +1767,6 @@ END subroutine p3_init
  end function mp_p3_wrapper_gem
 
 #endif
-
 !==========================================================================================!
 
  SUBROUTINE compute_SCPF(Qcond,Qprec,Qv,Qsi,Pres,ktop,kbot,kdir,SCF,iSCF,SPF,iSPF,       &
@@ -2153,12 +2176,12 @@ END subroutine p3_init
             tmp2,inv_dum3,odt,oxx,oabi,fluxdiv_qit,fluxdiv_nit,fluxdiv_qir,fluxdiv_bir,  &
             prt_accum,fluxdiv_qx,fluxdiv_nx,Co_max,dt_sub,fluxdiv_zit,D_new,Q_nuc,N_nuc, &
             deltaD_init,dum1c,dum4c,dum5c,dumt,qcon_satadj,qdep_satadj,sources,sinks,    &
-            timeScaleFactor,dt_left,dum7,fluxdiv_qil,epsiw_tot,qv_tmp,t_tmp,dum1z
+            timeScaleFactor,dt_left,dum7,fluxdiv_qil,epsiw_tot,qv_tmp,t_tmp,dum1z,dum7c
 
  double precision :: tmpdbl1,tmpdbl2,tmpdbl3
 
  integer :: dumi,i,k,ii,iice,iice_dest,dumj,dumii,dumjj,dumzz,tmpint1,ktop,kbot,kdir,    &
-            dumic,dumiic,dumjjc,catcoll,k_qxbot,k_qxtop,k_temp,dumll
+            dumic,dumiic,dumjjc,catcoll,k_qxbot,k_qxtop,k_temp,dumll,dumllc
 
  logical :: log_nucleationPossible,log_hydrometeorsPresent,log_predictSsat,              &
             log_exitlevel,log_hmossopOn,log_qxpresent,log_3momentIce,log_predictfliq
@@ -2891,17 +2914,17 @@ END subroutine p3_init
 
                   ! first, calculate collection of catcoll category by iice category
 
-                      call find_lookupTable_indices_2(dumi,dumii,dumjj,dumic,dumiic,        &
-                                 dumjjc,dum1,dum4,dum5,dum1c,dum4c,dum5c,                   &
-                                 iisize,rimsize,densize,                                    &
-                                 qitot(i,k,iice),qitot(i,k,catcoll),nitot(i,k,iice),        &
-                                 nitot(i,k,catcoll),qirim(i,k,iice),qirim(i,k,catcoll),     &
-                                 birim(i,k,iice),birim(i,k,catcoll))
+                      call find_lookupTable_indices_2(dumi,dumii,dumjj,dumll,dumic,dumiic,                &
+                                 dumjjc,dumllc,dum1,dum4,dum5,dum7,dum1c,dum4c,dum5c,dum7c,               &
+                                 iisize,rimsize,densize,                                                  &
+                                 qitot(i,k,iice),qitot(i,k,catcoll),nitot(i,k,iice),                      &
+                                 nitot(i,k,catcoll),qirim(i,k,iice),qirim(i,k,catcoll),                   &
+                                 birim(i,k,iice),birim(i,k,catcoll),qiliq(i,k,iice),qiliq(i,k,catcoll))
 
-                      call access_lookup_table_colli(dumjjc,dumiic,dumic,dumjj,dumii,       &
-                                 dumi,1,dum1c,dum4c,dum5c,dum1,dum4,dum5,f1pr17)
-                      call access_lookup_table_colli(dumjjc,dumiic,dumic,dumjj,dumii,       &
-                                 dumi,2,dum1c,dum4c,dum5c,dum1,dum4,dum5,f1pr18)
+                      call access_lookup_table_colli(dumllc,dumjjc,dumiic,dumic,dumll,dumjj,dumii,       &
+                                 dumi,1,dum1c,dum4c,dum5c,dum7c,dum1,dum4,dum5,dum7,f1pr17)
+                      call access_lookup_table_colli(dumllc,dumjjc,dumiic,dumic,dumll,dumjj,dumii,       &
+                                 dumi,2,dum1c,dum4c,dum5c,dum7c,dum1,dum4,dum5,dum7,f1pr18)
 
                     ! note: need to multiply by air density, air density fallspeed correction factor,
                     !       and N of the collectee and collector categories for process rates nicol and qicol,
@@ -2921,18 +2944,18 @@ END subroutine p3_init
                     !needed to force consistency between qirim(catcoll) and birim(catcoll) (not for rhop)
                       call calc_bulkRhoRime(qitot(i,k,catcoll),qirim(i,k,catcoll),qiliq(i,k,catcoll),birim(i,k,catcoll),rhop)
 
-                      call find_lookupTable_indices_2(dumi,dumii,dumjj,dumic,dumiic,       &
-                                 dumjjc,dum1,dum4,dum5,dum1c,dum4c,dum5c,                  &
-                                 iisize,rimsize,densize,                                   &
-                                 qitot(i,k,catcoll),qitot(i,k,iice),nitot(i,k,catcoll),    &
-                                 nitot(i,k,iice),qirim(i,k,catcoll),qirim(i,k,iice),       &
-                                 birim(i,k,catcoll),birim(i,k,iice))
+                      call find_lookupTable_indices_2(dumi,dumii,dumjj,dumll,dumic,dumiic,              &
+                                 dumjjc,dumllc,dum1,dum4,dum5,dum7,dum1c,dum4c,dum5c,dum7c,             &
+                                 iisize,rimsize,densize,                                                &
+                                 qitot(i,k,catcoll),qitot(i,k,iice),nitot(i,k,catcoll),                 &
+                                 nitot(i,k,iice),qirim(i,k,catcoll),qirim(i,k,iice),                    &
+                                 birim(i,k,catcoll),birim(i,k,iice),qiliq(i,k,catcoll),qiliq(i,k,iice))
 
-                      call access_lookup_table_colli(dumjjc,dumiic,dumic,dumjj,dumii,      &
-                                 dumi,1,dum1c,dum4c,dum5c,dum1,dum4,dum5,f1pr17)
+                      call access_lookup_table_colli(dumllc,dumjjc,dumiic,dumic,dumll,dumjj,dumii,      &
+                                 dumi,1,dum1c,dum4c,dum5c,dum7c,dum1,dum4,dum5,dum7,f1pr17)
 
-                      call access_lookup_table_colli(dumjjc,dumiic,dumic,dumjj,dumii,      &
-                                 dumi,2,dum1c,dum4c,dum5c,dum1,dum4,dum5,f1pr18)
+                      call access_lookup_table_colli(dumllc,dumjjc,dumiic,dumic,dumll,dumjj,dumii,      &
+                                 dumi,2,dum1c,dum4c,dum5c,dum7c,dum1,dum4,dum5,dum7,f1pr18)
 
                       nicol(iice,catcoll) = f1pr17*rhofaci(i,k)*rho(i,k)*                  &
                                             nitot(i,k,iice)*nitot(i,k,catcoll)*iSCF(k)
@@ -3917,16 +3940,23 @@ END subroutine p3_init
              nlshd(iice) = nlshd(iice)*ratio
              do catcoll = 1,nCat
                 qicol(iice,catcoll) = qicol(iice,catcoll)*ratio
+                nicol(iice,catcoll) = nicol(iice,catcoll)*ratio
              enddo
           endif
       enddo  !iice-loop
 
 ! qiliq
+      if (log_predictfliq) then
        do iice = 1,nCat
           sinks   = (qifrz(iice)+qlshd(iice)+qlevp(iice))*dt
           sources = qiliq(i,k,iice) + (qimlt(iice)+qrcoll(iice)+qccoll(iice)+qlcon(iice)+ &
                     qwgrth1c(iice)+qwgrth1r(iice))*dt
-
+          do catcoll = 1,nCat
+            !category interaction leading to source for iice category
+             sources = sources + qicol(catcoll,iice)*dt
+            !category interaction leading to sink for iice category
+             sinks = sinks + qicol(iice,catcoll)*dt
+          enddo
           if (sinks.gt.sources .and. sinks.ge.1.e-20) then
              ratio = sources/sinks
              qifrz(iice) = qifrz(iice)*ratio
@@ -3934,8 +3964,13 @@ END subroutine p3_init
              qlevp(iice) = qlevp(iice)*ratio
              nlevp(iice) = nlevp(iice)*ratio
              nlshd(iice) = nlshd(iice)*ratio
+             do catcoll = 1,nCat
+                qicol(iice,catcoll) = qicol(iice,catcoll)*ratio
+                nicol(iice,catcoll) = nicol(iice,catcoll)*ratio
+             enddo
           endif
        enddo !iice-loop
+      endif
 
 ! vapor
        sinks   = (qccon+qrcon+qcnuc+sum(qidep)+sum(qinuc)+sum(qlcon))*dt
@@ -3978,7 +4013,6 @@ END subroutine p3_init
           dumm0(iice) = nitot(i,k,iice) + (-nimlt(iice)-nisub(iice)-      &
                                           nislf(iice)+nimul(iice)-        &
                                           nlevp(iice))*dt
-
 
          !update further due to category interactions:
           do catcoll = 1,nCat
@@ -4123,20 +4157,24 @@ END subroutine p3_init
              qitot(i,k,catcoll) = qitot(i,k,catcoll) - qicol(catcoll,iice)*dt
              nitot(i,k,catcoll) = nitot(i,k,catcoll) - nicol(catcoll,iice)*dt
              qitot(i,k,iice)    = qitot(i,k,iice)    + qicol(catcoll,iice)*dt
-             ! now modify rime mass and density, assume collection does not modify rime mass
-             ! fraction or density of the collectee, consistent with the assumption that
+             ! now modify rime mass and density, assume collection does not modify rime or liquid mass
+             ! fractions or density of the collectee, consistent with the assumption that
              ! these are constant over the PSD
-             if (qitot(i,k,catcoll).ge.qsmall) then
+             if ((qitot(i,k,catcoll)-qiliq(i,k,catcoll)).ge.qsmall) then
               !source for collector category
-                qirim(i,k,iice) = qirim(i,k,iice)+qicol(catcoll,iice)*dt*                &
-                                  qirim(i,k,catcoll)/qitot(i,k,catcoll)
-                birim(i,k,iice) = birim(i,k,iice)+qicol(catcoll,iice)*dt*                &
-                                  birim(i,k,catcoll)/qitot(i,k,catcoll)
+                qirim(i,k,iice) = qirim(i,k,iice)+qicol(catcoll,iice)*dt*                    &
+                                  qirim(i,k,catcoll)/(qitot(i,k,catcoll)-qiliq(i,k,catcoll))
+                birim(i,k,iice) = birim(i,k,iice)+qicol(catcoll,iice)*dt*                    &
+                                  birim(i,k,catcoll)/(qitot(i,k,catcoll)-qiliq(i,k,catcoll))
+                qiliq(i,k,iice) = qiliq(i,k,iice)+qicol(catcoll,iice)*dt*                    &
+                                  qiliq(i,k,catcoll)/qitot(i,k,catcoll)
               !sink for collectee category
-                qirim(i,k,catcoll) = qirim(i,k,catcoll)-qicol(catcoll,iice)*dt*          &
-                                     qirim(i,k,catcoll)/qitot(i,k,catcoll)
-                birim(i,k,catcoll) = birim(i,k,catcoll)-qicol(catcoll,iice)*dt*          &
-                                     birim(i,k,catcoll)/qitot(i,k,catcoll)
+                qirim(i,k,catcoll) = qirim(i,k,catcoll)-qicol(catcoll,iice)*dt*                 &
+                                     qirim(i,k,catcoll)/(qitot(i,k,catcoll)-qiliq(i,k,catcoll))
+                birim(i,k,catcoll) = birim(i,k,catcoll)-qicol(catcoll,iice)*dt*                 &
+                                     birim(i,k,catcoll)/(qitot(i,k,catcoll)-qiliq(i,k,catcoll))
+                qiliq(i,k,catcoll) = qiliq(i,k,catcoll)-qicol(catcoll,iice)*dt*                 &
+                                     qiliq(i,k,catcoll)/qitot(i,k,catcoll)
              endif
 
           enddo interactions_loop ! catcoll loop
@@ -5982,15 +6020,16 @@ END subroutine p3_init
 
 !------------------------------------------------------------------------------------------!
 
- SUBROUTINE access_lookup_table_colli(dumjjc,dumiic,dumic,dumjj,dumii,dumi,index,   &
-                                      dum1c,dum4c,dum5c,dum1,dum4,dum5,proc)
+ SUBROUTINE access_lookup_table_colli(dumllc,dumjjc,dumiic,dumic,dumll,dumjj,dumii,dumi,index,   &
+                                      dum1c,dum4c,dum5c,dum7c,dum1,dum4,dum5,dum7,proc)
 
  implicit none
 
  real    :: dum1,dum4,dum5,dum1c,dum4c,dum5c,proc,iproc1,iproc2,       &
-            gproc1,gproc2,rproc1,rproc2,tmp1,tmp2,dproc11,dproc12
- integer :: dumjj,dumii,dumi,index,dumjjc,dumiic,dumic
-
+            gproc1,gproc2,rproc1,rproc2,tmp1,tmp2,dproc11,dproc12,     &
+            dum7,dum7c,proc001,proc101,proc002,proc102,procll1,procll2, &
+            proc011,proc111,proc012,proc112
+ integer :: dumjj,dumii,dumi,index,dumjjc,dumiic,dumic,dumll,dumllc
 
 ! This subroutine interpolates lookup table values for rain/ice collection processes
 
@@ -6004,26 +6043,26 @@ END subroutine p3_init
 
   if (index.eq.1) then
 
-   dproc11 = itabcolli1(dumic,dumiic,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*    &
-             (itabcolli1(dumic+1,dumiic,dumjjc,dumi,dumii,dumjj)-                     &
-             itabcolli1(dumic,dumiic,dumjjc,dumi,dumii,dumjj))
+   dproc11 = itabcolli001(dumic,dumiic,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*    &
+             (itabcolli001(dumic+1,dumiic,dumjjc,dumi,dumii,dumjj)-                     &
+             itabcolli001(dumic,dumiic,dumjjc,dumi,dumii,dumjj))
 
-   dproc12 = itabcolli1(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli1(dumic+1,dumiic,dumjjc,dumi+1,dumii,dumjj)-                   &
-             itabcolli1(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj))
+   dproc12 = itabcolli001(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj)+(dum1c-real(dumic))*  &
+             (itabcolli001(dumic+1,dumiic,dumjjc,dumi+1,dumii,dumjj)-                   &
+             itabcolli001(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj))
 
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
 
 ! collector rime fraction index + 1
 
-   dproc11 = itabcolli1(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli1(dumic+1,dumiic,dumjjc,dumi,dumii+1,dumjj)-                   &
-             itabcolli1(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj))
+   dproc11 = itabcolli001(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
+             (itabcolli001(dumic+1,dumiic,dumjjc,dumi,dumii+1,dumjj)-                   &
+             itabcolli001(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj))
 
-   dproc12 = itabcolli1(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))*&
-             (itabcolli1(dumic+1,dumiic,dumjjc,dumi+1,dumii+1,dumjj)-                 &
-             itabcolli1(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj))
+   dproc12 = itabcolli001(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))*&
+             (itabcolli001(dumic+1,dumiic,dumjjc,dumi+1,dumii+1,dumjj)-                 &
+             itabcolli001(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj))
 
    iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
@@ -6031,25 +6070,25 @@ END subroutine p3_init
 
 ! collector density index + 1
 
-   dproc11 = itabcolli1(dumic,dumiic,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
-             (itabcolli1(dumic+1,dumiic,dumjjc,dumi,dumii,dumjj+1)-                   &
-             itabcolli1(dumic,dumiic,dumjjc,dumi,dumii,dumjj+1))
+   dproc11 = itabcolli001(dumic,dumiic,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
+             (itabcolli001(dumic+1,dumiic,dumjjc,dumi,dumii,dumjj+1)-                   &
+             itabcolli001(dumic,dumiic,dumjjc,dumi,dumii,dumjj+1))
 
-   dproc12 = itabcolli1(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))*&
-             (itabcolli1(dumic+1,dumiic,dumjjc,dumi+1,dumii,dumjj+1)-                 &
-             itabcolli1(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj+1))
+   dproc12 = itabcolli001(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))*&
+             (itabcolli001(dumic+1,dumiic,dumjjc,dumi+1,dumii,dumjj+1)-                 &
+             itabcolli001(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj+1))
 
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
 ! collector rime fraction index + 1
 
-   dproc11 = itabcolli1(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))*   &
-             (itabcolli1(dumic+1,dumiic,dumjjc,dumi,dumii+1,dumjj+1)-                    &
-             itabcolli1(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj+1))
+   dproc11 = itabcolli001(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))*   &
+             (itabcolli001(dumic+1,dumiic,dumjjc,dumi,dumii+1,dumjj+1)-                    &
+             itabcolli001(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj+1))
 
-   dproc12 = itabcolli1(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli1(dumic+1,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1)-                  &
-             itabcolli1(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1))
+   dproc12 = itabcolli001(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli001(dumic+1,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1)-                  &
+             itabcolli001(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1))
 
    iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
@@ -6060,25 +6099,25 @@ END subroutine p3_init
 !.......................................................................................................
 ! collectee rime fraction + 1
 
-   dproc11 = itabcolli1(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*   &
-             (itabcolli1(dumic+1,dumiic+1,dumjjc,dumi,dumii,dumjj)-                    &
-             itabcolli1(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj))
+   dproc11 = itabcolli001(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*   &
+             (itabcolli001(dumic+1,dumiic+1,dumjjc,dumi,dumii,dumjj)-                    &
+             itabcolli001(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj))
 
-   dproc12 = itabcolli1(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli1(dumic+1,dumiic+1,dumjjc,dumi+1,dumii,dumjj)-                  &
-             itabcolli1(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj))
+   dproc12 = itabcolli001(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli001(dumic+1,dumiic+1,dumjjc,dumi+1,dumii,dumjj)-                  &
+             itabcolli001(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj))
 
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
 ! collector rime fraction index + 1
 
-   dproc11 = itabcolli1(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli1(dumic+1,dumiic+1,dumjjc,dumi,dumii+1,dumjj)-                   &
-             itabcolli1(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj))
+   dproc11 = itabcolli001(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
+             (itabcolli001(dumic+1,dumiic+1,dumjjc,dumi,dumii+1,dumjj)-                   &
+             itabcolli001(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj))
 
-   dproc12 = itabcolli1(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli1(dumic+1,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj)-                  &
-             itabcolli1(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj))
+   dproc12 = itabcolli001(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli001(dumic+1,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj)-                  &
+             itabcolli001(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj))
 
    iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
@@ -6086,25 +6125,25 @@ END subroutine p3_init
 
 ! collector density index + 1
 
-   dproc11 = itabcolli1(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli1(dumic+1,dumiic+1,dumjjc,dumi,dumii,dumjj+1)-                  &
-             itabcolli1(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj+1))
+   dproc11 = itabcolli001(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli001(dumic+1,dumiic+1,dumjjc,dumi,dumii,dumjj+1)-                  &
+             itabcolli001(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj+1))
 
-   dproc12 = itabcolli1(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli1(dumic+1,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1)-                  &
-             itabcolli1(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1))
+   dproc12 = itabcolli001(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli001(dumic+1,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1)-                  &
+             itabcolli001(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1))
 
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
 ! collector rime fraction index + 1
 
-   dproc11 = itabcolli1(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli1(dumic+1,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1)-                  &
-             itabcolli1(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1))
+   dproc11 = itabcolli001(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli001(dumic+1,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1)-                  &
+             itabcolli001(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1))
 
-   dproc12 = itabcolli1(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli1(dumic+1,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1)-                  &
-             itabcolli1(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1))
+   dproc12 = itabcolli001(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli001(dumic+1,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1)-                  &
+             itabcolli001(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1))
 
    iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
@@ -6117,25 +6156,25 @@ END subroutine p3_init
 !............................................................................................................
 ! collectee density index + 1
 
-   dproc11 = itabcolli1(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli1(dumic+1,dumiic,dumjjc+1,dumi,dumii,dumjj)-                   &
-             itabcolli1(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj))
+   dproc11 = itabcolli001(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj)+(dum1c-real(dumic))*  &
+             (itabcolli001(dumic+1,dumiic,dumjjc+1,dumi,dumii,dumjj)-                   &
+             itabcolli001(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj))
 
-   dproc12 = itabcolli1(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli1(dumic+1,dumiic,dumjjc+1,dumi+1,dumii,dumjj)-                  &
-             itabcolli1(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj))
+   dproc12 = itabcolli001(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli001(dumic+1,dumiic,dumjjc+1,dumi+1,dumii,dumjj)-                  &
+             itabcolli001(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj))
 
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
 ! collector rime fraction index + 1
 
-   dproc11 = itabcolli1(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli1(dumic+1,dumiic,dumjjc+1,dumi,dumii+1,dumjj)-                  &
-             itabcolli1(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj))
+   dproc11 = itabcolli001(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli001(dumic+1,dumiic,dumjjc+1,dumi,dumii+1,dumjj)-                  &
+             itabcolli001(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj))
 
-   dproc12 = itabcolli1(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli1(dumic+1,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj)-                  &
-             itabcolli1(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj))
+   dproc12 = itabcolli001(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli001(dumic+1,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj)-                  &
+             itabcolli001(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj))
 
    iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
@@ -6143,25 +6182,25 @@ END subroutine p3_init
 
 ! collector density index + 1
 
-   dproc11 = itabcolli1(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
-             (itabcolli1(dumic+1,dumiic,dumjjc+1,dumi,dumii,dumjj+1)-                   &
-             itabcolli1(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj+1))
+   dproc11 = itabcolli001(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
+             (itabcolli001(dumic+1,dumiic,dumjjc+1,dumi,dumii,dumjj+1)-                   &
+             itabcolli001(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj+1))
 
-   dproc12 = itabcolli1(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli1(dumic+1,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1)-                  &
-             itabcolli1(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1))
+   dproc12 = itabcolli001(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli001(dumic+1,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1)-                  &
+             itabcolli001(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1))
 
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
 ! collector rime fraction index + 1
 
-   dproc11 = itabcolli1(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli1(dumic+1,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1)-                  &
-             itabcolli1(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1))
+   dproc11 = itabcolli001(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli001(dumic+1,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1)-                  &
+             itabcolli001(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1))
 
-   dproc12 = itabcolli1(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli1(dumic+1,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1)-                  &
-             itabcolli1(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1))
+   dproc12 = itabcolli001(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli001(dumic+1,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1)-                  &
+             itabcolli001(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1))
 
    iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
@@ -6172,25 +6211,25 @@ END subroutine p3_init
 !.......................................................................................................
 ! collectee rime fraction + 1
 
-   dproc11 = itabcolli1(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli1(dumic+1,dumiic+1,dumjjc+1,dumi,dumii,dumjj)-                   &
-             itabcolli1(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj))
+   dproc11 = itabcolli001(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj)+(dum1c-real(dumic))*  &
+             (itabcolli001(dumic+1,dumiic+1,dumjjc+1,dumi,dumii,dumjj)-                   &
+             itabcolli001(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj))
 
-   dproc12 = itabcolli1(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli1(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj)-                  &
-             itabcolli1(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj))
+   dproc12 = itabcolli001(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli001(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj)-                  &
+             itabcolli001(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj))
 
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
 ! collector rime fraction index + 1
 
-   dproc11 = itabcolli1(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli1(dumic+1,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj)-                  &
-             itabcolli1(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj))
+   dproc11 = itabcolli001(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli001(dumic+1,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj)-                  &
+             itabcolli001(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj))
 
-   dproc12 = itabcolli1(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli1(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj)-                  &
-             itabcolli1(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj))
+   dproc12 = itabcolli001(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli001(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj)-                  &
+             itabcolli001(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj))
 
    iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
@@ -6198,25 +6237,25 @@ END subroutine p3_init
 
 ! collector density index + 1
 
-   dproc11 = itabcolli1(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli1(dumic+1,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1)-                  &
-             itabcolli1(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1))
+   dproc11 = itabcolli001(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli001(dumic+1,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1)-                  &
+             itabcolli001(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1))
 
-   dproc12 = itabcolli1(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli1(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1)-                  &
-             itabcolli1(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1))
+   dproc12 = itabcolli001(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli001(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1)-                  &
+             itabcolli001(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1))
 
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
 ! collector rime fraction index + 1
 
-   dproc11 = itabcolli1(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli1(dumic+1,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1)-                  &
-             itabcolli1(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1))
+   dproc11 = itabcolli001(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli001(dumic+1,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1)-                  &
+             itabcolli001(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1))
 
-   dproc12 = itabcolli1(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli1(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1)-                  &
-             itabcolli1(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1))
+   dproc12 = itabcolli001(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli001(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1)-                  &
+             itabcolli001(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1))
 
    iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
@@ -6229,29 +6268,738 @@ END subroutine p3_init
 !..........................................................................................
 ! final process rate interpolation over collectee density
 
-   proc    = rproc1+(dum5c-real(dumjjc))*(rproc2-rproc1)
+   proc001    = rproc1+(dum5c-real(dumjjc))*(rproc2-rproc1)
+
+
+!..........................................................................................
+! at collector liquid fraction index+1 (dumll+1)
+
+   dproc11 = itabcolli101(dumic,dumiic,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*    &
+             (itabcolli101(dumic+1,dumiic,dumjjc,dumi,dumii,dumjj)-                     &
+             itabcolli101(dumic,dumiic,dumjjc,dumi,dumii,dumjj))
+
+   dproc12 = itabcolli101(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj)+(dum1c-real(dumic))*  &
+             (itabcolli101(dumic+1,dumiic,dumjjc,dumi+1,dumii,dumjj)-                   &
+             itabcolli101(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj))
+
+   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+
+! collector rime fraction index + 1
+
+   dproc11 = itabcolli101(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
+             (itabcolli101(dumic+1,dumiic,dumjjc,dumi,dumii+1,dumjj)-                   &
+             itabcolli101(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj))
+
+   dproc12 = itabcolli101(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))*&
+             (itabcolli101(dumic+1,dumiic,dumjjc,dumi+1,dumii+1,dumjj)-                 &
+             itabcolli101(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj))
+
+   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+
+! collector density index + 1
+
+   dproc11 = itabcolli101(dumic,dumiic,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
+             (itabcolli101(dumic+1,dumiic,dumjjc,dumi,dumii,dumjj+1)-                   &
+             itabcolli101(dumic,dumiic,dumjjc,dumi,dumii,dumjj+1))
+
+   dproc12 = itabcolli101(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))*&
+             (itabcolli101(dumic+1,dumiic,dumjjc,dumi+1,dumii,dumjj+1)-                 &
+             itabcolli101(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj+1))
+
+   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+! collector rime fraction index + 1
+
+   dproc11 = itabcolli101(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))*   &
+             (itabcolli101(dumic+1,dumiic,dumjjc,dumi,dumii+1,dumjj+1)-                    &
+             itabcolli101(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj+1))
+
+   dproc12 = itabcolli101(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli101(dumic+1,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1)-                  &
+             itabcolli101(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1))
+
+   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+
+   gproc1    = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
+
+!.......................................................................................................
+! collectee rime fraction + 1
+
+   dproc11 = itabcolli101(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*   &
+             (itabcolli101(dumic+1,dumiic+1,dumjjc,dumi,dumii,dumjj)-                    &
+             itabcolli101(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj))
+
+   dproc12 = itabcolli101(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli101(dumic+1,dumiic+1,dumjjc,dumi+1,dumii,dumjj)-                  &
+             itabcolli101(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj))
+
+   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+! collector rime fraction index + 1
+
+   dproc11 = itabcolli101(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
+             (itabcolli101(dumic+1,dumiic+1,dumjjc,dumi,dumii+1,dumjj)-                   &
+             itabcolli101(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj))
+
+   dproc12 = itabcolli101(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli101(dumic+1,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj)-                  &
+             itabcolli101(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj))
+
+   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+
+! collector density index + 1
+
+   dproc11 = itabcolli101(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli101(dumic+1,dumiic+1,dumjjc,dumi,dumii,dumjj+1)-                  &
+             itabcolli101(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj+1))
+
+   dproc12 = itabcolli101(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli101(dumic+1,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1)-                  &
+             itabcolli101(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1))
+
+   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+! collector rime fraction index + 1
+
+   dproc11 = itabcolli101(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli101(dumic+1,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1)-                  &
+             itabcolli101(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1))
+
+   dproc12 = itabcolli101(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli101(dumic+1,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1)-                  &
+             itabcolli101(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1))
+
+   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+
+   gproc2  = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
+
+   rproc1  = gproc1+(dum4c-real(dumiic))*(gproc2-gproc1)
+
+!............................................................................................................
+! collectee density index + 1
+
+   dproc11 = itabcolli101(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj)+(dum1c-real(dumic))*  &
+             (itabcolli101(dumic+1,dumiic,dumjjc+1,dumi,dumii,dumjj)-                   &
+             itabcolli101(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj))
+
+   dproc12 = itabcolli101(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli101(dumic+1,dumiic,dumjjc+1,dumi+1,dumii,dumjj)-                  &
+             itabcolli101(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj))
+
+   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+! collector rime fraction index + 1
+
+   dproc11 = itabcolli101(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli101(dumic+1,dumiic,dumjjc+1,dumi,dumii+1,dumjj)-                  &
+             itabcolli101(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj))
+
+   dproc12 = itabcolli101(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli101(dumic+1,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj)-                  &
+             itabcolli101(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj))
+
+   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+
+! collector density index + 1
+
+   dproc11 = itabcolli101(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
+             (itabcolli101(dumic+1,dumiic,dumjjc+1,dumi,dumii,dumjj+1)-                   &
+             itabcolli101(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj+1))
+
+   dproc12 = itabcolli101(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli101(dumic+1,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1)-                  &
+             itabcolli101(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1))
+
+   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+! collector rime fraction index + 1
+
+   dproc11 = itabcolli101(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli101(dumic+1,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1)-                  &
+             itabcolli101(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1))
+
+   dproc12 = itabcolli101(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli101(dumic+1,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1)-                  &
+             itabcolli101(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1))
+
+   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+
+   gproc1    = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
+
+!.......................................................................................................
+! collectee rime fraction + 1
+
+   dproc11 = itabcolli101(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj)+(dum1c-real(dumic))*  &
+             (itabcolli101(dumic+1,dumiic+1,dumjjc+1,dumi,dumii,dumjj)-                   &
+             itabcolli101(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj))
+
+   dproc12 = itabcolli101(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli101(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj)-                  &
+             itabcolli101(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj))
+
+   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+! collector rime fraction index + 1
+
+   dproc11 = itabcolli101(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli101(dumic+1,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj)-                  &
+             itabcolli101(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj))
+
+   dproc12 = itabcolli101(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli101(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj)-                  &
+             itabcolli101(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj))
+
+   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+
+! collector density index + 1
+
+   dproc11 = itabcolli101(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli101(dumic+1,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1)-                  &
+             itabcolli101(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1))
+
+   dproc12 = itabcolli101(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli101(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1)-                  &
+             itabcolli101(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1))
+
+   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+! collector rime fraction index + 1
+
+   dproc11 = itabcolli101(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli101(dumic+1,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1)-                  &
+             itabcolli101(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1))
+
+   dproc12 = itabcolli101(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli101(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1)-                  &
+             itabcolli101(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1))
+
+   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+
+   gproc2  = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
+
+   rproc2  = gproc1+(dum4c-real(dumiic))*(gproc2-gproc1)
+
+!..........................................................................................
+! interpolation over collectee density
+
+   proc101    = rproc1+(dum5c-real(dumjjc))*(rproc2-rproc1)
+
+!..........................................................................................
+! interpolation over liquid fraction (collector)
+
+   procll1    = proc001 + (dum7-real(dumll))*(proc101-proc001)
+
+
+!..........................................................................................
+! at dumllc+1
+
+   dproc11 = itabcolli011(dumic,dumiic,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*    &
+             (itabcolli011(dumic+1,dumiic,dumjjc,dumi,dumii,dumjj)-                     &
+             itabcolli011(dumic,dumiic,dumjjc,dumi,dumii,dumjj))
+
+   dproc12 = itabcolli011(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj)+(dum1c-real(dumic))*  &
+             (itabcolli011(dumic+1,dumiic,dumjjc,dumi+1,dumii,dumjj)-                   &
+             itabcolli011(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj))
+
+   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+
+! collector rime fraction index + 1
+
+   dproc11 = itabcolli011(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
+             (itabcolli011(dumic+1,dumiic,dumjjc,dumi,dumii+1,dumjj)-                   &
+             itabcolli011(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj))
+
+   dproc12 = itabcolli011(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))*&
+             (itabcolli011(dumic+1,dumiic,dumjjc,dumi+1,dumii+1,dumjj)-                 &
+             itabcolli011(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj))
+
+   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+
+! collector density index + 1
+
+   dproc11 = itabcolli011(dumic,dumiic,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
+             (itabcolli011(dumic+1,dumiic,dumjjc,dumi,dumii,dumjj+1)-                   &
+             itabcolli011(dumic,dumiic,dumjjc,dumi,dumii,dumjj+1))
+
+   dproc12 = itabcolli011(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))*&
+             (itabcolli011(dumic+1,dumiic,dumjjc,dumi+1,dumii,dumjj+1)-                 &
+             itabcolli011(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj+1))
+
+   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+! collector rime fraction index + 1
+
+   dproc11 = itabcolli011(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))*   &
+             (itabcolli011(dumic+1,dumiic,dumjjc,dumi,dumii+1,dumjj+1)-                    &
+             itabcolli011(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj+1))
+
+   dproc12 = itabcolli011(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli011(dumic+1,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1)-                  &
+             itabcolli011(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1))
+
+   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+
+   gproc1    = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
+
+!.......................................................................................................
+! collectee rime fraction + 1
+
+   dproc11 = itabcolli011(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*   &
+             (itabcolli011(dumic+1,dumiic+1,dumjjc,dumi,dumii,dumjj)-                    &
+             itabcolli011(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj))
+
+   dproc12 = itabcolli011(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli011(dumic+1,dumiic+1,dumjjc,dumi+1,dumii,dumjj)-                  &
+             itabcolli011(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj))
+
+   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+! collector rime fraction index + 1
+
+   dproc11 = itabcolli011(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
+             (itabcolli011(dumic+1,dumiic+1,dumjjc,dumi,dumii+1,dumjj)-                   &
+             itabcolli011(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj))
+
+   dproc12 = itabcolli011(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli011(dumic+1,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj)-                  &
+             itabcolli011(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj))
+
+   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+
+! collector density index + 1
+
+   dproc11 = itabcolli011(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli011(dumic+1,dumiic+1,dumjjc,dumi,dumii,dumjj+1)-                  &
+             itabcolli011(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj+1))
+
+   dproc12 = itabcolli011(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli011(dumic+1,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1)-                  &
+             itabcolli011(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1))
+
+   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+! collector rime fraction index + 1
+
+   dproc11 = itabcolli011(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli011(dumic+1,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1)-                  &
+             itabcolli011(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1))
+
+   dproc12 = itabcolli011(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli011(dumic+1,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1)-                  &
+             itabcolli011(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1))
+
+   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+
+   gproc2  = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
+
+   rproc1  = gproc1+(dum4c-real(dumiic))*(gproc2-gproc1)
+
+!............................................................................................................
+! collectee density index + 1
+
+   dproc11 = itabcolli011(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj)+(dum1c-real(dumic))*  &
+             (itabcolli011(dumic+1,dumiic,dumjjc+1,dumi,dumii,dumjj)-                   &
+             itabcolli011(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj))
+
+   dproc12 = itabcolli011(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli011(dumic+1,dumiic,dumjjc+1,dumi+1,dumii,dumjj)-                  &
+             itabcolli011(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj))
+
+   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+! collector rime fraction index + 1
+
+   dproc11 = itabcolli011(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli011(dumic+1,dumiic,dumjjc+1,dumi,dumii+1,dumjj)-                  &
+             itabcolli011(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj))
+
+   dproc12 = itabcolli011(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli011(dumic+1,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj)-                  &
+             itabcolli011(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj))
+
+   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+
+! collector density index + 1
+
+   dproc11 = itabcolli011(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
+             (itabcolli011(dumic+1,dumiic,dumjjc+1,dumi,dumii,dumjj+1)-                   &
+             itabcolli011(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj+1))
+
+   dproc12 = itabcolli011(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli011(dumic+1,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1)-                  &
+             itabcolli011(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1))
+
+   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+! collector rime fraction index + 1
+
+   dproc11 = itabcolli011(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli011(dumic+1,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1)-                  &
+             itabcolli011(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1))
+
+   dproc12 = itabcolli011(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli011(dumic+1,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1)-                  &
+             itabcolli011(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1))
+
+   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+
+   gproc1    = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
+
+!.......................................................................................................
+! collectee rime fraction + 1
+
+   dproc11 = itabcolli011(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj)+(dum1c-real(dumic))*  &
+             (itabcolli011(dumic+1,dumiic+1,dumjjc+1,dumi,dumii,dumjj)-                   &
+             itabcolli011(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj))
+
+   dproc12 = itabcolli011(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli011(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj)-                  &
+             itabcolli011(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj))
+
+   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+! collector rime fraction index + 1
+
+   dproc11 = itabcolli011(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli011(dumic+1,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj)-                  &
+             itabcolli011(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj))
+
+   dproc12 = itabcolli011(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli011(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj)-                  &
+             itabcolli011(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj))
+
+   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+
+! collector density index + 1
+
+   dproc11 = itabcolli011(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli011(dumic+1,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1)-                  &
+             itabcolli011(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1))
+
+   dproc12 = itabcolli011(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli011(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1)-                  &
+             itabcolli011(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1))
+
+   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+! collector rime fraction index + 1
+
+   dproc11 = itabcolli011(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli011(dumic+1,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1)-                  &
+             itabcolli011(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1))
+
+   dproc12 = itabcolli011(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli011(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1)-                  &
+             itabcolli011(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1))
+
+   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+
+   gproc2  = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
+
+   rproc2  = gproc1+(dum4c-real(dumiic))*(gproc2-gproc1)
+
+!..........................................................................................
+! interpolation over collectee density
+
+   proc011    = rproc1+(dum5c-real(dumjjc))*(rproc2-rproc1)
+
+
+!..........................................................................................
+! at collector liquid fraction index+1 (dumll+1)
+
+   dproc11 = itabcolli111(dumic,dumiic,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*    &
+             (itabcolli111(dumic+1,dumiic,dumjjc,dumi,dumii,dumjj)-                     &
+             itabcolli111(dumic,dumiic,dumjjc,dumi,dumii,dumjj))
+
+   dproc12 = itabcolli111(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj)+(dum1c-real(dumic))*  &
+             (itabcolli111(dumic+1,dumiic,dumjjc,dumi+1,dumii,dumjj)-                   &
+             itabcolli111(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj))
+
+   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+
+! collector rime fraction index + 1
+
+   dproc11 = itabcolli111(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
+             (itabcolli111(dumic+1,dumiic,dumjjc,dumi,dumii+1,dumjj)-                   &
+             itabcolli111(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj))
+
+   dproc12 = itabcolli111(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))*&
+             (itabcolli111(dumic+1,dumiic,dumjjc,dumi+1,dumii+1,dumjj)-                 &
+             itabcolli111(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj))
+
+   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+
+! collector density index + 1
+
+   dproc11 = itabcolli111(dumic,dumiic,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
+             (itabcolli111(dumic+1,dumiic,dumjjc,dumi,dumii,dumjj+1)-                   &
+             itabcolli111(dumic,dumiic,dumjjc,dumi,dumii,dumjj+1))
+
+   dproc12 = itabcolli111(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))*&
+             (itabcolli111(dumic+1,dumiic,dumjjc,dumi+1,dumii,dumjj+1)-                 &
+             itabcolli111(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj+1))
+
+   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+! collector rime fraction index + 1
+
+   dproc11 = itabcolli111(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))*   &
+             (itabcolli111(dumic+1,dumiic,dumjjc,dumi,dumii+1,dumjj+1)-                    &
+             itabcolli111(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj+1))
+
+   dproc12 = itabcolli111(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli111(dumic+1,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1)-                  &
+             itabcolli111(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1))
+
+   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+
+   gproc1    = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
+
+!.......................................................................................................
+! collectee rime fraction + 1
+
+   dproc11 = itabcolli111(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*   &
+             (itabcolli111(dumic+1,dumiic+1,dumjjc,dumi,dumii,dumjj)-                    &
+             itabcolli111(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj))
+
+   dproc12 = itabcolli111(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli111(dumic+1,dumiic+1,dumjjc,dumi+1,dumii,dumjj)-                  &
+             itabcolli111(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj))
+
+   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+! collector rime fraction index + 1
+
+   dproc11 = itabcolli111(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
+             (itabcolli111(dumic+1,dumiic+1,dumjjc,dumi,dumii+1,dumjj)-                   &
+             itabcolli111(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj))
+
+   dproc12 = itabcolli111(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli111(dumic+1,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj)-                  &
+             itabcolli111(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj))
+
+   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+
+! collector density index + 1
+
+   dproc11 = itabcolli111(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli111(dumic+1,dumiic+1,dumjjc,dumi,dumii,dumjj+1)-                  &
+             itabcolli111(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj+1))
+
+   dproc12 = itabcolli111(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli111(dumic+1,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1)-                  &
+             itabcolli111(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1))
+
+   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+! collector rime fraction index + 1
+
+   dproc11 = itabcolli111(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli111(dumic+1,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1)-                  &
+             itabcolli111(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1))
+
+   dproc12 = itabcolli111(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli111(dumic+1,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1)-                  &
+             itabcolli111(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1))
+
+   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+
+   gproc2  = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
+
+   rproc1  = gproc1+(dum4c-real(dumiic))*(gproc2-gproc1)
+
+!............................................................................................................
+! collectee density index + 1
+
+   dproc11 = itabcolli111(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj)+(dum1c-real(dumic))*  &
+             (itabcolli111(dumic+1,dumiic,dumjjc+1,dumi,dumii,dumjj)-                   &
+             itabcolli111(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj))
+
+   dproc12 = itabcolli111(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli111(dumic+1,dumiic,dumjjc+1,dumi+1,dumii,dumjj)-                  &
+             itabcolli111(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj))
+
+   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+! collector rime fraction index + 1
+
+   dproc11 = itabcolli111(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli111(dumic+1,dumiic,dumjjc+1,dumi,dumii+1,dumjj)-                  &
+             itabcolli111(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj))
+
+   dproc12 = itabcolli111(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli111(dumic+1,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj)-                  &
+             itabcolli111(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj))
+
+   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+
+! collector density index + 1
+
+   dproc11 = itabcolli111(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
+             (itabcolli111(dumic+1,dumiic,dumjjc+1,dumi,dumii,dumjj+1)-                   &
+             itabcolli111(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj+1))
+
+   dproc12 = itabcolli111(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli111(dumic+1,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1)-                  &
+             itabcolli111(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1))
+
+   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+! collector rime fraction index + 1
+
+   dproc11 = itabcolli111(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli111(dumic+1,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1)-                  &
+             itabcolli111(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1))
+
+   dproc12 = itabcolli111(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli111(dumic+1,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1)-                  &
+             itabcolli111(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1))
+
+   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+
+   gproc1    = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
+
+!.......................................................................................................
+! collectee rime fraction + 1
+
+   dproc11 = itabcolli111(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj)+(dum1c-real(dumic))*  &
+             (itabcolli111(dumic+1,dumiic+1,dumjjc+1,dumi,dumii,dumjj)-                   &
+             itabcolli111(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj))
+
+   dproc12 = itabcolli111(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli111(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj)-                  &
+             itabcolli111(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj))
+
+   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+! collector rime fraction index + 1
+
+   dproc11 = itabcolli111(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli111(dumic+1,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj)-                  &
+             itabcolli111(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj))
+
+   dproc12 = itabcolli111(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli111(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj)-                  &
+             itabcolli111(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj))
+
+   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+
+! collector density index + 1
+
+   dproc11 = itabcolli111(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli111(dumic+1,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1)-                  &
+             itabcolli111(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1))
+
+   dproc12 = itabcolli111(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli111(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1)-                  &
+             itabcolli111(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1))
+
+   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+! collector rime fraction index + 1
+
+   dproc11 = itabcolli111(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli111(dumic+1,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1)-                  &
+             itabcolli111(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1))
+
+   dproc12 = itabcolli111(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli111(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1)-                  &
+             itabcolli111(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1))
+
+   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+
+   gproc2  = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
+
+   rproc2  = gproc1+(dum4c-real(dumiic))*(gproc2-gproc1)
+
+!..........................................................................................
+! interpolation over collectee density
+
+   proc111    = rproc1+(dum5c-real(dumjjc))*(rproc2-rproc1)
+
+!..........................................................................................
+! interpolation over liquid fraction (collector)
+
+   procll2    = proc011 + (dum7-real(dumll))*(proc111-proc011)
+
+!..........................................................................................
+! final interpolation over liquid fraction (collectee)
+
+   proc    = procll1 + (dum7c-real(dumllc))*(procll2-procll1)
+
 
  else if (index.eq.2) then
 
-   dproc11 = itabcolli2(dumic,dumiic,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*    &
-             (itabcolli2(dumic+1,dumiic,dumjjc,dumi,dumii,dumjj)-                     &
-             itabcolli2(dumic,dumiic,dumjjc,dumi,dumii,dumjj))
+   dproc11 = itabcolli002(dumic,dumiic,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*    &
+             (itabcolli002(dumic+1,dumiic,dumjjc,dumi,dumii,dumjj)-                     &
+             itabcolli002(dumic,dumiic,dumjjc,dumi,dumii,dumjj))
 
-   dproc12 = itabcolli2(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli2(dumic+1,dumiic,dumjjc,dumi+1,dumii,dumjj)-                   &
-             itabcolli2(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj))
+   dproc12 = itabcolli002(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj)+(dum1c-real(dumic))*  &
+             (itabcolli002(dumic+1,dumiic,dumjjc,dumi+1,dumii,dumjj)-                   &
+             itabcolli002(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj))
 
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
 ! collector rime fraction index + 1
 
-   dproc11 = itabcolli2(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli2(dumic+1,dumiic,dumjjc,dumi,dumii+1,dumjj)-                   &
-             itabcolli2(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj))
+   dproc11 = itabcolli002(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
+             (itabcolli002(dumic+1,dumiic,dumjjc,dumi,dumii+1,dumjj)-                   &
+             itabcolli002(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj))
 
-   dproc12 = itabcolli2(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli2(dumic+1,dumiic,dumjjc,dumi+1,dumii+1,dumjj)-                  &
-             itabcolli2(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj))
+   dproc12 = itabcolli002(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli002(dumic+1,dumiic,dumjjc,dumi+1,dumii+1,dumjj)-                  &
+             itabcolli002(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj))
 
    iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
@@ -6259,25 +7007,25 @@ END subroutine p3_init
 
 ! collector density index + 1
 
-   dproc11 = itabcolli2(dumic,dumiic,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
-             (itabcolli2(dumic+1,dumiic,dumjjc,dumi,dumii,dumjj+1)-                   &
-             itabcolli2(dumic,dumiic,dumjjc,dumi,dumii,dumjj+1))
+   dproc11 = itabcolli002(dumic,dumiic,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
+             (itabcolli002(dumic+1,dumiic,dumjjc,dumi,dumii,dumjj+1)-                   &
+             itabcolli002(dumic,dumiic,dumjjc,dumi,dumii,dumjj+1))
 
-   dproc12 = itabcolli2(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli2(dumic+1,dumiic,dumjjc,dumi+1,dumii,dumjj+1)-                  &
-             itabcolli2(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj+1))
+   dproc12 = itabcolli002(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli002(dumic+1,dumiic,dumjjc,dumi+1,dumii,dumjj+1)-                  &
+             itabcolli002(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj+1))
 
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
 ! collector rime fraction index + 1
 
-   dproc11 = itabcolli2(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli2(dumic+1,dumiic,dumjjc,dumi,dumii+1,dumjj+1)-                  &
-             itabcolli2(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj+1))
+   dproc11 = itabcolli002(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli002(dumic+1,dumiic,dumjjc,dumi,dumii+1,dumjj+1)-                  &
+             itabcolli002(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj+1))
 
-   dproc12 = itabcolli2(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli2(dumic+1,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1)-                  &
-             itabcolli2(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1))
+   dproc12 = itabcolli002(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli002(dumic+1,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1)-                  &
+             itabcolli002(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1))
 
    iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
@@ -6288,25 +7036,25 @@ END subroutine p3_init
 !.......................................................................................................
 ! collectee rime fraction + 1
 
-   dproc11 = itabcolli2(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli2(dumic+1,dumiic+1,dumjjc,dumi,dumii,dumjj)-                  &
-             itabcolli2(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj))
+   dproc11 = itabcolli002(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli002(dumic+1,dumiic+1,dumjjc,dumi,dumii,dumjj)-                  &
+             itabcolli002(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj))
 
-   dproc12 = itabcolli2(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli2(dumic+1,dumiic+1,dumjjc,dumi+1,dumii,dumjj)-                  &
-             itabcolli2(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj))
+   dproc12 = itabcolli002(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli002(dumic+1,dumiic+1,dumjjc,dumi+1,dumii,dumjj)-                  &
+             itabcolli002(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj))
 
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
 ! collector rime fraction index + 1
 
-   dproc11 = itabcolli2(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli2(dumic+1,dumiic+1,dumjjc,dumi,dumii+1,dumjj)-                   &
-             itabcolli2(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj))
+   dproc11 = itabcolli002(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
+             (itabcolli002(dumic+1,dumiic+1,dumjjc,dumi,dumii+1,dumjj)-                   &
+             itabcolli002(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj))
 
-   dproc12 = itabcolli2(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli2(dumic+1,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj)-                  &
-             itabcolli2(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj))
+   dproc12 = itabcolli002(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli002(dumic+1,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj)-                  &
+             itabcolli002(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj))
 
    iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
@@ -6314,25 +7062,25 @@ END subroutine p3_init
 
 ! collector density index + 1
 
-   dproc11 = itabcolli2(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli2(dumic+1,dumiic+1,dumjjc,dumi,dumii,dumjj+1)-                  &
-             itabcolli2(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj+1))
+   dproc11 = itabcolli002(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli002(dumic+1,dumiic+1,dumjjc,dumi,dumii,dumjj+1)-                  &
+             itabcolli002(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj+1))
 
-   dproc12 = itabcolli2(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli2(dumic+1,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1)-                  &
-             itabcolli2(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1))
+   dproc12 = itabcolli002(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli002(dumic+1,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1)-                  &
+             itabcolli002(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1))
 
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
 ! collector rime fraction index + 1
 
-   dproc11 = itabcolli2(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli2(dumic+1,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1)-                  &
-             itabcolli2(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1))
+   dproc11 = itabcolli002(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli002(dumic+1,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1)-                  &
+             itabcolli002(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1))
 
-   dproc12 = itabcolli2(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli2(dumic+1,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1)-                  &
-             itabcolli2(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1))
+   dproc12 = itabcolli002(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli002(dumic+1,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1)-                  &
+             itabcolli002(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1))
 
    iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
@@ -6345,25 +7093,25 @@ END subroutine p3_init
 !............................................................................................................
 ! collectee density index + 1
 
-   dproc11 = itabcolli2(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli2(dumic+1,dumiic,dumjjc+1,dumi,dumii,dumjj)-                   &
-             itabcolli2(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj))
+   dproc11 = itabcolli002(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj)+(dum1c-real(dumic))*  &
+             (itabcolli002(dumic+1,dumiic,dumjjc+1,dumi,dumii,dumjj)-                   &
+             itabcolli002(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj))
 
-   dproc12 = itabcolli2(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli2(dumic+1,dumiic,dumjjc+1,dumi+1,dumii,dumjj)-                  &
-             itabcolli2(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj))
+   dproc12 = itabcolli002(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli002(dumic+1,dumiic,dumjjc+1,dumi+1,dumii,dumjj)-                  &
+             itabcolli002(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj))
 
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
 ! collector rime fraction index + 1
 
-   dproc11 = itabcolli2(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli2(dumic+1,dumiic,dumjjc+1,dumi,dumii+1,dumjj)-                  &
-             itabcolli2(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj))
+   dproc11 = itabcolli002(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli002(dumic+1,dumiic,dumjjc+1,dumi,dumii+1,dumjj)-                  &
+             itabcolli002(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj))
 
-   dproc12 = itabcolli2(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli2(dumic+1,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj)-                  &
-             itabcolli2(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj))
+   dproc12 = itabcolli002(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli002(dumic+1,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj)-                  &
+             itabcolli002(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj))
 
    iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
@@ -6371,25 +7119,25 @@ END subroutine p3_init
 
 ! collector density index + 1
 
-   dproc11 = itabcolli2(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli2(dumic+1,dumiic,dumjjc+1,dumi,dumii,dumjj+1)-                  &
-             itabcolli2(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj+1))
+   dproc11 = itabcolli002(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli002(dumic+1,dumiic,dumjjc+1,dumi,dumii,dumjj+1)-                  &
+             itabcolli002(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj+1))
 
-   dproc12 = itabcolli2(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli2(dumic+1,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1)-                  &
-             itabcolli2(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1))
+   dproc12 = itabcolli002(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli002(dumic+1,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1)-                  &
+             itabcolli002(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1))
 
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
 ! collector rime fraction index + 1
 
-   dproc11 = itabcolli2(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli2(dumic+1,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1)-                  &
-             itabcolli2(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1))
+   dproc11 = itabcolli002(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli002(dumic+1,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1)-                  &
+             itabcolli002(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1))
 
-   dproc12 = itabcolli2(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli2(dumic+1,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1)-                  &
-             itabcolli2(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1))
+   dproc12 = itabcolli002(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli002(dumic+1,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1)-                  &
+             itabcolli002(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1))
 
    iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
@@ -6400,25 +7148,25 @@ END subroutine p3_init
 !.......................................................................................................
 ! collectee rime fraction + 1
 
-   dproc11 = itabcolli2(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli2(dumic+1,dumiic+1,dumjjc+1,dumi,dumii,dumjj)-                  &
-             itabcolli2(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj))
+   dproc11 = itabcolli002(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli002(dumic+1,dumiic+1,dumjjc+1,dumi,dumii,dumjj)-                  &
+             itabcolli002(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj))
 
-   dproc12 = itabcolli2(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli2(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj)-                  &
-             itabcolli2(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj))
+   dproc12 = itabcolli002(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli002(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj)-                  &
+             itabcolli002(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj))
 
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
 ! collector rime fraction index + 1
 
-   dproc11 = itabcolli2(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli2(dumic+1,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj)-                  &
-             itabcolli2(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj))
+   dproc11 = itabcolli002(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli002(dumic+1,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj)-                  &
+             itabcolli002(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj))
 
-   dproc12 = itabcolli2(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli2(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj)-                  &
-             itabcolli2(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj))
+   dproc12 = itabcolli002(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli002(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj)-                  &
+             itabcolli002(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj))
 
    iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
@@ -6426,25 +7174,25 @@ END subroutine p3_init
 
 ! collector density index + 1
 
-   dproc11 = itabcolli2(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli2(dumic+1,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1)-                  &
-             itabcolli2(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1))
+   dproc11 = itabcolli002(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli002(dumic+1,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1)-                  &
+             itabcolli002(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1))
 
-   dproc12 = itabcolli2(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli2(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1)-                  &
-             itabcolli2(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1))
+   dproc12 = itabcolli002(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli002(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1)-                  &
+             itabcolli002(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1))
 
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
 ! collector rime fraction index + 1
 
-   dproc11 = itabcolli2(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli2(dumic+1,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1)-                  &
-             itabcolli2(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1))
+   dproc11 = itabcolli002(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli002(dumic+1,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1)-                  &
+             itabcolli002(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1))
 
-   dproc12 = itabcolli2(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli2(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1)-                  &
-             itabcolli2(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1))
+   dproc12 = itabcolli002(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli002(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1)-                  &
+             itabcolli002(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1))
 
    iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
@@ -6457,7 +7205,711 @@ END subroutine p3_init
 !..........................................................................................
 ! final process rate interpolation over collectee density
 
-   proc    = rproc1+(dum5c-real(dumjjc))*(rproc2-rproc1)
+   proc002    = rproc1+(dum5c-real(dumjjc))*(rproc2-rproc1)
+
+
+!..........................................................................................
+! at collector liquid fraction index+1 (dumll+1)
+
+   dproc11 = itabcolli102(dumic,dumiic,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*    &
+             (itabcolli102(dumic+1,dumiic,dumjjc,dumi,dumii,dumjj)-                     &
+             itabcolli102(dumic,dumiic,dumjjc,dumi,dumii,dumjj))
+
+   dproc12 = itabcolli102(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj)+(dum1c-real(dumic))*  &
+             (itabcolli102(dumic+1,dumiic,dumjjc,dumi+1,dumii,dumjj)-                   &
+             itabcolli102(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj))
+
+   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+
+! collector rime fraction index + 1
+
+   dproc11 = itabcolli102(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
+             (itabcolli102(dumic+1,dumiic,dumjjc,dumi,dumii+1,dumjj)-                   &
+             itabcolli102(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj))
+
+   dproc12 = itabcolli102(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))*&
+             (itabcolli102(dumic+1,dumiic,dumjjc,dumi+1,dumii+1,dumjj)-                 &
+             itabcolli102(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj))
+
+   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+
+! collector density index + 1
+
+   dproc11 = itabcolli102(dumic,dumiic,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
+             (itabcolli102(dumic+1,dumiic,dumjjc,dumi,dumii,dumjj+1)-                   &
+             itabcolli102(dumic,dumiic,dumjjc,dumi,dumii,dumjj+1))
+
+   dproc12 = itabcolli102(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))*&
+             (itabcolli102(dumic+1,dumiic,dumjjc,dumi+1,dumii,dumjj+1)-                 &
+             itabcolli102(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj+1))
+
+   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+! collector rime fraction index + 1
+
+   dproc11 = itabcolli102(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))*   &
+             (itabcolli102(dumic+1,dumiic,dumjjc,dumi,dumii+1,dumjj+1)-                    &
+             itabcolli102(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj+1))
+
+   dproc12 = itabcolli102(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli102(dumic+1,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1)-                  &
+             itabcolli102(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1))
+
+   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+
+   gproc1    = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
+
+!.......................................................................................................
+! collectee rime fraction + 1
+
+   dproc11 = itabcolli102(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*   &
+             (itabcolli102(dumic+1,dumiic+1,dumjjc,dumi,dumii,dumjj)-                    &
+             itabcolli102(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj))
+
+   dproc12 = itabcolli102(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli102(dumic+1,dumiic+1,dumjjc,dumi+1,dumii,dumjj)-                  &
+             itabcolli102(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj))
+
+   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+! collector rime fraction index + 1
+
+   dproc11 = itabcolli102(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
+             (itabcolli102(dumic+1,dumiic+1,dumjjc,dumi,dumii+1,dumjj)-                   &
+             itabcolli102(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj))
+
+   dproc12 = itabcolli102(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli102(dumic+1,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj)-                  &
+             itabcolli102(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj))
+
+   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+
+! collector density index + 1
+
+   dproc11 = itabcolli102(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli102(dumic+1,dumiic+1,dumjjc,dumi,dumii,dumjj+1)-                  &
+             itabcolli102(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj+1))
+
+   dproc12 = itabcolli102(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli102(dumic+1,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1)-                  &
+             itabcolli102(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1))
+
+   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+! collector rime fraction index + 1
+
+   dproc11 = itabcolli102(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli102(dumic+1,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1)-                  &
+             itabcolli102(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1))
+
+   dproc12 = itabcolli102(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli102(dumic+1,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1)-                  &
+             itabcolli102(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1))
+
+   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+
+   gproc2  = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
+
+   rproc1  = gproc1+(dum4c-real(dumiic))*(gproc2-gproc1)
+
+!............................................................................................................
+! collectee density index + 1
+
+   dproc11 = itabcolli102(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj)+(dum1c-real(dumic))*  &
+             (itabcolli102(dumic+1,dumiic,dumjjc+1,dumi,dumii,dumjj)-                   &
+             itabcolli102(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj))
+
+   dproc12 = itabcolli102(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli102(dumic+1,dumiic,dumjjc+1,dumi+1,dumii,dumjj)-                  &
+             itabcolli102(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj))
+
+   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+! collector rime fraction index + 1
+
+   dproc11 = itabcolli102(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli102(dumic+1,dumiic,dumjjc+1,dumi,dumii+1,dumjj)-                  &
+             itabcolli102(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj))
+
+   dproc12 = itabcolli102(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli102(dumic+1,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj)-                  &
+             itabcolli102(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj))
+
+   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+
+! collector density index + 1
+
+   dproc11 = itabcolli102(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
+             (itabcolli102(dumic+1,dumiic,dumjjc+1,dumi,dumii,dumjj+1)-                   &
+             itabcolli102(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj+1))
+
+   dproc12 = itabcolli102(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli102(dumic+1,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1)-                  &
+             itabcolli102(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1))
+
+   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+! collector rime fraction index + 1
+
+   dproc11 = itabcolli102(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli102(dumic+1,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1)-                  &
+             itabcolli102(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1))
+
+   dproc12 = itabcolli102(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli102(dumic+1,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1)-                  &
+             itabcolli102(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1))
+
+   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+
+   gproc1    = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
+
+!.......................................................................................................
+! collectee rime fraction + 1
+
+   dproc11 = itabcolli102(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj)+(dum1c-real(dumic))*  &
+             (itabcolli102(dumic+1,dumiic+1,dumjjc+1,dumi,dumii,dumjj)-                   &
+             itabcolli102(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj))
+
+   dproc12 = itabcolli102(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli102(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj)-                  &
+             itabcolli102(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj))
+
+   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+! collector rime fraction index + 1
+
+   dproc11 = itabcolli102(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli102(dumic+1,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj)-                  &
+             itabcolli102(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj))
+
+   dproc12 = itabcolli102(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli102(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj)-                  &
+             itabcolli102(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj))
+
+   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+
+! collector density index + 1
+
+   dproc11 = itabcolli102(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli102(dumic+1,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1)-                  &
+             itabcolli102(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1))
+
+   dproc12 = itabcolli102(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli102(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1)-                  &
+             itabcolli102(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1))
+
+   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+! collector rime fraction index + 1
+
+   dproc11 = itabcolli102(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli102(dumic+1,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1)-                  &
+             itabcolli102(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1))
+
+   dproc12 = itabcolli102(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli102(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1)-                  &
+             itabcolli102(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1))
+
+   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+
+   gproc2  = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
+
+   rproc2  = gproc1+(dum4c-real(dumiic))*(gproc2-gproc1)
+
+!..........................................................................................
+! interpolation over collectee density
+
+   proc102    = rproc1+(dum5c-real(dumjjc))*(rproc2-rproc1)
+
+!..........................................................................................
+! interpolation over liquid fraction (collector)
+
+   procll1    = proc002 + (dum7-real(dumll))*(proc102-proc002)
+
+   dproc11 = itabcolli012(dumic,dumiic,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*    &
+             (itabcolli012(dumic+1,dumiic,dumjjc,dumi,dumii,dumjj)-                     &
+             itabcolli012(dumic,dumiic,dumjjc,dumi,dumii,dumjj))
+
+   dproc12 = itabcolli012(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj)+(dum1c-real(dumic))*  &
+             (itabcolli012(dumic+1,dumiic,dumjjc,dumi+1,dumii,dumjj)-                   &
+             itabcolli012(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj))
+
+   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+
+! collector rime fraction index + 1
+
+   dproc11 = itabcolli012(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
+             (itabcolli012(dumic+1,dumiic,dumjjc,dumi,dumii+1,dumjj)-                   &
+             itabcolli012(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj))
+
+   dproc12 = itabcolli012(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))*&
+             (itabcolli012(dumic+1,dumiic,dumjjc,dumi+1,dumii+1,dumjj)-                 &
+             itabcolli012(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj))
+
+   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+
+! collector density index + 1
+
+   dproc11 = itabcolli012(dumic,dumiic,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
+             (itabcolli012(dumic+1,dumiic,dumjjc,dumi,dumii,dumjj+1)-                   &
+             itabcolli012(dumic,dumiic,dumjjc,dumi,dumii,dumjj+1))
+
+   dproc12 = itabcolli012(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))*&
+             (itabcolli012(dumic+1,dumiic,dumjjc,dumi+1,dumii,dumjj+1)-                 &
+             itabcolli012(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj+1))
+
+   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+! collector rime fraction index + 1
+
+   dproc11 = itabcolli012(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))*   &
+             (itabcolli012(dumic+1,dumiic,dumjjc,dumi,dumii+1,dumjj+1)-                    &
+             itabcolli012(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj+1))
+
+   dproc12 = itabcolli012(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli012(dumic+1,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1)-                  &
+             itabcolli012(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1))
+
+   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+
+   gproc1    = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
+
+!.......................................................................................................
+! collectee rime fraction + 1
+
+   dproc11 = itabcolli012(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*   &
+             (itabcolli012(dumic+1,dumiic+1,dumjjc,dumi,dumii,dumjj)-                    &
+             itabcolli012(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj))
+
+   dproc12 = itabcolli012(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli012(dumic+1,dumiic+1,dumjjc,dumi+1,dumii,dumjj)-                  &
+             itabcolli012(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj))
+
+   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+! collector rime fraction index + 1
+
+   dproc11 = itabcolli012(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
+             (itabcolli012(dumic+1,dumiic+1,dumjjc,dumi,dumii+1,dumjj)-                   &
+             itabcolli012(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj))
+
+   dproc12 = itabcolli012(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli012(dumic+1,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj)-                  &
+             itabcolli012(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj))
+
+   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+
+! collector density index + 1
+
+   dproc11 = itabcolli012(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli012(dumic+1,dumiic+1,dumjjc,dumi,dumii,dumjj+1)-                  &
+             itabcolli012(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj+1))
+
+   dproc12 = itabcolli012(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli012(dumic+1,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1)-                  &
+             itabcolli012(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1))
+
+   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+! collector rime fraction index + 1
+
+   dproc11 = itabcolli012(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli012(dumic+1,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1)-                  &
+             itabcolli012(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1))
+
+   dproc12 = itabcolli012(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli012(dumic+1,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1)-                  &
+             itabcolli012(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1))
+
+   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+
+   gproc2  = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
+
+   rproc1  = gproc1+(dum4c-real(dumiic))*(gproc2-gproc1)
+
+!............................................................................................................
+! collectee density index + 1
+
+   dproc11 = itabcolli012(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj)+(dum1c-real(dumic))*  &
+             (itabcolli012(dumic+1,dumiic,dumjjc+1,dumi,dumii,dumjj)-                   &
+             itabcolli012(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj))
+
+   dproc12 = itabcolli012(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli012(dumic+1,dumiic,dumjjc+1,dumi+1,dumii,dumjj)-                  &
+             itabcolli012(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj))
+
+   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+! collector rime fraction index + 1
+
+   dproc11 = itabcolli012(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli012(dumic+1,dumiic,dumjjc+1,dumi,dumii+1,dumjj)-                  &
+             itabcolli012(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj))
+
+   dproc12 = itabcolli012(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli012(dumic+1,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj)-                  &
+             itabcolli012(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj))
+
+   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+
+! collector density index + 1
+
+   dproc11 = itabcolli012(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
+             (itabcolli012(dumic+1,dumiic,dumjjc+1,dumi,dumii,dumjj+1)-                   &
+             itabcolli012(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj+1))
+
+   dproc12 = itabcolli012(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli012(dumic+1,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1)-                  &
+             itabcolli012(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1))
+
+   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+! collector rime fraction index + 1
+
+   dproc11 = itabcolli012(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli012(dumic+1,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1)-                  &
+             itabcolli012(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1))
+
+   dproc12 = itabcolli012(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli012(dumic+1,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1)-                  &
+             itabcolli012(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1))
+
+   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+
+   gproc1    = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
+
+!.......................................................................................................
+! collectee rime fraction + 1
+
+   dproc11 = itabcolli012(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj)+(dum1c-real(dumic))*  &
+             (itabcolli012(dumic+1,dumiic+1,dumjjc+1,dumi,dumii,dumjj)-                   &
+             itabcolli012(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj))
+
+   dproc12 = itabcolli012(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli012(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj)-                  &
+             itabcolli012(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj))
+
+   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+! collector rime fraction index + 1
+
+   dproc11 = itabcolli012(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli012(dumic+1,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj)-                  &
+             itabcolli012(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj))
+
+   dproc12 = itabcolli012(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli012(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj)-                  &
+             itabcolli012(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj))
+
+   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+
+! collector density index + 1
+
+   dproc11 = itabcolli012(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli012(dumic+1,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1)-                  &
+             itabcolli012(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1))
+
+   dproc12 = itabcolli012(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli012(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1)-                  &
+             itabcolli012(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1))
+
+   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+! collector rime fraction index + 1
+
+   dproc11 = itabcolli012(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli012(dumic+1,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1)-                  &
+             itabcolli012(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1))
+
+   dproc12 = itabcolli012(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli012(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1)-                  &
+             itabcolli012(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1))
+
+   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+
+   gproc2  = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
+
+   rproc2  = gproc1+(dum4c-real(dumiic))*(gproc2-gproc1)
+
+!..........................................................................................
+! interpolation over collectee density
+
+   proc012    = rproc1+(dum5c-real(dumjjc))*(rproc2-rproc1)
+
+
+!..........................................................................................
+! at collector liquid fraction index+1 (dumll+1)
+
+   dproc11 = itabcolli112(dumic,dumiic,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*    &
+             (itabcolli112(dumic+1,dumiic,dumjjc,dumi,dumii,dumjj)-                     &
+             itabcolli112(dumic,dumiic,dumjjc,dumi,dumii,dumjj))
+
+   dproc12 = itabcolli112(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj)+(dum1c-real(dumic))*  &
+             (itabcolli112(dumic+1,dumiic,dumjjc,dumi+1,dumii,dumjj)-                   &
+             itabcolli112(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj))
+
+   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+
+! collector rime fraction index + 1
+
+   dproc11 = itabcolli112(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
+             (itabcolli112(dumic+1,dumiic,dumjjc,dumi,dumii+1,dumjj)-                   &
+             itabcolli112(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj))
+
+   dproc12 = itabcolli112(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))*&
+             (itabcolli112(dumic+1,dumiic,dumjjc,dumi+1,dumii+1,dumjj)-                 &
+             itabcolli112(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj))
+
+   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+
+! collector density index + 1
+
+   dproc11 = itabcolli112(dumic,dumiic,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
+             (itabcolli112(dumic+1,dumiic,dumjjc,dumi,dumii,dumjj+1)-                   &
+             itabcolli112(dumic,dumiic,dumjjc,dumi,dumii,dumjj+1))
+
+   dproc12 = itabcolli112(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))*&
+             (itabcolli112(dumic+1,dumiic,dumjjc,dumi+1,dumii,dumjj+1)-                 &
+             itabcolli112(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj+1))
+
+   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+! collector rime fraction index + 1
+
+   dproc11 = itabcolli112(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))*   &
+             (itabcolli112(dumic+1,dumiic,dumjjc,dumi,dumii+1,dumjj+1)-                    &
+             itabcolli112(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj+1))
+
+   dproc12 = itabcolli112(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli112(dumic+1,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1)-                  &
+             itabcolli112(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1))
+
+   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+
+   gproc1    = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
+
+!.......................................................................................................
+! collectee rime fraction + 1
+
+   dproc11 = itabcolli112(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*   &
+             (itabcolli112(dumic+1,dumiic+1,dumjjc,dumi,dumii,dumjj)-                    &
+             itabcolli112(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj))
+
+   dproc12 = itabcolli112(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli112(dumic+1,dumiic+1,dumjjc,dumi+1,dumii,dumjj)-                  &
+             itabcolli112(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj))
+
+   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+! collector rime fraction index + 1
+
+   dproc11 = itabcolli112(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
+             (itabcolli112(dumic+1,dumiic+1,dumjjc,dumi,dumii+1,dumjj)-                   &
+             itabcolli112(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj))
+
+   dproc12 = itabcolli112(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli112(dumic+1,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj)-                  &
+             itabcolli112(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj))
+
+   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+
+! collector density index + 1
+
+   dproc11 = itabcolli112(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli112(dumic+1,dumiic+1,dumjjc,dumi,dumii,dumjj+1)-                  &
+             itabcolli112(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj+1))
+
+   dproc12 = itabcolli112(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli112(dumic+1,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1)-                  &
+             itabcolli112(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1))
+
+   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+! collector rime fraction index + 1
+
+   dproc11 = itabcolli112(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli112(dumic+1,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1)-                  &
+             itabcolli112(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1))
+
+   dproc12 = itabcolli112(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli112(dumic+1,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1)-                  &
+             itabcolli112(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1))
+
+   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+
+   gproc2  = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
+
+   rproc1  = gproc1+(dum4c-real(dumiic))*(gproc2-gproc1)
+
+!............................................................................................................
+! collectee density index + 1
+
+   dproc11 = itabcolli112(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj)+(dum1c-real(dumic))*  &
+             (itabcolli112(dumic+1,dumiic,dumjjc+1,dumi,dumii,dumjj)-                   &
+             itabcolli112(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj))
+
+   dproc12 = itabcolli112(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli112(dumic+1,dumiic,dumjjc+1,dumi+1,dumii,dumjj)-                  &
+             itabcolli112(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj))
+
+   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+! collector rime fraction index + 1
+
+   dproc11 = itabcolli112(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli112(dumic+1,dumiic,dumjjc+1,dumi,dumii+1,dumjj)-                  &
+             itabcolli112(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj))
+
+   dproc12 = itabcolli112(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli112(dumic+1,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj)-                  &
+             itabcolli112(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj))
+
+   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+
+! collector density index + 1
+
+   dproc11 = itabcolli112(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
+             (itabcolli112(dumic+1,dumiic,dumjjc+1,dumi,dumii,dumjj+1)-                   &
+             itabcolli112(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj+1))
+
+   dproc12 = itabcolli112(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli112(dumic+1,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1)-                  &
+             itabcolli112(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1))
+
+   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+! collector rime fraction index + 1
+
+   dproc11 = itabcolli112(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli112(dumic+1,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1)-                  &
+             itabcolli112(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1))
+
+   dproc12 = itabcolli112(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli112(dumic+1,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1)-                  &
+             itabcolli112(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1))
+
+   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+
+   gproc1    = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
+
+!.......................................................................................................
+! collectee rime fraction + 1
+
+   dproc11 = itabcolli112(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj)+(dum1c-real(dumic))*  &
+             (itabcolli112(dumic+1,dumiic+1,dumjjc+1,dumi,dumii,dumjj)-                   &
+             itabcolli112(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj))
+
+   dproc12 = itabcolli112(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli112(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj)-                  &
+             itabcolli112(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj))
+
+   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+! collector rime fraction index + 1
+
+   dproc11 = itabcolli112(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli112(dumic+1,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj)-                  &
+             itabcolli112(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj))
+
+   dproc12 = itabcolli112(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
+             (itabcolli112(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj)-                  &
+             itabcolli112(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj))
+
+   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+
+! collector density index + 1
+
+   dproc11 = itabcolli112(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli112(dumic+1,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1)-                  &
+             itabcolli112(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1))
+
+   dproc12 = itabcolli112(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli112(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1)-                  &
+             itabcolli112(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1))
+
+   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+! collector rime fraction index + 1
+
+   dproc11 = itabcolli112(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli112(dumic+1,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1)-                  &
+             itabcolli112(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1))
+
+   dproc12 = itabcolli112(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
+             (itabcolli112(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1)-                  &
+             itabcolli112(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1))
+
+   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
+
+   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+
+   gproc2  = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
+
+   rproc2  = gproc1+(dum4c-real(dumiic))*(gproc2-gproc1)
+
+!..........................................................................................
+! interpolation over collectee density
+
+   proc112    = rproc1+(dum5c-real(dumjjc))*(rproc2-rproc1)
+
+!..........................................................................................
+! interpolation over liquid fraction (collector)
+
+   procll2    = proc012 + (dum7-real(dumll))*(proc112-proc012)
+
+!..........................................................................................
+! final interpolation over liquid fraction (collectee)
+
+   proc    = procll1 + (dum7c-real(dumllc))*(procll2-procll1)
 
  endif ! index =1 or 2
 
@@ -7359,11 +8811,11 @@ SUBROUTINE access_lookup_table_coll_3mom(dumzz,dumjj,dumii,dumll,dumj,dumi,index
  end subroutine find_lookupTable_indices_1c
 
 !======================================================================================!
- subroutine find_lookupTable_indices_2(dumi,   dumii,   dumjj,  dumic, dumiic, dumjjc,  &
-                                       dum1,   dum4,    dum5,   dum1c, dum4c,  dum5c,   &
+ subroutine find_lookupTable_indices_2(dumi,   dumii,   dumjj,  dumll, dumic, dumiic, dumjjc,  dumllc, &
+                                       dum1,   dum4,    dum5,   dum7, dum1c, dum4c,  dum5c,   dum7c, &
                                        iisize, rimsize, densize,                        &
                                        qitot_1, qitot_2, nitot_1, nitot_2,              &
-                                       qirim_1, qirim_2, birim_1, birim_2)
+                                       qirim_1, qirim_2, birim_1, birim_2,qiliq_1,qiliq_2)
 
 !------------------------------------------------------------------------------------------!
 ! Finds indices in ice-ice interaction lookup table (2)
@@ -7372,10 +8824,10 @@ SUBROUTINE access_lookup_table_coll_3mom(dumzz,dumjj,dumii,dumll,dumj,dumi,index
  implicit none
 
 ! arguments:
- integer, intent(out) :: dumi,   dumii,   dumjj,  dumic, dumiic, dumjjc
- real,    intent(out) :: dum1,   dum4,    dum5,   dum1c, dum4c,  dum5c
+ integer, intent(out) :: dumi,   dumii,   dumjj,  dumic, dumiic, dumjjc, dumll, dumllc
+ real,    intent(out) :: dum1,   dum4,    dum5,   dum1c, dum4c,  dum5c, dum7, dum7c
  integer, intent(in)  :: iisize, rimsize, densize
- real,    intent(in)  :: qitot_1,qitot_2,nitot_1,nitot_2,qirim_1,qirim_2,birim_1,birim_2
+ real,    intent(in)  :: qitot_1,qitot_2,nitot_1,nitot_2,qirim_1,qirim_2,birim_1,birim_2,qiliq_1,qiliq_2
 
 ! local variables:
  real                 :: drhop
@@ -7409,12 +8861,20 @@ SUBROUTINE access_lookup_table_coll_3mom(dumzz,dumjj,dumii,dumll,dumj,dumi,index
    ! for efficiency; for now it is left in
 
                     ! find index for rime mass fraction
-                      dum4  = qirim_1/qitot_1*3. + 1.
+                      dum4  = qirim_1/(qitot_1-qiliq_1)*3. + 1.
                       dumii = int(dum4)
                       dum4  = min(dum4,real(rimsize))
                       dum4  = max(dum4,1.)
                       dumii = max(1,dumii)
                       dumii = min(rimsize-1,dumii)
+
+                    ! find index for liquid mass fraction
+                      dum7  = qiliq_1/qitot_1
+                      dumll = int(dum7)
+                      dum7  = min(dum7,2.)
+                      dum7  = max(dum7,1.)
+                      dumll = max(1,dumll)
+                      dumll = min(2,dumll)
 
 
                     ! find index for bulk rime density
@@ -7454,13 +8914,23 @@ SUBROUTINE access_lookup_table_coll_3mom(dumzz,dumjj,dumii,dumll,dumj,dumi,index
                       dumic = min(iisize-1,dumic)
 
 
+!******
                     ! find index for rime mass fraction
-                      dum4c  = qirim_2/qitot_2*3. + 1.
+                      dum4c  = qirim_2/(qitot_2-qiliq_2)*3. + 1.
                       dumiic = int(dum4c)
                       dum4c  = min(dum4c,real(rimsize))
                       dum4c  = max(dum4c,1.)
                       dumiic = max(1,dumiic)
                       dumiic = min(rimsize-1,dumiic)
+
+                    ! find index for liquid mass fraction
+                      dum7c  = qiliq_2/qitot_2
+                      dumllc = int(dum7c)
+                      dum7c  = min(dum7c,2.)
+                      dum7c  = max(dum7c,1.)
+                      dumllc = max(1,dumllc)
+                      dumllc = min(2,dumllc)
+
                     ! calculate predicted bulk rime density
                       if (birim_2.ge.1.e-15) then            !*** NOTE:  change to 'bsmall'
                          drhop = qirim_2/birim_2
