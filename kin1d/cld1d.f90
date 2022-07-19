@@ -45,7 +45,7 @@
 !--------------------------------------------------------------------------!
 
       use SUBS_CLD1D
-      use MODULE_MP_P3
+      use MICROPHY_P3
 
       implicit none
 
@@ -89,7 +89,7 @@
 !    character(len=16), parameter :: model = 'WRF'  !for level tests
 
      logical, parameter           :: PredictFl    = .true.
-     logical, parameter           :: trplMomIce   = .true.
+     logical, parameter           :: trplMomIce   = .false.
      logical, parameter           :: abort_on_err = .false.
 
      character(len=1024), parameter :: LT_path  = './lookup_tables'
