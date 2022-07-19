@@ -20,8 +20,8 @@
 !    Jason Milbrandt (jason.milbrandt@canada.ca)                                           !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.0.1                                                                     !
-! Last updated:  2022-JAN                                                                  !
+! Version:       5.0.2                                                                     !
+! Last updated:  2022-MAR                                                                  !
 !__________________________________________________________________________________________!
 
  MODULE MODULE_MP_P3
@@ -125,7 +125,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.0.1'
+ character(len=1024), parameter :: version_p3                    = '5.0.2'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.0.4.2-2momI'  
  character(len=1024), parameter :: version_intended_table_1_3mom = '6.2-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '2momI_v5.2.3' ! does not include Fi,liq
@@ -144,26 +144,13 @@
 !------------------------------------------------------------------------------------------!
 
  read_path = lookup_file_dir           ! path for lookup tables from official model library
-!read_path = '/MY/LOOKUP_TABLE/PATH'   ! path for lookup tables from specified location
 
-!-- JM_only; to be removed for shared code
-!read_path = '/data/ords/armn/armngr8/p3_lookup_tables'                 !ECCC network
-!read_path = '/fs/homeu1/eccc/mrd/ords/rpnatm/jam003/p3_lookup_tables'  !SCIENCE network
-!==
  if (trplMomI) then
     lookup_file_1 = '/fs/homeu1/eccc/mrd/ords/rpnatm/mec000/p3_lookup_tables/p3_lookupTable_1.dat-'//trim(version_intended_table_1_3mom)
  else
     lookup_file_1 = '/fs/homeu1/eccc/mrd/ords/rpnatm/mec000/p3_lookup_tables/p3_lookupTable_1.dat-'//trim(version_intended_table_1_2mom)
  endif
  lookup_file_2 = '/fs/homeu1/eccc/mrd/ords/rpnatm/mec000/p3_lookup_tables/p3_lookupTable_2.dat-'//trim(version_intended_table_2)
-
-! for 1D simulations
-! if (trplMomI) then
-!    lookup_file_1 = './lookup_tables/p3_lookupTable_1.dat-'//trim(version_intended_table_1_3mom)
-! else
-!    lookup_file_1 = './lookup_tables/p3_lookupTable_1.dat-'//trim(version_intended_table_1_2mom)
-! endif
-! lookup_file_2 = './lookup_tables/p3_lookupTable_2.dat-'//trim(version_intended_table_2)
 
  !if (trplMomI) then
  !   lookup_file_1 = '/Users/CHO/Desktop/1D_b3_3momI_fliq0/lookup_fliq'//'/'//'p3_lookupTable_1.dat-' &
@@ -458,7 +445,7 @@
           do ii = 1,rimsize
             do ll = 1,liqsize
               do i = 1,isize
-                read(10,*) dum,dum,dum,dum,dum,   itab_3mom(zz,jj,ii,ll,i, 1),itab_3mom(zz,jj,ii,ll,i, 2),    &
+                read(10,*) dum,dum,dum,dum,dum,  itab_3mom(zz,jj,ii,ll,i, 1),itab_3mom(zz,jj,ii,ll,i, 2),     &
                      itab_3mom(zz,jj,ii,ll,i, 3),itab_3mom(zz,jj,ii,ll,i, 4),itab_3mom(zz,jj,ii,ll,i, 5),     &
                      itab_3mom(zz,jj,ii,ll,i, 6),itab_3mom(zz,jj,ii,ll,i, 7),itab_3mom(zz,jj,ii,ll,i, 8),     &
                      itab_3mom(zz,jj,ii,ll,i, 9),itab_3mom(zz,jj,ii,ll,i,10),itab_3mom(zz,jj,ii,ll,i,11),     &
@@ -2664,12 +2651,12 @@ END subroutine p3_init
 
                 dum1z =  6./(200.*pi)*qitot(i,k,iice)  !estimate of moment3, as starting point use 200 kg m-3 estimate of bulk density
 
-	        do imu=1,niter_mui
+             do imu=1,niter_mui
                    mu_i = compute_mu_3moment(nitot(i,k,iice),dum1z,zitot(i,k,iice),mu_i_max)
                    call find_lookupTable_indices_1c(dumzz,dum6,zsize,qitot(i,k,iice),mu_i)
                    call access_lookup_table_3mom(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,f1pr16) ! find actual bulk density
                    dum1z =  6./(f1pr16*pi)*qitot(i,k,iice)  !estimate of moment3
-	        enddo
+             enddo
 
 
              ! call find_lookupTable_indices_1c(dumzz,dum6,zsize,qitot(i,k,iice),zitot(i,k,iice)) !HM moved above
@@ -3016,12 +3003,14 @@ END subroutine p3_init
 ! note 'f1pr' values are normalized, so we need to multiply by N
         if (log_predictfliq) then
           if (qitot(i,k,iice).ge.qsmall) then
-             if (qiliq(i,k,iice).lt.qsmall) then
+             !if (qiliq(i,k,iice).lt.qsmall) then !(v5.4)
+             if ((qiliq(i,k,iice)/qitot(i,k,iice)).lt.0.01) then
                  epsi(iice)  = ((f1pr05+f1pr14*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*2.*pi* &
                                rho(i,k)*dv)*nitot(i,k,iice)
                  epsi_tot    = epsi_tot + epsi(iice)
                  epsiw(iice) = 0.
-             elseif (qiliq(i,k,iice).ge.qsmall) then
+             !elseif (qiliq(i,k,iice).ge.qsmall) then
+             elseif ((qiliq(i,k,iice)/qitot(i,k,iice)).ge.0.01) then
                  epsiw(iice) = ((f1pr05+f1pr14*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*2.*pi* &
                                rho(i,k)*dv)*nitot(i,k,iice)
                  epsiw_tot   = epsiw_tot + epsiw(iice)
@@ -3406,8 +3395,8 @@ END subroutine p3_init
 
         if (log_predictfliq) then
 
-              if (qitot(i,k,iice).ge.qsmall.and.qiliq(i,k,iice).lt.qsmall) then
-              !if (qitot(i,k,iice).ge.qsmall .and. (qiliq(i,k,iice)/qitot(i,k,iice)).le.0.) then
+              !if (qitot(i,k,iice).ge.qsmall.and.qiliq(i,k,iice).lt.qsmall) then !(old v5.4)
+              if (qitot(i,k,iice).ge.qsmall .and. (qiliq(i,k,iice)/qitot(i,k,iice)).lt.0.01) then
               ! Sublimation/deposition of ice
               !note: diffusional growth/decay rate: (stored as 'qidep' temporarily; may go to qisub below)
                  qidep(iice) = (aaa*epsi(iice)*oxx+(ssat_cld*SCF(k)-aaa*oxx)*odt*epsi(iice)*oxx*   &
@@ -3415,9 +3404,9 @@ END subroutine p3_init
               endif
 
               !for very small ice contents in dry air, sublimate all ice instantly
-              if (supi_cld.lt.-0.001 .and. qitot(i,k,iice).lt.1.e-12 .and. qiliq(i,k,iice).lt.qsmall) &
-              !if (supi_cld.lt.-0.001 .and. qitot(i,k,iice).lt.1.e-12 .and. qitot(i,k,iice).ge.qsmall .and. &
-              !   (qiliq(i,k,iice)/qitot(i,k,iice)).le.0.) &
+              !if (supi_cld.lt.-0.001 .and. qitot(i,k,iice).lt.1.e-12 .and. qiliq(i,k,iice).lt.qsmall) &
+              if (supi_cld.lt.-0.001 .and. qitot(i,k,iice).lt.1.e-12 .and. qitot(i,k,iice).ge.qsmall .and. &
+                 (qiliq(i,k,iice)/qitot(i,k,iice)).lt.0.01) &
                  qidep(iice) = -(qitot(i,k,iice)-qiliq(i,k,iice))*odt
 
               !note: 'clbfact_dep' and 'clbfact_sub' calibration factors for ice deposition and sublimation
@@ -3437,16 +3426,16 @@ END subroutine p3_init
                  qidep(iice) = min(qidep(iice), qv(i,k)*odt)
               endif
 
-              if (qitot(i,k,iice).ge.qsmall.and.qiliq(i,k,iice).ge.qsmall) then
-              !if (qitot(i,k,iice).ge.qsmall .and. (qiliq(i,k,iice)/qitot(i,k,iice)).gt.0.) then
+              !if (qitot(i,k,iice).ge.qsmall.and.qiliq(i,k,iice).ge.qsmall) then
+              if (qitot(i,k,iice).ge.qsmall .and. (qiliq(i,k,iice)/qitot(i,k,iice)).ge.0.01) then
               ! Condensation/evaporation fo qiliq
                  qlcon(iice) = (aaa*epsiw(iice)*oxx+(ssat_cld*SCF(k)-aaa*oxx)*odt*epsiw(iice)*oxx* &
                                (1.-dexp(-dble(xx*dt))))/ab
               endif
 
-              if (sup_cld.lt.-0.001 .and. qitot(i,k,iice).lt.1.e-12 .and. qiliq(i,k,iice).ge.qsmall) &
-              !if (sup_cld.lt.-0.001 .and. qitot(i,k,iice).lt.1.e-12 .and. qitot(i,k,iice).ge.qsmall .and. &
-              !   (qiliq(i,k,iice)/qitot(i,k,iice)).gt.0.) &
+              !if (sup_cld.lt.-0.001 .and. qitot(i,k,iice).lt.1.e-12 .and. qiliq(i,k,iice).ge.qsmall) &
+              if (sup_cld.lt.-0.001 .and. qitot(i,k,iice).lt.1.e-12 .and. qitot(i,k,iice).ge.qsmall .and. &
+                 (qiliq(i,k,iice)/qitot(i,k,iice)).ge.0.01) &
                  qlcon(iice) = -qiliq(i,k,iice)*odt
 
               if (qlcon(iice).lt.0.) then
@@ -4725,7 +4714,7 @@ END subroutine p3_init
                          call find_lookupTable_indices_1c(dumzz,dum6,zsize,qitot(i,k,iice),mu_i)
                          call access_lookup_table_3mom(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,f1pr16) ! find actual bulk density
                          dum1z =  6./(f1pr16*pi)*qitot(i,k,iice)  !estimate of moment3
-		              enddo
+                      enddo
 
                       !call find_lookupTable_indices_1c(dumzz,dum6,zsize,qitot(i,k,iice),zitot(i,k,iice)) !HM moved to above
 
@@ -5055,7 +5044,7 @@ END subroutine p3_init
                    call find_lookupTable_indices_1c(dumzz,dum6,zsize,qitot(i,k,iice),mu_i)
                    call access_lookup_table_3mom(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,f1pr16) ! find actual bulk density
                    dum1z =  6./(f1pr16*pi)*qitot(i,k,iice)  !estimate of moment3
-		        enddo
+                enddo
 
 
                 ! call find_lookupTable_indices_1c(dumzz,dum6,zsize,qitot(i,k,iice),zitot(i,k,iice)) !HM moved to above
@@ -5579,7 +5568,7 @@ END subroutine p3_init
 ! end of main microphysics routine
 
 !.....................................................................................
-! output only
+! output only (examples)
 !      do i = its,ite
 !       do k = kbot,ktop,kdir
 !   !..............................................
@@ -5638,7 +5627,8 @@ END subroutine p3_init
 !        endif
 !       enddo !k-loop
 !      enddo !i-loop
-
+!
+!(!outputs end)
 !.....................................................................................
 
  return
