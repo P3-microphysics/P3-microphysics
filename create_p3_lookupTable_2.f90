@@ -6,8 +6,13 @@ PROGRAM create_p3_lookuptable_2
 ! interactions for the multi-ice-category configuration of the P3 microphysics scheme.
 !
 !--------------------------------------------------------------------------------------
-! Version:       5.2.3
-! Last modified: 2021-OCT
+! Version:       6.0
+! Last modified: 2022-JUN
+! For coupling with liquid fraction
+! _00 is Fi,liq1=0 and Fi,liq2=0 (p3v4)
+! _10 is Fi,liq1=1 and Fi,liq2=0
+! _01 is Fi,liq1=0 and Fi,liq2=1
+! _11 is Fi,liq1=1 and Fi,liq2=1
 !______________________________________________________________________________________
 
 !______________________________________________________________________________________
@@ -112,7 +117,10 @@ PROGRAM create_p3_lookuptable_2
 
  implicit none
  
- character(len=16), parameter :: version = '5.2.3'
+ character(len=16), parameter :: version = '6.0_00'
+
+ real, parameter :: Fl1 = 0.   ! liquid fraction of cat 1
+ real, parameter :: Fl2 = 0.   ! liquid fraction of cat 2
 
  real    :: pi,g,p,t,rho,mu,pgam,ds,cs,bas,aas,dcrit,eii
  integer :: k,ii,jj,kk,dumii,j2
@@ -134,7 +142,8 @@ PROGRAM create_p3_lookuptable_2
          sum3,sum4,xx,a0,b0,a1,b1,dum,bas1,aas1,aas2,bas2,gammq,d1,d2,delu,lamold,       &
          cap,lamr,dia,amg,dv,n0dum,sum5,sum6,sum7,sum8,dg,cg,bag,aag,dcritg,dcrits,      &
          dcritr,csr,dsr,duml,dum3,rhodep,cgpold,m1,m2,m3,dt,mur,initlamr,lamv,Fr,        &
-         rdumii,lammin,lammax,cs2,ds2,intgrR1,intgrR2,intgrR3,intgrR4,q_agg,n_agg
+         rdumii,lammin,lammax,cs2,ds2,intgrR1,intgrR2,intgrR3,intgrR4,q_agg,n_agg,area1, &
+         area2,mass1,cs5,rhom1,rhom2,intgrR5
 
  real :: diagnostic_mui ! function to return diagnostic value of shape paramter, mu_i
  real :: Q_normalized   ! function
@@ -436,7 +445,35 @@ PROGRAM create_p3_lookuptable_2
                b0/(c2*((1.+c1*xx**0.5)**0.5-1.)**2)
           a1 = (c2*((1.+c1*xx**0.5)**0.5-1.)**2-a0*xx**b0)/xx**b1
 ! velocity in terms of drag terms
-          fall1(i_rhor,i_Fr,jj) = a1*mu**(1.-2.*b1)*(2.*cs1*g/(rho*aas1))**b1*d1**(b1*(ds1-bas1+2.)-1.)
+
+
+     !------------------------------------
+     ! fall speed for rain particle
+
+          dia = d1  ! diameter m
+          amg = pi*sxth*997.*dia**3 ! mass [kg]
+          amg = amg*1000.           ! convert kg to g
+
+          if (dia.le.134.43e-6) then
+             dum2 = 4.5795e5*amg**(2.*thrd)
+             goto 101
+          endif
+
+          if(dia.lt.1511.64e-6) then
+             dum2 = 4.962e3*amg**thrd
+            goto 101
+          endif
+
+          if(dia.lt.3477.84e-6) then
+             dum2 = 1.732e3*amg**sxth
+             goto 101
+          endif
+
+          dum2 = 917.
+
+101       continue
+
+          fall1(i_rhor,i_Fr,jj) = (1.-Fl1)*(a1*mu**(1.-2.*b1)*(2.*cs1*g/(rho*aas1))**b1*d1**(b1*(ds1-bas1+2.)-1.))+Fl1*dum2*1.e-2
 
        enddo jj_loop_1
        
@@ -471,7 +508,8 @@ PROGRAM create_p3_lookuptable_2
           ii_loop: do ii = 1,num_bins2
 
              lam1(i_rhor,i_Fr,i) = lambdai(ii)
-             mu_i1(i_rhor,i_Fr,i) = diagnostic_mui(lam1(i_rhor,i_Fr,i),q,cgp1(i_rhor,i_Fr),Fr,pi)               
+             rhom1 = (1.-Fl1)*cgp1(i_rhor,i_Fr)+Fl1*1000.*pi*sxth
+             mu_i1(i_rhor,i_Fr,i) = diagnostic_mui(lam1(i_rhor,i_Fr,i),q,rhom1,Fr,pi)               
                
 ! set min,max lam corresponding to Dm_max,Dm_min:
              lam1(i_rhor,i_Fr,i) = max(lam1(i_rhor,i_Fr,i),(mu_i1(i_rhor,i_Fr,i)+1.)/Dm_max)
@@ -485,10 +523,11 @@ PROGRAM create_p3_lookuptable_2
 ! set up m-D relationship for solid ice with D < Dcrit
              cs1  = pi*sxth*900.
              ds1  = 3.
+             cs5  = pi*sxth*1000.
 
-             call intgrl_section(lam1(i_rhor,i_Fr,i),mu_i1(i_rhor,i_Fr,i), ds1,ds,dg,       &
-                                 dsr1(i_rhor,i_Fr),dcrit,dcrits1(i_rhor,i_Fr),              &
-                                 dcritr1(i_rhor,i_Fr),intgrR1,intgrR2,intgrR3,intgrR4)                    
+             call intgrl_section(lam1(i_rhor,i_Fr,i),mu_i1(i_rhor,i_Fr,i), ds1,ds,dg,          &
+                                 dsr1(i_rhor,i_Fr),dcrit,dcrits1(i_rhor,i_Fr),                 &
+                                 dcritr1(i_rhor,i_Fr),intgrR1,intgrR2,intgrR3,intgrR4,intgrR5)                    
                                  
 ! intgrR1 is integral from 0 to dcrit (solid ice)
 ! intgrR2 is integral from dcrit to dcrits (snow)
@@ -496,8 +535,8 @@ PROGRAM create_p3_lookuptable_2
 ! intgrR4 is integral from dcritr to inf (rimed snow)
 
 ! sum of the integrals from the 4 regions of the size distribution
-             qdum = n01(i_rhor,i_Fr,i)*(cs1*intgrR1 + cs*intgrR2 + cgp1(i_rhor,i_Fr)*intgrR3 +   &
-                     csr1(i_rhor,i_Fr)*intgrR4)
+             qdum = n01(i_rhor,i_Fr,i)*( (1.-Fl1)*(cs1*intgrR1 + cs*intgrR2 + cgp1(i_rhor,i_Fr)*intgrR3 +   &
+                     csr1(i_rhor,i_Fr)*intgrR4) + Fl1*cs5*intgrR5)
 
              if (ii.eq.1) then
                 qerror = abs(q-qdum)
@@ -522,7 +561,7 @@ PROGRAM create_p3_lookuptable_2
 ! this is the value of lam with the smallest qerror
           lam1(i_rhor,i_Fr,i) = lamf
 ! recalculate mu_i based on final lam
-          mu_i1(i_rhor,i_Fr,i) = diagnostic_mui(lam1(i_rhor,i_Fr,i),q,cgp1(i_rhor,i_Fr),Fr,pi)
+          mu_i1(i_rhor,i_Fr,i) = diagnostic_mui(lam1(i_rhor,i_Fr,i),q,rhom1,Fr,pi)
 
 !            n0 = N*lam**(pgam+1.)/(gamma(pgam+1.))
 
@@ -530,13 +569,15 @@ PROGRAM create_p3_lookuptable_2
 ! this is done instead of finding n0 from lam and N, since N
 ! may need to be adjusted to constrain mean size within reasonable bounds
 
-          call intgrl_section(lam1(i_rhor,i_Fr,i),mu_i1(i_rhor,i_Fr,i), ds1,ds,dg,        &
-                                 dsr1(i_rhor,i_Fr),dcrit,dcrits1(i_rhor,i_Fr),            &
-                                 dcritr1(i_rhor,i_Fr),intgrR1,intgrR2,intgrR3,intgrR4)                    
+          call intgrl_section(lam1(i_rhor,i_Fr,i),mu_i1(i_rhor,i_Fr,i), ds1,ds,dg,             &
+                                 dsr1(i_rhor,i_Fr),dcrit,dcrits1(i_rhor,i_Fr),                 &
+                                 dcritr1(i_rhor,i_Fr),intgrR1,intgrR2,intgrR3,intgrR4,intgrR5)                    
                  
 ! normalized n0
-          n01(i_rhor,i_Fr,i) = q/(cs1*intgrR1 + cs*intgrR2 + cgp1(i_rhor,i_Fr)*intgrR3 +       &
-                               csr1(i_rhor,i_Fr)*intgrR4)
+          cs5  = pi*sxth*1000.
+          n01(i_rhor,i_Fr,i) = q/( (1.-Fl1)*(cs1*intgrR1 + cs*intgrR2 + cgp1(i_rhor,i_Fr)*intgrR3 +       &
+                               csr1(i_rhor,i_Fr)*intgrR4) + Fl1*cs5*intgrR5)
+
           print*,'lam,N0:',lam1(i_rhor,i_Fr,i),n01(i_rhor,i_Fr,i)
           print*,'mu_i:',mu_i1(i_rhor,i_Fr,i)
           print*,'mean size:',(mu_i1(i_rhor,i_Fr,i)+1.)/lam1(i_rhor,i_Fr,i)
@@ -677,8 +718,34 @@ PROGRAM create_p3_lookuptable_2
 
           a1 = (c2*((1.+c1*xx**0.5)**0.5-1.)**2-a0*xx**b0)/xx**b1
 
+     !------------------------------------
+     ! fall speed for rain particle
+
+          dia = d1  ! diameter m
+          amg = pi*sxth*997.*dia**3 ! mass [kg]
+          amg = amg*1000.           ! convert kg to g
+
+          if (dia.le.134.43e-6) then
+             dum2 = 4.5795e5*amg**(2.*thrd)
+             goto 102
+          endif
+
+          if(dia.lt.1511.64e-6) then
+             dum2 = 4.962e3*amg**thrd
+            goto 102
+          endif
+
+          if(dia.lt.3477.84e-6) then
+             dum2 = 1.732e3*amg**sxth
+             goto 102
+          endif
+
+          dum2 = 917.
+
+102       continue
+
 ! velocity in terms of drag terms
-          fall2(i_rhor,i_Fr,jj) = a1*mu**(1.-2.*b1)*(2.*cs1*g/(rho*aas1))**b1*d1**(b1*(ds1-bas1+2.)-1.)
+          fall2(i_rhor,i_Fr,jj) = (1.-Fl2)*(a1*mu**(1.-2.*b1)*(2.*cs1*g/(rho*aas1))**b1*d1**(b1*(ds1-bas1+2.)-1.))+Fl2*dum2*1.e-2
 
 !---------------------------------------------------------------
        enddo jj_loop_2
@@ -718,7 +785,8 @@ PROGRAM create_p3_lookuptable_2
           ii_loop_2: do ii = 1,num_bins2
           
              lam2(i_rhor,i_Fr,i) = lambdai(ii)
-             mu_i2(i_rhor,i_Fr,i) = diagnostic_mui(lam2(i_rhor,i_Fr,i),q,cgp2(i_rhor,i_Fr),Fr,pi)
+             rhom2 = (1.-Fl2)*cgp2(i_rhor,i_Fr)+Fl2*1000.*pi*sxth
+             mu_i2(i_rhor,i_Fr,i) = diagnostic_mui(lam2(i_rhor,i_Fr,i),q,rhom2,Fr,pi)
 
             !set min,max lam corresponding to Dm_max, Dm_min
              lam2(i_rhor,i_Fr,i) = max(lam2(i_rhor,i_Fr,i),(mu_i2(i_rhor,i_Fr,i)+1.)/Dm_max)
@@ -734,14 +802,15 @@ PROGRAM create_p3_lookuptable_2
 ! set up m-D relationship for solid ice with D < Dcrit
              cs1  = pi*sxth*900.
              ds1  = 3.
+             cs5  = pi*sxth*1000.
 
-             call intgrl_section(lam2(i_rhor,i_Fr,i),mu_i2(i_rhor,i_Fr,i), ds1,ds,dg,      &
-                                 dsr2(i_rhor,i_Fr),dcrit,dcrits2(i_rhor,i_Fr),             &
-                                 dcritr2(i_rhor,i_Fr),intgrR1,intgrR2,intgrR3,intgrR4)                    
+             call intgrl_section(lam2(i_rhor,i_Fr,i),mu_i2(i_rhor,i_Fr,i), ds1,ds,dg,          &
+                                 dsr2(i_rhor,i_Fr),dcrit,dcrits2(i_rhor,i_Fr),                 &
+                                 dcritr2(i_rhor,i_Fr),intgrR1,intgrR2,intgrR3,intgrR4,intgrR5)                    
                     
 ! sum of the integrals from the 4 regions of the size distribution
-             qdum = n02(i_rhor,i_Fr,i)*(cs1*intgrR1 + cs*intgrR2 + cgp2(i_rhor,i_Fr)*intgrR3 +  &
-                    csr2(i_rhor,i_Fr)*intgrR4)
+             qdum = n02(i_rhor,i_Fr,i)*( (1.-Fl2)*(cs1*intgrR1 + cs*intgrR2 + cgp2(i_rhor,i_Fr)*intgrR3 +  &
+                    csr2(i_rhor,i_Fr)*intgrR4) + Fl2*cs5*intgrR5)
 
              if (ii.eq.1) then
                 qerror = abs(q-qdum)
@@ -768,7 +837,7 @@ PROGRAM create_p3_lookuptable_2
              
 ! recalculate mu based on final lam
 !         mu_i2(i_rhor,i_Fr,i) = diagnostic_mui(log_diagmu_orig,lam2(i_rhor,i_Fr,i),q,cgp2(i_rhor,i_Fr),Fr,pi)
-          mu_i2(i_rhor,i_Fr,i) = diagnostic_mui(lam2(i_rhor,i_Fr,i),q,cgp2(i_rhor,i_Fr),Fr,pi)
+          mu_i2(i_rhor,i_Fr,i) = diagnostic_mui(lam2(i_rhor,i_Fr,i),q,rhom2,Fr,pi)
 
 !            n0 = N*lam**(pgam+1.)/(gamma(pgam+1.))
 
@@ -776,12 +845,13 @@ PROGRAM create_p3_lookuptable_2
 ! this is done instead of finding n0 from lam and N, since N
 ! may need to be adjusted to constrain mean size within reasonable bounds
 
-          call intgrl_section(lam2(i_rhor,i_Fr,i),mu_i2(i_rhor,i_Fr,i), ds1,ds,dg,         &
-                                 dsr2(i_rhor,i_Fr),dcrit,dcrits2(i_rhor,i_Fr),             &
-                                 dcritr2(i_rhor,i_Fr),intgrR1,intgrR2,intgrR3,intgrR4)                    
-               
-          n02(i_rhor,i_Fr,i) = q/(cs1*intgrR1 + cs*intgrR2 + cgp2(i_rhor,i_Fr)*intgrR3 +        &  ! n0 is normalized
-                               csr2(i_rhor,i_Fr)*intgrR4)
+          call intgrl_section(lam2(i_rhor,i_Fr,i),mu_i2(i_rhor,i_Fr,i), ds1,ds,dg,              &
+                                 dsr2(i_rhor,i_Fr),dcrit,dcrits2(i_rhor,i_Fr),                  &
+                                 dcritr2(i_rhor,i_Fr),intgrR1,intgrR2,intgrR3,intgrR4,intgrR5) 
+                   
+          cs5  = pi*sxth*1000.               
+          n02(i_rhor,i_Fr,i) = q/( (1.-Fl2)*(cs1*intgrR1 + cs*intgrR2 + cgp2(i_rhor,i_Fr)*intgrR3 +        &  ! n0 is normalized
+                               csr2(i_rhor,i_Fr)*intgrR4) + Fl2*cs5*intgrR5)
           print*,'lam,N0:',lam2(i_rhor,i_Fr,i),n02(i_rhor,i_Fr,i)
           print*,'pgam:',mu_i2(i_rhor,i_Fr,i)
 
@@ -801,6 +871,8 @@ PROGRAM create_p3_lookuptable_2
 ! NOTE: In the code it is assumed that mean size and number have already been
 ! adjusted, so that mean size will fall within allowed bounds. Thus, we do
 ! not apply a lambda limiter here.
+
+!--------------------------------------------------------------------
 
 !--------------------------------------------------------------------
 
@@ -844,7 +916,7 @@ PROGRAM create_p3_lookuptable_2
  ! Note: i1 loop (do/enddo statements) is commented out for parallelization; i1 gets initizatized there
  ! - to run in serial, uncomment the 'do i1' statement and the corresponding 'enddo'
  
- Qnorm_loop_3: do i1 = 1,n_Qnorm    ! COMMENT OUT FOR PARALLELIZATION
+ !Qnorm_loop_3: do i1 = 1,n_Qnorm    ! COMMENT OUT FOR PARALLELIZATION
    do i_Fr1 = 1,n_Fr
      do i_rhor1 = 1,n_rhor
        do i2 = 1,n_Qnorm
@@ -908,6 +980,9 @@ PROGRAM create_p3_lookuptable_2
                       endif
                    endif
 
+                   mass1 = (1.-Fl1)*cs1*d1**ds1+Fl1*pi*sxth*1000.*d1**3.
+                   area1 = (1.-Fl1)*aas1*d1**bas1+Fl1*pi/4.*d1**2.
+
 ! loop over particle 2
                    kk_loop: do kk = num_bins1,1,-1
 
@@ -949,6 +1024,8 @@ PROGRAM create_p3_lookuptable_2
                          endif
                       endif
 
+                    area2 = (1.-Fl2)*aas2*d2**bas2+Fl2*pi/4.*d2**2.
+
 ! absolute value, differential fallspeed
 !                   delu = abs(fall2(i_rhor2,i_Fr2,kk)-fall1(i_rhor1,i_Fr1,jj))
 
@@ -974,16 +1051,18 @@ PROGRAM create_p3_lookuptable_2
 ! for the lookup table calculations, and then not multipling process rate by air density 
 ! in the P3 code... TO BE FIXED IN THE FUTURE
 
-!                   sum1 = sum1+min((aas1*d1**bas1+aas2*d2**bas2)*delu*num(jj)*num(kk),   &
+!                   sum1 = sum1+min((area1+area2)*delu*num(jj)*num(kk),   &
 !                          num(kk)/dt)
 
 ! set collection efficiency
 !                  eii = 0.1
 
 ! accretion of number
-                         sum1 = sum1 + (aas1*d1**bas1 + aas2*d2**bas2)*delu*num1(jj)*num2(kk)
+                         !sum1 = sum1 + (aas1*d1**bas1 + aas2*d2**bas2)*delu*num1(jj)*num2(kk)
+                         sum1 = sum1 + (area1 + area2)*delu*num1(jj)*num2(kk)
 ! accretion of mass
-                         sum2 = sum2 + cs1*d1**ds1*(aas1*d1**bas1 + aas2*d2**bas2)*delu*num1(jj)*num2(kk)
+                         !sum2 = sum2 + cs1*d1**ds1*(aas1*d1**bas1 + aas2*d2**bas2)*delu*num1(jj)*num2(kk)
+                         sum2 = sum2 + mass1*(area1 + area2)*delu*num1(jj)*num2(kk)
 
 ! remove collected particles from distribution over time period dt, update num1
 !  note -- dt is time scale for removal, not necessarily the model time step
@@ -1008,16 +1087,19 @@ PROGRAM create_p3_lookuptable_2
              n_agg = dim(n_agg, 1.e-50)
              q_agg = dim(q_agg, 1.e-50)
 
-            !write(6,'(a5,6i5,2e15.5)') 'index:',i1,i_Fr1,i_rhor1,i2,i_Fr2,i_rhor2,n_agg,q_agg             
-             write(1,'(6i5,2e15.6)') i1,i_Fr1,i_rhor1,i2,i_Fr2,i_rhor2,n_agg,q_agg
-
+            !write(6,'(a5,6i5,2e15.5)') 'index:',i1,i_Fr1,i_rhor1,i2,i_Fr2,i_rhor2,n_agg,q_agg  
+             if (Fl1.eq.0 .and. Fl2.eq.0) then         
+                write(1,'(6i5,2e15.6)') i1,i_Fr1,i_rhor1,i2,i_Fr2,i_rhor2,n_agg,q_agg
+             else
+                write(1,'(2e15.6)') n_agg,q_agg
+             endif
               
            enddo   ! i_rhor2 loop
          enddo   ! i_Fr2 loop
        enddo   ! i2 loop
      enddo   ! i_rhor1 loop
    enddo   ! i_Fr1
- enddo Qnorm_loop_3  ! i1 loop  (Qnorm)     ! COMMENTED OUT FOR PARALLELIZATION
+ !enddo Qnorm_loop_3  ! i1 loop  (Qnorm)     ! COMMENTED OUT FOR PARALLELIZATION
  
  close(1)
              
@@ -1107,7 +1189,7 @@ END PROGRAM create_p3_lookuptable_2
 
 !______________________________________________________________________________________
 
- real function diagnostic_mui(lam,q,cgp,Fr,pi)
+ real function diagnostic_mui(lam,q,rho,Fr,pi)
 
 !----------------------------------------------------------!
 ! Compute mu_i diagnostically.
@@ -1116,7 +1198,7 @@ END PROGRAM create_p3_lookuptable_2
  implicit none
  
 !Arguments:
- real :: lam,q,cgp,Fr,pi
+ real :: lam,q,rho,Fr,pi
 
 ! Local variables:
  real            :: mu_i,dum1,dum2,dum3
@@ -1131,15 +1213,16 @@ END PROGRAM create_p3_lookuptable_2
     
 
 !-- formulation based on 3-moment results (see 2021 JAS article)
- dum1 = (q/cgp)**(1./3)*1000.              ! estimated Dmvd [mm], assuming spherical
+ dum1 = (q/rho)**(1./3)*1000.              ! estimated Dmvd [mm], assuming spherical
  if (dum1<=Di_thres) then
     !diagnostic mu_i, original formulation: (from Heymsfield, 2003)
     mu_i = 0.076*(lam*0.01)**0.8-2.        ! /100 is to convert m-1 to cm-1
     mu_i = min(mu_i,6.)
  else
-    dum2 = (6./pi)*cgp                     ! mean density (total)
+    dum2 = (6./pi)*rho                     ! mean density (total)
     dum3 = max(1., 1.+0.00842*(dum2-400.)) ! adjustment factor for density
-    mu_i = 4.*(dum1-Di_thres)*dum3*Fr
+    mu_i = 0.25*(dum1-Di_thres)*dum3*Fr
+   !mu_i = 4.*(dum1-Di_thres)*dum3*Fr
  endif
  mu_i = max(mu_i, mu_i_min)
  mu_i = min(mu_i, mu_i_max)
@@ -1147,11 +1230,11 @@ END PROGRAM create_p3_lookuptable_2
  diagnostic_mui = mu_i
  
  end function diagnostic_mui
- 
+
 !______________________________________________________________________________________
 
  subroutine intgrl_section(lam,mu, d1,d2,d3,d4, Dcrit1,Dcrit2,Dcrit3,    &
-                           intsec_1,intsec_2,intsec_3,intsec_4)
+                           intsec_1,intsec_2,intsec_3,intsec_4,intsec_5)
  !-----------------  
  ! Computes and returns partial integrals (partial moments) of ice PSD.
  !----------------- 
@@ -1160,7 +1243,7 @@ END PROGRAM create_p3_lookuptable_2
  
 !Arguments:
  real, intent(in)  :: lam,mu, d1,d2,d3,d4, Dcrit1,Dcrit2,Dcrit3
- real, intent(out) :: intsec_1,intsec_2,intsec_3,intsec_4
+ real, intent(out) :: intsec_1,intsec_2,intsec_3,intsec_4,intsec_5
  
 !Local:
  real :: dum,gammq
@@ -1181,6 +1264,10 @@ END PROGRAM create_p3_lookuptable_2
           
  !Region IV -- integral from Dcrit3 to infinity  (partially rimed ice)
  intsec_4 = lam**(-d4-mu-1.)*gamma(mu+d4+1.)*(gammq(mu+d4+1.,Dcrit3*lam))
+
+ !Region V -- integral from 0 to infinity  (ice completely metled)
+ !because d1=3.
+ intsec_5 = lam**(-d1-mu-1.)*gamma(mu+d1+1.)
 
  return
  

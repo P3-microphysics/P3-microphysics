@@ -13,8 +13,8 @@ PROGRAM create_p3_lookuptable_1
 ! All other parameter settings are linked uniquely to the version number.
 !
 !--------------------------------------------------------------------------------------
-! Version:       6
-! Last modified: 2021-FEBRUARY
+! Version:       6.1
+! Last modified: 2021-July
 ! Version: including the liquid fraction (inner-loop i_Fl)
 !______________________________________________________________________________________
 
@@ -86,7 +86,7 @@ PROGRAM create_p3_lookuptable_1
 
 !#!/bin/ksh
 !
-! for i_Znorm in 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78 79 80
+! for i_Znorm in 01 02 03 04 05 06 07 08 09 10 11
 ! do
 
 !    rm cfg_input full_code.f90
@@ -144,8 +144,8 @@ PROGRAM create_p3_lookuptable_1
  implicit none
 
  !-----
- character(len=20), parameter :: version   = '6.0.4.2' !2momI, 6.2 3momI
- logical, parameter           :: log_3momI = .false.    !switch to create table for 2momI (.false.) or 3momI (.true.)
+ character(len=20), parameter :: version   = '6.3'
+ logical, parameter           :: log_3momI = .true.    !switch to create table for 2momI (.false.) or 3momI (.true.)
  !-----
 
  integer            :: i_Znorm         ! index for normalized (by Q) Z (passed in through script; [1 .. n_Znorm])
@@ -160,7 +160,7 @@ PROGRAM create_p3_lookuptable_1
 !       with resulting sub-tables subsequently concatenated.  The same is true for the second (i_rhor) "loop"; however, n_rhor
 !       is used to decare the ranges of other arrays, hence it is declared/initialized here
 
-!integer, parameter :: n_Znorm   = 80  ! number of indices for i_Znorm loop           (1nd "loop")  [not used in parallelized version]
+!integer, parameter :: n_Znorm   = 11  ! number of indices for i_Znorm loop           (1nd "loop")  [not used in parallelized version]
  integer, parameter :: n_rhor    =  5  ! number of indices for i_rhor  loop           (2nd "loop")
  integer, parameter :: n_Fr      =  4  ! number of indices for i_Fr    loop           (3rd loop)
  integer, parameter :: n_Fl      =  4  ! number of indices for i_Fl    loop           (4th loop)
@@ -203,7 +203,9 @@ PROGRAM create_p3_lookuptable_1
  real, dimension(n_Qnorm,n_Fr,n_Fl) :: qshed,vdepm1,vdepm2,vdepm3,vdepm4
 
 ! outputs for triple moment
- real, dimension(n_Qnorm,n_Fr,n_Fl) :: uzs,zlarge,zsmall
+! HM zsmall, zlarge no longer needed
+! real, dimension(n_Qnorm,n_Fr) :: uzs,zlarge,zsmall
+ real, dimension(n_Qnorm,n_Fr,n_Fl) :: uzs
 
  real, dimension(n_Qnorm,n_Drscale,n_Fr,n_Fl) :: qrrain,nrrain,nsrain,qsrain,ngrain
 
@@ -262,10 +264,13 @@ hostinclusionstring_m = 'spheroidal'
 !===   end of variable declaration ===
 
  if (log_3momI) then
-    n_iter_psdSolve = 3   ! 3 iterations found to be sufficient (trial-and-error)
+! HM, no longer need iteration loop
+!    n_iter_psdSolve = 3   ! 3 iterations found to be sufficient (trial-and-error)
+    n_iter_psdSolve = 1
  else
     n_iter_psdSolve = 1
  endif
+
 
 !                            RUNNING IN PARALLEL MODE:
 !
@@ -275,6 +280,7 @@ hostinclusionstring_m = 'spheroidal'
 !   Before running ./go_1-compile.ksh, delete all lines below this point and
 !   and save as 'create_p3_lookupTable_1-top.f90'
 !------------------------------------------------------------------------------------
+
 
 ! For testing single values, uncomment the following:
 ! i_Znorm = 1
@@ -436,7 +442,6 @@ hostinclusionstring_m = 'spheroidal'
   m_w_0 = m_complex_water_ray(pi,lamda_radar, 0.0)
   m_i_0 = m_complex_ice_maetzler(lamda_radar, 0.0)
   K_w = (abs( (m_w_0*m_w_0 - 1.0) /(m_w_0*m_w_0 + 2.0) ))**2
-  !print*,'kw',K_w
 
 !.........................................................
 
@@ -467,12 +472,13 @@ hostinclusionstring_m = 'spheroidal'
 ! Thus, the loops 'i_Znorm_loop' and 'i_rhor_loop' are commented out accordingingly.
 !
 !i_Znorm_loop: do i_Znorm = 1,n_Znorm   !normally commented (kept to illustrate the structure (and to run in serial)
-!    i_rhor_loop: do i_rhor = 1,n_rhor    !COMMENT OUT FOR PARALLELIZATION (2-MOMENT ONLY)
-!     i_Fr_loop_1: do i_Fr = 1,n_Fr       !COMMENT OUT FOR PARALLELIZATION (2-MOMENT ONLY)
+   i_rhor_loop: do i_rhor = 1,n_rhor    !COMMENT OUT FOR PARALLELIZATION (2-MOMENT ONLY)
+     i_Fr_loop_1: do i_Fr = 1,n_Fr      !COMMENT OUT FOR PARALLELIZATION (2-MOMENT ONLY)
 
 ! 3-moment-ice only:
 ! compute Z value from input Z index whose value is "passed in" through the script
- Z_value = 2.1**(i_Znorm)*1.e-23 ! range from 2x10^(-23) to 600 using 80 values
+! Z_value = 2.1**(i_Znorm)*1.e-23 ! range from 2x10^(-23) to 600 using 80 values
+  Z_value = 2.*(i_Znorm-1.) ! mu values of 0,2,4,6,8, temporary.... NOTE IF 2 MOM JUST SET TO ARBITRARY VALUE, WILL BE OVERWRITTEN LATER
 
        ! write header to first file:
        if (log_3momI .and. i_Znorm==1 .and. i_rhor==1 .and. i_Fr==1) then
@@ -768,9 +774,7 @@ hostinclusionstring_m = 'spheroidal'
 
          !q = 261.7**((i_Qnorm+10)*0.1)*1.e-18    ! old (strict) lambda limiter
           q = 800.**((i_Qnorm+10)*0.1)*1.e-18     ! new lambda limiter
-          qid = (1.-Fl)*800.**((i_Qnorm+10)*0.1)*1.e-18 !qi,dry
-         !qil = Fl*800.**((i_Qnorm+10)*0.1)*1.e-18      !qi,liq liquid on ice (actually not needed)
-          Zid = (1.-Fl)*2.1**(i_Znorm)*1.e-23           !Zi,dry
+          qid = (1.-Fl)*800.**((i_Qnorm+10)*0.1)*1.e-18 !qi,ice = (1-Fi,liq)*qi,tot
 
 !--uncomment to test and print proposed values of qovn
 !         print*,i_Qnorm,(6./(pi*500.)*q)**0.3333
@@ -807,32 +811,18 @@ hostinclusionstring_m = 'spheroidal'
       ! to make sure n0d, mu_id and lamd are set to 0 if i_Fl=4
         if (i_Fl.eq.1 .or. i_Fl.eq.2 .or. i_Fl.eq.3) then
 
-          if (log_3momI) then
-             ! assign provisional values for mom3 (first guess for mom3)
-             ! NOTE: these are normalized: mom3 = M3/M0, mom6 = M6/M3 (M3 = 3rd moment, etc.)
-             mom3 = qid/cgp(i_rhor)     !note: cgp is pi/6*(mean_density), computed above
-             ! update normalized mom6 based on the updated ratio of normalized mom3 and normalized Q
-             ! (we want mom6 normalized by mom3 not q)
-             dum = mom3/qid
-             mom6 = Zid/dum
-          endif  !log_3momI
-          !==
-
-          iteration_loop1: do i_iter = 1,n_iter_psdSolve
-
              if (log_3momI) then
-              ! compute mu_i from normalized mom3 and mom6:
-                mu_id = compute_mu_3moment(mom3,mom6,mu_i_max)
-                mu_id = max(mu_id,mu_i_min)  ! make sure mu_i >= 0 (otherwise size dist is infinity at D = 0)
-                mu_id = min(mu_id,mu_i_max)  ! set upper limit
+                ! it is assumed that mu_id is equals to mu
+                mu_id = Z_value
              endif
 
-             ii_loop_1: do ii = 1,11000 ! this range of ii to calculate lambda chosen by trial and error for the given lambda limiter values
+          iteration_loopa: do i_iter = 1,n_iter_psdSolve
+
+             ii_loop_a: do ii = 1,11000 ! this range of ii to calculate lambda chosen by trial and error for the given lambda limiter values
 
               ! lamd = 1.0013**ii*100.   ! old (strict) lambda_i limiter
                 lamd = 1.0013**ii*10.    ! new lambda_i limiter
 
-              ! solve for mu_i for 2-moment-ice:
                 if (.not. log_3momI) mu_id = diagnostic_mui(mu_i_min,mu_i_max,lamd,qid,cgp(i_rhor),Fr,pi)
 
               ! for lambda limiter:
@@ -871,18 +861,17 @@ hostinclusionstring_m = 'spheroidal'
                    qerror = abs(qid-qdum)
                 endif
 
-             enddo ii_loop_1
+             enddo ii_loop_a
 
            ! check and print relative error in q to make sure it is not too large
            ! note: large error is possible if size bounds are exceeded!!!!!!!!!!
-            print*,'qerror (%)',qerror/q*100.
+           ! print*,'qerror (%)',qerror/q*100.
 
            ! find n0 based on final lam value
            ! set final lamf to 'lam' variable
            ! this is the value of lam with the smallest qerror
              lamd = lamf
 
-           ! recalculate mu_i based on final lam  (for 2-moment-ice only; not needed for 3-moment-ice)
              if (.not. log_3momI) mu_id = diagnostic_mui(mu_i_min,mu_i_max,lamd,qid,cgp(i_rhor),Fr,pi)
 
            ! n0d = N*lamd**(mu_id+1.)/(gamma(mu_id+1.))
@@ -896,18 +885,18 @@ hostinclusionstring_m = 'spheroidal'
            ! print*,'lamd,N0d,mud:',lamd,n0d,mu_id
 
            ! calculate normalized mom3 directly from PSD parameters (3-moment-ice only)
-             if (log_3momI) then
-                mom3 = n0d*gamma(4.+mu_id)/lamd**(4.+mu_id)
-              ! update normalized mom6 based on the updated ratio of normalized mom3 and normalized Q
-              ! (we want mom6 normalized by mom3 not q)
-                dum  = mom3/qid
-                mom6 = Zid/dum
-             endif  !log_3momI
+           !  if (log_3momI) then
+           !     mom3 = n0d*gamma(4.+mu_id)/lamd**(4.+mu_id)
+           !   ! update normalized mom6 based on the updated ratio of normalized mom3 and normalized Q
+           !   ! (we want mom6 normalized by mom3 not q)
+           !     dum  = mom3/qid
+           !     mom6 = Zid/dum
+           !  endif  !log_3momI
 
-          enddo iteration_loop1
+          enddo iteration_loopa
 
-        else
-          mu_id = 0.
+        elseif (i_Fl.eq.4) then
+          mu_id = 0. ! will not be really used since n0d=0 (sum = 0)
           n0d   = 0.
           lamd  = 0.
         endif ! loop over i_Fl
@@ -934,30 +923,33 @@ hostinclusionstring_m = 'spheroidal'
    ! cover full range over mean size from approximately 1 micron to x cm
 
    ! compute mean density assuming rho_dry is cgp(i_rhor)
-   ! rhomdry = cgp(i_rhor)
+   ! rhomdry = cgp(i_rhor) (for 2momI only)
     rhom = (1.-Fl)*cgp(i_rhor)+Fl*1000.*pi*sxth
 
-          if (log_3momI) then
-             ! assign provisional values for mom3 (first guess for mom3)
-             ! NOTE: these are normalized: mom3 = M3/M0, mom6 = M6/M3 (M3 = 3rd moment, etc.)
-             mom3 = q/rhom     !note: cgp is pi/6*(mean_density), computed above
-             ! update normalized mom6 based on the updated ratio of normalized mom3 and normalized Q
-             ! (we want mom6 normalized by mom3 not q)
-             dum = mom3/q
-             mom6 = Z_value/dum
-          endif  !log_3momI
-          !==
+! HM, no longer needed
+!          if (log_3momI) then
+!             ! assign provisional values for mom3 (first guess for mom3)
+!             ! NOTE: these are normalized: mom3 = M3/M0, mom6 = M6/M3 (M3 = 3rd moment, etc.)
+!             mom3 = q/rhom     !note: cgp is pi/6*(mean_density), computed above
+!             ! update normalized mom6 based on the updated ratio of normalized mom3 and normalized Q
+!             ! (we want mom6 normalized by mom3 not q)
+!             dum = mom3/q
+!             mom6 = Z_value/dum
+!          endif  !log_3momI
+!          !==
 
-          iteration_loop2: do i_iter = 1,n_iter_psdSolve
+          iteration_loop1: do i_iter = 1,n_iter_psdSolve
 
           if (log_3momI) then
            ! compute mu_i from normalized mom3 and mom6:
-             mu_i = compute_mu_3moment(mom3,mom6,mu_i_max)
-             mu_i = max(mu_i,mu_i_min)  ! make sure mu_i >= 0 (otherwise size dist is infinity at D = 0)
-             mu_i = min(mu_i,mu_i_max)  ! set upper limit
+! HM set to loop value of mu (temporarily called Z_value)
+!                mu_i = compute_mu_3moment(mom3,mom6,mu_i_max)
+!                mu_i = max(mu_i,mu_i_min)  ! make sure mu_i >= 0 (otherwise size dist is infinity at D = 0)
+!                mu_i = min(mu_i,mu_i_max)  ! set upper limit
+                mu_i = Z_value
           endif
 
-          ii_loop_9: do ii = 1,11000 ! this range of ii to calculate lambda chosen by trial and error for the given lambda limiter values
+          ii_loop_1: do ii = 1,11000 ! this range of ii to calculate lambda chosen by trial and error for the given lambda limiter values
 
            ! lam = 1.0013**ii*100.   ! old (strict) lambda_i limiter
              lam = 1.0013**ii*10.    ! new lambda_i limiter
@@ -1002,7 +994,7 @@ hostinclusionstring_m = 'spheroidal'
                 qerror = abs(q-qdum)
              endif
 
-          enddo ii_loop_9
+          enddo ii_loop_1
 
         ! check and print relative error in q to make sure it is not too large
         ! note: large error is possible if size bounds are exceeded!!!!!!!!!!
@@ -1028,18 +1020,19 @@ hostinclusionstring_m = 'spheroidal'
         ! print*,'lam,N0,mu:',lam,n0,mu_i
 
         ! calculate normalized mom3 directly from PSD parameters (3-moment-ice only)
-          if (log_3momI) then
-             mom3 = n0*gamma(4.+mu_i)/lam**(4.+mu_i)
-        ! update normalized mom6 based on the updated ratio of normalized mom3 and normalized Q
-        ! (we want mom6 normalized by mom3 not q)
-             dum  = mom3/q
-             mom6 = Z_value/dum
-          endif  !log_3momI
+! HM no longer needed
+!          if (log_3momI) then
+!             mom3 = n0*gamma(4.+mu_i)/lam**(4.+mu_i)
+!        ! update normalized mom6 based on the updated ratio of normalized mom3 and normalized Q
+!        ! (we want mom6 normalized by mom3 not q)
+!             dum  = mom3/q
+!             mom6 = Z_value/dum
+!          endif  !log_3momI
 
-       enddo iteration_loop2
+       enddo iteration_loop1
 
-       lambda_i(i_Qnorm,i_Fr,i_Fl) = lam
-       mu_i_save(i_Qnorm,i_Fr,i_Fl)     = mu_i
+       lambda_i(i_Qnorm,i_Fr,i_Fl)  = lam
+       mu_i_save(i_Qnorm,i_Fr,i_Fl) = mu_i
 
 !.....................................................................................
 ! At this point, we have solved for the mixed-phase ice size distribution parameters (n0, lam, mu_i)
@@ -1084,15 +1077,16 @@ hostinclusionstring_m = 'spheroidal'
           i_qlarge(i_Qnorm,i_Fr,i_Fl) = dum/q
 
         ! calculate bounds for normalized Z based on min/max allowed mu: (3-moment-ice only)
-          if (log_3momI) then
-             mu_dum = mu_i_min
-             gdum   = (6.+mu_dum)*(5.+mu_dum)*(4.+mu_dum)/((3.+mu_dum)*(2.+mu_dum)*(1.+mu_dum))
-             dum    = mom3/q
-             zlarge(i_Qnorm,i_Fr,i_Fl) = gdum*mom3*dum
-             mu_dum = mu_i_max
-             gdum   = (6.+mu_dum)*(5.+mu_dum)*(4.+mu_dum)/((3.+mu_dum)*(2.+mu_dum)*(1.+mu_dum))
-             zsmall(i_Qnorm,i_Fr,i_Fl) = gdum*mom3*dum
-          endif  !if (log_3momI)
+! HM no longer needed, don't need to calculate or output zlarge and zsmall
+!          if (log_3momI) then
+!             mu_dum = mu_i_min
+!             gdum   = (6.+mu_dum)*(5.+mu_dum)*(4.+mu_dum)/((3.+mu_dum)*(2.+mu_dum)*(1.+mu_dum))
+!             dum    = mom3/q
+!             zlarge(i_Qnorm,i_Fr,i_Fl) = gdum*mom3*dum
+!             mu_dum = mu_i_max
+!             gdum   = (6.+mu_dum)*(5.+mu_dum)*(4.+mu_dum)/((3.+mu_dum)*(2.+mu_dum)*(1.+mu_dum))
+!             zsmall(i_Qnorm,i_Fr,i_Fl) = gdum*mom3*dum
+!          endif  !if (log_3momI)
 
 !.....................................................................................
 ! begin moment and microphysical process calculations for the lookup table
@@ -1900,8 +1894,9 @@ hostinclusionstring_m = 'spheroidal'
           dmm(i_Qnorm,i_Fr,i_Fl)       = dim( dmm(i_Qnorm,i_Fr,i_Fl),       cutoff)
           rhomm(i_Qnorm,i_Fr,i_Fl)     = dim( rhomm(i_Qnorm,i_Fr,i_Fl),     cutoff)
           uzs(i_Qnorm,i_Fr,i_Fl)       = dim( uzs(i_Qnorm,i_Fr,i_Fl),       cutoff)
-          zlarge(i_Qnorm,i_Fr,i_Fl)    = dim( zlarge(i_Qnorm,i_Fr,i_Fl),    cutoff)
-          zsmall(i_Qnorm,i_Fr,i_Fl)    = dim( zsmall(i_Qnorm,i_Fr,i_Fl),    cutoff)
+! HM no longer needed
+!          zlarge(i_Qnorm,i_Fr,i_Fl)    = dim( zlarge(i_Qnorm,i_Fr,i_Fl),    cutoff)
+!          zsmall(i_Qnorm,i_Fr,i_Fl)    = dim( zsmall(i_Qnorm,i_Fr,i_Fl),    cutoff)
           lambda_i(i_Qnorm,i_Fr,i_Fl)  = dim( lambda_i(i_Qnorm,i_Fr,i_Fl),  cutoff)
           mu_i_save(i_Qnorm,i_Fr,i_Fl) = dim( mu_i_save(i_Qnorm,i_Fr,i_Fl), cutoff)
           vdepm1(i_Qnorm,i_Fr,i_Fl)    = dim( vdepm1(i_Qnorm,i_Fr,i_Fl),    cutoff)
@@ -1913,7 +1908,7 @@ hostinclusionstring_m = 'spheroidal'
 
 
           if (log_3momI) then
-             write(1,'(5i5,23e15.5)')                             &
+             write(1,'(5i5,20e15.5)')                             &
                          i_Znorm,i_rhor,i_Fr,i_Fl,i_Qnorm,        &
                          uns(i_Qnorm,i_Fr,i_Fl),                  &
                          ums(i_Qnorm,i_Fr,i_Fl),                  &
@@ -1923,21 +1918,21 @@ hostinclusionstring_m = 'spheroidal'
                          eff(i_Qnorm,i_Fr,i_Fl),                  &
                          i_qsmall(i_Qnorm,i_Fr,i_Fl),             &
                          i_qlarge(i_Qnorm,i_Fr,i_Fl),             &
-                         refl(i_Qnorm,i_Fr,i_Fl),                 &
+                         refl2(i_Qnorm,i_Fr,i_Fl),                &
                          vdep1(i_Qnorm,i_Fr,i_Fl),                &
                          dmm(i_Qnorm,i_Fr,i_Fl),                  &
                          rhomm(i_Qnorm,i_Fr,i_Fl),                &
                          uzs(i_Qnorm,i_Fr,i_Fl),                  &
-                         zlarge(i_Qnorm,i_Fr,i_Fl),               &
-                         zsmall(i_Qnorm,i_Fr,i_Fl),               &
+! HM no longer needed
+!                         zlarge(i_Qnorm,i_Fr,i_Fl),               &
+!                         zsmall(i_Qnorm,i_Fr,i_Fl),               &
                          lambda_i(i_Qnorm,i_Fr,i_Fl),             &
                          mu_i_save(i_Qnorm,i_Fr,i_Fl),            &
                          vdepm1(i_Qnorm,i_Fr,i_Fl),               &
                          vdepm2(i_Qnorm,i_Fr,i_Fl),               &
                          vdepm3(i_Qnorm,i_Fr,i_Fl),               &
                          vdepm4(i_Qnorm,i_Fr,i_Fl),               &
-                         qshed(i_Qnorm,i_Fr,i_Fl),                &
-                         refl2(i_Qnorm,i_Fr,i_Fl)
+                         qshed(i_Qnorm,i_Fr,i_Fl)
           else
              write(1,'(4i5,20e15.5)')                             &
                          i_rhor,i_Fr,i_Fl,i_Qnorm,                &
@@ -1949,7 +1944,7 @@ hostinclusionstring_m = 'spheroidal'
                          eff(i_Qnorm,i_Fr,i_Fl),                  &
                          i_qsmall(i_Qnorm,i_Fr,i_Fl),             &
                          i_qlarge(i_Qnorm,i_Fr,i_Fl),             &
-                         refl(i_Qnorm,i_Fr,i_Fl),                 &
+                         refl2(i_Qnorm,i_Fr,i_Fl),                &
                          vdep1(i_Qnorm,i_Fr,i_Fl),                &
                          dmm(i_Qnorm,i_Fr,i_Fl),                  &
                          rhomm(i_Qnorm,i_Fr,i_Fl),                &
@@ -1959,8 +1954,7 @@ hostinclusionstring_m = 'spheroidal'
                          vdepm2(i_Qnorm,i_Fr,i_Fl),               &
                          vdepm3(i_Qnorm,i_Fr,i_Fl),               &
                          vdepm4(i_Qnorm,i_Fr,i_Fl),               &
-                         qshed(i_Qnorm,i_Fr,i_Fl),                &
-                         refl2(i_Qnorm,i_Fr,i_Fl)
+                         qshed(i_Qnorm,i_Fr,i_Fl)
           endif
 
        enddo i_Qnorm_loop_2
@@ -1987,8 +1981,8 @@ hostinclusionstring_m = 'spheroidal'
 ! The values of i_Znorm (3-momI) and i_rhor/i_Fr (2-momI) are "passed in" for parallelized
 ! version of code, thus the loops are commented out.
         enddo i_Fl_loop_1
-!      enddo i_Fr_loop_1
-!    enddo i_rhor_loop
+      enddo i_Fr_loop_1
+    enddo i_rhor_loop
 !enddo i_Znorm_loop
 !==
 
@@ -2582,3 +2576,5 @@ complex :: beta2, beta3, m1t, m2t, m3t
        (1.0-vol2-vol3+vol2*beta2+vol3*beta3))
 
 end function m_complex_maxwellgarnett
+
+
