@@ -32,8 +32,8 @@ subroutine columnmodel
 !  Last modified:  2022-07-15
 !--------------------------------------------------------------------------!
 
-      use SUBS_CLD1D
-      use MODULE_MP_P3
+      use subs_cld1d
+      use microphy_p3
 
       implicit none
 

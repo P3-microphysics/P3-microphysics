@@ -24,7 +24,7 @@
 ! Last updated:  2022-JUNE                                                                 !
 !__________________________________________________________________________________________!
 
- MODULE MODULE_MP_P3
+ MODULE microphy_p3
 
  implicit none
 
@@ -145,6 +145,10 @@
 
  read_path = lookup_file_dir           ! path for lookup tables from official model library
 !read_path = '/MY/LOOKUP_TABLE/PATH'   ! path for lookup tables from specified location
+!read_path = '/users/dor/armn/gr8/ords/p3_lookup_tables'   !JM, ECCC network
+!read_path = 'xxx'     !JM, Science network
+
+
 
  if (trplMomI) then
    lookup_file_1 = trim(read_path)//'/'//'p3_lookupTable_1.dat-v'//trim(version_intended_table_1_3mom)
@@ -7294,4 +7298,4 @@ SUBROUTINE access_lookup_table_coll_3mom(dumzz,dumjj,dumii,dumj,dumi,index,dum1,
 #endif
 
 !======================================================================================!
- END MODULE MODULE_MP_P3
+ END MODULE microphy_p3
