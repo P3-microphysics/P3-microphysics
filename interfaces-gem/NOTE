@@ -1,4 +1,9 @@
-The following subdirectories contain the GEM interface files that have been modified fromj
-the versions in the GEM library (for a particular version of GEM) that need to be
-included in the compilation of GEM for the version of P3 indicated.
+The following subdirectories contain the GEM interface files that have been modified from
+the pristine versions in the GEM library (for a particular version of GEM) that need to be
+included in the compilation of GEM for the version of P3 indicated (plus the version of
+'microphy_p3.f90', whose extension needs to be changed to .F90 for GEM)..
+
+MISCELLANEOUS:
+
+- the interface for P3_v4.3.3 is the same as for P3_v4.4.0
 
