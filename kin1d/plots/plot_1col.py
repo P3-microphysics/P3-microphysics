@@ -3,7 +3,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import colors, ticker,cm
-import sys
+import sys, getopt
+#import getopt
 
 #--------------------------------------------------------------------------------------------------
 def plot_column(col):
@@ -114,21 +115,59 @@ def plot_column(col):
     ax[0].set_title(plotTitle[col], size=16, fontweight='bold')
 
 #--------------------------------------------------------------------------------------------------
+def myfunc(argv):
+    ''' Function to accept command line arguments to specify the input file, figure name, and title
+    '''
+    arg_infile  = ""
+    arg_figname = ""
+    arg_title   = ""
+    arg_help    = "Arguments for {0}: -i <infile> -f <figname> -t <title>".format(argv[0])
+
+    try:
+        opts, args = getopt.getopt(argv[1:], "h:i:f:t:", ["help=", "infile=", "figname=", "title="])
+
+    except:
+        print(arg_help)
+        sys.exit(2)
+
+    for opt, arg in opts:
+        if opt in ("-h", "--help"):
+            print(arg_help)
+        elif opt in ("-i", "--infile"):
+            arg_infile = arg
+        elif opt in ("-f", "--figname"):
+            arg_figname = arg
+        elif opt in ("-t", "--title"):
+            arg_title = arg
+
+    return arg_infile, arg_figname, arg_title
+
+#--------------------------------------------------------------------------------------------------
 
 
-#-------- read in data from cld1d; store as individual field arrays:
-outputDir = './'
-path1 = '../'
 
-if len(sys.argv)==1:
-    plotTitle0 = 'TITLE'
-else:
-    plotTitle0 = sys.argv[1]
+# override intput file, figure file name, and title (as specified above) if provided by command line arguments
+infile      = ''
+outfilename = ''
+plotTitle   = ''
+if __name__ == "__main__":
+    infile, outfilename, plotTitle = myfunc(sys.argv)
 
-data0 = np.loadtxt(path1 + 'out_p3.dat')
+if infile == '':
+    infile = '../out_p3.dat'
+if plotTitle == '':
+    plotTitle = 'TITLE'   
+if outfilename == '':
+    outfilename = 'fig.png'
+
+#print('infile: ',infile)
+#print('title:  ',plotTitle)    
+#print('figure: ',outfilename)
+
+plotTitle = [plotTitle]
+# read in data from cld1d; store as individual field arrays:
+data0 = np.loadtxt(infile)
 data = [data0]
-plotTitle = [plotTitle0]
-
 
 nk = 41                         # number of vertical levels
 nt = int(data[0].shape[0]/nk)   # number of output times
@@ -166,5 +205,6 @@ plot_column(0)
 plt.tight_layout()
 
 #--------------------------
-plt.savefig('./fig.png', format='png')
+#plt.savefig('./fig.png', format='png')
+plt.savefig(outfilename, format='png')
 plt.show()

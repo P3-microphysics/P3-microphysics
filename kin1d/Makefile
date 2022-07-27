@@ -33,14 +33,14 @@ default:
 clean:
 	rm -f *.o *.mod fort.* execld out_p3.dat
 
-OBJS = mp_p3.o routinesCld1d.o   cld1d.o
+OBJS = microphy_p3.o routinesCld1d.o   cld1d.o
 exec:
 	make all
 #	make sub
 
-mp_p3.o: mp_p3.f90
+microphy_p3.o: microphy_p3.f90
 routinesCld1d.o: routinesCld1d.f90
-cld1d.o: cld1d.f90 routinesCld1d.o mp_p3.o
+cld1d.o: cld1d.f90 routinesCld1d.o microphy_p3.o
 
 all: $(OBJS)
 
@@ -49,13 +49,12 @@ obj: all
 distclean: clean
 	rm -f  sub
 
-#For LINUX:
 execld: execld.f90 $(OBJS)
 # --> makes executable 'execld'
 
-#For AIX (general), do:
-# make all
-# f90 -o execld execld.f90 *.o
-# or, f90 -o execld execld.f90 my2mom_main_mod.o  my2mom_fncs_mod.o  my2mom_sedi_mod.o routinesCld1d.o  cld1d.o
+# Alternative:
+# $ make all
+# $ f90 -o execld execld.f90 *.o
+# or, $ f90 -o execld execld.f90 my2mom_main_mod.o  my2mom_fncs_mod.o  my2mom_sedi_mod.o routinesCld1d.o  cld1d.o
 # --> makes executable 'execld'
 
