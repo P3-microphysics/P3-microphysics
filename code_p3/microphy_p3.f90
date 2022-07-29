@@ -3765,30 +3765,32 @@ END subroutine p3_init
                             nislf(iice)+nrhetc(iice)+nrheti(iice)+nchetc(iice)+          &
                             ncheti(iice)+nimul(iice))*dt
 
-          interactions_loop: do catcoll = 1,nCat
-        ! add ice-ice category interaction collection tendencies
-        ! note: nicol is a sink for the collectee category, but NOT a source for collector
+          if (nCat.gt.1) then
+             interactions_loop: do catcoll = 1,nCat
+             ! add ice-ice category interaction collection tendencies
+             ! note: nicol is a sink for the collectee category, but NOT a source for collector
 
-             qitot(i,k,catcoll) = qitot(i,k,catcoll) - qicol(catcoll,iice)*dt
-             nitot(i,k,catcoll) = nitot(i,k,catcoll) - nicol(catcoll,iice)*dt
-             qitot(i,k,iice)    = qitot(i,k,iice)    + qicol(catcoll,iice)*dt
-             ! now modify rime mass and density, assume collection does not modify rime mass
-             ! fraction or density of the collectee, consistent with the assumption that
-             ! these are constant over the PSD
-             if (qitot(i,k,catcoll).ge.qsmall) then
-              !source for collector category
-                qirim(i,k,iice) = qirim(i,k,iice)+qicol(catcoll,iice)*dt*                &
-                                  qirim(i,k,catcoll)/qitot(i,k,catcoll)
-                birim(i,k,iice) = birim(i,k,iice)+qicol(catcoll,iice)*dt*                &
-                                  birim(i,k,catcoll)/qitot(i,k,catcoll)
-              !sink for collectee category
-                qirim(i,k,catcoll) = qirim(i,k,catcoll)-qicol(catcoll,iice)*dt*          &
+                qitot(i,k,catcoll) = qitot(i,k,catcoll) - qicol(catcoll,iice)*dt
+                nitot(i,k,catcoll) = nitot(i,k,catcoll) - nicol(catcoll,iice)*dt
+                qitot(i,k,iice)    = qitot(i,k,iice)    + qicol(catcoll,iice)*dt
+                ! now modify rime mass and density, assume collection does not modify rime mass
+                ! fraction or density of the collectee, consistent with the assumption that
+                ! these are constant over the PSD
+                if (qitot(i,k,catcoll).ge.qsmall) then
+                 !source for collector category
+                   qirim(i,k,iice) = qirim(i,k,iice)+qicol(catcoll,iice)*dt*             &
                                      qirim(i,k,catcoll)/qitot(i,k,catcoll)
-                birim(i,k,catcoll) = birim(i,k,catcoll)-qicol(catcoll,iice)*dt*          &
+                   birim(i,k,iice) = birim(i,k,iice)+qicol(catcoll,iice)*dt*             &
                                      birim(i,k,catcoll)/qitot(i,k,catcoll)
-             endif
+                 !sink for collectee category
+                   qirim(i,k,catcoll) = qirim(i,k,catcoll)-qicol(catcoll,iice)*dt*       &
+                                        qirim(i,k,catcoll)/qitot(i,k,catcoll)
+                   birim(i,k,catcoll) = birim(i,k,catcoll)-qicol(catcoll,iice)*dt*       &
+                                        birim(i,k,catcoll)/qitot(i,k,catcoll)
+                endif
 
-          enddo interactions_loop ! catcoll loop
+             enddo interactions_loop ! catcoll loop
+          endif
 
           if (qirim(i,k,iice).lt.0.) then
              qirim(i,k,iice) = 0.
