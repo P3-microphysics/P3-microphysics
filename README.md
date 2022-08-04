@@ -4,7 +4,7 @@ This repository contains the  P3 microphysics scheme and associated components. 
 
 ## Details on respository contents:
 
-### ./code_p3
+### ./src
 This directory contains the main P3 module and the codes necessary to geneate the lookup tables, which are pre-computed and accessed during run-time.  The instructions for generating the lookup tables are found in comment blocks in the code.
 - create_p3_lookupTable_1.f90
 - create_p3_lookupTable_2.f90
@@ -19,7 +19,7 @@ This subdirectory contains code for interefaces with the GEM and WRF models, for
 This subdirectory contains a simple kinematic 1D driving model to perform unit testing of P3.  The README file in that subdirectory describes how to set up and run the model.  A Python plotting script to generate time-height plots from the output is provided.
 - Makefile
 - README
-- ./code
+- ./src
 - ./levels
 - ./lookup_tables
 - ./plots
@@ -34,7 +34,7 @@ This directory contains the lookup tables (text files), generated from the codes
 ### ./publications
 This subdirectory contains PDF versions of the published scientific artiticles that describe the major developments of the P3 scheme.
 
-### ./playlist
+### Playlist
 This subdirectory contains links to the main P3 theme songs.
 - "Livin la vida loca", Ricky Martin: https://www.youtube.com/watch?v=ltRgb4SJ1uk
 - "First we take Manhattan", Leonard Cohen: https://www.youtube.com/watch?v=5rhM1i43NK8
