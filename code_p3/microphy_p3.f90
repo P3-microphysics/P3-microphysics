@@ -95,6 +95,11 @@
                    maxVIS,mu_i_initial,mu_r_constant,inv_Drmax
 
  integer :: n_iceCat = -1   !used for GEM interface
+ 
+! for timing tests
+ real :: t_p3main_start,t_p3main_end, t_sedi_start,t_sedi_end
+ real :: t_p3main_accum = 0.
+ real :: t_sedi_accum   = 0.
 
  contains
 
@@ -2184,6 +2189,8 @@ END subroutine p3_init
 !    !==
 !-----------------------------------------------------------------------------------!
 
+! call cpu_time(t_p3main_start)
+ 
  tmp1 = uzpl(1,1)    !avoids compiler warning for unused variable 'uzpl'
 
  ! direction of vertical leveling:
@@ -3767,13 +3774,9 @@ END subroutine p3_init
 
           if (nCat.gt.1) then
              interactions_loop: do catcoll = 1,nCat
-             ! add ice-ice category interaction collection tendencies
-             ! note: nicol is a sink for the collectee category, but NOT a source for collector
-
-                qitot(i,k,catcoll) = qitot(i,k,catcoll) - qicol(catcoll,iice)*dt
-                nitot(i,k,catcoll) = nitot(i,k,catcoll) - nicol(catcoll,iice)*dt
-                qitot(i,k,iice)    = qitot(i,k,iice)    + qicol(catcoll,iice)*dt
-                ! now modify rime mass and density, assume collection does not modify rime mass
+                ! add ice-ice category interaction collection tendencies
+                ! note: nicol is a sink for the collectee category, but NOT a source for collector
+                ! modify rime mass and density, assume collection does not modify rime mass
                 ! fraction or density of the collectee, consistent with the assumption that
                 ! these are constant over the PSD
                 if (qitot(i,k,catcoll).ge.qsmall) then
@@ -3788,6 +3791,9 @@ END subroutine p3_init
                    birim(i,k,catcoll) = birim(i,k,catcoll)-qicol(catcoll,iice)*dt*       &
                                         birim(i,k,catcoll)/qitot(i,k,catcoll)
                 endif
+                qitot(i,k,catcoll) = qitot(i,k,catcoll) - qicol(catcoll,iice)*dt
+                nitot(i,k,catcoll) = nitot(i,k,catcoll) - nicol(catcoll,iice)*dt
+                qitot(i,k,iice)    = qitot(i,k,iice)    + qicol(catcoll,iice)*dt
 
              enddo interactions_loop ! catcoll loop
           endif
@@ -5112,6 +5118,9 @@ END subroutine p3_init
 
 
 ! end of main microphysics routine
+
+!  call cpu_time(t_p3main_end)
+!  t_p3main_accum = t_p3main_accum + (t_p3main_end-t_p3main_start)
 
 !.....................................................................................
 
