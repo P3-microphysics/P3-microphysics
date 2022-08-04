@@ -1,6 +1,15 @@
-To insert a title to plot, either modify the plot script or add
-the title as a command line argument when running the script:
+To run with the default input file (../out_p3.dat), output file (fig.png), and figure title ('TITLE'), execute:
 
-$ python3 plot_1col.py 'My title'
+$ python3 plot_1col.py 
+
  
+To specify one of more of these, execute:
+
+$ python3 plot_1col.py -i [my_input_file] -f my_fig_name.png -t 'my awesome title'
+
+
+
+If you forget, get help with:
+
+$ python3 plot_1col.py -h
 

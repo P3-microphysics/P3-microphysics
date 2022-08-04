@@ -115,7 +115,7 @@ def plot_column(col):
     ax[0].set_title(plotTitle[col], size=16, fontweight='bold')
 
 #--------------------------------------------------------------------------------------------------
-def myfunc(argv):
+def get_args(argv):
     ''' Function to accept command line arguments to specify the input file, figure name, and title
     '''
     arg_infile  = ""
@@ -151,7 +151,7 @@ infile      = ''
 outfilename = ''
 plotTitle   = ''
 if __name__ == "__main__":
-    infile, outfilename, plotTitle = myfunc(sys.argv)
+    infile, outfilename, plotTitle = get_args(sys.argv)
 
 if infile == '':
     infile = '../out_p3.dat'
