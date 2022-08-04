@@ -4150,13 +4150,11 @@ END subroutine p3_init
                             nislf(iice)+nrhetc(iice)+nrheti(iice)+nchetc(iice)+          &
                             ncheti(iice)+nimul(iice)-nlevp(iice))*dt
 
+        if (iice.ge.2) then
           interactions_loop: do catcoll = 1,nCat
         ! add ice-ice category interaction collection tendencies
         ! note: nicol is a sink for the collectee category, but NOT a source for collector
 
-             qitot(i,k,catcoll) = qitot(i,k,catcoll) - qicol(catcoll,iice)*dt
-             nitot(i,k,catcoll) = nitot(i,k,catcoll) - nicol(catcoll,iice)*dt
-             qitot(i,k,iice)    = qitot(i,k,iice)    + qicol(catcoll,iice)*dt
              ! now modify rime mass and density, assume collection does not modify rime or liquid mass
              ! fractions or density of the collectee, consistent with the assumption that
              ! these are constant over the PSD
@@ -4176,8 +4174,12 @@ END subroutine p3_init
                 qiliq(i,k,catcoll) = qiliq(i,k,catcoll)-qicol(catcoll,iice)*dt*                 &
                                      qiliq(i,k,catcoll)/qitot(i,k,catcoll)
              endif
+             qitot(i,k,catcoll) = qitot(i,k,catcoll) - qicol(catcoll,iice)*dt
+             nitot(i,k,catcoll) = nitot(i,k,catcoll) - nicol(catcoll,iice)*dt
+             qitot(i,k,iice)    = qitot(i,k,iice)    + qicol(catcoll,iice)*dt
 
           enddo interactions_loop ! catcoll loop
+        endif !iice>1
 
           if (qirim(i,k,iice).lt.0.) then
              qirim(i,k,iice) = 0.
