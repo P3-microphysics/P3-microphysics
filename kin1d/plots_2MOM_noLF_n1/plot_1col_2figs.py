@@ -285,7 +285,7 @@ if __name__ == "__main__":
     infile, outfilename, plotTitle = myfunc(sys.argv)
 
 if infile == '':
-    infile = '../out_p3.dat'
+    infile = './out_p3.dat'
 if plotTitle == '':
     plotTitle = 'TITLE'   
 if outfilename == '':
@@ -342,7 +342,7 @@ plot_column(0)
 plt.tight_layout()
 
 #--------------------------
-plt.savefig('fig1_'+outfilename, format='png')
+plt.savefig('fig1_'+outfilename+'.png', format='png')
 #plt.show()
 
 fig, ax = plt.subplots(nrows=5, ncols=1, figsize=(9,14), sharex=True)
@@ -356,5 +356,5 @@ plot_column2(0)
 plt.tight_layout()
 
 #--------------------------
-plt.savefig('fig2_'+outfilename, format='png')
+plt.savefig('fig2_'+outfilename+'.png', format='png')
 #plt.show()
