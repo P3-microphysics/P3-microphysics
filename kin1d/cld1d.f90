@@ -71,9 +71,9 @@
       parameter (dt      = 10.    )     ! time step                     [s]
       parameter (ttotmin = 90     )     ! total integration time	[min]
 
-      integer, parameter :: n_iceCat     =  1
-      logical, parameter           :: PredictFl    = .false.
-      logical, parameter           :: trplMomIce   = .false.
+      integer, parameter :: n_iceCat     =  2
+      logical, parameter           :: PredictFl    = .true.
+      logical, parameter           :: trplMomIce   = .true.
 
       logical, parameter :: prog_nc_ssat = .true.
      !logical, parameter :: nk_BOTTOM    = .true.   !.T. --> nk at bottom
