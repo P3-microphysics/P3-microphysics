@@ -35,10 +35,10 @@ This directory contains the lookup tables (text files), generated from the codes
 This subdirectory contains PDF versions of the published scientific artiticles that describe the major developments of the P3 scheme.
 
 ### Playlist
-This subdirectory contains links to the main P3 theme songs.
+The following are links to the primary P3 theme songs.
 - "Livin la vida loca", Ricky Martin: https://www.youtube.com/watch?v=ltRgb4SJ1uk
 - "First we take Manhattan", Leonard Cohen: https://www.youtube.com/watch?v=5rhM1i43NK8
-
+- "Seven Nations Army", The White Stripes: https://music.youtube.com/watch?v=D_QLxj8jCF0
 
 ### Further details of the P3 scheme and this repository will be added in the near future.
 
