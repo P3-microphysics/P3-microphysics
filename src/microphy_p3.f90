@@ -21,7 +21,7 @@
 !__________________________________________________________________________________________!
 !                                                                                          !
 ! Version:       4.5.0                                                                     !
-! Last updated:  2022-JUNE                                                                 !
+! Last updated:  2022-NOV                                                                 !
 !__________________________________________________________________________________________!
 
  MODULE microphy_p3
@@ -90,7 +90,7 @@
                    eci,eri,bcn,cpw,e0,cons1,cons2,cons3,cons4,cons5,cons6,cons7,cons8,   &
                    inv_rhow,qsmall,nsmall,bsmall,zsmall,cp,g,rd,rv,ep_2,inv_cp,mw,osm,   &
                    vi,epsm,rhoa,map,ma,rr,bact,inv_rm1,inv_rm2,sig1,nanew1,f11,f21,sig2, &
-                   nanew2,f12,f22,pi,thrd,sxth,piov3,piov6,rho_rimeMin,     &
+                   nanew2,f12,f22,pi,thrd,sxth,piov3,piov6,rho_rimeMin,                  &
                    rho_rimeMax,inv_rho_rimeMax,max_total_Ni,dbrk,nmltratio,minVIS,       &
                    maxVIS,mu_i_initial,mu_r_constant,inv_Drmax
 
@@ -2095,7 +2095,6 @@ END subroutine p3_init
 
  logical :: log_nucleationPossible,log_hydrometeorsPresent,log_predictSsat,              &
             log_exitlevel,log_hmossopOn,log_qxpresent,log_3momentIce
-
 
 ! quantities related to process rates/parameters, interpolated from lookup tables:
 
@@ -4258,7 +4257,7 @@ END subroutine p3_init
                 kloop_sedi_i1: do k = k_qxtop,k_qxbot,-kdir
 
                    !-- compute Vq, Vn (get values from lookup table)
-                   qi_notsmall_i1: if (qitot(i,k,iice)>qsmall) then
+                   qi_notsmall_i1: if (qitot(i,k,iice).ge.qsmall) then
 
                     !--Compute Vq, Vn:
                       nitot(i,k,iice) = max(nitot(i,k,iice),nsmall) !impose lower limits to prevent log(<0)
@@ -4350,7 +4349,7 @@ END subroutine p3_init
                 kloop_sedi_i2: do k = k_qxtop,k_qxbot,-kdir
 
                    !-- compute Vq, Vn (get values from lookup table)
-                   qi_notsmall_i2: if (qitot(i,k,iice)>qsmall) then
+                   qi_notsmall_i2: if (qitot(i,k,iice).ge.qsmall) then
 
                     !--Compute Vq, Vn:
                       nitot(i,k,iice) = max(nitot(i,k,iice),nsmall) !impose lower limits to prevent log(<0)
@@ -4581,6 +4580,98 @@ END subroutine p3_init
 
     enddo k_loop_fz
 
+!..............................................
+! Merge ice categories with similar properties (based on specified similarly condition)
+
+    multicat:  if (nCat.gt.1) then
+!   multicat:  if (.FALSE.) then       ! for testing
+
+      !step 1:  adjustments and calculation of mean diameters
+       k_loop_check_before_merge:  do k = kbot,ktop,kdir
+          iice_loop_check_before_merge:  do iice = 1,nCat
+             qi_not_small_merge: if (qitot(i,k,iice).ge.qsmall) then
+            
+                nitot(i,k,iice) = max(nitot(i,k,iice),nsmall) !impose limit to prevent taking log of # < 0
+                call calc_bulkRhoRime(qitot(i,k,iice),qirim(i,k,iice),birim(i,k,iice),rhop)
+
+                if (.not. log_3momentIce) then
+             
+                   call find_lookupTable_indices_1a(dumi,dumjj,dumii,dum1,dum4,dum5,isize,   &
+                          rimsize,densize,qitot(i,k,iice),nitot(i,k,iice),qirim(i,k,iice),   &
+                          rhop)
+                   call access_lookup_table(dumjj,dumii,dumi,11,dum1,dum4,dum5,f1pr15)
+
+                else ! triple moment ice
+
+                   call find_lookupTable_indices_1a(dumi,dumjj,dumii,dum1,dum4,dum5,isize,   &
+                          rimsize,densize,qitot(i,k,iice),nitot(i,k,iice),qirim(i,k,iice),   &
+                          rhop)               
+                   zitot(i,k,iice) = max(zitot(i,k,iice),zsmall)  !impose limit to prevent taking log of # < 0
+                   dum1z =  6./(200.*pi)*qitot(i,k,iice)  !estimate of moment3, as starting point use 200 kg m-3 estimate of bulk density
+                   do imu=1,niter_mui
+                      mu_i = compute_mu_3moment(nitot(i,k,iice),dum1z,zitot(i,k,iice),mu_i_max)
+                      call find_lookupTable_indices_1c(dumzz,dum6,zsize,qitot(i,k,iice),mu_i)
+                      call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,12,dum1,dum4,dum5,dum6,f1pr16) ! find actual bulk density
+                      dum1z =  6./(f1pr16*pi)*qitot(i,k,iice)  !estimate of moment3
+                   enddo
+                   call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,11,dum1,dum4,dum5,dum6,f1pr15)
+
+                endif
+
+               !impose mean ice size bounds (i.e. apply lambda limiters)
+                nitot(i,k,iice) = min(nitot(i,k,iice),f1pr09*qitot(i,k,iice))
+                nitot(i,k,iice) = max(nitot(i,k,iice),f1pr10*qitot(i,k,iice))
+
+               !adjust Zitot to make sure mu is in bounds
+                if (log_3momentIce) then
+                   dum1 =  6./(f1pr16*pi)*qitot(i,k,iice)  !estimate of moment3
+                   tmp1 = G_of_mu(0.)
+                   tmp2 = G_of_mu(20.)
+                   zitot(i,k,iice) = min(zitot(i,k,iice),tmp1*dum1**2/nitot(i,k,iice))
+                   zitot(i,k,iice) = max(zitot(i,k,iice),tmp2*dum1**2/nitot(i,k,iice))
+                endif
+
+                diag_di(i,k,iice)   = f1pr15
+
+             else
+
+                qv(i,k) = qv(i,k) + qitot(i,k,iice)
+                th(i,k) = th(i,k) - invexn(i,k)*qitot(i,k,iice)*xxls(i,k)*inv_cp
+                qitot(i,k,iice) = 0.
+                nitot(i,k,iice) = 0.
+                qirim(i,k,iice) = 0.
+                birim(i,k,iice) = 0.
+                if (log_3momentIce) zitot(i,k,iice) = 0
+                diag_di(i,k,iice) = 0. 
+
+             endif qi_not_small_merge
+          enddo iice_loop_check_before_merge
+       enddo k_loop_check_before_merge
+
+      !step 2:  merge ice with similar properties into one category
+       do k = kbot,ktop,kdir
+          do iice = nCat,2,-1
+             tmp1 = abs(diag_di(i,k,iice)-diag_di(i,k,iice-1))
+             if (tmp1.le.deltaD_init .and. qitot(i,k,iice)>0. .and. qitot(i,k,iice-1)>0.) then
+                qitot(i,k,iice-1) = qitot(i,k,iice-1) + qitot(i,k,iice)
+                nitot(i,k,iice-1) = nitot(i,k,iice-1) + nitot(i,k,iice)
+                qirim(i,k,iice-1) = qirim(i,k,iice-1) + qirim(i,k,iice)
+                birim(i,k,iice-1) = birim(i,k,iice-1) + birim(i,k,iice)
+                qitot(i,k,iice) = 0.
+                nitot(i,k,iice) = 0.
+                qirim(i,k,iice) = 0.
+                birim(i,k,iice) = 0.
+                if (log_3momentIce) then
+                   zitot(i,k,iice-1) = zitot(i,k,iice-1) + zitot(i,k,iice)
+                   zitot(i,k,iice) = 0.
+                endif
+             endif
+          enddo !iice loop
+       enddo !k loop
+
+    endif multicat
+    
+!...................................................
 ! note: This debug check is commented since small negative qx,nx values are possible here
 !       (but get adjusted below).  If uncommented, caution in interpreting results.
 !
@@ -4599,7 +4690,8 @@ END subroutine p3_init
 !   endif
 
 !...................................................
-! final checks to ensure consistency of mass/number
+
+! Final checks to ensure consistency of mass/number
 ! and compute diagnostic fields for output
 
 
@@ -4791,50 +4883,6 @@ END subroutine p3_init
        endif
        if (global_status /= STATUS_OK) return
     endif
-
-!..............................................
-! merge ice categories with similar properties
-
-!   note:  this should be relocated to above, such that the diagnostic
-!          ice properties are computed after merging
-
-    multicat:  if (nCat.gt.1) then
-!   multicat:  if (.FALSE.) then       ! **** TEST
-
-       do k = kbot,ktop,kdir
-          do iice = nCat,2,-1
-
-           ! simility condition (similar mean sizes); note, this condition must be the same as below (for 3-moment ice)
-             tmp1 = abs(diag_di(i,k,iice)-diag_di(i,k,iice-1))
-             if (tmp1.le.deltaD_init .and. qitot(i,k,iice)>0. .and. qitot(i,k,iice-1)>0.) then
-                qitot(i,k,iice-1) = qitot(i,k,iice-1) + qitot(i,k,iice)
-                nitot(i,k,iice-1) = nitot(i,k,iice-1) + nitot(i,k,iice)
-                qirim(i,k,iice-1) = qirim(i,k,iice-1) + qirim(i,k,iice)
-                birim(i,k,iice-1) = birim(i,k,iice-1) + birim(i,k,iice)
-
-                qitot(i,k,iice) = 0.
-                nitot(i,k,iice) = 0.
-                qirim(i,k,iice) = 0.
-                birim(i,k,iice) = 0.
-             endif
-
-          enddo !iice loop
-       enddo !k loop
-
-       if (log_3momentIce) then
-          do k = kbot,ktop,kdir
-             do iice = nCat,2,-1
-              ! simility condition (similar mean sizes); note, this condition must be the same as above
-                tmp1 = abs(diag_di(i,k,iice)-diag_di(i,k,iice-1))
-                if (tmp1.le.deltaD_init .and. qitot(i,k,iice)>0. .and. qitot(i,k,iice-1)>0.) then
-                   zitot(i,k,iice-1) = zitot(i,k,iice-1) + zitot(i,k,iice)
-                   zitot(i,k,iice)   = 0.
-                endif
-             enddo
-          enddo
-       endif
-
-    endif multicat
 
 !.....................................................
 
