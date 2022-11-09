@@ -21,7 +21,7 @@
 !__________________________________________________________________________________________!
 !                                                                                          !
 ! Version:       4.5.0                                                                     !
-! Last updated:  2022-NOV                                                                 !
+! Last updated:  2022-NOV                                                                  !
 !__________________________________________________________________________________________!
 
  MODULE microphy_p3
@@ -130,7 +130,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '4.4.0' 
+ character(len=1024), parameter :: version_p3                    = '4.5.0' 
  character(len=1024), parameter :: version_intended_table_1_2mom = '5.4_2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '5.4_3momI'
  character(len=1024), parameter :: version_intended_table_2      = '5.3'
@@ -1187,7 +1187,7 @@ END subroutine p3_init
 #ifdef ECCCGEM
 
  function mp_p3_wrapper_gem(ttend,qtend,qctend,qrtend,qitend,                                     &
-                              qvap_m,qvap,temp_m,temp,dt,dt_max,ww,psfc,gztherm,sigma,kount,      &
+                              qvap_m,qvap,temp_m,temp,dt,dt_max,ww,psfc,gztherm,gzmom,sigma,kount,&
                               trnch,ni,nk,prt_liq,prt_sol,prt_drzl,prt_rain,prt_crys,prt_snow,    &
                               prt_grpl,prt_pell,prt_hail,prt_sndp,diag_Zet,diag_Zec,diag_effc,    &
                               qc,nc,qr,nr,n_diag_2d,diag_2d,n_diag_3d,diag_3d,                    &
@@ -1271,6 +1271,7 @@ END subroutine p3_init
  real, intent(inout), dimension(ni,nk)  :: temp                  ! temperature                         K
  real, intent(in),    dimension(ni)     :: psfc                  ! surface air pressure                Pa
  real, intent(in),    dimension(ni,nk)  :: gztherm               ! height AGL of thermodynamic levels  m
+ real, intent(in),    dimension(ni,nk)  :: gzmom                 ! height AGL of momentum levels  m
  real, intent(in),    dimension(ni,nk)  :: sigma                 ! sigma = p(k,:)/psfc(:)
  real, intent(in),    dimension(ni,nk)  :: ww                    ! vertical motion                     m s-1
  real, intent(out),   dimension(ni)     :: prt_liq               ! precipitation rate, total liquid    m s-1
@@ -1405,10 +1406,18 @@ END subroutine p3_init
    enddo
 
   !layer thickness (for sedimentation):
-   do k = kbot,ktop-kdir,kdir
-      DZ(:,k) = gztherm(:,k+kdir) - gztherm(:,k)
+  ! do k = kbot,ktop-kdir,kdir
+  !    DZ(:,k) = gztherm(:,k+kdir) - gztherm(:,k)
+  ! enddo
+  ! DZ(:,ktop) = DZ(:,ktop-kdir)
+
+  !layer thickness (for sedimentation):
+  !  note: This is the thickness of the layer "centered" at thermodynamic level k,
+  !        computed based on the surrounding momentum levels.
+   do k = kbot-1,ktop,kdir
+      DZ(:,k) = gzmom(:,k) - gzmom(:,k-kdir)
    enddo
-   DZ(:,ktop) = DZ(:,ktop-kdir)
+   DZ(:,kbot) = gzmom(:,kbot)
 
   !compute zitot from advected 'Z' variable (for triple-moment ice):
    if (present(zitot_1)) then
