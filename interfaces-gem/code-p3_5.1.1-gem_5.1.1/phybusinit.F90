@@ -44,6 +44,8 @@ subroutine phybusinit(ni,nk)
    character(len=6)  :: nag, ntp, nmar, wwz, nuv, isss, nbs_s
    integer :: ier, iverb, nsurf, i
    logical :: lcn_mpx, lcn_my2, lcn_p3i1, lcn_p3i2, lcn_p3i3, lcn_p3i4, lcn_none
+   logical :: lcn_p3tmi1, lcn_p3tmi2, lcn_p3tmi3, lcn_p3tmi4
+   logical :: lcn_p3lmi1, lcn_p3lmi2, lcn_p3lmi3, lcn_p3lmi4
    logical :: lbourg3d, lbourg
    logical :: lrslp
    logical :: lkfbe, lshal, lshbkf, lmid
@@ -90,6 +92,14 @@ subroutine phybusinit(ni,nk)
    lcn_p3i2 = (stcond == 'MP_P3' .and. p3_ncat >= 2)
    lcn_p3i3 = (stcond == 'MP_P3' .and. p3_ncat >= 3)
    lcn_p3i4 = (stcond == 'MP_P3' .and. p3_ncat == 4)
+   lcn_p3tmi1 = (lcn_p3i1 .and. p3_trplmomi)
+   lcn_p3tmi2 = (lcn_p3i2 .and. p3_trplmomi)
+   lcn_p3tmi3 = (lcn_p3i3 .and. p3_trplmomi)
+   lcn_p3tmi4 = (lcn_p3i4 .and. p3_trplmomi)
+   lcn_p3lmi1 = (lcn_p3i1 .and. p3_predictfiliq)
+   lcn_p3lmi2 = (lcn_p3i2 .and. p3_predictfiliq)
+   lcn_p3lmi3 = (lcn_p3i3 .and. p3_predictfiliq)
+   lcn_p3lmi4 = (lcn_p3i4 .and. p3_predictfiliq)
 
    lbourg3d= (pcptype == 'BOURGE3D')
    lgwdsm  = (sgo_tdfilter > 0.)

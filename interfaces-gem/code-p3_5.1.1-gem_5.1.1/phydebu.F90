@@ -220,7 +220,7 @@ function phydebu2(p_ni, p_nj, p_nk, F_path_S) result(F_istat)
    ! - - - - - - - - - - - - - - - - - - - - - - - - - - -
    if (stcond == 'MP_P3') then
       path = trim(F_path_S)//'MODEL_INPUT/'
-      call p3_init(path, p3_ncat, stat=ier)
+      call p3_init(path, p3_ncat, p3_trplmomi, p3_predictfiliq, stat=ier)
       if (ier < 0) then
          call msg_toall(MSG_ERROR,'(phydebu) Problem in p3_init')
          return

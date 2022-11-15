@@ -169,6 +169,7 @@
    MKPTR2Dm1(zfdc, fdc, f)
    MKPTR2Dm1(zfmc, fmc, f)
    MKPTR2Dm1(zgztherm, gztherm, v)
+   MKPTR2Dm1(zgzmom, gzmom, v)
    MKPTR2Dm1(zhums, hums, f)
    MKPTR2Dm1(zhupostcnd, hupostcnd, f)
    MKPTR2Dm1(zhups, hups, f)

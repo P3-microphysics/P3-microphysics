@@ -72,10 +72,13 @@
       parameter (ttotmin = 90     )     ! total integration time	[min]
 
       integer, parameter :: n_iceCat     =  2
+      logical, parameter           :: PredictFl    = .true.
+      logical, parameter           :: trplMomIce   = .true.
+
       logical, parameter :: prog_nc_ssat = .true.
      !logical, parameter :: nk_BOTTOM    = .true.   !.T. --> nk at bottom
-      logical, parameter :: typeDiags_ON = .true.   ! switch for hydrometeor/precip type diagnostics
-      logical, parameter :: debug_on     = .true.   ! switch for run-time check-values in p3_main
+      logical, parameter :: typeDiags_ON = .false.   ! switch for hydrometeor/precip type diagnostics
+      logical, parameter :: debug_on     = .false.   ! switch for run-time check-values in p3_main
 
       logical, parameter :: scpf_on      = .false.  ! switch for cloud fraction parameterization (SCPF)
       real,    parameter :: scpf_pfrac   = 1.        ! precipitation fraction factor (SCPF)
@@ -88,9 +91,8 @@
      character(len=16), parameter :: model = 'KIN1D'
 !    character(len=16), parameter :: model = 'WRF'  !for level tests
 
-     logical, parameter           :: PredictFl    = .true.
-     logical, parameter           :: trplMomIce   = .true.
      logical, parameter           :: abort_on_err = .false.
+     logical, parameter           :: dowr = .true.
 
      character(len=1024), parameter :: LT_path  = './lookup_tables'
 !    character(len=1024), parameter :: LT_path = '/users/milbrand/mp_p3/lookupTables/tables'  ! override default
@@ -159,7 +161,7 @@
 
     ! Source-Sink term arrays:
       integer, parameter               :: n_diag_2d = 20
-      integer, parameter               :: n_diag_3d = 38
+      integer, parameter               :: n_diag_3d = 20
       real, dimension(ni,n_diag_2d)    :: diag_2d     !user-defined 2D diagnostic arrays (for output)
       real, dimension(ni,nk,n_diag_3d) :: diag_3d     !user-defined 3D diagnostic arrays (for output)
       real, dimension(ni,nk,n_iceCat)  :: diag_reffi,diag_vmi,diag_di,diag_rhoi,diag_dhmax,  &
@@ -180,6 +182,9 @@
       integer                  :: nk_read,kk,stat
       logical, parameter       :: log_predictNc = .true.
       integer, dimension(200)  :: kskiplevs
+
+      real                     :: time1,time2,time3,time4,time5 ! for timing tests
+
 !---------------------------------------------------------------------------------------!
 
       open (unit=30, file='out_p3.dat')
@@ -194,6 +199,7 @@
       ssat1 = 0.  !for P3_v2.3.3, prognostic supersaturation is not available
 
       PR = 0. ! accumulated precipitation
+      time3 = 0. ! for total timing test
 
 !------- INITIALIZE w, tt, td, p AND Q[x]  PROFILES: -------
 
@@ -409,7 +415,7 @@
 !     call P3_INIT('./lookup_tables/',n_iceCat,trplMomIce,stat)  !v4.0.0
 !     call P3_INIT('./lookup_tables/',override_path=my_LT_path,n_iceCat,trplMomIce,stat)  !v4.0.0_b38
 
-      call P3_INIT(LT_path,n_iceCat,trplMomIce,model,stat,abort_on_err)      !v4.0.0_b42
+      call P3_INIT(LT_path,n_iceCat,trplMomIce,PredictFl,model,stat,abort_on_err,dowr)      !v4.0.0_b42
 
 
       do k=1,nk
@@ -555,6 +561,8 @@
 
 !v5.0.7
 
+          call cpu_time(time1)
+
           if (.not. trplMomIce) then
 
             if (.not. PredictFl) then
@@ -573,10 +581,7 @@
                               prt_pell = prt_pell,  &
                               prt_hail = prt_hail,  &
                               prt_sndp = prt_sndp,  &
-                              qi_type  = qi_type,   &
-                              diag_dhmax = diag_dhmax, &
-                              diag_lami  = diag_lami,  &
-                              diag_mui   = diag_mui)
+                              qi_type  = qi_type)
             else
 
                  CALL P3_MAIN(Qc1,Nc1,Qr1,Nr1,th2d0,th2d1,Qv0,Qv1,dt,Qi1,Qg1,Ni1,Bg1,ssat1,     &
@@ -594,10 +599,7 @@
                               prt_hail = prt_hail,  &
                               prt_sndp = prt_sndp,  &
                               qi_type  = qi_type,   &
-                              qiliq_in = Ql1,       &
-                              diag_dhmax = diag_dhmax, &
-                              diag_lami  = diag_lami,  &
-                              diag_mui   = diag_mui)
+                              qiliq_in = Ql1)
             endif
 
 
@@ -631,10 +633,7 @@
                              prt_hail = prt_hail,  &
                              prt_sndp = prt_sndp,  &
                              qi_type  = qi_type,   &
-                             zitot    = Zi1,       &
-                             diag_dhmax = diag_dhmax, &
-                             diag_lami  = diag_lami,  &
-                             diag_mui   = diag_mui)
+                             zitot    = Zi1)
 
               else
 
@@ -654,10 +653,7 @@
                              prt_sndp = prt_sndp,  &
                              qi_type  = qi_type,   &
                              zitot    = Zi1,       &
-                             qiliq_in = Ql1,       &
-                             diag_dhmax = diag_dhmax, &
-                             diag_lami  = diag_lami,  &
-                             diag_mui   = diag_mui)
+                             qiliq_in = Ql1)
               endif
 
             !compute prog var from Z:    (for wrapper)
@@ -665,6 +661,8 @@
 
 
           endif
+
+          call cpu_time(time2)
 
           tt1(1,:) = th2d1(1,:)*(p(:)*1.e-5)**0.286
 
@@ -719,11 +717,12 @@
 !----------------------------------------------------------------!
 
          PR = PR + (prt_liq(1) + prt_sol(1))*dt*1.e-3  !accumulated precipitation, mm
+         time3 =time3+(time2-time1)
 
 !  Output to files:
 
 !    Precipitation rates at lowest level (surface):
-         write(41,*) tminr, prt_liq(1), prt_sol(1), PR
+         write(41,*) tminr, prt_liq(1), prt_sol(1), PR,time3
 
 ! if (tminr.eq.1) then
 !     print*, Zi1(1,2,1),Qi1(1,2,1),Ni1(1,2,1)
@@ -759,7 +758,7 @@
 !	endif
 !	enddo
 
-        ! if (mod(tminr,float(1)) < 1.e-5) print*, 'time (min): ',tminr,(prt_liq(1) + prt_sol(1)),PR
+         if (mod(tminr,float(1)) < 1.e-5) print*, 'time (min): ',tminr,(prt_liq(1) + prt_sol(1)),PR, time3
         ! if (mod(tminr,float(5)) < 1.e-5) print*, 'time (min): ',tminr,prt_sol(1),PR
 
         ! if (mod(tminr,float(1)) < 1.e-5) print*, Qg1(1,50,1)*100/(Qi1(1,50,1)+Qr1(1,50)), &

@@ -21,7 +21,7 @@ module conv_mp_tendencies
 
 contains
 
-   subroutine conv_mp_tendencies1(liq_tend, ice_tend, ttp, qcp, ncp, qip, nip, qti1p, nti1p, tdmask, ni, nk, nkm1)
+   subroutine conv_mp_tendencies1(liq_tend, ice_tend, ttp, qcp, ncp, qip, nip, qti1p, nti1p, tdmask, ni, nk, nkm1, zti1p)
       use phy_options, only: stcond,my_ccntype,delt
       use tdpack_const, only: TRPL
       use tendency, only: apply_tendencies
@@ -38,7 +38,8 @@ contains
       real, dimension(:,:), pointer :: qip                           !Ice condensate mixing ratio (kg/kg)
       real, dimension(:,:), pointer :: nip                           !Ice number concentration (#/m3)
       real, dimension(:,:), pointer :: qti1p                         !Ice condensate mixing ratio (kg/kg)
-      real, dimension(:,:), pointer :: nti1p                         !Ice number concentration (#/m3)
+      real, dimension(:,:), pointer :: nti1p                         !Ice number concentration (#/kg)
+      real, dimension(:,:), intent(inout), optional :: zti1p         !Ice 6th-moment mixing ratio (m6/kg)
       real, dimension(:), pointer :: tdmask                             !Tendency mask
 
 #include <msg.h>
@@ -105,8 +106,21 @@ contains
          elseif (stcond(1:5) == 'MP_P3') then
 
             !cloud droplets (number):
-            ! note:  In the current version of P3, cloud droplet number is prescribed (there is no 'ncp').
-            !        For future 2-moment cloud configuration, 'ncp' should be updated here (as above for MP_MY2)
+            !note: in the current version of P3, nc is prognostic by default, this is why we detrained also ncp
+            do k = 1,nkm1
+               do i = 1,ni
+                  if (liq_tend(i,k) > 0.) then
+                     if (qcp(i,k) > 1.e-9 .and. ncp(i,k) > 1.e-3) then
+                        !assume mean size of the detrained droplets is the same size as those in the pre-existing clouds
+                        ncp(i,k) = ncp(i,k) + (ncp(i,k)/qcp(i,k))*tdmask(i)*liq_tend(i,k)*delt
+                        ncp(i,k) = min(ncp(i,k), 1.e+9)
+                     else
+                        !initialize cloud number mixing ratios based on specified aerosol type
+                        ncp(i,k) = ncp_prescribed  !maritime aerosols
+                     endif
+                  endif
+               enddo
+            enddo
 
             !cloud droplets (mass):
             call apply_tendencies(qcp, liq_tend, tdmask, ni, nk, nkm1)
@@ -122,10 +136,12 @@ contains
                         !assume mean size of the detrained ice is the same size as in the pre-existing "anvil"
                         nti1p(i,k) = nti1p(i,k) + (nti1p(i,k)/qti1p(i,k))*tdmask(i)*ice_tend(i,k)*delt
                         nti1p(i,k) = min(nti1p(i,k), 1.e+7)
+                        if (present(zti1p)) zti1p(i,k) = min(zti1p(i,k), 1.e-18)
                      else
                         !initialize ice number mixing ratio based on Cooper (1986)
                         nti1p(i,k) = 5.*exp(0.304*(TRPL-max(233.,ttp(i,k))))
                         nti1p(i,k) = min(nti1p(i,k), 1.e+7)
+                        if (present(zti1p)) zti1p(i,k) = min(zti1p(i,k), 1.e-18)
                      endif
                   endif
                enddo

@@ -310,7 +310,7 @@ contains
 
               if (p3_trplmomi) then
                 if (p3_predictfiliq) then
-                  istat1 = mp_p3_wrapper_gem(qqm,qqp,ttm,ttp,dt,p3_dtmax,ww,psp,zgztherm,       &
+                  istat1 = mp_p3_wrapper_gem(qqm,qqp,ttm,ttp,dt,p3_dtmax,ww,psp,zgztherm,zgzmom,&
                         sigma,kount,trnch,ni,nkm1,a_tls,a_tss,a_tls_rn1,a_tls_rn2,a_tss_sn1,    &
                         a_tss_sn2,a_tss_sn3,a_tss_pe1,a_tss_pe2,a_tss_snd,a_zet,a_zec,          &
                         a_effradc,qcp,ncp,qrp,nrp,p3_ncat,N_DIAG_2D,diag_2d,N_DIAG_3D,diag_3d,  &
@@ -320,7 +320,7 @@ contains
                         zitot_1=zti1p,                                                          &
                         qiliq_1=qli1p)
                else
-                  istat1 = mp_p3_wrapper_gem(qqm,qqp,ttm,ttp,dt,p3_dtmax,ww,psp,zgztherm,       &
+                  istat1 = mp_p3_wrapper_gem(qqm,qqp,ttm,ttp,dt,p3_dtmax,ww,psp,zgztherm,zgzmom,&
                         sigma,kount,trnch,ni,nkm1,a_tls,a_tss,a_tls_rn1,a_tls_rn2,a_tss_sn1,    &
                         a_tss_sn2,a_tss_sn3,a_tss_pe1,a_tss_pe2,a_tss_snd,a_zet,a_zec,          &
                         a_effradc,qcp,ncp,qrp,nrp,p3_ncat,N_DIAG_2D,diag_2d,N_DIAG_3D,diag_3d,  &
@@ -331,7 +331,7 @@ contains
                endif
             else
                if (p3_predictfiliq) then
-                   istat1 = mp_p3_wrapper_gem(qqm,qqp,ttm,ttp,dt,p3_dtmax,ww,psp,zgztherm,      &
+                   istat1 = mp_p3_wrapper_gem(qqm,qqp,ttm,ttp,dt,p3_dtmax,ww,psp,zgztherm,zgzmom,&
                         sigma,kount,trnch,ni,nkm1,a_tls,a_tss,a_tls_rn1,a_tls_rn2,a_tss_sn1,    &
                         a_tss_sn2,a_tss_sn3,a_tss_pe1,a_tss_pe2,a_tss_snd,a_zet,a_zec,          &
                         a_effradc,qcp,ncp,qrp,nrp,p3_ncat,N_DIAG_2D,diag_2d,N_DIAG_3D,diag_3d,  &
@@ -340,7 +340,7 @@ contains
                         qti1p,qmi1p,nti1p,bmi1p,a_effradi1,                                     &
                         qiliq_1=qli1p)
                else
-                   istat1 = mp_p3_wrapper_gem(qqm,qqp,ttm,ttp,dt,p3_dtmax,ww,psp,zgztherm,      &
+                   istat1 = mp_p3_wrapper_gem(qqm,qqp,ttm,ttp,dt,p3_dtmax,ww,psp,zgztherm,zgzmom,&
                         sigma,kount,trnch,ni,nkm1,a_tls,a_tss,a_tls_rn1,a_tls_rn2,a_tss_sn1,    &
                         a_tss_sn2,a_tss_sn3,a_tss_pe1,a_tss_pe2,a_tss_snd,a_zet,a_zec,          &
                         a_effradc,qcp,ncp,qrp,nrp,p3_ncat,N_DIAG_2D,diag_2d,N_DIAG_3D,diag_3d,  &
@@ -359,7 +359,7 @@ contains
             if (p3_comptend) qitend(:,:) = qti1p(:,:) + qti2p(:,:)
        if (p3_trplmomi) then
          if (p3_predictfiliq) then
-            istat1 = mp_p3_wrapper_gem(qqm,qqp,ttm,ttp,dt,p3_dtmax,ww,psp,zgztherm,      &
+            istat1 = mp_p3_wrapper_gem(qqm,qqp,ttm,ttp,dt,p3_dtmax,ww,psp,zgztherm,zgzmom,&
                  sigma,kount,trnch,ni,nkm1,a_tls,a_tss,a_tls_rn1,a_tls_rn2,a_tss_sn1,    &
                  a_tss_sn2,a_tss_sn3,a_tss_pe1,a_tss_pe2,a_tss_snd,a_zet,a_zec,          &
                  a_effradc,qcp,ncp,qrp,nrp,p3_ncat,N_DIAG_2D,diag_2d,N_DIAG_3D,diag_3d,  &
@@ -376,7 +376,7 @@ contains
                  zitot_2=zti2p,                                                          &
                  qiliq_2=qli2p)
          else
-            istat1 = mp_p3_wrapper_gem(qqm,qqp,ttm,ttp,dt,p3_dtmax,ww,psp,zgztherm,      &
+            istat1 = mp_p3_wrapper_gem(qqm,qqp,ttm,ttp,dt,p3_dtmax,ww,psp,zgztherm,zgzmom,&
                  sigma,kount,trnch,ni,nkm1,a_tls,a_tss,a_tls_rn1,a_tls_rn2,a_tss_sn1,    &
                  a_tss_sn2,a_tss_sn3,a_tss_pe1,a_tss_pe2,a_tss_snd,a_zet,a_zec,          &
                  a_effradc,qcp,ncp,qrp,nrp,p3_ncat,N_DIAG_2D,diag_2d,N_DIAG_3D,diag_3d,  &
@@ -393,7 +393,7 @@ contains
          endif
        else
          if (p3_predictfiliq) then
-            istat1 = mp_p3_wrapper_gem(qqm,qqp,ttm,ttp,dt,p3_dtmax,ww,psp,zgztherm,      &
+            istat1 = mp_p3_wrapper_gem(qqm,qqp,ttm,ttp,dt,p3_dtmax,ww,psp,zgztherm,zgzmom,&
                  sigma,kount,trnch,ni,nkm1,a_tls,a_tss,a_tls_rn1,a_tls_rn2,a_tss_sn1,    &
                  a_tss_sn2,a_tss_sn3,a_tss_pe1,a_tss_pe2,a_tss_snd,a_zet,a_zec,          &
                  a_effradc,qcp,ncp,qrp,nrp,p3_ncat,N_DIAG_2D,diag_2d,N_DIAG_3D,diag_3d,  &
@@ -408,7 +408,7 @@ contains
                  diag_effi_2=a_effradi2,                                                 &
                  qiliq_2=qli2p)
          else
-            istat1 = mp_p3_wrapper_gem(qqm,qqp,ttm,ttp,dt,p3_dtmax,ww,psp,zgztherm,      &
+            istat1 = mp_p3_wrapper_gem(qqm,qqp,ttm,ttp,dt,p3_dtmax,ww,psp,zgztherm,zgzmom,&
                  sigma,kount,trnch,ni,nkm1,a_tls,a_tss,a_tls_rn1,a_tls_rn2,a_tss_sn1,    &
                  a_tss_sn2,a_tss_sn3,a_tss_pe1,a_tss_pe2,a_tss_snd,a_zet,a_zec,          &
                  a_effradc,qcp,ncp,qrp,nrp,p3_ncat,N_DIAG_2D,diag_2d,N_DIAG_3D,diag_3d,  &
@@ -433,7 +433,7 @@ contains
             if (p3_comptend) qitend(:,:) = qti1p(:,:) + qti2p(:,:) + qti3p(:,:)
        if (p3_trplmomi) then
          if (p3_predictfiliq) then
-            istat1 = mp_p3_wrapper_gem(qqm,qqp,ttm,ttp,dt,p3_dtmax,ww,psp,zgztherm,      &
+            istat1 = mp_p3_wrapper_gem(qqm,qqp,ttm,ttp,dt,p3_dtmax,ww,psp,zgztherm,zgzmom,&
                  sigma,kount,trnch,ni,nkm1,a_tls,a_tss,a_tls_rn1,a_tls_rn2,a_tss_sn1,    &
                  a_tss_sn2,a_tss_sn3,a_tss_pe1,a_tss_pe2,a_tss_snd,a_zet,a_zec,          &
                  a_effradc,qcp,ncp,qrp,nrp,p3_ncat,N_DIAG_2D,diag_2d,N_DIAG_3D,diag_3d,  &
@@ -457,7 +457,7 @@ contains
                  zitot_3=zti3p,                                                          &
                  qiliq_3=qli3p)
          else
-            istat1 = mp_p3_wrapper_gem(qqm,qqp,ttm,ttp,dt,p3_dtmax,ww,psp,zgztherm,      &
+            istat1 = mp_p3_wrapper_gem(qqm,qqp,ttm,ttp,dt,p3_dtmax,ww,psp,zgztherm,zgzmom,&
                  sigma,kount,trnch,ni,nkm1,a_tls,a_tss,a_tls_rn1,a_tls_rn2,a_tss_sn1,    &
                  a_tss_sn2,a_tss_sn3,a_tss_pe1,a_tss_pe2,a_tss_snd,a_zet,a_zec,          &
                  a_effradc,qcp,ncp,qrp,nrp,p3_ncat,N_DIAG_2D,diag_2d,N_DIAG_3D,diag_3d,  &
@@ -480,7 +480,7 @@ contains
          endif
        else
          if (p3_predictfiliq) then
-            istat1 = mp_p3_wrapper_gem(qqm,qqp,ttm,ttp,dt,p3_dtmax,ww,psp,zgztherm,      &
+            istat1 = mp_p3_wrapper_gem(qqm,qqp,ttm,ttp,dt,p3_dtmax,ww,psp,zgztherm,zgzmom,&
                  sigma,kount,trnch,ni,nkm1,a_tls,a_tss,a_tls_rn1,a_tls_rn2,a_tss_sn1,    &
                  a_tss_sn2,a_tss_sn3,a_tss_pe1,a_tss_pe2,a_tss_snd,a_zet,a_zec,          &
                  a_effradc,qcp,ncp,qrp,nrp,p3_ncat,N_DIAG_2D,diag_2d,N_DIAG_3D,diag_3d,  &
@@ -501,7 +501,7 @@ contains
                  diag_effi_3=a_effradi3,                                                 &
                  qiliq_3=qli3p)
          else
-            istat1 = mp_p3_wrapper_gem(qqm,qqp,ttm,ttp,dt,p3_dtmax,ww,psp,zgztherm,      &
+            istat1 = mp_p3_wrapper_gem(qqm,qqp,ttm,ttp,dt,p3_dtmax,ww,psp,zgztherm,zgzmom,&
                  sigma,kount,trnch,ni,nkm1,a_tls,a_tss,a_tls_rn1,a_tls_rn2,a_tss_sn1,    &
                  a_tss_sn2,a_tss_sn3,a_tss_pe1,a_tss_pe2,a_tss_snd,a_zet,a_zec,          &
                  a_effradc,qcp,ncp,qrp,nrp,p3_ncat,N_DIAG_2D,diag_2d,N_DIAG_3D,diag_3d,  &
@@ -533,7 +533,7 @@ contains
 
        if (p3_trplmomi) then
          if (p3_predictFiliq) then
-            istat1 = mp_p3_wrapper_gem(qqm,qqp,ttm,ttp,dt,p3_dtmax,ww,psp,zgztherm,      &
+            istat1 = mp_p3_wrapper_gem(qqm,qqp,ttm,ttp,dt,p3_dtmax,ww,psp,zgztherm,zgzmom,&
                  sigma,kount,trnch,ni,nkm1,a_tls,a_tss,a_tls_rn1,a_tls_rn2,a_tss_sn1,    &
                  a_tss_sn2,a_tss_sn3,a_tss_pe1,a_tss_pe2,a_tss_snd,a_zet,a_zec,          &
                  a_effradc,qcp,ncp,qrp,nrp,p3_ncat,N_DIAG_2D,diag_2d,N_DIAG_3D,diag_3d,  &
@@ -564,7 +564,7 @@ contains
                  zitot_4=zti4p,                                                          &
                  qiliq_4=qli4p)
          else
-            istat1 = mp_p3_wrapper_gem(qqm,qqp,ttm,ttp,dt,p3_dtmax,ww,psp,zgztherm,      &
+            istat1 = mp_p3_wrapper_gem(qqm,qqp,ttm,ttp,dt,p3_dtmax,ww,psp,zgztherm,zgzmom,&
                  sigma,kount,trnch,ni,nkm1,a_tls,a_tss,a_tls_rn1,a_tls_rn2,a_tss_sn1,    &
                  a_tss_sn2,a_tss_sn3,a_tss_pe1,a_tss_pe2,a_tss_snd,a_zet,a_zec,          &
                  a_effradc,qcp,ncp,qrp,nrp,p3_ncat,N_DIAG_2D,diag_2d,N_DIAG_3D,diag_3d,  &
@@ -592,7 +592,7 @@ contains
          endif
        else
          if (p3_predictFiliq) then
-            istat1 = mp_p3_wrapper_gem(qqm,qqp,ttm,ttp,dt,p3_dtmax,ww,psp,zgztherm,      &
+            istat1 = mp_p3_wrapper_gem(qqm,qqp,ttm,ttp,dt,p3_dtmax,ww,psp,zgztherm,zgzmom,&
                  sigma,kount,trnch,ni,nkm1,a_tls,a_tss,a_tls_rn1,a_tls_rn2,a_tss_sn1,    &
                  a_tss_sn2,a_tss_sn3,a_tss_pe1,a_tss_pe2,a_tss_snd,a_zet,a_zec,          &
                  a_effradc,qcp,ncp,qrp,nrp,p3_ncat,N_DIAG_2D,diag_2d,N_DIAG_3D,diag_3d,  &
@@ -619,7 +619,7 @@ contains
                  diag_effi_4=a_effradi4,                                                 &
                  qiliq_4=qli4p)
          else
-            istat1 = mp_p3_wrapper_gem(qqm,qqp,ttm,ttp,dt,p3_dtmax,ww,psp,zgztherm,      &
+            istat1 = mp_p3_wrapper_gem(qqm,qqp,ttm,ttp,dt,p3_dtmax,ww,psp,zgztherm,zgzmom,&
                  sigma,kount,trnch,ni,nkm1,a_tls,a_tss,a_tls_rn1,a_tls_rn2,a_tss_sn1,    &
                  a_tss_sn2,a_tss_sn3,a_tss_pe1,a_tss_pe2,a_tss_snd,a_zet,a_zec,          &
                  a_effradc,qcp,ncp,qrp,nrp,p3_ncat,N_DIAG_2D,diag_2d,N_DIAG_3D,diag_3d,  &

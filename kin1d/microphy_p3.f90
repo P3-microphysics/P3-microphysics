@@ -17,11 +17,11 @@
 !                                                                                          !
 ! For questions or bug reports, please contact:                                            !
 !    Hugh Morrison   (morrison@ucar.edu), or                                               !
-!    Jason Milbrandt (jason.milbrandt@ec.gc.ca), or                                        !
+!    Jason Milbrandt (jason.milbrandt@canada.ca), or                                       !
 !    Melissa Cholette (melissa.cholette@ec.gc.ca)                                          !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.1.1.1                                                                   !
+! Version:       5.1.1.3                                                                   !
 ! Last updated:  2022-OCT                                                                  !
 !__________________________________________________________________________________________!
 
@@ -113,7 +113,7 @@
 
 !==================================================================================================!
 
- subroutine p3_init(lookup_file_dir,nCat,trplMomI,liqFrac,model,stat,abort_on_err)
+ subroutine p3_init(lookup_file_dir,nCat,trplMomI,liqFrac,model,stat,abort_on_err,dowr)
 
 !------------------------------------------------------------------------------------------!
 ! This subroutine initializes all physical constants and parameters needed by the P3       !
@@ -136,10 +136,11 @@
  integer,          intent(out), optional  :: stat               ! return status of subprogram
  logical,          intent(in),  optional  :: abort_on_err       ! abort when an error is encountered [.false.]
  character(len=*), intent(in),  optional  :: model              ! driving model
+ logical,       intent(in)            :: dowr
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.1.1.1'
+ character(len=1024), parameter :: version_p3                    = '5.1.1.3'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.3-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '6.3-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.0'
@@ -166,13 +167,6 @@
    lookup_file_1 = trim(read_path)//'/'//'p3_lookupTable_1.dat-v'//trim(version_intended_table_1_2mom)
  endif
  lookup_file_2 = trim(read_path)//'/'//'p3_lookupTable_2.dat-v'//trim(version_intended_table_2)
-
-! if (trplMomI) then
-!    lookup_file_1 = '/fs/homeu2/eccc/mrd/ords/rpnatm/mec000/p3_lookup_tables/p3v510/p3_lookupTable_1.dat-v'//trim(version_intended_table_1_3mom)
-! else
-!    lookup_file_1 = '/fs/homeu2/eccc/mrd/ords/rpnatm/mec000/p3_lookup_tables/p3v510/p3_lookupTable_1.dat-v'//trim(version_intended_table_1_2mom)
-! endif
-! lookup_file_2 = '/fs/homeu2/eccc/mrd/ords/rpnatm/mec000/p3_lookup_tables/p3v510/p3_lookupTable_2.dat-v'//trim(version_intended_table_2)
 
 !------------------------------------------------------------------------------------------!
 
@@ -360,9 +354,9 @@
 
  IF_PROC0: if (procnum == 0) then
 
-  print*
-  print*, ' P3 microphysics: v',trim(version_p3)
-  print*, '   P3_INIT (reading/creating lookup tables)'
+  if(dowr) print*
+  if(dowr) print*, ' P3 microphysics: v',trim(version_p3)
+  if(dowr) print*, '   P3_INIT (reading/creating lookup tables)'
 
   TRIPLE_MOMENT_ICE: if (.not. trplMomI) then
 
@@ -374,14 +368,14 @@
     !   note:  to override and use a different lookup table, simply comment out the 'return' below
     read(10,*) dumstr,version_header_table_1_2mom
     if (trim(version_intended_table_1_2mom) /= trim(version_header_table_1_2mom)) then
-       print*
-       print*, '***********   WARNING in P3_INIT   *************'
-       print*, ' Loading lookupTable_1: v',trim(version_header_table_1_2mom)
-       print*, ' P3 v',trim(version_p3),' is intended to use lookupTable_1: ',    &
+       if(dowr) print*
+       if(dowr) print*, '***********   WARNING in P3_INIT   *************'
+       if(dowr) print*, ' Loading lookupTable_1: v',trim(version_header_table_1_2mom)
+       if(dowr) print*, ' P3 v',trim(version_p3),' is intended to use lookupTable_1: ',    &
                trim(version_intended_table_1_2mom)
-      !print*, '               -- ABORTING -- '
-       print*, '************************************************'
-       print*
+      !if(dowr) print*, '               -- ABORTING -- '
+       if(dowr) print*, '************************************************'
+       if(dowr) print*
        global_status = STATUS_ERROR
        if (trim(model) == 'WRF') then
           print*,'Stopping in P3 init'
@@ -438,9 +432,9 @@
 
     open(unit=10,file=lookup_file_1,status='old',iostat=ierr,err=101)
  101  if (ierr.ne.0) then
-         print*,'Error opening 3-moment lookup table file '//lookup_file_1
-         print*,'Make sure this file is unzipped and then rerun the model.'
-         print*,' '
+         if(dowr) print*,'Error opening 3-moment lookup table file '//lookup_file_1
+         if(dowr) print*,'Make sure this file is unzipped and then rerun the model.'
+         if(dowr) print*,' '
          flush(6)
          stop
       end if
@@ -449,14 +443,14 @@
     !   note:  to override and use a different lookup table, simply comment out the 'return' below
     read(10,*) dumstr,version_header_table_1_3mom
     if (trim(version_intended_table_1_3mom) /= trim(version_header_table_1_3mom)) then
-       print*
-       print*, '***********   WARNING in P3_INIT   *************'
-       print*, ' Loading lookupTable_1: v',trim(version_header_table_1_3mom)
-       print*, ' P3 v',trim(version_p3),' is intended to use lookupTable_1: v',    &
+       if(dowr) print*
+       if(dowr) print*, '***********   WARNING in P3_INIT   *************'
+       if(dowr) print*, ' Loading lookupTable_1: v',trim(version_header_table_1_3mom)
+       if(dowr) print*, ' P3 v',trim(version_p3),' is intended to use lookupTable_1: v',    &
                trim(version_intended_table_1_3mom)
-      !print*, '               -- ABORTING -- '
-       print*, '************************************************'
-       print*
+      !if(dowr) print*, '               -- ABORTING -- '
+       if(dowr) print*, '************************************************'
+       if(dowr) print*
        global_status = STATUS_ERROR
        if (trim(model) == 'WRF') then
           print*,'Stopping in P3 init'
@@ -500,20 +494,20 @@
   IF_NCAT: if (nCat>1) then
    ! read in ice-ice collision lookup table  (used for multicategory only)
 
-       print*, '     Reading table 2 [',trim(version_intended_table_2),'] ...'
+       if(dowr) print*, '     Reading table 2 [',trim(version_intended_table_2),'] ...'
        open(unit=10,file=lookup_file_2,status='old')
 
        !--check that table version is correct:
        read(10,*) dumstr,version_header_table_2
        if (trim(version_intended_table_2) /= trim(version_header_table_2)) then
-          print*
-          print*, '***********   WARNING in P3_INIT   *************'
-          print*, ' Loading lookupTable_2 version: ',trim(version_header_table_2)
-          print*, ' P3 v',trim(version_p3),' is intended to use lookupTable_2: v', &
+          if(dowr) print*
+          if(dowr) print*, '***********   WARNING in P3_INIT   *************'
+          if(dowr) print*, ' Loading lookupTable_2 version: ',trim(version_header_table_2)
+          if(dowr) print*, ' P3 v',trim(version_p3),' is intended to use lookupTable_2: v', &
                   trim(version_intended_table_2)
-         !print*, '               -- ABORTING -- '
-          print*, '************************************************'
-          print*
+         !if(dowr) print*, '               -- ABORTING -- '
+          if(dowr) print*, '************************************************'
+          if(dowr) print*
           global_status = STATUS_ERROR
           if (trim(model)=='WRF' .or. trim(model)=='KIN1D') then
              print*,'Stopping in P3 init'
@@ -616,7 +610,7 @@
 ! make a 150x1 1D lookup table, this is done in parameter
 ! space of a scaled mean size proportional qr/Nr -- initlamr
 
-!print*, '   Generating rain lookup-table ...'
+!if(dowr) print*, '   Generating rain lookup-table ...'
 
 !-- for variable mu_r only:
 ! ! !  do i = 1,150              ! loop over lookup table values
@@ -663,7 +657,9 @@
 ! proportional to qr/Nr and shape parameter mu_r
 
  if (procnum == 0) then
-    print*, '     Generating table for rain fallspeed/ventilation parameters ...'
+    if(dowr) then
+    print*, 'Generating table for rain fallspeed/ventilation parameters'
+    end if
  endif
 
  mu_r_loop: do ii = 1,10
@@ -734,8 +730,8 @@
 !.......................................................................
 
  if (procnum == 0) then
-    print*, '   P3_INIT DONE.'
-    print*
+    if(dowr) print*, '   P3_INIT DONE.'
+    if(dowr) print*
  endif
 
  end_status = STATUS_OK
@@ -749,103 +745,111 @@ END subroutine p3_init
 !==================================================================================================!
 #ifndef ECCCGEM
 
- SUBROUTINE mp_p3_wrapper_wrf(th_3d,qv_3d,qc_3d,qr_3d,qnr_3d,                            &
-                              th_old_3d,qv_old_3d,                                       &
-                              pii,p,dz,w,dt,itimestep,                                   &
-                              rainnc,rainncv,sr,snownc,snowncv,n_iceCat,                 &
-                              ids, ide, jds, jde, kds, kde ,                             &
-                              ims, ime, jms, jme, kms, kme ,                             &
-                              its, ite, jts, jte, kts, kte ,                             &
-                              diag_zdbz_3d,diag_effc_3d,diag_effi_3d,                    &
-                              diag_vmi_3d,diag_di_3d,diag_rhopo_3d,                      &
-                              qi1_3d,qni1_3d,qir1_3d,qib1_3d,nc_3d,qzi1_3d)
-!                              diag_dhmax_3d,diag_lami_3d,diag_mui_3d)
+ SUBROUTINE mp_p3_wrapper_wrf(th_3d,qv_3d,qc_3d,qr_3d,qnr_3d,                            &                    
+                              th_old_3d,qv_old_3d,                                       &                    
+                              pii,p,dz,w,dt,itimestep,                                   &                    
+                              rainnc,rainncv,sr,snownc,snowncv,n_iceCat,                 &                    
+                              ids, ide, jds, jde, kds, kde ,                             &                    
+                              ims, ime, jms, jme, kms, kme ,                             &                    
+                              its, ite, jts, jte, kts, kte ,                             &                    
+                              diag_zdbz_3d,diag_effc_3d,diag_effi_3d,                    &                    
+                              diag_vmi_3d,diag_di_3d,diag_rhopo_3d,                      &                    
+                              qi1_3d,qni1_3d,qir1_3d,qib1_3d,nc_3d,qzi1_3d,qli1_3d,      &
+                              add_output_arr1,add_output_arr2,add_output_arr3,           &
+                              add_output_arr1_2d,add_output_arr2_2d)
 
-  !------------------------------------------------------------------------------------------!
-  ! This subroutine is the main WRF interface with the P3 microphysics scheme.  It takes     !
-  ! 3D variables form the driving model and passes 2D slabs (i,k) to the main microphysics   !
-  ! subroutine ('P3_MAIN') over a j-loop.  For each slab, 'P3_MAIN' updates the prognostic   !
-  ! variables (hydrometeor variables, potential temperature, and water vapor).  The wrapper  !
-  ! also updates the accumulated precipitation arrays and then passes back them, the         !
-  ! updated 3D fields, and some diagnostic fields to the driver model.                       !
-  !                                                                                          !
-  ! Three configurations of the P3 scheme are currently available:                           !
-  !  1) specified droplet number (i.e. 1-moment cloud water), 1 ice category                 !
-  !  2) predicted droplet number (i.e. 2-moment cloud water), 1 ice category                 !
-  !  3) predicted droplet number (i.e. 2-moment cloud water), 2 ice categories               !
-  !  4) predicted droplet number (i.e. 2-moment cloud water), 1 ice catetory, 3-moment ice   !
-  !                                                                                          !
-  !  The  2-moment cloud version is based on a specified aerosol distribution and            !
-  !  does not include a subgrid-scale vertical velocity for droplet activation. Hence,       !
-  !  this version should only be used for high-resolution simulations that resolve           !
-  !  vertical motion driving droplet activation.                                             !
-  !                                                                                          !
-  !------------------------------------------------------------------------------------------!
+  !------------------------------------------------------------------------------------------!                
+  ! This subroutine is the main WRF interface with the P3 microphysics scheme.  It takes     !                
+  ! 3D variables form the driving model and passes 2D slabs (i,k) to the main microphysics   !                
+  ! subroutine ('P3_MAIN') over a j-loop.  For each slab, 'P3_MAIN' updates the prognostic   !                
+  ! variables (hydrometeor variables, potential temperature, and water vapor).  The wrapper  !                
+  ! also updates the accumulated precipitation arrays and then passes back them, the         !                
+  ! updated 3D fields, and some diagnostic fields to the driver model.                       !                
+  !                                                                                          !                
+  ! Three configurations of the P3 scheme are currently available:                           !                
+  !  1) specified droplet number (i.e. 1-moment cloud water), 1 ice category                 !                
+  !  2) predicted droplet number (i.e. 2-moment cloud water), 1 ice category                 !                
+  !  3) predicted droplet number (i.e. 2-moment cloud water), 2 ice categories               !                
+  !  4) predicted droplet number (i.e. 2-moment cloud water), 1 ice catetory, 3-moment ice   !                
+  !                                                                                          !                
+  !  The  2-moment cloud version is based on a specified aerosol distribution and            !                
+  !  does not include a subgrid-scale vertical velocity for droplet activation. Hence,       !                
+  !  this version should only be used for high-resolution simulations that resolve           !                
+  !  vertical motion driving droplet activation.                                             !                
+  !                                                                                          !                
+  !------------------------------------------------------------------------------------------!                
 
-  !--- input:
+  !--- input:                                                                                                 
 
-  ! pii       --> Exner function (nondimensional pressure) (currently not used!)
-  ! p         --> pressure (pa)
-  ! dz        --> height difference across vertical levels (m)
-  ! w         --> vertical air velocity (m/s)
-  ! dt        --> time step (s)
-  ! itimestep --> integer time step counter
-  ! n_iceCat  --> number of ice-phase categories
+  ! pii       --> Exner function (nondimensional pressure) (currently not used!)                              
+  ! p         --> pressure (pa)                                                                               
+  ! dz        --> height difference across vertical levels (m)                                                
+  ! w         --> vertical air velocity (m/s)                                                                 
+  ! dt        --> time step (s)                                                                               
+  ! itimestep --> integer time step counter                                                                   
+  ! n_iceCat  --> number of ice-phase categories 
 
+  !--- input/output:                                                                                          
 
-  !--- input/output:
+  ! th_3d     --> theta (K)                                                                                   
+  ! qv_3d     --> vapor mass mixing ratio (kg/kg)                                                             
+  ! qc_3d     --> cloud water mass mixing ratio (kg/kg)                                                       
+  ! qr_3d     --> rain mass mixing ratio (kg/kg)                                                              
+  ! qnr_3d    --> rain number mixing ratio (#/kg)                                                             
+  ! qi1_3d    --> total ice mixing ratio (kg/kg)                                                              
+  ! qni1_3d   --> ice number mixing ratio (#/kg)                                                              
+  ! qir1_3d   --> rime ice mass mixing ratio (kg/kg)                                                          
+  ! qib1_3d   --> ice rime volume mixing ratio (m^-3 kg^-1)                                                   
+  ! qzi1_3d   --> ice rime volume mixing ratio (m^-6 kg^-1)                                                   
+  ! qli1_3d   --> liquid mass mixing ratio on ice (m^-6 kg^-1)                                                
+  ! nc_3d     --> cloud droplet number mixing ratio (#/kg)                                                    
 
-  ! th_3d     --> theta (K)
-  ! qv_3d     --> vapor mass mixing ratio (kg/kg)
-  ! qc_3d     --> cloud water mass mixing ratio (kg/kg)
-  ! qr_3d     --> rain mass mixing ratio (kg/kg)
-  ! qnr_3d    --> rain number mixing ratio (#/kg)
-  ! qi1_3d    --> total ice mixing ratio (kg/kg)
-  ! qni1_3d   --> ice number mixing ratio (#/kg)
-  ! qir1_3d   --> rime ice mass mixing ratio (kg/kg)
-  ! qib1_3d   --> ice rime volume mixing ratio (m^-3 kg^-1)
-  ! qzi1_3d   --> ice rime volume mixing ratio (m^-6 kg^-1)
-  ! nc_3d     --> cloud droplet number mixing ratio (#/kg)
+  !--- output:                                                                                                
 
-  !--- output:
-
-  ! rainnc        --> accumulated surface precip (mm)
-  ! rainncv       --> one time step accumulated surface precip (mm)
-  ! sr            --> ice to total surface precip ratio
-  ! snownc        --> accumulated surface ice precip (mm)
-  ! snowncv       --> one time step accumulated surface ice precip (mm)
-  ! ids...kte     --> integer domain/tile bounds
-  ! diag_zdbz_3d  --> reflectivity (dBZ)
-  ! diag_effc_3d  --> cloud droplet effective radius (m)
-  ! diag_effi_3d  --> ice effective radius (m)
-  ! diag_vmi_3d   --> mean mass weighted ice fallspeed (m/s)
-  ! diag_di_3d    --> mean mass weighted ice size (m)
-  ! diag_rhopo_3d --> mean mass weighted ice density (kg/m3)
+  ! rainnc        --> accumulated surface precip (mm)                                                         
+  ! rainncv       --> one time step accumulated surface precip (mm)                                           
+  ! sr            --> ice to total surface precip ratio                                                       
+  ! snownc        --> accumulated surface ice precip (mm)                                                     
+  ! snowncv       --> one time step accumulated surface ice precip (mm)                                       
+  ! ids...kte     --> integer domain/tile bounds                                                              
+  ! diag_zdbz_3d  --> reflectivity (dBZ)                                                                      
+  ! diag_effc_3d  --> cloud droplet effective radius (m)                                                      
+  ! diag_effi_3d  --> ice effective radius (m)                                                                
+  ! diag_vmi_3d   --> mean mass weighted ice fallspeed (m/s)                                                  
+  ! diag_di_3d    --> mean mass weighted ice size (m)                                                         
+  ! diag_rhopo_3d --> mean mass weighted ice density (kg/m3)                                                  
 
   implicit none
 
-  !--- arguments:
+  !--- arguments:                                                                                             
 
-   integer, intent(in)            ::  ids, ide, jds, jde, kds, kde ,                      &
-                                      ims, ime, jms, jme, kms, kme ,                      &
+   integer, intent(in)            ::  ids, ide, jds, jde, kds, kde ,                      &                   
+                                      ims, ime, jms, jme, kms, kme ,                      &                   
                                       its, ite, jts, jte, kts, kte
-   real, dimension(ims:ime, kms:kme, jms:jme), intent(inout):: th_3d,qv_3d,qc_3d,qr_3d,   &
-                   qnr_3d,diag_zdbz_3d,diag_effc_3d,diag_effi_3d,diag_vmi_3d,diag_di_3d,  &
+   real, dimension(ims:ime, kms:kme, jms:jme), intent(inout):: th_3d,qv_3d,qc_3d,qr_3d,   &                   
+                   qnr_3d,diag_zdbz_3d,diag_effc_3d,diag_effi_3d,diag_vmi_3d,diag_di_3d,  &                   
                    diag_rhopo_3d,th_old_3d,qv_old_3d
-!   real, dimension(ims:ime, kms:kme, jms:jme), intent(inout):: diag_dhmax_3d,             &
-!                   diag_lami_3d,diag_mui_3d
-   real, dimension(ims:ime, kms:kme, jms:jme), intent(inout):: qi1_3d,qni1_3d,qir1_3d,    &
+!   real, dimension(ims:ime, kms:kme, jms:jme), intent(inout):: diag_dhmax_3d,             &                  
+!                   diag_lami_3d,diag_mui_3d                                                                  
+   real, dimension(ims:ime, kms:kme, jms:jme), intent(inout):: qi1_3d,qni1_3d,qir1_3d,    &                   
                                                                qib1_3d
-   real, dimension(ims:ime, kms:kme, jms:jme), intent(inout), optional :: nc_3d
-   real, dimension(ims:ime, kms:kme, jms:jme), intent(inout), optional :: qzi1_3d
+   real, dimension(ims:ime, kms:kme, jms:jme), intent(inout), optional :: nc_3d                               
+   real, dimension(ims:ime, kms:kme, jms:jme), intent(inout), optional :: qzi1_3d                             
+   real, dimension(ims:ime, kms:kme, jms:jme), intent(inout), optional :: qli1_3d      
+
+   real, dimension(ims:ime, kms:kme, jms:jme), intent(inout), optional :: add_output_arr1
+   real, dimension(ims:ime, kms:kme, jms:jme), intent(inout), optional :: add_output_arr2
+   real, dimension(ims:ime, kms:kme, jms:jme), intent(inout), optional :: add_output_arr3
+   real, dimension(ims:ime, jms:jme), intent(inout), optional :: add_output_arr1_2d
+   real, dimension(ims:ime, jms:jme), intent(inout), optional :: add_output_arr2_2d
 
    real, dimension(ims:ime, kms:kme, jms:jme), intent(in) :: pii,p,dz,w
-   real, dimension(ims:ime, jms:jme), intent(inout) :: RAINNC,RAINNCV,SR,SNOWNC,SNOWNCV
+   real, dimension(ims:ime, jms:jme), intent(inout) :: RAINNC,RAINNCV,SR,SNOWNC,SNOWNCV                       
    real, intent(in)    :: dt
    integer, intent(in) :: itimestep
    integer, intent(in) :: n_iceCat
 
-   !--- local variables/parameters:
+   !--- local variables/parameters:                                                                           
 
    character(len=16), parameter :: model = 'WRF'
 
@@ -854,29 +858,31 @@ END subroutine p3_init
    real, dimension(its:ite) :: pcprt_liq,pcprt_sol
    real                     :: dum1
    integer                  :: i,k,j
-   integer, parameter       :: n_diag_3d = 1         ! number of user-defined diagnostic fields
-   integer, parameter       :: n_diag_2d = 1         ! number of user-defined diagnostic fields
+
+   integer, parameter       :: n_diag_3d = 3         ! number of user-defined diagnostic fields               
+   integer, parameter       :: n_diag_2d = 2         ! number of user-defined diagnostic fields               
 
    real, dimension(ims:ime, kms:kme, n_diag_3d) :: diag_3d
    real, dimension(ims:ime, n_diag_2d)          :: diag_2d
    logical                  :: log_predictNc
    logical                  :: log_3momentIce
-   logical, parameter       :: debug_on      = .false. !switch for internal debug checking
+   logical                  :: log_predictFl
+   logical, parameter       :: debug_on      = .false. !switch for internal debug checking                    
    logical, parameter       :: typeDiags_ON  = .false.
-   real,    parameter       :: clbfact_dep   = 1.0     !calibration factor for deposition
-   real,    parameter       :: clbfact_sub   = 1.0     !calibration factor for sublimation
+   real,    parameter       :: clbfact_dep   = 1.0     !calibration factor for deposition                     
+   real,    parameter       :: clbfact_sub   = 1.0     !calibration factor for sublimation                    
 
-! variables for cloud fraction (currently not used with WRF)
-   logical                    :: scpf_on               ! switch for activation of SCPF scheme
-   real                       :: scpf_pfrac            ! precipitation fraction factor (SCPF)
-   real                       :: scpf_resfact          ! model resolution factor (SCPF)
-   real, dimension(ims:ime, kms:kme) :: cldfrac        ! cloud fraction computed by SCPF
+! variables for cloud fraction (currently not used with WRF)                                                  
+   logical                    :: scpf_on               ! switch for activation of SCPF scheme                 
+   real                       :: scpf_pfrac            ! precipitation fraction factor (SCPF)                 
+   real                       :: scpf_resfact          ! model resolution factor (SCPF)                       
+   real, dimension(ims:ime, kms:kme) :: cldfrac        ! cloud fraction computed by SCPF                      
 
-   !------------------------------------------------------------------------------------------!
+   !------------------------------------------------------------------------------------------!               
 
-   scpf_on=.false. ! cloud fraction version not used with WRF
-   scpf_pfrac=0.   ! dummy variable (not used), set to 0
-   scpf_resfact=0. ! dummy variable (not used), set to 0
+   scpf_on=.false. ! cloud fraction version not used with WRF                                                 
+   scpf_pfrac=0.   ! dummy variable (not used), set to 0                                                      
+   scpf_resfact=0. ! dummy variable (not used), set to 0                                                      
 
    log_predictNc=.false.
    if (present(nc_3d)) log_predictNc = .true.
@@ -884,7 +890,10 @@ END subroutine p3_init
    log_3momentIce=.false.
    if (present(qzi1_3d)) log_3momentIce = .true.
 
-  ! convert advected (N*Z)^0.5 to Z for P3 main
+   log_predictFl=.false.
+   if (present(qli1_3d)) log_predictFl = .true.
+
+  ! convert advected (N*Z)^0.5 to Z for P3 main                                                               
    if (log_3momentIce) then
       do j = jts,jte
          do k = kts,kte
@@ -898,84 +907,113 @@ END subroutine p3_init
          enddo
       enddo
    endif
-  !.............................................
+  !.............................................                                                              
 
-   do j = jts,jte      ! j loop (north-south)
+   do j = jts,jte      ! j loop (north-south)                                                                 
 
       if (log_predictNc) then
          nc(its:ite,kts:kte)=nc_3d(its:ite,kts:kte,j)
-     ! if Nc is specified then set nc array to zero
+     ! if Nc is specified then set nc array to zero                                                           
       else
          nc=0.
       endif
 
-     ! note: code for prediction of ssat not currently avaiable, set 2D array to 0
+     ! note: code for prediction of ssat not currently avaiable, set 2D array to 0                            
       ssat=0.
 
-      if (.not. log_3momentIce) then
-       call P3_MAIN(qc_3d(its:ite,kts:kte,j),nc(its:ite,kts:kte),                                       &
-               qr_3d(its:ite,kts:kte,j),qnr_3d(its:ite,kts:kte,j),                                      &
-               th_old_3d(its:ite,kts:kte,j),th_3d(its:ite,kts:kte,j),qv_old_3d(its:ite,kts:kte,j),      &
-               qv_3d(its:ite,kts:kte,j),dt,qi1_3d(its:ite,kts:kte,j),                                   &
-               qir1_3d(its:ite,kts:kte,j),qni1_3d(its:ite,kts:kte,j),                                   &
-               qib1_3d(its:ite,kts:kte,j),ssat(its:ite,kts:kte),                                        &
-               W(its:ite,kts:kte,j),P(its:ite,kts:kte,j),                                               &
-               DZ(its:ite,kts:kte,j),itimestep,pcprt_liq,pcprt_sol,its,ite,kts,kte,n_iceCat,            &
-               diag_zdbz_3d(its:ite,kts:kte,j),diag_effc_3d(its:ite,kts:kte,j),                         &
-               diag_effi_3d(its:ite,kts:kte,j),diag_vmi_3d(its:ite,kts:kte,j),                          &
-               diag_di_3d(its:ite,kts:kte,j),diag_rhopo_3d(its:ite,kts:kte,j),                          &
-               n_diag_2d,diag_2d(its:ite,1:n_diag_2d),                                                  &
-               n_diag_3d,diag_3d(its:ite,kts:kte,1:n_diag_3d),                                          &
-               log_predictNc,typeDiags_ON,trim(model),clbfact_dep,clbfact_sub,debug_on,                 &
-               scpf_on,scpf_pfrac,scpf_resfact,cldfrac )!,diag_dhmax=diag_dhmax_3d(its:ite,kts:kte,j),     &
-!               diag_lami=diag_lami_3d(its:ite,kts:kte,j),diag_mui=diag_mui_3d(its:ite,kts:kte,j))
+      if (.not. log_3momentIce .and. (.not. log_predictFl)) then
+       call P3_MAIN(qc_3d(its:ite,kts:kte,j),nc(its:ite,kts:kte),                                       &     
+               qr_3d(its:ite,kts:kte,j),qnr_3d(its:ite,kts:kte,j),                                      &     
+               th_old_3d(its:ite,kts:kte,j),th_3d(its:ite,kts:kte,j),qv_old_3d(its:ite,kts:kte,j),      &     
+               qv_3d(its:ite,kts:kte,j),dt,qi1_3d(its:ite,kts:kte,j),                                   &     
+               qir1_3d(its:ite,kts:kte,j),qni1_3d(its:ite,kts:kte,j),                                   &     
+               qib1_3d(its:ite,kts:kte,j),ssat(its:ite,kts:kte),                                        &     
+               W(its:ite,kts:kte,j),P(its:ite,kts:kte,j),                                               &     
+               DZ(its:ite,kts:kte,j),itimestep,pcprt_liq,pcprt_sol,its,ite,kts,kte,n_iceCat,            &     
+               diag_zdbz_3d(its:ite,kts:kte,j),diag_effc_3d(its:ite,kts:kte,j),                         &     
+               diag_effi_3d(its:ite,kts:kte,j),diag_vmi_3d(its:ite,kts:kte,j),                          &     
+               diag_di_3d(its:ite,kts:kte,j),diag_rhopo_3d(its:ite,kts:kte,j),                          &     
+               n_diag_2d,diag_2d(its:ite,1:n_diag_2d),                                                  &     
+               n_diag_3d,diag_3d(its:ite,kts:kte,1:n_diag_3d),                                          &     
+               log_predictNc,typeDiags_ON,trim(model),clbfact_dep,clbfact_sub,debug_on,                 &     
+               scpf_on,scpf_pfrac,scpf_resfact,cldfrac )!,diag_dhmax=diag_dhmax_3d(its:ite,kts:kte,j),     &  
+!               diag_lami=diag_lami_3d(its:ite,kts:kte,j),diag_mui=diag_mui_3d(its:ite,kts:kte,j))            
 
-      else if (log_3momentIce) then
+      else if (log_3momentIce .and. (.not. log_predictFl)) then
 
-       call P3_MAIN(qc_3d(its:ite,kts:kte,j),nc(its:ite,kts:kte),                                       &
-               qr_3d(its:ite,kts:kte,j),qnr_3d(its:ite,kts:kte,j),                                      &
-               th_old_3d(its:ite,kts:kte,j),th_3d(its:ite,kts:kte,j),qv_old_3d(its:ite,kts:kte,j),      &
-               qv_3d(its:ite,kts:kte,j),dt,qi1_3d(its:ite,kts:kte,j),                                   &
-               qir1_3d(its:ite,kts:kte,j),qni1_3d(its:ite,kts:kte,j),                                   &
-               qib1_3d(its:ite,kts:kte,j),ssat(its:ite,kts:kte),                                        &
-               W(its:ite,kts:kte,j),P(its:ite,kts:kte,j),                                               &
-               DZ(its:ite,kts:kte,j),itimestep,pcprt_liq,pcprt_sol,its,ite,kts,kte,n_iceCat,            &
-               diag_zdbz_3d(its:ite,kts:kte,j),diag_effc_3d(its:ite,kts:kte,j),                         &
-               diag_effi_3d(its:ite,kts:kte,j),diag_vmi_3d(its:ite,kts:kte,j),                          &
-               diag_di_3d(its:ite,kts:kte,j),diag_rhopo_3d(its:ite,kts:kte,j),                          &
-               n_diag_2d,diag_2d(its:ite,1:n_diag_2d),                                                  &
-               n_diag_3d,diag_3d(its:ite,kts:kte,1:n_diag_3d),                                          &
-               log_predictNc,typeDiags_ON,trim(model),clbfact_dep,clbfact_sub,debug_on,                 &
-               scpf_on,scpf_pfrac,scpf_resfact,cldfrac,zitot=qzi1_3d(its:ite,kts:kte,j))
-!               diag_dhmax=diag_dhmax_3d(its:ite,kts:kte,j),diag_lami=diag_lami_3d(its:ite,kts:kte,j),   &
-!               diag_mui=diag_mui_3d(its:ite,kts:kte,j))
-      endif ! 3momentIce
+       call P3_MAIN(qc_3d(its:ite,kts:kte,j),nc(its:ite,kts:kte),                                       &     
+               qr_3d(its:ite,kts:kte,j),qnr_3d(its:ite,kts:kte,j),                                      &     
+               th_old_3d(its:ite,kts:kte,j),th_3d(its:ite,kts:kte,j),qv_old_3d(its:ite,kts:kte,j),      &     
+               qv_3d(its:ite,kts:kte,j),dt,qi1_3d(its:ite,kts:kte,j),                                   &     
+               qir1_3d(its:ite,kts:kte,j),qni1_3d(its:ite,kts:kte,j),                                   &     
+               qib1_3d(its:ite,kts:kte,j),ssat(its:ite,kts:kte),                                        &     
+               W(its:ite,kts:kte,j),P(its:ite,kts:kte,j),                                               &     
+               DZ(its:ite,kts:kte,j),itimestep,pcprt_liq,pcprt_sol,its,ite,kts,kte,n_iceCat,            &     
+               diag_zdbz_3d(its:ite,kts:kte,j),diag_effc_3d(its:ite,kts:kte,j),                         &     
+               diag_effi_3d(its:ite,kts:kte,j),diag_vmi_3d(its:ite,kts:kte,j),                          &     
+               diag_di_3d(its:ite,kts:kte,j),diag_rhopo_3d(its:ite,kts:kte,j),                          &     
+               n_diag_2d,diag_2d(its:ite,1:n_diag_2d),                                                  &     
+               n_diag_3d,diag_3d(its:ite,kts:kte,1:n_diag_3d),                                          &     
+               log_predictNc,typeDiags_ON,trim(model),clbfact_dep,clbfact_sub,debug_on,                 &     
+               scpf_on,scpf_pfrac,scpf_resfact,cldfrac,zitot=qzi1_3d(its:ite,kts:kte,j))                      
+!               diag_dhmax=diag_dhmax_3d(its:ite,kts:kte,j),diag_lami=diag_lami_3d(its:ite,kts:kte,j),   &    
+!               diag_mui=diag_mui_3d(its:ite,kts:kte,j))                                                      
 
-     !surface precipitation output:
+      else if (log_3momentIce .and. log_predictFl) then
+
+       call P3_MAIN(qc_3d(its:ite,kts:kte,j),nc(its:ite,kts:kte),                                       &     
+               qr_3d(its:ite,kts:kte,j),qnr_3d(its:ite,kts:kte,j),                                      &     
+               th_old_3d(its:ite,kts:kte,j),th_3d(its:ite,kts:kte,j),qv_old_3d(its:ite,kts:kte,j),      &     
+               qv_3d(its:ite,kts:kte,j),dt,qi1_3d(its:ite,kts:kte,j),                                   &     
+               qir1_3d(its:ite,kts:kte,j),qni1_3d(its:ite,kts:kte,j),                                   &     
+               qib1_3d(its:ite,kts:kte,j),ssat(its:ite,kts:kte),                                        &     
+               W(its:ite,kts:kte,j),P(its:ite,kts:kte,j),                                               &     
+               DZ(its:ite,kts:kte,j),itimestep,pcprt_liq,pcprt_sol,its,ite,kts,kte,n_iceCat,            &     
+               diag_zdbz_3d(its:ite,kts:kte,j),diag_effc_3d(its:ite,kts:kte,j),                         &     
+               diag_effi_3d(its:ite,kts:kte,j),diag_vmi_3d(its:ite,kts:kte,j),                          &     
+               diag_di_3d(its:ite,kts:kte,j),diag_rhopo_3d(its:ite,kts:kte,j),                          &     
+               n_diag_2d,diag_2d(its:ite,1:n_diag_2d),                                                  &     
+               n_diag_3d,diag_3d(its:ite,kts:kte,1:n_diag_3d),                                          &     
+               log_predictNc,typeDiags_ON,trim(model),clbfact_dep,clbfact_sub,debug_on,                 &     
+               scpf_on,scpf_pfrac,scpf_resfact,cldfrac,zitot=qzi1_3d(its:ite,kts:kte,j),                &     
+               qiliq_in=qli1_3d(its:ite,kts:kte,j))
+!               diag_dhmax=diag_dhmax_3d(its:ite,kts:kte,j),diag_lami=diag_lami_3d(its:ite,kts:kte,j),   &    
+!               diag_mui=diag_mui_3d(its:ite,kts:kte,j))                                                      
+
+      endif ! 3momentIce and predict Fl                                                                       
+
+     !surface precipitation output:                                                                           
       dum1 = 1000.*dt
       RAINNC(its:ite,j)  = RAINNC(its:ite,j) + (pcprt_liq(:) + pcprt_sol(:))*dum1  ! conversion from m/s to mm/time step
       RAINNCV(its:ite,j) = (pcprt_liq(:) + pcprt_sol(:))*dum1                      ! conversion from m/s to mm/time step
       SNOWNC(its:ite,j)  = SNOWNC(its:ite,j) + pcprt_sol(:)*dum1                   ! conversion from m/s to mm/time step
       SNOWNCV(its:ite,j) = pcprt_sol(:)*dum1                                       ! conversion from m/s to mm/time step
-      SR(its:ite,j)      = pcprt_sol(:)/(pcprt_liq(:)+pcprt_sol(:)+1.E-12)         ! solid-to-total ratio
+      SR(its:ite,j)      = pcprt_sol(:)/(pcprt_liq(:)+pcprt_sol(:)+1.E-12)         ! solid-to-total ratio     
 
-    !convert nc array from 2D to 3D if Nc is predicted
+    !convert nc array from 2D to 3D if Nc is predicted                                                        
       if (log_predictNc) then
          nc_3d(its:ite,kts:kte,j)=nc(its:ite,kts:kte)
       endif
 
-    !set background effective radii (i.e. with no explicit condensate) to prescribed values:
-    !  where (qc_3d(:,:,j) < 1.e-14) diag_effc_3d(:,:,j) = 10.e-6
-    !  where (qitot < 1.e-14) diag_effi = 25.e-6
+    !set background effective radii (i.e. with no explicit condensate) to prescribed values:                  
+    !  where (qc_3d(:,:,j) < 1.e-14) diag_effc_3d(:,:,j) = 10.e-6                                             
+    !  where (qitot < 1.e-14) diag_effi = 25.e-6                                                              
 
-   enddo ! j loop
+! additional generic output arrays, link to diag_3d from p3_main
+      add_output_arr1(:,:,j)=diag_3d(:,:,1)
+      add_output_arr2(:,:,j)=diag_3d(:,:,2)
+      add_output_arr3(:,:,j)=diag_3d(:,:,3)
+      add_output_arr1_2d(:,j)=diag_2d(:,1)
+      add_output_arr2_2d(:,j)=diag_2d(:,2)
 
-  ! convert Z from P3 to (N*Z)^0.5 for advection
+   enddo ! j loop                                                                                             
+
+  ! convert Z from P3 to (N*Z)^0.5 for advection                                                              
    if (log_3momentIce) then
       do j = jts,jte
          do k = kts,kte
             do i = its,ite
-               if (qni1_3d(i,k,j).ge.qsmall.and.qzi1_3d(i,k,j).ge.1.e-30) then
+               if (qni1_3d(i,k,j).ge.qsmall.and.qzi1_3d(i,k,j).ge.1.e-30) then                                
                   qzi1_3d(i,k,j) = (qzi1_3d(i,k,j)*qni1_3d(i,k,j))**0.5
                else
                   qzi1_3d(i,k,j) = 0.
@@ -984,7 +1022,7 @@ END subroutine p3_init
          enddo
       enddo
    endif
-  !...............................................
+  !...............................................                                                            
 
    if (global_status /= STATUS_OK) then
       print*,'Stopping in P3, problem in P3 main'
@@ -995,150 +1033,243 @@ END subroutine p3_init
 
    !------------------------------------------------------------------------------------------!
 
-   SUBROUTINE mp_p3_wrapper_wrf_2cat(th_3d,qv_3d,qc_3d,qr_3d,qnr_3d,                     &
-                              th_old_3d,qv_old_3d,                                       &
-                              pii,p,dz,w,dt,itimestep,                                   &
-                              rainnc,rainncv,sr,snownc,snowncv,n_iceCat,                 &
-                              ids, ide, jds, jde, kds, kde ,                             &
-                              ims, ime, jms, jme, kms, kme ,                             &
-                              its, ite, jts, jte, kts, kte ,                             &
-                              diag_zdbz_3d,diag_effc_3d,diag_effi_3d,                    &
-                              diag_vmi_3d,diag_di_3d,diag_rhopo_3d,                      &
-                              diag_vmi2_3d,diag_di2_3d,diag_rhopo2_3d,                   &
-                              qi1_3d,qni1_3d,qir1_3d,qib1_3d,                            &
-                              qi2_3d,qni2_3d,qir2_3d,qib2_3d,nc_3d)
+   SUBROUTINE mp_p3_wrapper_wrf_2cat(th_3d,qv_3d,qc_3d,qr_3d,qnr_3d,                     &                    
+                              th_old_3d,qv_old_3d,                                       &                    
+                              pii,p,dz,w,dt,itimestep,                                   &                    
+                              rainnc,rainncv,sr,snownc,snowncv,n_iceCat,                 &                    
+                              ids, ide, jds, jde, kds, kde ,                             &                    
+                              ims, ime, jms, jme, kms, kme ,                             &                    
+                              its, ite, jts, jte, kts, kte ,                             &                    
+                              diag_zdbz_3d,diag_effc_3d,diag_effi_3d,                    &                    
+                              diag_vmi_3d,diag_di_3d,diag_rhopo_3d,                      &                    
+                              diag_vmi2_3d,diag_di2_3d,diag_rhopo2_3d,                   &                    
+                              qi1_3d,qni1_3d,qir1_3d,qib1_3d,                            &                    
+                              qi2_3d,qni2_3d,qir2_3d,qib2_3d,nc_3d,qzi1_3d,qli1_3d,      &                    
+                              qzi2_3d,qli2_3d,qi3_3d,qni3_3d,qir3_3d,qib3_3d,            &                    
+                              qzi3_3d,qli3_3d,                                           &
+                              diag_vmi3_3d,diag_di3_3d,diag_rhopo3_3d,                   &
+                              qi4_3d,qni4_3d,qir4_3d,qib4_3d,qzi4_3d,qli4_3d,            &
+                              diag_vmi4_3d,diag_di4_3d,diag_rhopo4_3d,                   &
+                              add_output_arr1,add_output_arr2,add_output_arr3,           &                                
+                              add_output_arr1_2d,add_output_arr2_2d)                   
 
-  !------------------------------------------------------------------------------------------!
-  ! This subroutine is the main WRF interface with the P3 microphysics scheme.  It takes     !
-  ! 3D variables form the driving model and passes 2D slabs (i,k) to the main microphysics   !
-  ! subroutine ('P3_MAIN') over a j-loop.  For each slab, 'P3_MAIN' updates the prognostic   !
-  ! variables (hydrometeor variables, potential temperature, and water vapor).  The wrapper  !
-  ! also updates the accumulated precipitation arrays and then passes back them, the         !
-  ! updated 3D fields, and some diagnostic fields to the driver model.                       !
-  !                                                                                          !
-  !------------------------------------------------------------------------------------------!
+  !------------------------------------------------------------------------------------------!                
+  ! This subroutine is the main WRF interface with the P3 microphysics scheme.  It takes     !                
+  ! 3D variables form the driving model and passes 2D slabs (i,k) to the main microphysics   !                
+  ! subroutine ('P3_MAIN') over a j-loop.  For each slab, 'P3_MAIN' updates the prognostic   !                
+  ! variables (hydrometeor variables, potential temperature, and water vapor).  The wrapper  !                
+  ! also updates the accumulated precipitation arrays and then passes back them, the         !                
+  ! updated 3D fields, and some diagnostic fields to the driver model.                       !                
+  !                                                                                          !                
+  !------------------------------------------------------------------------------------------!                
 
-  !--- input:
+  !--- input:                                                                                                 
 
-  ! pii       --> Exner function (nondimensional pressure) (currently not used!)
-  ! p         --> pressure (pa)
-  ! dz        --> height difference across vertical levels (m)
-  ! w         --> vertical air velocity (m/s)
-  ! dt        --> time step (s)
-  ! itimestep --> integer time step counter
-  ! n_iceCat  --> number of ice-phase categories
+  ! pii       --> Exner function (nondimensional pressure) (currently not used!)                              
+  ! p         --> pressure (pa)                                                                               
+  ! dz        --> height difference across vertical levels (m)                                                
+  ! w         --> vertical air velocity (m/s)                                                                 
+  ! dt        --> time step (s)                                                                               
+  ! itimestep --> integer time step counter                                                                   
+  ! n_iceCat  --> number of ice-phase categories                                                              
 
+  !--- input/output:                                                                                          
 
-  !--- input/output:
+  ! th_3d     --> theta (K)                                                                                   
+  ! qv_3d     --> vapor mass mixing ratio (kg/kg)                                                             
+  ! qc_3d     --> cloud water mass mixing ratio (kg/kg)                                                       
+  ! qr_3d     --> rain mass mixing ratio (kg/kg)                                                              
+  ! qnr_3d    --> rain number mixing ratio (#/kg)                                                             
+  ! qi1_3d    --> total ice mixing ratio category 1 (kg/kg)                                                   
+  ! qni1_3d   --> ice number mixing ratio category 1 (#/kg)                                                   
+  ! qir1_3d   --> rime ice mass mixing ratio category 1 (kg/kg)                                               
+  ! qib1_3d   --> ice rime volume mixing ratio category 1 (m^-3 kg^-1)                                        
+  ! qi2_3d    --> total ice mixing ratio category 2 (kg/kg)                                                   
+  ! qni2_3d   --> ice number mixing ratio category 2 (#/kg)                                                   
+  ! qir2_3d   --> rime ice mass mixing ratio category 2 (kg/kg)                                               
+  ! qib2_3d   --> ice rime volume mixing ratio category 2 (m^-3 kg^-1)                                        
+  ! nc_3d     --> cloud droplet number mixing ratio (#/kg)                                                    
 
-  ! th_3d     --> theta (K)
-  ! qv_3d     --> vapor mass mixing ratio (kg/kg)
-  ! qc_3d     --> cloud water mass mixing ratio (kg/kg)
-  ! qr_3d     --> rain mass mixing ratio (kg/kg)
-  ! qnr_3d    --> rain number mixing ratio (#/kg)
-  ! qi1_3d    --> total ice mixing ratio category 1 (kg/kg)
-  ! qni1_3d   --> ice number mixing ratio category 1 (#/kg)
-  ! qir1_3d   --> rime ice mass mixing ratio category 1 (kg/kg)
-  ! qib1_3d   --> ice rime volume mixing ratio category 1 (m^-3 kg^-1)
-  ! qi2_3d    --> total ice mixing ratio category 2 (kg/kg)
-  ! qni2_3d   --> ice number mixing ratio category 2 (#/kg)
-  ! qir2_3d   --> rime ice mass mixing ratio category 2 (kg/kg)
-  ! qib2_3d   --> ice rime volume mixing ratio category 2 (m^-3 kg^-1)
-  ! nc_3d     --> cloud droplet number mixing ratio (#/kg)
+  !--- output:                                                                                                
 
-  !--- output:
-
-  ! rainnc        --> accumulated surface precip (mm)
-  ! rainncv       --> one time step accumulated surface precip (mm)
-  ! sr            --> ice to total surface precip ratio
-  ! snownc        --> accumulated surface ice precip (mm)
-  ! snowncv       --> one time step accumulated surface ice precip (mm)
-  ! ids...kte     --> integer domain/tile bounds
-  ! diag_zdbz_3d  --> reflectivity (dBZ)
-  ! diag_effc_3d  --> cloud droplet effective radius (m)
-  ! diag_effi_3d  --> ice effective radius (m)
-  ! diag_vmi_3d   --> mean mass weighted ice fallspeed category 1 (m/s)
-  ! diag_di_3d    --> mean mass weighted ice size category 1 (m)
-  ! diag_rhopo_3d --> mean mass weighted ice density category 1 (kg/m3)
-  ! diag_vmi2_3d   --> mean mass weighted ice fallspeed category 2 (m/s)
-  ! diag_di2_3d    --> mean mass weighted ice size category 2 (m)
-  ! diag_rhopo2_3d --> mean mass weighted ice density category 2 (kg/m3)
+  ! rainnc        --> accumulated surface precip (mm)                                                         
+  ! rainncv       --> one time step accumulated surface precip (mm)                                           
+  ! sr            --> ice to total surface precip ratio                                                       
+  ! snownc        --> accumulated surface ice precip (mm)                                                     
+  ! snowncv       --> one time step accumulated surface ice precip (mm)                                       
+  ! ids...kte     --> integer domain/tile bounds                                                              
+  ! diag_zdbz_3d  --> reflectivity (dBZ)                                                                      
+  ! diag_effc_3d  --> cloud droplet effective radius (m)                                                      
+  ! diag_effi_3d  --> ice effective radius (m)                                                                
+  ! diag_vmi_3d   --> mean mass weighted ice fallspeed category 1 (m/s)                                       
+  ! diag_di_3d    --> mean mass weighted ice size category 1 (m)                                              
+  ! diag_rhopo_3d --> mean mass weighted ice density category 1 (kg/m3)                                       
+  ! diag_vmi2_3d   --> mean mass weighted ice fallspeed category 2 (m/s)                                      
+  ! diag_di2_3d    --> mean mass weighted ice size category 2 (m)                                             
+  ! diag_rhopo2_3d --> mean mass weighted ice density category 2 (kg/m3)                                      
 
   implicit none
 
-  !--- arguments:
+  !--- arguments:                                                                                                 
 
-   integer, intent(in)            ::  ids, ide, jds, jde, kds, kde ,                      &
-                                      ims, ime, jms, jme, kms, kme ,                      &
+   integer, intent(in)            ::  ids, ide, jds, jde, kds, kde ,                      &                       
+                                      ims, ime, jms, jme, kms, kme ,                      &                       
                                       its, ite, jts, jte, kts, kte
-   real, dimension(ims:ime, kms:kme, jms:jme), intent(inout):: th_3d,qv_3d,qc_3d,qr_3d,   &
-                   qnr_3d,diag_zdbz_3d,diag_effc_3d,diag_effi_3d,diag_vmi_3d,diag_di_3d,  &
-                   diag_rhopo_3d,th_old_3d,qv_old_3d,                                     &
+   real, dimension(ims:ime, kms:kme, jms:jme), intent(inout):: th_3d,qv_3d,qc_3d,qr_3d,   &                       
+                   qnr_3d,diag_zdbz_3d,diag_effc_3d,diag_effi_3d,diag_vmi_3d,diag_di_3d,  &                       
+                   diag_rhopo_3d,th_old_3d,qv_old_3d,                                     &                       
                    diag_vmi2_3d,diag_di2_3d,diag_rhopo2_3d
-   real, dimension(ims:ime, kms:kme, jms:jme), intent(inout):: qi1_3d,qni1_3d,qir1_3d,    &
+   real, dimension(ims:ime, kms:kme, jms:jme), intent(inout):: qi1_3d,qni1_3d,qir1_3d,    &                       
                                                                qib1_3d
-   real, dimension(ims:ime, kms:kme, jms:jme), intent(inout) :: qi2_3d,qni2_3d,           &
-                                                                qir2_3d,qib2_3d
-   real, dimension(ims:ime, kms:kme, jms:jme), intent(inout), optional :: nc_3d
+   real, dimension(ims:ime, kms:kme, jms:jme), intent(inout) :: qi2_3d,qni2_3d,           &                       
+                                                                qir2_3d,qib2_3d                                   
+   real, dimension(ims:ime, kms:kme, jms:jme), intent(inout), optional :: nc_3d                                   
+   real, dimension(ims:ime, kms:kme, jms:jme), intent(inout), optional :: qzi1_3d                                 
+   real, dimension(ims:ime, kms:kme, jms:jme), intent(inout), optional :: qli1_3d                                 
+   real, dimension(ims:ime, kms:kme, jms:jme), intent(inout), optional :: qzi2_3d                                 
+   real, dimension(ims:ime, kms:kme, jms:jme), intent(inout), optional :: qli2_3d                                 
+
+   real, dimension(ims:ime, kms:kme, jms:jme), intent(inout), optional :: qi3_3d                                  
+   real, dimension(ims:ime, kms:kme, jms:jme), intent(inout), optional :: qni3_3d                                 
+   real, dimension(ims:ime, kms:kme, jms:jme), intent(inout), optional :: qir3_3d                                 
+   real, dimension(ims:ime, kms:kme, jms:jme), intent(inout), optional :: qib3_3d                                 
+   real, dimension(ims:ime, kms:kme, jms:jme), intent(inout), optional :: qzi3_3d                                 
+   real, dimension(ims:ime, kms:kme, jms:jme), intent(inout), optional :: qli3_3d                                 
+
+   real, dimension(ims:ime, kms:kme, jms:jme), intent(inout), optional :: qi4_3d
+   real, dimension(ims:ime, kms:kme, jms:jme), intent(inout), optional :: qni4_3d
+   real, dimension(ims:ime, kms:kme, jms:jme), intent(inout), optional :: qir4_3d
+   real, dimension(ims:ime, kms:kme, jms:jme), intent(inout), optional :: qib4_3d
+   real, dimension(ims:ime, kms:kme, jms:jme), intent(inout), optional :: qzi4_3d
+   real, dimension(ims:ime, kms:kme, jms:jme), intent(inout), optional :: qli4_3d
+
+   real, dimension(ims:ime, kms:kme, jms:jme), intent(inout), optional :: diag_vmi3_3d,diag_di3_3d,diag_rhopo3_3d
+   real, dimension(ims:ime, kms:kme, jms:jme), intent(inout), optional :: diag_vmi4_3d,diag_di4_3d,diag_rhopo4_3d
+
+   real, dimension(ims:ime, kms:kme, jms:jme), intent(inout), optional :: add_output_arr1                                 
+   real, dimension(ims:ime, kms:kme, jms:jme), intent(inout), optional :: add_output_arr2                                 
+   real, dimension(ims:ime, kms:kme, jms:jme), intent(inout), optional :: add_output_arr3                                 
+   real, dimension(ims:ime, jms:jme), intent(inout), optional :: add_output_arr1_2d                                       
+   real, dimension(ims:ime, jms:jme), intent(inout), optional :: add_output_arr2_2d                                       
 
    real, dimension(ims:ime, kms:kme, jms:jme), intent(in) :: pii,p,dz,w
-   real, dimension(ims:ime, jms:jme), intent(inout) :: RAINNC,RAINNCV,SR,SNOWNC,SNOWNCV
+   real, dimension(ims:ime, jms:jme), intent(inout) :: RAINNC,RAINNCV,SR,SNOWNC,SNOWNCV                           
    real, intent(in)    :: dt
    integer, intent(in) :: itimestep
    integer, intent(in) :: n_iceCat
 
-   !--- local variables/parameters:
+   !--- local variables/parameters:                                                                               
 
    character(len=16), parameter :: model = 'WRF'
 
    real, dimension(ims:ime, kms:kme) ::nc,ssat
 
-   ! note: hard-wired for two ice categories
-   real, dimension(ims:ime, kms:kme, 2) :: qitot,qirim,nitot,birim,diag_di,diag_vmi,       &
+   real, dimension(ims:ime, kms:kme, n_iceCat) :: qitot,qirim,nitot,birim,diag_di,diag_vmi,       &               
                                           diag_rhopo,diag_effi
 
+   real, dimension(ims:ime, kms:kme,n_iceCat)  :: zitot      ! ice mixing ratio, reflectivity          m6 kg-1    
+   real, dimension(ims:ime, kms:kme,n_iceCat)  :: qiliq_in   ! liquid mixing ratio on ice kg/kg                   
+
    real, dimension(its:ite) :: pcprt_liq,pcprt_sol
-   real                     :: dum1,dum2
+   real                     :: dum1,dum2,dum3,dum4
    integer                  :: i,k,j
-   integer, parameter       :: n_diag_3d = 1         ! number of user-defined diagnostic fields
-   integer, parameter       :: n_diag_2d = 1         ! number of user-defined diagnostic fields
+
+   integer, parameter       :: n_diag_3d = 3         ! number of user-defined diagnostic fields                   
+   integer, parameter       :: n_diag_2d = 2         ! number of user-defined diagnostic fields                   
 
    real, dimension(ims:ime, kms:kme, n_diag_3d) :: diag_3d
    real, dimension(ims:ime, n_diag_2d)          :: diag_2d
    logical                  :: log_predictNc
+   logical                  :: log_3momentIce
+   logical                  :: log_predictFl
+   logical                  :: log_3cat
+   logical                  :: log_4cat
+
    logical, parameter       :: typeDiags_ON  = .false.
-   logical, parameter       :: debug_on      = .false. !switch for internal debug checking
-   real,    parameter       :: clbfact_dep   = 1.0     !calibration factor for deposition
-   real,    parameter       :: clbfact_sub   = 1.0     !calibration factor for sublimation
+   logical, parameter       :: debug_on      = .false. !switch for internal debug checking                        
+   real,    parameter       :: clbfact_dep   = 1.0     !calibration factor for deposition                         
+   real,    parameter       :: clbfact_sub   = 1.0     !calibration factor for sublimation                        
 
-! variables for cloud fraction (currently not used with WRF)
-   logical                    :: scpf_on               ! switch for activation of SCPF scheme
-   real                       :: scpf_pfrac            ! precipitation fraction factor (SCPF)
-   real                       :: scpf_resfact          ! model resolution factor (SCPF)
-   real, dimension(ims:ime, kms:kme) :: cldfrac        ! cloud fraction computed by SCPF
+! variables for cloud fraction (currently not used with WRF)                                                      
+   logical                    :: scpf_on               ! switch for activation of SCPF scheme                     
+   real                       :: scpf_pfrac            ! precipitation fraction factor (SCPF)                     
+   real                       :: scpf_resfact          ! model resolution factor (SCPF)                           
+   real, dimension(ims:ime, kms:kme) :: cldfrac        ! cloud fraction computed by SCPF                          
 
-   !------------------------------------------------------------------------------------------!
+   !------------------------------------------------------------------------------------------!                   
 
-   scpf_on=.false. ! cloud fraction version not used with WRF
-   scpf_pfrac=0.   ! dummy variable (not used), set to 0
-   scpf_resfact=0. ! dummy variable (not used), set to 0
+   scpf_on=.false. ! cloud fraction version not used with WRF                                                     
+   scpf_pfrac=0.   ! dummy variable (not used), set to 0                                                          
+   scpf_resfact=0. ! dummy variable (not used), set to 0                                                          
 
    log_predictNc=.false.
    if (present(nc_3d)) log_predictNc = .true.
 
-   do j = jts,jte      ! j loop (north-south)
+   log_3momentIce=.false.
+   if (present(qzi1_3d)) log_3momentIce = .true.
+
+   log_predictFl=.false.
+   if (present(qli1_3d)) log_predictFl = .true.
+
+   log_3cat=.false.
+   if (present(qi3_3d)) log_3cat = .true.  ! note: true for both 3-cat and 4-cat
+
+   log_4cat=.false.
+   if (present(qi4_3d)) log_4cat = .true.
+
+  ! convert advected (N*Z)^0.5 to Z for P3 main
+   if (log_3momentIce) then
+      do j = jts,jte
+         do k = kts,kte
+            do i = its,ite
+
+               if (qni1_3d(i,k,j).ge.qsmall) then
+                  qzi1_3d(i,k,j) = qzi1_3d(i,k,j)**2/qni1_3d(i,k,j)
+               else
+                  qzi1_3d(i,k,j) = 0.
+               endif
+
+               if (qni2_3d(i,k,j).ge.qsmall) then
+                  qzi2_3d(i,k,j) = qzi2_3d(i,k,j)**2/qni2_3d(i,k,j)
+               else
+                  qzi2_3d(i,k,j) = 0.
+               endif
+
+               if (log_3cat) then
+               if (qni3_3d(i,k,j).ge.qsmall) then
+                  qzi3_3d(i,k,j) = qzi3_3d(i,k,j)**2/qni3_3d(i,k,j)
+               else
+                  qzi3_3d(i,k,j) = 0.
+               endif
+               end if
+
+               if (log_4cat) then                                    
+               if (qni4_3d(i,k,j).ge.qsmall) then                    
+                  qzi4_3d(i,k,j) = qzi4_3d(i,k,j)**2/qni4_3d(i,k,j)  
+               else                                                  
+                  qzi4_3d(i,k,j) = 0.                                
+               endif                                                 
+               end if
+
+            enddo
+         enddo
+      enddo
+   endif
+  !.............................................                                                                  
+
+   do j = jts,jte      ! j loop (north-south)                                                                     
 
       if (log_predictNc) then
          nc(its:ite,kts:kte)=nc_3d(its:ite,kts:kte,j)
-     ! if Nc is specified then set nc array to zero
+     ! if Nc is specified then set nc array to zero                                                               
       else
          nc=0.
       endif
 
-     ! note: code for prediction of ssat not currently avaiable, set 2D array to 0
+     ! note: code for prediction of ssat not currently avaiable, set 2D array to 0                                
       ssat=0.
 
-    !contruct full ice arrays from individual category arrays:
+    !contruct full ice arrays from individual category arrays:                                                    
       qitot(:,:,1) = qi1_3d(:,:,j)
       qirim(:,:,1) = qir1_3d(:,:,j)
       nitot(:,:,1) = qni1_3d(:,:,j)
@@ -1149,40 +1280,110 @@ END subroutine p3_init
       nitot(:,:,2) = qni2_3d(:,:,j)
       birim(:,:,2) = qib2_3d(:,:,j)
 
-       call P3_MAIN(qc_3d(its:ite,kts:kte,j),nc(its:ite,kts:kte),                                   &
-               qr_3d(its:ite,kts:kte,j),qnr_3d(its:ite,kts:kte,j),                                  &
-               th_old_3d(its:ite,kts:kte,j),th_3d(its:ite,kts:kte,j),qv_old_3d(its:ite,kts:kte,j),  &
-               qv_3d(its:ite,kts:kte,j),dt,qitot(its:ite,kts:kte,1:n_iceCat),                       &
-               qirim(its:ite,kts:kte,1:n_iceCat),nitot(its:ite,kts:kte,1:n_iceCat),                 &
-               birim(its:ite,kts:kte,1:n_iceCat),ssat(its:ite,kts:kte),                             &
-               W(its:ite,kts:kte,j),P(its:ite,kts:kte,j),                                           &
-               DZ(its:ite,kts:kte,j),itimestep,pcprt_liq,pcprt_sol,its,ite,kts,kte,n_iceCat,        &
-               diag_zdbz_3d(its:ite,kts:kte,j),diag_effc_3d(its:ite,kts:kte,j),                     &
-               diag_effi(its:ite,kts:kte,1:n_iceCat),diag_vmi(its:ite,kts:kte,1:n_iceCat),          &
-               diag_di(its:ite,kts:kte,1:n_iceCat),diag_rhopo(its:ite,kts:kte,1:n_iceCat),          &
-               n_diag_2d,diag_2d(its:ite,1:n_diag_2d),                                              &
-               n_diag_3d,diag_3d(its:ite,kts:kte,1:n_diag_3d),                                      &
-               log_predictNc,typeDiags_ON,trim(model),clbfact_dep,clbfact_sub,debug_on,             &
-               scpf_on,scpf_pfrac,scpf_resfact,cldfrac)
+      if (log_3momentIce) then
+         zitot(:,:,1) = qzi1_3d(:,:,j)
+         zitot(:,:,2) = qzi2_3d(:,:,j)
+      end if
+      if (log_predictFl) then
+         qiliq_in(:,:,1) = qli1_3d(:,:,j)
+         qiliq_in(:,:,2) = qli2_3d(:,:,j)
+      end if
 
-     !surface precipitation output:
+     ! construct for 3 and 4-cat 
+      if (log_3cat) then   ! note: true for 3 cat or 4 cat
+         qitot(:,:,3) = qi3_3d(:,:,j)
+         qirim(:,:,3) = qir3_3d(:,:,j)
+         nitot(:,:,3) = qni3_3d(:,:,j)
+         birim(:,:,3) = qib3_3d(:,:,j)
+         if (log_3momentIce) zitot(:,:,3) = qzi3_3d(:,:,j)
+         if (log_predictFl) qiliq_in(:,:,3) = qli3_3d(:,:,j)
+      end if
+
+      if (log_4cat) then
+         qitot(:,:,4) = qi4_3d(:,:,j)
+         qirim(:,:,4) = qir4_3d(:,:,j)
+         nitot(:,:,4) = qni4_3d(:,:,j)
+         birim(:,:,4) = qib4_3d(:,:,j)
+         if (log_3momentIce) zitot(:,:,4) = qzi4_3d(:,:,j)
+         if (log_predictFl) qiliq_in(:,:,4) = qli4_3d(:,:,j)
+      end if
+
+      if (.not. log_3momentIce .and. .not. log_predictFl) then
+
+       call P3_MAIN(qc_3d(its:ite,kts:kte,j),nc(its:ite,kts:kte),                                   &             
+               qr_3d(its:ite,kts:kte,j),qnr_3d(its:ite,kts:kte,j),                                  &             
+               th_old_3d(its:ite,kts:kte,j),th_3d(its:ite,kts:kte,j),qv_old_3d(its:ite,kts:kte,j),  &             
+               qv_3d(its:ite,kts:kte,j),dt,qitot(its:ite,kts:kte,1:n_iceCat),                       &             
+               qirim(its:ite,kts:kte,1:n_iceCat),nitot(its:ite,kts:kte,1:n_iceCat),                 &             
+               birim(its:ite,kts:kte,1:n_iceCat),ssat(its:ite,kts:kte),                             &             
+               W(its:ite,kts:kte,j),P(its:ite,kts:kte,j),                                           &             
+               DZ(its:ite,kts:kte,j),itimestep,pcprt_liq,pcprt_sol,its,ite,kts,kte,n_iceCat,        &             
+               diag_zdbz_3d(its:ite,kts:kte,j),diag_effc_3d(its:ite,kts:kte,j),                     &             
+               diag_effi(its:ite,kts:kte,1:n_iceCat),diag_vmi(its:ite,kts:kte,1:n_iceCat),          &             
+               diag_di(its:ite,kts:kte,1:n_iceCat),diag_rhopo(its:ite,kts:kte,1:n_iceCat),          &             
+               n_diag_2d,diag_2d(its:ite,1:n_diag_2d),                                              &             
+               n_diag_3d,diag_3d(its:ite,kts:kte,1:n_diag_3d),                                      &             
+               log_predictNc,typeDiags_ON,trim(model),clbfact_dep,clbfact_sub,debug_on,             &             
+               scpf_on,scpf_pfrac,scpf_resfact,cldfrac,zitot=zitot(its:ite,kts:kte,1:n_iceCat))
+
+!!!!!!!!! NOTE: CODE NOT SET UP TO RUN WITH PREDICTED LIQUID FRACTION BUT WITHOUT 3-MOMENT!!!!!!!!!
+      else if (log_3momentIce .and. .not. log_predictFl) then
+
+       call P3_MAIN(qc_3d(its:ite,kts:kte,j),nc(its:ite,kts:kte),                                   &               
+               qr_3d(its:ite,kts:kte,j),qnr_3d(its:ite,kts:kte,j),                                  &               
+               th_old_3d(its:ite,kts:kte,j),th_3d(its:ite,kts:kte,j),qv_old_3d(its:ite,kts:kte,j),  &               
+               qv_3d(its:ite,kts:kte,j),dt,qitot(its:ite,kts:kte,1:n_iceCat),                       &               
+               qirim(its:ite,kts:kte,1:n_iceCat),nitot(its:ite,kts:kte,1:n_iceCat),                 &               
+               birim(its:ite,kts:kte,1:n_iceCat),ssat(its:ite,kts:kte),                             &               
+               W(its:ite,kts:kte,j),P(its:ite,kts:kte,j),                                           &               
+               DZ(its:ite,kts:kte,j),itimestep,pcprt_liq,pcprt_sol,its,ite,kts,kte,n_iceCat,        &               
+               diag_zdbz_3d(its:ite,kts:kte,j),diag_effc_3d(its:ite,kts:kte,j),                     &               
+               diag_effi(its:ite,kts:kte,1:n_iceCat),diag_vmi(its:ite,kts:kte,1:n_iceCat),          &               
+               diag_di(its:ite,kts:kte,1:n_iceCat),diag_rhopo(its:ite,kts:kte,1:n_iceCat),          &               
+               n_diag_2d,diag_2d(its:ite,1:n_diag_2d),                                              &               
+               n_diag_3d,diag_3d(its:ite,kts:kte,1:n_diag_3d),                                      &               
+               log_predictNc,typeDiags_ON,trim(model),clbfact_dep,clbfact_sub,debug_on,             &               
+               scpf_on,scpf_pfrac,scpf_resfact,cldfrac,zitot=zitot(its:ite,kts:kte,1:n_iceCat))
+
+      else if (log_3momentIce .and. log_predictFl) then
+
+       call P3_MAIN(qc_3d(its:ite,kts:kte,j),nc(its:ite,kts:kte),                                   &               
+               qr_3d(its:ite,kts:kte,j),qnr_3d(its:ite,kts:kte,j),                                  &               
+               th_old_3d(its:ite,kts:kte,j),th_3d(its:ite,kts:kte,j),qv_old_3d(its:ite,kts:kte,j),  &               
+               qv_3d(its:ite,kts:kte,j),dt,qitot(its:ite,kts:kte,1:n_iceCat),                       &               
+               qirim(its:ite,kts:kte,1:n_iceCat),nitot(its:ite,kts:kte,1:n_iceCat),                 &               
+               birim(its:ite,kts:kte,1:n_iceCat),ssat(its:ite,kts:kte),                             &               
+               W(its:ite,kts:kte,j),P(its:ite,kts:kte,j),                                           &               
+               DZ(its:ite,kts:kte,j),itimestep,pcprt_liq,pcprt_sol,its,ite,kts,kte,n_iceCat,        &               
+               diag_zdbz_3d(its:ite,kts:kte,j),diag_effc_3d(its:ite,kts:kte,j),                     &               
+               diag_effi(its:ite,kts:kte,1:n_iceCat),diag_vmi(its:ite,kts:kte,1:n_iceCat),          &               
+               diag_di(its:ite,kts:kte,1:n_iceCat),diag_rhopo(its:ite,kts:kte,1:n_iceCat),          &               
+               n_diag_2d,diag_2d(its:ite,1:n_diag_2d),                                              &               
+               n_diag_3d,diag_3d(its:ite,kts:kte,1:n_diag_3d),                                      &               
+               log_predictNc,typeDiags_ON,trim(model),clbfact_dep,clbfact_sub,debug_on,             &               
+               scpf_on,scpf_pfrac,scpf_resfact,cldfrac,zitot=zitot(its:ite,kts:kte,1:n_iceCat),     &               
+               qiliq_in=qiliq_in(its:ite,kts:kte,1:n_iceCat))
+
+      end if
+
+     !surface precipitation output:                                                                                        
       dum1 = 1000.*dt
-      RAINNC(its:ite,j)  = RAINNC(its:ite,j) + (pcprt_liq(:) + pcprt_sol(:))*dum1  ! conversion from m/s to mm/time step
-      RAINNCV(its:ite,j) = (pcprt_liq(:) + pcprt_sol(:))*dum1                      ! conversion from m/s to mm/time step
-      SNOWNC(its:ite,j)  = SNOWNC(its:ite,j) + pcprt_sol(:)*dum1                   ! conversion from m/s to mm/time step
-      SNOWNCV(its:ite,j) = pcprt_sol(:)*dum1                                       ! conversion from m/s to mm/time step
-      SR(its:ite,j)      = pcprt_sol(:)/(pcprt_liq(:)+pcprt_sol(:)+1.E-12)         ! solid-to-total ratio
+      RAINNC(its:ite,j)  = RAINNC(its:ite,j) + (pcprt_liq(:) + pcprt_sol(:))*dum1  ! conversion from m/s to mm/time step   
+      RAINNCV(its:ite,j) = (pcprt_liq(:) + pcprt_sol(:))*dum1                      ! conversion from m/s to mm/time step   
+      SNOWNC(its:ite,j)  = SNOWNC(its:ite,j) + pcprt_sol(:)*dum1                   ! conversion from m/s to mm/time step   
+      SNOWNCV(its:ite,j) = pcprt_sol(:)*dum1                                       ! conversion from m/s to mm/time step   
+      SR(its:ite,j)      = pcprt_sol(:)/(pcprt_liq(:)+pcprt_sol(:)+1.E-12)         ! solid-to-total ratio                  
 
-    !convert nc array from 2D to 3D if Nc is predicted
+    !convert nc array from 2D to 3D if Nc is predicted                                                                     
       if (log_predictNc) then
          nc_3d(its:ite,kts:kte,j)=nc(its:ite,kts:kte)
       endif
 
-    !set background effective radii (i.e. with no explicit condensate) to prescribed values:
-    !  where (qc_3d(:,:,j) < 1.e-14) diag_effc_3d(:,:,j) = 10.e-6
-    !  where (qitot < 1.e-14) diag_effi = 25.e-6
+    !set background effective radii (i.e. with no explicit condensate) to prescribed values:                               
+    !  where (qc_3d(:,:,j) < 1.e-14) diag_effc_3d(:,:,j) = 10.e-6                                                          
+    !  where (qitot < 1.e-14) diag_effi = 25.e-6                                                                           
 
-    !decompose full ice arrays into individual category arrays:
+    !decompose full ice arrays into individual category arrays:                                                            
       qi1_3d(its:ite,kts:kte,j)  = qitot(its:ite,kts:kte,1)
       qir1_3d(its:ite,kts:kte,j) = qirim(its:ite,kts:kte,1)
       qni1_3d(its:ite,kts:kte,j) = nitot(its:ite,kts:kte,1)
@@ -1193,6 +1394,15 @@ END subroutine p3_init
       qni2_3d(its:ite,kts:kte,j) = nitot(its:ite,kts:kte,2)
       qib2_3d(its:ite,kts:kte,j) = birim(its:ite,kts:kte,2)
 
+      if (log_3momentIce) then
+         qzi1_3d(its:ite,kts:kte,j) = zitot(its:ite,kts:kte,1)
+         qzi2_3d(its:ite,kts:kte,j) = zitot(its:ite,kts:kte,2)
+      end if
+      if (log_predictFl) then
+         qli1_3d(its:ite,kts:kte,j) = qiliq_in(its:ite,kts:kte,1)
+         qli2_3d(its:ite,kts:kte,j) = qiliq_in(its:ite,kts:kte,2)
+      end if
+
       diag_vmi_3d(its:ite,kts:kte,j)  = diag_vmi(its:ite,kts:kte,1)
       diag_di_3d(its:ite,kts:kte,j) = diag_di(its:ite,kts:kte,1)
       diag_rhopo_3d(its:ite,kts:kte,j) = diag_rhopo(its:ite,kts:kte,1)
@@ -1200,21 +1410,46 @@ END subroutine p3_init
       diag_di2_3d(its:ite,kts:kte,j) = diag_di(its:ite,kts:kte,2)
       diag_rhopo2_3d(its:ite,kts:kte,j) = diag_rhopo(its:ite,kts:kte,2)
 
+      if (log_3cat) then  ! note: true for both 3 cat and 4 cat
+         qi3_3d(its:ite,kts:kte,j)  = qitot(its:ite,kts:kte,3)
+         qir3_3d(its:ite,kts:kte,j) = qirim(its:ite,kts:kte,3)
+         qni3_3d(its:ite,kts:kte,j) = nitot(its:ite,kts:kte,3)
+         qib3_3d(its:ite,kts:kte,j) = birim(its:ite,kts:kte,3)
+         if (log_3momentIce) qzi3_3d(its:ite,kts:kte,j) = zitot(its:ite,kts:kte,3)
+         if (log_predictFl) qli3_3d(its:ite,kts:kte,j) = qiliq_in(its:ite,kts:kte,3)
+         diag_vmi3_3d(its:ite,kts:kte,j)  = diag_vmi(its:ite,kts:kte,3)
+         diag_di3_3d(its:ite,kts:kte,j) = diag_di(its:ite,kts:kte,3)
+         diag_rhopo3_3d(its:ite,kts:kte,j) = diag_rhopo(its:ite,kts:kte,3)                                                         
+      end if
+
+      if (log_4cat) then
+         qi4_3d(its:ite,kts:kte,j)  = qitot(its:ite,kts:kte,4)
+         qir4_3d(its:ite,kts:kte,j) = qirim(its:ite,kts:kte,4) 
+         qni4_3d(its:ite,kts:kte,j) = nitot(its:ite,kts:kte,4)
+         qib4_3d(its:ite,kts:kte,j) = birim(its:ite,kts:kte,4)
+         if (log_3momentIce) qzi4_3d(its:ite,kts:kte,j) = zitot(its:ite,kts:kte,4)
+         if (log_predictFl) qli4_3d(its:ite,kts:kte,j) = qiliq_in(its:ite,kts:kte,4)
+         diag_vmi4_3d(its:ite,kts:kte,j)  = diag_vmi(its:ite,kts:kte,4)
+         diag_di4_3d(its:ite,kts:kte,j) = diag_di(its:ite,kts:kte,4)
+         diag_rhopo4_3d(its:ite,kts:kte,j) = diag_rhopo(its:ite,kts:kte,4) 
+      end if 
+
+
          do i=its,ite
             do k=kts,kte
 
-         ! for output fallspeed, size, and density, use mass-weighting of categories
-!            if ((qitot(i,k,1)+qitot(i,k,2)).ge.qsmall) then
-!               diag_vmi_3d(i,k,j) = (diag_vmi(i,k,1)*qitot(i,k,1)+diag_vmi(i,k,2)*qitot(i,k,2))/(qitot(i,k,1)+qitot(i,k,2))
-!               diag_di_3d(i,k,j) = (diag_di(i,k,1)*qitot(i,k,1)+diag_di(i,k,2)*qitot(i,k,2))/(qitot(i,k,1)+qitot(i,k,2))
+         ! for output fallspeed, size, and density, use mass-weighting of categories                                               
+!            if ((qitot(i,k,1)+qitot(i,k,2)).ge.qsmall) then                                                                       
+!               diag_vmi_3d(i,k,j) = (diag_vmi(i,k,1)*qitot(i,k,1)+diag_vmi(i,k,2)*qitot(i,k,2))/(qitot(i,k,1)+qitot(i,k,2))       
+!               diag_di_3d(i,k,j) = (diag_di(i,k,1)*qitot(i,k,1)+diag_di(i,k,2)*qitot(i,k,2))/(qitot(i,k,1)+qitot(i,k,2))          
 !               diag_rhopo_3d(i,k,j) = (diag_rhopo(i,k,1)*qitot(i,k,1)+diag_rhopo(i,k,2)*qitot(i,k,2))/(qitot(i,k,1)+qitot(i,k,2))
-!            else  ! set to default values of 0 if ice is not present
-!               diag_vmi_3d(i,k,j) = 0.
-!               diag_di_3d(i,k,j) = 0.
-!               diag_rhopo_3d(i,k,j) = 0.
-!            end if
+!            else  ! set to default values of 0 if ice is not present                                                              
+!               diag_vmi_3d(i,k,j) = 0.                                                                                            
+!               diag_di_3d(i,k,j) = 0.                                                                                             
+!               diag_rhopo_3d(i,k,j) = 0.                                                                                          
+!            end if                                                                                                                
 
-            ! for the combined effective radius, we need to approriately weight by mass and projected area
+            ! for the combined effective radius, we need to approriately weight by mass and projected area                         
             if (qitot(i,k,1).ge.qsmall) then
                dum1=qitot(i,k,1)/diag_effi(i,k,1)
             else
@@ -1225,15 +1460,95 @@ END subroutine p3_init
             else
                dum2=0.
             end if
-            diag_effi_3d(i,k,j)=25.e-6  ! set to default 25 microns
+
+            diag_effi_3d(i,k,j)=25.e-6  ! set to default 25 microns                                                                
+
+            if (.not. log_3cat) then
             if (qitot(i,k,1).ge.qsmall.or.qitot(i,k,2).ge.qsmall) then
-               diag_effi_3d(i,k,j)=(qitot(i,k,1)+qitot(i,k,2))/(dum1+dum2)
+               diag_effi_3d(i,k,j)=(qitot(i,k,1)+qitot(i,k,2))/(dum1+dum2)                                                         
+            end if
+            end if
+
+            if (log_3cat) then
+            if (qitot(i,k,3).ge.qsmall) then
+               dum3=qitot(i,k,3)/diag_effi(i,k,3)
+            else
+               dum3=0.
+            end if
+            end if
+
+            if (log_3cat .and. .not. log_4cat) then
+            if (qitot(i,k,1).ge.qsmall.or.qitot(i,k,2).ge.qsmall.or.qitot(i,k,3).ge.qsmall) then                                   
+               diag_effi_3d(i,k,j)=(qitot(i,k,1)+qitot(i,k,2)+qitot(i,k,3))/            &                                          
+               (dum1+dum2+dum3)                                                                                                    
+            end if
+            end if
+
+            if (log_4cat) then
+            if (qitot(i,k,4).ge.qsmall) then
+               dum4=qitot(i,k,4)/diag_effi(i,k,4)
+            else
+               dum4=0.
+            end if
+            end if
+
+            if (log_4cat) then
+            if (qitot(i,k,1).ge.qsmall.or.qitot(i,k,2).ge.qsmall.or.qitot(i,k,3).ge.qsmall.or.qitot(i,k,4).ge.qsmall) then
+               diag_effi_3d(i,k,j)=(qitot(i,k,1)+qitot(i,k,2)+qitot(i,k,3)+qitot(i,k,4))/            & 
+               (dum1+dum2+dum3+dum4)
+            end if
             end if
 
             end do
          end do
 
+! additional generic output arrays, link to diag_3d from p3_main             
+      add_output_arr1(:,:,j)=diag_3d(:,:,1)                                  
+      add_output_arr2(:,:,j)=diag_3d(:,:,2)                                  
+      add_output_arr3(:,:,j)=diag_3d(:,:,3)                                  
+      add_output_arr1_2d(:,j)=diag_2d(:,1)                                   
+      add_output_arr2_2d(:,j)=diag_2d(:,2)                                   
+
    enddo ! j loop
+
+  ! convert Z from P3 to (N*Z)^0.5 for advection
+   if (log_3momentIce) then
+      do j = jts,jte
+         do k = kts,kte
+            do i = its,ite
+
+               if (qni1_3d(i,k,j).ge.qsmall.and.qzi1_3d(i,k,j).ge.1.e-30) then
+                  qzi1_3d(i,k,j) = (qzi1_3d(i,k,j)*qni1_3d(i,k,j))**0.5
+               else
+                  qzi1_3d(i,k,j) = 0.
+               endif
+
+               if (qni2_3d(i,k,j).ge.qsmall.and.qzi2_3d(i,k,j).ge.1.e-30) then  
+                  qzi2_3d(i,k,j) = (qzi2_3d(i,k,j)*qni2_3d(i,k,j))**0.5         
+               else                                                             
+                  qzi2_3d(i,k,j) = 0.                                           
+               endif
+
+               if (log_3cat) then
+               if (qni3_3d(i,k,j).ge.qsmall.and.qzi3_3d(i,k,j).ge.1.e-30) then
+                  qzi3_3d(i,k,j) = (qzi3_3d(i,k,j)*qni3_3d(i,k,j))**0.5
+               else
+                  qzi3_3d(i,k,j) = 0.
+               endif
+               end if
+
+               if (log_4cat) then                                                
+               if (qni4_3d(i,k,j).ge.qsmall.and.qzi4_3d(i,k,j).ge.1.e-30) then   
+                  qzi4_3d(i,k,j) = (qzi4_3d(i,k,j)*qni4_3d(i,k,j))**0.5          
+               else                                                              
+                  qzi4_3d(i,k,j) = 0.                                            
+               endif                                                             
+               end if
+
+            enddo
+         enddo
+      enddo
+   endif
 
    if (global_status /= STATUS_OK) then
       print*,'Stopping in P3, problem in P3 main'
@@ -1248,7 +1563,7 @@ END subroutine p3_init
 #ifdef ECCCGEM
 
  function mp_p3_wrapper_gem(ttend,qtend,qctend,qrtend,qitend,                                     &
-                              qvap_m,qvap,temp_m,temp,dt,dt_max,ww,psfc,gztherm,sigma,kount,      &
+                              qvap_m,qvap,temp_m,temp,dt,dt_max,ww,psfc,gztherm,gzmom,sigma,kount,&
                               trnch,ni,nk,prt_liq,prt_sol,prt_drzl,prt_rain,prt_crys,prt_snow,    &
                               prt_grpl,prt_pell,prt_hail,prt_sndp,diag_Zet,diag_Zec,diag_effc,    &
                               qc,nc,qr,nr,n_diag_2d,diag_2d,n_diag_3d,diag_3d,                    &
@@ -1336,6 +1651,7 @@ END subroutine p3_init
  real, intent(inout), dimension(ni,nk)  :: temp                  ! temperature                         K
  real, intent(in),    dimension(ni)     :: psfc                  ! surface air pressure                Pa
  real, intent(in),    dimension(ni,nk)  :: gztherm               ! height AGL of thermodynamic levels  m
+ real, intent(in),    dimension(ni,nk)  :: gzmom                 ! height AGL of momentum levels  m
  real, intent(in),    dimension(ni,nk)  :: sigma                 ! sigma = p(k,:)/psfc(:)
  real, intent(in),    dimension(ni,nk)  :: ww                    ! vertical motion                     m s-1
  real, intent(out),   dimension(ni)     :: prt_liq               ! precipitation rate, total liquid    m s-1
@@ -1473,10 +1789,16 @@ END subroutine p3_init
    enddo
 
   !layer thickness (for sedimentation):
-   do k = kbot,ktop-kdir,kdir
-      DZ(:,k) = gztherm(:,k+kdir) - gztherm(:,k)
+  ! do k = kbot,ktop-kdir,kdir
+  !    DZ(:,k) = gztherm(:,k+kdir) - gztherm(:,k)
+  ! enddo
+  ! DZ(:,ktop) = DZ(:,ktop-kdir)
+
+  !layer thickness mom (for sedimentation):
+   do k = kbot-1,ktop,kdir
+      DZ(:,k) = gzmom(:,k) - gzmom(:,k-kdir)
    enddo
-   DZ(:,ktop) = DZ(:,ktop-kdir)
+   DZ(:,kbot) = gzmom(:,kbot)
 
   !compute zitot from advected 'Z' variable (for triple-moment ice):
    if (present(zitot_1)) then
@@ -1749,11 +2071,13 @@ END subroutine p3_init
         !cloud base height:
          if (qc(i,k)>1.e-6 .and. .not.log_tmp1) then
             diag_hcb(i) = gztherm(i,k)
+            !diag_hcb(i) = gzmom(i,k)
             log_tmp1 = .true.
          endif
         !snow level height:  (height of lowest level with ice) [for n_iceCat=1 only]
          if (qitot_1(i,k)>1.e-6 .and. .not.log_tmp2) then
             diag_hsn(i) = gztherm(i,k)
+            !diag_hsn(i) = gzmom(i,k)
             log_tmp2 = .true.
          endif
       enddo
@@ -5348,6 +5672,105 @@ END subroutine p3_init
 
     multicat:  if (nCat.gt.1) then
 !   multicat:  if (.FALSE.) then       ! **** TEST
+
+! but first make sure ice variables are in-bounds
+
+    k_loop_check_before_merge:  do k = kbot,ktop,kdir
+
+       iice_loop_check_before_merge:  do iice = 1,nCat
+
+          qi_not_small_merge:  if (qitot(i,k,iice).ge.qsmall) then
+
+            !impose lower limits to prevent taking log of # < 0
+             nitot(i,k,iice) = max(nitot(i,k,iice),nsmall)
+
+             call calc_bulkRhoRime(qitot(i,k,iice),qirim(i,k,iice),qiliq(i,k,iice),birim(i,k,iice),rhop)
+
+             if (.not. log_3momentIce) then
+
+                call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,dum7,isize,   &
+                       rimsize,liqsize,densize,qitot(i,k,iice),nitot(i,k,iice),qirim(i,k,iice),      &
+                       qiliq(i,k,iice),rhop)
+
+                if (log_predictfliq) then
+                  call access_lookup_table_LF(dumjj,dumii,dumll,dumi,11,dum1,dum4,dum5,dum7,f1pr15)
+                else
+                  call access_lookup_table(dumjj,dumii,dumi,11,dum1,dum4,dum5,f1pr15)
+                endif
+
+             else ! triple moment ice
+
+                call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,dum7,isize,                &
+                       rimsize,liqsize,densize,qitot(i,k,iice),nitot(i,k,iice),qirim(i,k,iice),qiliq(i,k,iice),   &
+                       rhop)
+
+             ! get Znorm indices
+
+             !impose lower limits to prevent taking log of # < 0
+                zitot(i,k,iice) = max(zitot(i,k,iice),zsmall)
+
+                dum1z =  6./(200.*pi)*qitot(i,k,iice)  !estimate of moment3, as starting point use 200 kg m-3 estimate of bulk density
+
+                do imu=1,niter_mui
+                   mu_i = compute_mu_3moment(nitot(i,k,iice),dum1z,zitot(i,k,iice),mu_i_max)
+                   call find_lookupTable_indices_1c(dumzz,dum6,zsize,mu_i)
+                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,f1pr16)
+                   dum1z =  6./(f1pr16*pi)*qitot(i,k,iice)  !estimate of moment3
+                enddo
+
+                if (log_predictfliq) then
+                  call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,11,dum1,dum4,dum5,dum6,dum7,f1pr15)
+                else
+                  call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,11,dum1,dum4,dum5,dum6,f1pr15)
+                endif
+             endif
+
+
+          ! impose mean ice size bounds (i.e. apply lambda limiters)
+             nitot(i,k,iice) = min(nitot(i,k,iice),f1pr09*qitot(i,k,iice))
+             nitot(i,k,iice) = max(nitot(i,k,iice),f1pr10*qitot(i,k,iice))
+
+          ! adjust Zitot to make sure mu is in bounds
+          ! note that the Zmax and Zmin are normalized and thus need to be multiplied by existing Q
+             if (log_3momentIce) then
+                dum1 =  6./(f1pr16*pi)*qitot(i,k,iice)  !estimate of moment3
+                tmp1 = G_of_mu(0.)
+                tmp2 = G_of_mu(20.)
+                zitot(i,k,iice) = min(zitot(i,k,iice),tmp1*dum1**2/nitot(i,k,iice))
+                zitot(i,k,iice) = max(zitot(i,k,iice),tmp2*dum1**2/nitot(i,k,iice))
+!                zitot(i,k,iice) = min(zitot(i,k,iice),f1pr20*qitot(i,k,iice))
+!                zitot(i,k,iice) = max(zitot(i,k,iice),f1pr21*qitot(i,k,iice))
+             endif
+
+  !--this should already be done in s/r 'calc_bulkRhoRime'
+             if (qirim(i,k,iice).lt.qsmall) then
+                qirim(i,k,iice) = 0.
+                birim(i,k,iice) = 0.
+             endif
+             if (qiliq(i,k,iice).lt.qsmall) qiliq(i,k,iice) = 0.
+  !==
+
+  ! Get di for merging
+             diag_di(i,k,iice)   = f1pr15
+
+          else
+
+             qv(i,k) = qv(i,k) + qitot(i,k,iice)
+             th(i,k) = th(i,k) - invexn(i,k)*(qitot(i,k,iice)-qiliq(i,k,iice))*xxls(i,k)*inv_cp
+             th(i,k) = th(i,k) - invexn(i,k)*qiliq(i,k,iice)*xxlv(i,k)*inv_cp
+             qitot(i,k,iice) = 0.
+             nitot(i,k,iice) = 0.
+             qirim(i,k,iice) = 0.
+             qiliq(i,k,iice) = 0.
+             birim(i,k,iice) = 0.
+             if (log_3momentIce) zitot(i,k,iice) = 0
+             diag_di(i,k,iice) = 0.
+
+          endif qi_not_small_merge
+
+       enddo iice_loop_check_before_merge
+
+    enddo k_loop_check_before_merge
 
 ! 3-moment merging first before of qitot may change after
 
@@ -9534,7 +9957,7 @@ END subroutine p3_init
 
  implicit none
 
- real    :: dum1,dum4,dum5,dum6,dum7,proc,proc1,iproc1,iproc2,gproc1,gproc2,rproc1,rproc2,dproc1,dproc2
+ real    :: dum1,dum4,dum5,dum6,dum7,proc,iproc1,iproc2,gproc1,gproc2,rproc1,rproc2,dproc1,dproc2
  integer :: dumzz,dumjj,dumii,dumi,index,dumll
 
 
@@ -9748,7 +10171,7 @@ SUBROUTINE access_lookup_table_coll_3mom(dumzz,dumjj,dumii,dumj,dumi,index,dum1,
 
  implicit none
 
- real    :: dum1,dum3,dum4,dum5,dum6,dum7,proc,dproc1,dproc2,iproc1,iproc2,  &
+ real    :: dum1,dum3,dum4,dum5,dum6,dum7,proc,dproc1,dproc2,iproc1,iproc2,gproc1,gproc2,  &
             rproc1,rproc2,zproc1,zproc2
  integer :: dumzz,dumjj,dumii,dumj,dumi,dumll,index
 

@@ -92,6 +92,7 @@
 !    character(len=16), parameter :: model = 'WRF'  !for level tests
 
      logical, parameter           :: abort_on_err = .false.
+     logical, parameter           :: dowr = .true.
 
      character(len=1024), parameter :: LT_path  = './lookup_tables'
 !    character(len=1024), parameter :: LT_path = '/users/milbrand/mp_p3/lookupTables/tables'  ! override default
@@ -414,7 +415,7 @@
 !     call P3_INIT('./lookup_tables/',n_iceCat,trplMomIce,stat)  !v4.0.0
 !     call P3_INIT('./lookup_tables/',override_path=my_LT_path,n_iceCat,trplMomIce,stat)  !v4.0.0_b38
 
-      call P3_INIT(LT_path,n_iceCat,trplMomIce,PredictFl,model,stat,abort_on_err)      !v4.0.0_b42
+      call P3_INIT(LT_path,n_iceCat,trplMomIce,PredictFl,model,stat,abort_on_err,dowr)      !v4.0.0_b42
 
 
       do k=1,nk

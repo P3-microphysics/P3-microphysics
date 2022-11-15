@@ -139,7 +139,7 @@ contains
       real, pointer, dimension(:,:) :: ncp, nip, qcm, qcp, qip, qrp, qqm, qqp, &
            sigma, ttm, ttp, uu, vv, wz, zfdc, zgztherm, zhufcp, zhushal, &
            zprcten, zpriten, zqckfc, ztfcp, ztshal, ztusc, ztvsc, zufcp, zvfcp, &
-           zprctns,zpritns,qti1p, nti1p, zfsc, zqlsc, zqssc, zfbl, &
+           zprctns,zpritns,qti1p, nti1p, zti1p, zfsc, zqlsc, zqssc, zfbl, &
            zumfs, ztpostshal, zhupostshal, zcqce, zcqe, zcte, zen, zkt, &
            zareaup, zdmfkfc, zkfcrf, zkfcsf, zqldi, zqrkfc, zqsdi, zumfkfc, &
            zqcz, zqdifv, zwklclplus, zkfmrf, zkfmsf, zqlmi, zqsmi, zfmc, zprctnm, zpritnm, &
@@ -197,6 +197,7 @@ contains
 
       MKPTR2D(sigma, sigw, d)
 
+      MKPTR2Dm1(zti1p, zti1plus, d)
       MKPTR2Dm1(nti1p, nti1plus, d)
       MKPTR2Dm1(qti1p, qti1plus, d)
       MKPTR2Dm1(ncp, ncplus, d)
@@ -519,7 +520,15 @@ contains
 
          ! Added following GEM5.2 fixed bugs (FR)
          ! Apply shallow convective tendencies for consdensed variables
-         call conv_mp_tendencies1(zprctns, zpritns, ttp, qcp, ncp, qip, nip, qti1p, nti1p, ztdmask, ni, nk, nkm1)
+         !call conv_mp_tendencies1(zprctns, zpritns, ttp, qcp, ncp, qip, nip, qti1p, nti1p, ztdmask, ni, nk, nkm1)
+         ! Apply shallow convective tendencies for consdensed variables
+         if (p3_trplmomi) then
+            call conv_mp_tendencies1(zprctns, zpritns, ttp, qcp, ncp, qip, nip, qti1p, nti1p, &
+                 ztdmask, ni, nk, nkm1,zti1p)
+         else
+            call conv_mp_tendencies1(zprctns, zpritns, ttp, qcp, ncp, qip, nip, qti1p, nti1p, &
+                 ztdmask, ni, nk, nkm1)
+         endif
 
          ! Post-scheme energy budget analysis
          if (associated(zconesc)) then
@@ -584,7 +593,15 @@ contains
       endif
 
       ! Apply deep convective tendencies for consdensed variables
-      call conv_mp_tendencies1(zprcten, zpriten, ttp, qcp, ncp, qip, nip, qti1p, nti1p, ztdmask, ni, nk, nkm1)
+      !call conv_mp_tendencies1(zprcten, zpriten, ttp, qcp, ncp, qip, nip, qti1p, nti1p, ztdmask, ni, nk, nkm1)
+      ! Apply deep convective tendencies for consdensed variables
+      if (p3_trplmomi) then
+         call conv_mp_tendencies1(zprcten, zpriten, ttp, qcp, ncp, qip, nip, &
+              qti1p, nti1p, ztdmask, ni, nk, nkm1,zti1p)
+      else
+         call conv_mp_tendencies1(zprcten, zpriten, ttp, qcp, ncp, qip, nip, &
+              qti1p, nti1p, ztdmask, ni, nk, nkm1)
+      endif
 
       ! Post-deep CPS energy budget analysis
       if (associated(zconedc)) then
@@ -653,7 +670,15 @@ contains
       if (associated(zvmid)) call apply_tendencies(vv, zvmid, ztdmask, ni, nk, nkm1)
 
       ! Apply mid-level convective tendencies for condensed variables
-      call conv_mp_tendencies1(zprctnm, zpritnm, ttp, qcp, ncp, qip, nip, qti1p, nti1p, ztdmask, ni, nk, nkm1)
+      !call conv_mp_tendencies1(zprctnm, zpritnm, ttp, qcp, ncp, qip, nip, qti1p, nti1p, ztdmask, ni, nk, nkm1)
+      ! Apply mid-level convective tendencies for condensed variables
+      if (p3_trplmomi) then
+         call conv_mp_tendencies1(zprctnm, zpritnm, ttp, qcp, ncp, qip, nip, &
+              qti1p, nti1p, ztdmask, ni, nk, nkm1,zti1p)
+      else
+         call conv_mp_tendencies1(zprctnm, zpritnm, ttp, qcp, ncp, qip, nip, &
+              qti1p, nti1p, ztdmask, ni, nk, nkm1)
+      endif
 
       ! Post-mid-level convection energy budget analysis
       if (associated(zconemc)) then

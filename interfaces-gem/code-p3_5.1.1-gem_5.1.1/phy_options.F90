@@ -345,6 +345,16 @@ module phy_options
    namelist /physics_cfgs/ p3_resfact
    namelist /physics_cfgs_p/ p3_resfact
 
+   !# switch for triple-moment ice (zi,tot) in microphysics (P3)
+   logical         :: p3_trplmomi = .false.
+   namelist /physics_cfgs/ p3_trplmomi
+   namelist /physics_cfgs_p/ p3_trplmomi
+
+   !# switch for predicting the liquid fraction (qi,liq) of mixed-phase particles in microphysics (P3)
+   logical         :: p3_predictfiliq = .false.
+   namelist /physics_cfgs/ p3_predictfiliq
+   namelist /physics_cfgs_p/ p3_predictfiliq
+
    !# Switch for aerosol activation scheme (1 = default, 2 = ARG + Aerosol climatology)
    integer           :: mp_aeroact = 1
    namelist /physics_cfgs/ mp_aeroact
