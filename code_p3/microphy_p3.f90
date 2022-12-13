@@ -21,8 +21,8 @@
 !    Melissa Cholette (melissa.cholette@ec.gc.ca)                                          !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.1.1.3                                                                   !
-! Last updated:  2022-OCT                                                                  !
+! Version:       5.1.1.4                                                                   !
+! Last updated:  2022-DEC                                                                  !
 !__________________________________________________________________________________________!
 
  MODULE MICROPHY_P3
@@ -140,7 +140,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.1.1.3'
+ character(len=1024), parameter :: version_p3                    = '5.1.1.4'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.3-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '6.3-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.0'
@@ -3415,8 +3415,13 @@ END subroutine p3_init
                             dum)*nitot(i,k,iice)
              qrmlt(iice) = max(qrmlt(iice),0.)
              qimlt(iice) = max(qimlt(iice),0.)
-             ! Make sure it is bounded -- necessary since qimlt is the only unadjusted terms in conserv.
-             qimlt(iice) = min(qimlt(iice),(qitot(i,k,iice)-qiliq(i,k,iice))*odt)
+             ! Make sure both terms are bounded (necessary for conservation check)
+             sinks = qimlt(iice)+qrmlt(iice)
+             if (sinks.gt.0. .and. sinks .gt. (qitot(i,k,iice)-qiliq(i,k,iice))*odt) then
+                 ratio = (qitot(i,k,iice)-qiliq(i,k,iice))*odt/sinks
+                 qrmlt(iice) = qrmlt(iice)*ratio
+                 qimlt(iice) = qimlt(iice)*ratio
+             endif
              nimlt(iice) = qrmlt(iice)*(nitot(i,k,iice)/(qitot(i,k,iice)-qiliq(i,k,iice)))
           endif
        else
@@ -4586,8 +4591,9 @@ END subroutine p3_init
                             nislf(iice)+nrhetc(iice)+nrheti(iice)+nchetc(iice)+          &
                             ncheti(iice)+nimul(iice)-nlevp(iice))*dt
 
-          iceice_interaction2: if (iice.ge.2) then
+          !iceice_interaction2: if (iice.ge.2) then
            interactions_loop: do catcoll = 1,nCat
+            diff_categories:     if (iice.ne.catcoll) then
            ! add ice-ice category interaction collection tendencies
            ! note: nicol is a sink for the collectee category, but NOT a source for collector
 
@@ -4614,8 +4620,9 @@ END subroutine p3_init
              nitot(i,k,catcoll) = nitot(i,k,catcoll) - nicol(catcoll,iice)*dt
              qitot(i,k,iice)    = qitot(i,k,iice)    + qicol(catcoll,iice)*dt
 
+            endif diff_categories
            enddo interactions_loop ! catcoll loop
-         endif iceice_interaction2
+         !endif iceice_interaction2
 
           if (qirim(i,k,iice).lt.0.) then
              qirim(i,k,iice) = 0.
@@ -4678,7 +4685,7 @@ END subroutine p3_init
             if (qitot(i,k,iice).ge.qsmall .and. (qiliq(i,k,iice)/qitot(i,k,iice)).gt.0.99) then
                   qr(i,k) = qr(i,k) + qitot(i,k,iice)
                   nr(i,k) = nr(i,k) + nitot(i,k,iice)
-                  th(i,k) = th(i,k) - invexn(i,k)*qitot(i,k,iice)*xlf(i,k)*inv_cp
+                  th(i,k) = th(i,k) - invexn(i,k)*(qitot(i,k,iice)-qiliq(i,k,iice))*xlf(i,k)*inv_cp
                   qitot(i,k,iice) = 0.
                   nitot(i,k,iice) = 0.
                   qirim(i,k,iice) = 0.
@@ -5724,11 +5731,6 @@ END subroutine p3_init
                   call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,11,dum1,dum4,dum5,dum6,f1pr15)
                 endif
              endif
-
-
-          ! impose mean ice size bounds (i.e. apply lambda limiters)
-             nitot(i,k,iice) = min(nitot(i,k,iice),f1pr09*qitot(i,k,iice))
-             nitot(i,k,iice) = max(nitot(i,k,iice),f1pr10*qitot(i,k,iice))
 
           ! adjust Zitot to make sure mu is in bounds
           ! note that the Zmax and Zmin are normalized and thus need to be multiplied by existing Q
@@ -11890,7 +11892,9 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
 
  if (mom3>eps_m3) then
 
-    G = (mom0*mom6)/(mom3**2)
+    !G = (mom0*mom6)/(mom3**2)
+    ! To avoid non-permitted small values with mom3**2
+    G = (mom0/mom3)*(mom6/mom3)
 
 !----------------------------------------------------------!
 ! !Solve alpha numerically: (brute-force)
