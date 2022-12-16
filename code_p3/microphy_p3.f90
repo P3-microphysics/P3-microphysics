@@ -21,7 +21,7 @@
 !    Melissa Cholette (melissa.cholette@ec.gc.ca)                                          !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.1.1.4                                                                   !
+! Version:       5.1.1.5                                                                   !
 ! Last updated:  2022-DEC                                                                  !
 !__________________________________________________________________________________________!
 
@@ -140,7 +140,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.1.1.4'
+ character(len=1024), parameter :: version_p3                    = '5.1.1.5'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.3-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '6.3-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.0'
@@ -161,12 +161,19 @@
   read_path = lookup_file_dir           ! path for lookup tables from official model library
 !read_path = '/MY/LOOKUP_TABLE/PATH'   ! path for lookup tables from specified location
 
+! if (trplMomI) then
+!   lookup_file_1 = trim(read_path)//'/'//'p3_lookupTable_1.dat-v'//trim(version_intended_table_1_3mom)
+! else
+!   lookup_file_1 = trim(read_path)//'/'//'p3_lookupTable_1.dat-v'//trim(version_intended_table_1_2mom)
+! endif
+! lookup_file_2 = trim(read_path)//'/'//'p3_lookupTable_2.dat-v'//trim(version_intended_table_2)
+
  if (trplMomI) then
-   lookup_file_1 = trim(read_path)//'/'//'p3_lookupTable_1.dat-v'//trim(version_intended_table_1_3mom)
+    lookup_file_1 = '/fs/homeu2/eccc/mrd/ords/rpnatm/mec000/p3_lookup_tables/p3v510/p3_lookupTable_1.dat-v'//trim(version_intended_table_1_3mom)
  else
-   lookup_file_1 = trim(read_path)//'/'//'p3_lookupTable_1.dat-v'//trim(version_intended_table_1_2mom)
+    lookup_file_1 = '/fs/homeu2/eccc/mrd/ords/rpnatm/mec000/p3_lookup_tables/p3v510/p3_lookupTable_1.dat-v'//trim(version_intended_table_1_2mom)
  endif
- lookup_file_2 = trim(read_path)//'/'//'p3_lookupTable_2.dat-v'//trim(version_intended_table_2)
+ lookup_file_2 = '/fs/homeu2/eccc/mrd/ords/rpnatm/mec000/p3_lookup_tables/p3v510/p3_lookupTable_2.dat-v'//trim(version_intended_table_2)
 
 !------------------------------------------------------------------------------------------!
 
@@ -1571,10 +1578,10 @@ END subroutine p3_init
                               diag_vis1,diag_vis2,diag_vis3,diag_slw,                             &
                               scpf_on,scpf_pfrac,scpf_resfact,cldfrac,                            &
                               qi_type_1,qi_type_2,qi_type_3,qi_type_4,qi_type_5,qi_type_6,        &
-                              qitot_1,qirim_1,nitot_1,birim_1,diag_effi_1,zitot_1,qiliq_1,        &
-                              qitot_2,qirim_2,nitot_2,birim_2,diag_effi_2,zitot_2,qiliq_2,        &
-                              qitot_3,qirim_3,nitot_3,birim_3,diag_effi_3,zitot_3,qiliq_3,        &
-                              qitot_4,qirim_4,nitot_4,birim_4,diag_effi_4,zitot_4,qiliq_4)        &
+                              qitot_1,qirim_1,nitot_1,birim_1,diag_effi_1,diag_dhmax_1,zitot_1,qiliq_1,        &
+                              qitot_2,qirim_2,nitot_2,birim_2,diag_effi_2,diag_dhmax_2,zitot_2,qiliq_2,        &
+                              qitot_3,qirim_3,nitot_3,birim_3,diag_effi_3,diag_dhmax_3,zitot_3,qiliq_3,        &
+                              qitot_4,qirim_4,nitot_4,birim_4,diag_effi_4,diag_dhmax_4,zitot_4,qiliq_4)        &
                               result(end_status)
 
 !------------------------------------------------------------------------------------------!
@@ -1612,6 +1619,7 @@ END subroutine p3_init
  real, dimension(:,:), pointer, contiguous  :: nitot_1           ! ice   mixing ratio, number          #  kg-1
  real, dimension(:,:), pointer, contiguous  :: birim_1           ! ice   mixing ratio, volume          m3 kg-1
  real, dimension(:,:), pointer, contiguous  :: diag_effi_1       ! ice   effective radius, (cat 1)     m
+ real, dimension(:,:), pointer, contiguous  :: diag_dhmax_1      ! imax hail size, (cat 1)             m
  real, intent(inout), dimension(ni,nk), optional  :: zitot_1     ! ice   mixing ratio, reflectivity    m^6 kg-1
  real, intent(inout), dimension(ni,nk), optional  :: qiliq_1     ! ice   mixing ratio, mass (liquid)   kg kg-1
 
@@ -1620,6 +1628,7 @@ END subroutine p3_init
  real, dimension(:,:), pointer, contiguous  :: nitot_2           ! ice   mixing ratio, number          #  kg-1
  real, dimension(:,:), pointer, contiguous  :: birim_2           ! ice   mixing ratio, volume          m3 kg-1
  real, dimension(:,:), pointer, contiguous  :: diag_effi_2       ! ice   effective radius, (cat 2)     m
+ real, dimension(:,:), pointer, contiguous  :: diag_dhmax_2      ! imax hail size, (cat 2)             m
  real, intent(inout), dimension(ni,nk), optional  :: zitot_2     ! ice   mixing ratio, reflectivity    m^6 kg-1
  real, intent(inout), dimension(ni,nk), optional  :: qiliq_2     ! ice   mixing ratio, mass (liquid)   kg kg-1
 
@@ -1627,7 +1636,8 @@ END subroutine p3_init
  real, dimension(:,:), pointer, contiguous  :: qirim_3           ! ice   mixing ratio, mass (rime)     kg kg-1
  real, dimension(:,:), pointer, contiguous  :: nitot_3           ! ice   mixing ratio, number          #  kg-1
  real, dimension(:,:), pointer, contiguous  :: birim_3           ! ice   mixing ratio, volume          m3 kg-1
- real, dimension(:,:), pointer, contiguous  :: diag_effi_3       ! ice   effective radius,  (cat 3)     m
+ real, dimension(:,:), pointer, contiguous  :: diag_effi_3       ! ice   effective radius,  (cat 3)    m
+ real, dimension(:,:), pointer, contiguous  :: diag_dhmax_3      ! imax hail size, (cat 3)             m
  real, intent(inout), dimension(ni,nk), optional  :: zitot_3     ! ice   mixing ratio, reflectivity    m^6 kg-1
  real, intent(inout), dimension(ni,nk), optional  :: qiliq_3     ! ice   mixing ratio, mass (liquid)   kg kg-1
 
@@ -1636,6 +1646,7 @@ END subroutine p3_init
  real, dimension(:,:), pointer, contiguous  :: nitot_4           ! ice   mixing ratio, number          #  kg-1
  real, dimension(:,:), pointer, contiguous  :: birim_4           ! ice   mixing ratio, volume          m3 kg-1
  real, dimension(:,:), pointer, contiguous  :: diag_effi_4       ! ice   effective radius, (cat 4)     m
+ real, dimension(:,:), pointer, contiguous  :: diag_dhmax_4      ! imax hail size, (cat 4)             m
  real, intent(inout), dimension(ni,nk), optional  :: zitot_4     ! ice   mixing ratio, reflectivity    m^6 kg-1
  real, intent(inout), dimension(ni,nk), optional  :: qiliq_4     ! ice   mixing ratio, mass (liquid)   kg kg-1
 
@@ -1705,6 +1716,7 @@ END subroutine p3_init
  real, dimension(ni,nk,n_iceCat)  :: diag_vmi   ! mass-weighted fall speed, ice           m s-1  (returned but not used)
  real, dimension(ni,nk,n_iceCat)  :: diag_di    ! mean diameter, ice                      m      (returned but not used)
  real, dimension(ni,nk,n_iceCat)  :: diag_rhoi  ! bulk density, ice                       kg m-3 (returned but not used)
+ real, dimension(ni,nk,n_iceCat)  :: diag_dhmax ! max hail size                           m  (returned but not used)
 
  real, dimension(ni,nk)  :: theta_m             ! potential temperature (previous step)   K
  real, dimension(ni,nk)  :: qvapm               ! qv (previous step)                      kg kg-1
@@ -1836,6 +1848,7 @@ END subroutine p3_init
    nitot(:,:,1) = nitot_1(:,:)
    birim(:,:,1) = birim_1(:,:)
    diag_effi(:,:,1) = diag_effi_1(:,:)
+   diag_dhmax(:,:,1) = diag_dhmax_1(:,:)
    if (present(zitot_1)) zitot(:,:,1) = zitot_1(:,:)
    if (present(qiliq_1)) qiliq_in(:,:,1) = qiliq_1(:,:)
 
@@ -1845,6 +1858,7 @@ END subroutine p3_init
       nitot(:,:,2) = nitot_2(:,:)
       birim(:,:,2) = birim_2(:,:)
       diag_effi(:,:,2) = diag_effi_2(:,:)
+      diag_dhmax(:,:,2) = diag_dhmax_2(:,:)
       if (present(zitot_2)) zitot(:,:,2) = zitot_2(:,:)
       if (present(qiliq_2)) qiliq_in(:,:,2) = qiliq_2(:,:)
 
@@ -1854,6 +1868,7 @@ END subroutine p3_init
          nitot(:,:,3) = nitot_3(:,:)
          birim(:,:,3) = birim_3(:,:)
          diag_effi(:,:,3) = diag_effi_3(:,:)
+         diag_dhmax(:,:,3) = diag_dhmax_3(:,:)
          if (present(zitot_3)) zitot(:,:,3) = zitot_3(:,:)
          if (present(qiliq_3)) qiliq_in(:,:,3) = qiliq_3(:,:)
 
@@ -1863,6 +1878,7 @@ END subroutine p3_init
             nitot(:,:,4) = nitot_4(:,:)
             birim(:,:,4) = birim_4(:,:)
             diag_effi(:,:,4) = diag_effi_4(:,:)
+            diag_dhmax(:,:,4) = diag_dhmax_4(:,:)
             if (present(zitot_4)) zitot(:,:,4) = zitot_4(:,:)
             if (present(qiliq_4)) qiliq_in(:,:,4) = qiliq_4(:,:)
          endif
@@ -1898,7 +1914,7 @@ END subroutine p3_init
           if (log_predictFl) then
             call p3_main(qc,nc,qr,nr,theta_m,theta,qvapm,qvap,dt_mp,qitot,qirim,nitot,birim,    &
                    ssat,ww,pres,DZ,kount,prt_liq,prt_sol,i_strt,ni,k_strt,nk,n_iceCat,          &
-                   diag_Zet,diag_effc,diag_effi,diag_vmi,diag_di,diag_rhoi,n_diag_2d,diag_2d,   &
+                   diag_Zet,diag_effc,diag_effi,diag_vmi,diag_di,diag_rhoi,diag_dhmax,n_diag_2d,diag_2d,   &
                    n_diag_3d,diag_3d,log_predictNc,typeDiags_ON,trim(model),clbfact_dep,        &
                    clbfact_sub,debug_on,scpf_on,scpf_pfrac,scpf_resfact,cldfrac,prt_drzl,       &
                    prt_rain,prt_crys,prt_snow,prt_grpl,prt_pell,prt_hail,prt_sndp,qi_type,      &
@@ -1911,7 +1927,7 @@ END subroutine p3_init
           else
             call p3_main(qc,nc,qr,nr,theta_m,theta,qvapm,qvap,dt_mp,qitot,qirim,nitot,birim,    &
                    ssat,ww,pres,DZ,kount,prt_liq,prt_sol,i_strt,ni,k_strt,nk,n_iceCat,          &
-                   diag_Zet,diag_effc,diag_effi,diag_vmi,diag_di,diag_rhoi,n_diag_2d,diag_2d,   &
+                   diag_Zet,diag_effc,diag_effi,diag_vmi,diag_di,diag_rhoi,diag_dhmax,n_diag_2d,diag_2d,   &
                    n_diag_3d,diag_3d,log_predictNc,typeDiags_ON,trim(model),clbfact_dep,        &
                    clbfact_sub,debug_on,scpf_on,scpf_pfrac,scpf_resfact,cldfrac,prt_drzl,       &
                    prt_rain,prt_crys,prt_snow,prt_grpl,prt_pell,prt_hail,prt_sndp,qi_type,      &
@@ -1925,7 +1941,7 @@ END subroutine p3_init
           if (log_predictFl) then
             call p3_main(qc,nc,qr,nr,theta_m,theta,qvapm,qvap,dt_mp,qitot,qirim,nitot,birim,    &
                    ssat,ww,pres,DZ,kount,prt_liq,prt_sol,i_strt,ni,k_strt,nk,n_iceCat,          &
-                   diag_Zet,diag_effc,diag_effi,diag_vmi,diag_di,diag_rhoi,n_diag_2d,diag_2d,   &
+                   diag_Zet,diag_effc,diag_effi,diag_vmi,diag_di,diag_rhoi,diag_dhmax,n_diag_2d,diag_2d,   &
                    n_diag_3d,diag_3d,log_predictNc,typeDiags_ON,trim(model),clbfact_dep,        &
                    clbfact_sub,debug_on,scpf_on,scpf_pfrac,scpf_resfact,cldfrac,prt_drzl,       &
                    prt_rain,prt_crys,prt_snow,prt_grpl,prt_pell,prt_hail,prt_sndp,qi_type,      &
@@ -1937,7 +1953,7 @@ END subroutine p3_init
           else
             call p3_main(qc,nc,qr,nr,theta_m,theta,qvapm,qvap,dt_mp,qitot,qirim,nitot,birim,    &
                    ssat,ww,pres,DZ,kount,prt_liq,prt_sol,i_strt,ni,k_strt,nk,n_iceCat,          &
-                   diag_Zet,diag_effc,diag_effi,diag_vmi,diag_di,diag_rhoi,n_diag_2d,diag_2d,   &
+                   diag_Zet,diag_effc,diag_effi,diag_vmi,diag_di,diag_rhoi,diag_dhmax,n_diag_2d,diag_2d,   &
                    n_diag_3d,diag_3d,log_predictNc,typeDiags_ON,trim(model),clbfact_dep,        &
                    clbfact_sub,debug_on,scpf_on,scpf_pfrac,scpf_resfact,cldfrac,prt_drzl,       &
                    prt_rain,prt_crys,prt_snow,prt_grpl,prt_pell,prt_hail,prt_sndp,qi_type,      &
@@ -1997,8 +2013,10 @@ END subroutine p3_init
    if (present(qiliq_1)) qiliq_1(:,:) = qiliq_in(:,:,1)
    where (qitot_1(:,:) >= SMALL_ICE_MASS)
       diag_effi_1(:,:) = diag_effi(:,:,1)
+      diag_dhmax_1(:,:) = diag_dhmax(:,:,1)
    elsewhere
       diag_effi_1(:,:) = 0.
+      diag_dhmax_1(:,:) = 0.
    endwhere
 
    if (n_iceCat >= 2) then
@@ -2010,8 +2028,10 @@ END subroutine p3_init
       if (present(qiliq_2)) qiliq_2(:,:) = qiliq_in(:,:,2)
       where (qitot_2(:,:) >= SMALL_ICE_MASS)
          diag_effi_2(:,:) = diag_effi(:,:,2)
+         diag_dhmax_2(:,:) = diag_dhmax(:,:,2)
       elsewhere
          diag_effi_2(:,:) = 0.
+         diag_dhmax_2(:,:) = 0.
       endwhere
 
       if (n_iceCat >= 3) then
@@ -2023,8 +2043,10 @@ END subroutine p3_init
          if (present(qiliq_3)) qiliq_3(:,:) = qiliq_in(:,:,3)
          where (qitot_3(:,:) >= SMALL_ICE_MASS)
             diag_effi_3(:,:) = diag_effi(:,:,3)
+            diag_dhmax_3(:,:) = diag_dhmax(:,:,3)
          elsewhere
             diag_effi_3(:,:) = 0.
+            diag_dhmax_3(:,:) = 0.
          endwhere
 
          if (n_iceCat == 4) then
@@ -2036,8 +2058,10 @@ END subroutine p3_init
             if (present(qiliq_4)) qiliq_4(:,:) = qiliq_in(:,:,4)
             where (qitot_4(:,:) >= SMALL_ICE_MASS)
                diag_effi_4(:,:) = diag_effi(:,:,4)
+               diag_dhmax_4(:,:) = diag_dhmax(:,:,4)
             elsewhere
                diag_effi_4(:,:) = 0.
+               diag_dhmax_4(:,:) = 0.
             endwhere
          endif
       endif
@@ -2327,7 +2351,7 @@ END subroutine p3_init
 
  SUBROUTINE p3_main(qc,nc,qr,nr,th_old,th,qv_old,qv,dt,qitot,qirim,nitot,birim,ssat,uzpl, &
                     pres,dzq,it,prt_liq,prt_sol,its,ite,kts,kte,nCat,diag_ze,diag_effc,   &
-                    diag_effi,diag_vmi,diag_di,diag_rhoi,n_diag_2d,diag_2d,n_diag_3d,     &
+                    diag_effi,diag_vmi,diag_di,diag_rhoi,diag_dhmax,n_diag_2d,diag_2d,n_diag_3d,     &
                     diag_3d,log_predictNc,typeDiags_ON,model,clbfact_dep,clbfact_sub,     &
                     debug_on,scpf_on,scpf_pfrac,scpf_resfact,SCF_out,prt_drzl,prt_rain,   &
                     prt_crys,prt_snow,prt_grpl,prt_pell,prt_hail,prt_sndp,qi_type,        &
@@ -2387,11 +2411,9 @@ END subroutine p3_init
  real, intent(out),   dimension(its:ite,kts:kte,nCat) :: diag_vmi   ! mass-weighted fall speed of ice  m s-1
  real, intent(out),   dimension(its:ite,kts:kte,nCat) :: diag_di    ! mean diameter of ice             m
  real, intent(out),   dimension(its:ite,kts:kte,nCat) :: diag_rhoi  ! bulk density of ice              kg m-1
-!real, intent(out),   dimension(its:ite,kts:kte,nCat), optional :: diag_dhmax ! maximum hail size                m
-!real, intent(out),   dimension(its:ite,kts:kte,nCat), optional :: diag_lami  ! lambda parameter for ice PSD     m-1
-!real, intent(out),   dimension(its:ite,kts:kte,nCat), optional :: diag_mui   ! mu parameter for ice PSD
 
-!real, intent(out),   dimension(its:ite,kts:kte,nCat), optional :: diag_Dhm  ! maximum hail diameter   m
+ real, intent(out),   dimension(its:ite,kts:kte,nCat) :: diag_dhmax ! maximum hail size (diameter)     m
+
  real, intent(out),   dimension(its:ite,kts:kte), optional :: diag_vis   ! visibility (total)          m
  real, intent(out),   dimension(its:ite,kts:kte), optional :: diag_vis1  ! visibility through fog      m
  real, intent(out),   dimension(its:ite,kts:kte), optional :: diag_vis2  ! visibility through rain     m
@@ -2431,6 +2453,8 @@ END subroutine p3_init
  real, dimension(its:ite,kts:kte) :: t_old ! temperature at the beginning of the model time step [K]
 
  real, dimension(its:ite,kts:kte,nCat) :: qiliq ! local variable for qiliq_in
+ real, dimension(its:ite,kts:kte,nCat) :: diag_lami  ! lambda parameter for ice PSD     m-1
+ real, dimension(its:ite,kts:kte,nCat) :: diag_mui   ! mu parameter for ice PSD
 
  logical, parameter      :: log_liqsatadj = .false.       ! temporary; to be put as GEM namelist
 
@@ -2733,9 +2757,9 @@ END subroutine p3_init
  diag_vmi  = 0.
  diag_di   = 0.
  diag_rhoi = 0.
-!if (present(diag_dhmax)) diag_dhmax = 0.
-!if (present(diag_lami))  diag_lami  = 0.
-!if (present(diag_mui))   diag_mui   = 0.
+ diag_dhmax = 0.
+ diag_lami  = 0.
+ diag_mui   = 0.
  diag_2d   = 0.
  diag_3d   = 0.
  rhorime_c = 400.
@@ -4364,10 +4388,12 @@ END subroutine p3_init
                     qrhetc(iice)+qrheti(iice)+qchetc(iice)+qcheti(iice)+qrmul(iice)+        &
                     qrcoll(iice)+qccoll(iice)+qlcon(iice)+qwgrth1c(iice)+qwgrth1r(iice))*dt
           do catcoll = 1,nCat
+            if (catcoll.ne.iice) then
             !category interaction leading to source for iice category
              sources = sources + qicol(catcoll,iice)*dt
             !category interaction leading to sink for iice category
              sinks = sinks + qicol(iice,catcoll)*dt
+            endif
           enddo
           if (sinks.gt.sources .and. sinks.ge.1.e-20) then
              ratio = sources/sinks
@@ -4380,8 +4406,10 @@ END subroutine p3_init
              nimlt(iice) = nimlt(iice)*ratio
              nlshd(iice) = nlshd(iice)*ratio
              do catcoll = 1,nCat
+              if (catcoll.ne.iice) then
                 qicol(iice,catcoll) = qicol(iice,catcoll)*ratio
                 nicol(iice,catcoll) = nicol(iice,catcoll)*ratio
+              endif
              enddo
           endif
       enddo  !iice-loop
@@ -4393,10 +4421,12 @@ END subroutine p3_init
           sources = qiliq(i,k,iice) + (qimlt(iice)+qrcoll(iice)+qccoll(iice)+qlcon(iice)+ &
                     qwgrth1c(iice)+qwgrth1r(iice))*dt
           do catcoll = 1,nCat
+            if (catcoll.ne.iice) then
             !category interaction leading to source for iice category
              sources = sources + qicol(catcoll,iice)*dt
             !category interaction leading to sink for iice category
              sinks = sinks + qicol(iice,catcoll)*dt
+            endif
           enddo
           if (sinks.gt.sources .and. sinks.ge.1.e-20) then
              ratio = sources/sinks
@@ -4406,8 +4436,10 @@ END subroutine p3_init
              nlevp(iice) = nlevp(iice)*ratio
              nlshd(iice) = nlshd(iice)*ratio
              do catcoll = 1,nCat
+              if (catcoll.ne.iice) then
                 qicol(iice,catcoll) = qicol(iice,catcoll)*ratio
                 nicol(iice,catcoll) = nicol(iice,catcoll)*ratio
+              endif
              enddo
           endif
        enddo !iice-loop
@@ -4457,9 +4489,11 @@ END subroutine p3_init
 
          !update further due to category interactions:
           do catcoll = 1,nCat
+           if (catcoll.ne.iice) then
              dumm3(catcoll) = dumm3(catcoll) - qicol(catcoll,iice)*dt
              dumm3(iice)    = dumm3(iice)    + qicol(catcoll,iice)*dt
              dumm0(catcoll) = dumm0(catcoll) - nicol(catcoll,iice)*dt
+           endif
           enddo ! catcoll loop
 
        !====
@@ -5909,6 +5943,8 @@ END subroutine p3_init
                   call access_lookup_table_LF(dumjj,dumii,dumll,dumi, 9,dum1,dum4,dum5,dum7,f1pr13)
                   call access_lookup_table_LF(dumjj,dumii,dumll,dumi,11,dum1,dum4,dum5,dum7,f1pr15)
                   call access_lookup_table_LF(dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum7,f1pr16)
+                  call access_lookup_table_LF(dumjj,dumii,dumll,dumi,13,dum1,dum4,dum5,dum7,f1pr22)
+                  call access_lookup_table_LF(dumjj,dumii,dumll,dumi,14,dum1,dum4,dum5,dum7,f1pr23)
                 else
                   call access_lookup_table(dumjj,dumii,dumi, 1,dum1,dum4,dum5,f1pr01)
                   call access_lookup_table(dumjj,dumii,dumi, 2,dum1,dum4,dum5,f1pr02)
@@ -5918,6 +5954,8 @@ END subroutine p3_init
                   call access_lookup_table(dumjj,dumii,dumi, 9,dum1,dum4,dum5,f1pr13)
                   call access_lookup_table(dumjj,dumii,dumi,11,dum1,dum4,dum5,f1pr15)
                   call access_lookup_table(dumjj,dumii,dumi,12,dum1,dum4,dum5,f1pr16)
+                  call access_lookup_table(dumjj,dumii,dumi,13,dum1,dum4,dum5,f1pr22)
+                  call access_lookup_table(dumjj,dumii,dumi,14,dum1,dum4,dum5,f1pr23)
                 endif
 
              else ! triple moment ice
@@ -5948,6 +5986,8 @@ END subroutine p3_init
                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi, 8,dum1,dum4,dum5,dum6,dum7,f1pr10)
                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi, 9,dum1,dum4,dum5,dum6,dum7,f1pr13)
                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,11,dum1,dum4,dum5,dum6,dum7,f1pr15)
+                  call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,14,dum1,dum4,dum5,dum6,dum7,f1pr22)
+                  call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,15,dum1,dum4,dum5,dum6,dum7,f1pr23)
                 else
                   call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 1,dum1,dum4,dum5,dum6,f1pr01)
                   call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 2,dum1,dum4,dum5,dum6,f1pr02)
@@ -5956,6 +5996,8 @@ END subroutine p3_init
                   call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 8,dum1,dum4,dum5,dum6,f1pr10)
                   call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 9,dum1,dum4,dum5,dum6,f1pr13)
                   call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,11,dum1,dum4,dum5,dum6,f1pr15)
+                  call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,14,dum1,dum4,dum5,dum6,f1pr22)
+                  call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,15,dum1,dum4,dum5,dum6,f1pr23)
                 endif
              endif
 
@@ -5989,12 +6031,19 @@ END subroutine p3_init
              diag_effi(i,k,iice) = f1pr06 ! units are in m
              diag_di(i,k,iice)   = f1pr15
              diag_rhoi(i,k,iice) = f1pr16
-             !if (present(diag_lami)) diag_lami(i,k,iice) = f1pr22
-             !if (present(diag_mui))  diag_mui(i,k,iice)  = f1pr23
-             !if (present(diag_dhmax)) then
-             !   diag_dhmax(i,k,iice) = maxHailSize(rho(i,k),qitot(i,k,iice),             &
-             !              qirim(i,k,iice),nitot(i,k,iice),rhofaci(i,k),f1pr22,f1pr23)
-             !endif
+             diag_lami(i,k,iice) = f1pr22
+             diag_mui(i,k,iice)  = f1pr23
+             diag_dhmax(i,k,iice) = maxHailSize(rho(i,k),qitot(i,k,iice),                           &
+                           qirim(i,k,iice),qiliq(i,k,iice),nitot(i,k,iice),diag_rhoi(i,k,iice),     &
+                           rhofaci(i,k),f1pr22,f1pr23,diag_di(i,k,iice))
+             diag_3d(i,k,1) = diag_dhmax(i,k,iice)
+             diag_3d(i,k,2) = maxHailSize(rho(i,k),qitot(i,k,iice),                                 &
+                           qirim(i,k,iice),qiliq(i,k,iice),nitot(i,k,iice),diag_rhoi(i,k,iice),     &
+                           rhofaci(i,k),f1pr22,f1pr23,diag_di(i,k,iice))
+             if ((qitot(i,k,iice)-qiliq(i,k,iice)).ge.qsmall) then
+                diag_3d(i,k,3) = qirim(i,k,iice)/(qitot(i,k,iice)-qiliq(i,k,iice))
+             endif
+             diag_3d(i,k,4) = diag_rhoi(i,k,iice)
 
           ! note factor of air density below is to convert from m^6/kg to m^6/m^3
           ! original ze_ice
@@ -11960,7 +12009,7 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
 
 !======================================================================================!
 
- real function maxHailSize(rho,qit,qim,nit,rhofaci,lam,mu)
+ real function maxHailSize(rho,qit,qim,qil,nit,rhoi,rhofaci,lam,mu,Dim)
 
  !--------------------------------------------------------------------------
  ! Computes the maximum hail size, by estimating the maximum size that is
@@ -11986,8 +12035,11 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
 
 ! Arguments passed:
  real, intent(in) :: rho        ! air density   [kg m-3]
+ real, intent(in) :: rhoi       ! total ice mass-weighted density   [kg m-3]
+ real, intent(in) :: Dim        ! mean mass-weighted diameter of ice   [m]
  real, intent(in) :: qit        ! prognostic ice total mass mixing ratios
  real, intent(in) :: qim        ! prognostic ice rime  mass mixing ratios
+ real, intent(in) :: qil        ! prognostic ice liquid mass mixing ratios
  real, intent(in) :: nit        ! total num and total number mixing ratio
  real, intent(in) :: rhofaci    ! air density correction factor for ice fall speed
  real, intent(in) :: lam,mu     ! PSD slope and shape parameters
@@ -11996,8 +12048,10 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
  real, parameter  :: dD       =   1.e-3  ! diameter bin width [m]
  real, parameter  :: Dmax_psd = 200.e-3  ! maximum diameter in PSD to compute integral  [m]
  real, parameter  :: FrThrs   = 0.75     ! theshold rime fraction to be considered graupel/hail
-!real, parameter  :: Ncrit    = 1.e-4    ! threshold physically observable number concentration [# m-3]
+ real, parameter  :: rhoiThrs = 700      ! theshold density of ice to be considered graupel/hail
+ real, parameter  :: Ncrit    = 1.e-4    ! threshold physically observable number concentration [# m-3]
  real, parameter  :: Rcrit    = 1.e-3/6. ! threshold physically observable number flux          [# m-2 s-1]
+ !real, parameter  :: Rcrit    = 1.e-4/6. ! threshold physically observable number flux          [# m-2 s-1]
  real, parameter  :: ch       = 206.89   ! coefficient in V-D fall speed relation for hail (from MY2006a)
  real, parameter  :: dh       = 0.6384   ! exponent in V-D fall speed relation for hail (from MY2006a)
  real             :: n0                  ! shape parameter in gamma distribution
@@ -12006,25 +12060,30 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
  real             :: N_tot               ! total number concentration                             [# m-3]
  real             :: N_tail              ! number conc. from Di to infinity; i.e. trial for Nh*{D*} in MY2006a [# m-3]
  real             :: R_tail              ! number flux of large hail; i.e. trial for Rh*{D*} (corrected from MY2006a [# m-2 s-1]
-!real             :: Dhmax_1             ! maximum hail sized based on Nh*  [m]
+ real             :: Dhmax_1             ! maximum hail sized based on Nh*  [m]
  real             :: Dhmax_2             ! maximum hail sized based on Rh*  [m]
  real             :: V_h                 ! fall speed of hail of size D     [m s-1]
  integer          :: nd                  ! maximum number of size bins for integral
  integer          :: i                   ! index for integration
+ logical          :: found_R2            ! for method 3
+ logical          :: found_N2            ! for method 3
+!real, parameter  :: ch       = 1207   ! coefficient in V-D fall speed relation for hail (from MY2006a)
+!real, parameter  :: dh       = 0.64   ! exponent in V-D fall speed relation for hail (from MY2006a)
 
- Frim  = qim/max(qit,1.e-14)
+ Frim  = qim/max((qit-qil),1.e-14)
  N_tot = rho*nit
 
 ! considered_hail: if (Frim>FrThrs .and. N_tot>Ncrit) then
- considered_hail: if (Frim>FrThrs) then
-
+ considered_hail: if (Dim>0.0001 .and. Frim>FrThrs .and. rhoi>rhoiThrs) then
+! considered_hail: if (Frim>FrThrs .and. rhoi>rhoiThrs) then
     nd  = int(Dmax_psd/dD)
-    n0  = N_tot*lam**(mu+1.)/gamma(mu+1.)
-!   n0  = dble(N_tot)*dexp( dble(mu+1.)*dlog(dble(lam)) )/dble(gamma(mu+1.))
+!    n0 = N_tot*lam**((mu+1.)/2.)/gamma(mu+1.)*lam**((mu+1.)/2.)
+!    n0  = N_tot*lam**(mu+1.)/gamma(mu+1.)
+!    n0  = dble(N_tot)*dexp( dble(mu+1.)*dlog(dble(lam)) )/dble(gamma(mu+1.))
     N_tail = 0.
 
 
-   !-- method 1, based on Nh*crit only:
+!   !-- method 1, based on Nh*crit only:
 !     Dhmax_1 = 0.
 !     do i = nd,1,-1
 !        Di = i*dD
@@ -12042,33 +12101,32 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
     do i = nd,1,-1
        Di  = i*dD
        V_h = rhofaci*(ch*Di**Dh)
-       R_tail = R_tail + V_h*n0*Di**mu*exp(-lam*Di)*dD
+       R_tail = R_tail + V_h*N_tot*Di**mu*exp(-lam*Di)*dD
 !      R_tail = R_tail + V_h*sngl(n0*dble(Di)**dble(mu)*exp(-dble(lam)*dble(Di))*dble(dD))
        if (R_tail>Rcrit) then
           Dhmax_2 = Di
           exit
        endif
     enddo
-    maxHailSize = Dhmax_2
+    maxHailSize = 2.*Dim
 
-!-- method 3, finds values based on Nh*crit and Rh*crit methods
-! !  found_N2 = .false.
-! !  found_R2 = .false.
-! !  do i = nd,1,-1
-! !     Di = i*dD
-! !     N_tail = N_tail + n0*Di**mu*exp(-lam*Di)*dD
-! !     R_tail = N_tail*(ch*Di**Dh)
-! !     if (N_tail>Ncrit) .and. .not.found_N2) then
-! !        Dhmax_1 = Di       ! max hail size based on N*crit
-! !        found_N2 = .true.
-! !     endif
-! !     if (R_tail>Rcrit) .and. .not.found_R2) then
-! !        Dhmax_2 = Di       ! max hail size based on R*crit
-! !        found_R2 = .true.
-! !     endif
-! !     if (found_N2 .and. found_R2) exit
-! !
-! !  enddo
+!!-- method 3, finds values based on Nh*crit and Rh*crit methods
+!  found_N2 = .false.
+!  found_R2 = .false.
+!  do i = nd,1,-1
+!     Di = i*dD
+!     N_tail = N_tail + n0*Di**mu*exp(-lam*Di)*dD
+!     R_tail = N_tail*(ch*Di**Dh)
+!     if (N_tail>Ncrit .and. .not.found_N2) then
+!        Dhmax_1 = Di       ! max hail size based on N*crit
+!        found_N2 = .true.
+!     endif
+!     if (R_tail>Rcrit .and. .not.found_R2) then
+!        Dhmax_2 = Di       ! max hail size based on R*crit
+!        found_R2 = .true.
+!     endif
+!     if (found_N2 .and. found_R2) exit
+!  enddo
 
  else
 
@@ -12105,6 +12163,7 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
          'RAIN_NUM         ', &
          'ICE_MASS_TEND    ', &
          'ICE_EFF_RAD      ', &
+         'ICE_DHMAX        ', &
          'RATE_PRECIP_TYPES', &
          'PARTICLE_DIAMETER', &
          'CCN_NUM          ', &

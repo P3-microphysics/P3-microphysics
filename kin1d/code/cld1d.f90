@@ -569,7 +569,7 @@
 
                  CALL P3_MAIN(Qc1,Nc1,Qr1,Nr1,th2d0,th2d1,Qv0,Qv1,dt,Qi1,Qg1,Ni1,Bg1,ssat1,     &
                               w,p2d,dz2d,step,prt_liq,prt_sol,its,ite,kts,kte,n_iceCat,         &
-                              diag_ZET,diag_reffc,diag_reffi,diag_vmi,diag_di,diag_rhoi,        &
+                              diag_ZET,diag_reffc,diag_reffi,diag_vmi,diag_di,diag_rhoi,diag_dhmax,   &
                               n_diag_2d,diag_2d,n_diag_3d,diag_3d,log_predictNc,                &
                               typeDiags_ON,trim(model),clbfact_dep,clbfact_sub,debug_on,        &
                               scpf_on,scpf_pfrac,scpf_resfact,scpf_cldfrac,                     &
@@ -586,7 +586,7 @@
 
                  CALL P3_MAIN(Qc1,Nc1,Qr1,Nr1,th2d0,th2d1,Qv0,Qv1,dt,Qi1,Qg1,Ni1,Bg1,ssat1,     &
                               w,p2d,dz2d,step,prt_liq,prt_sol,its,ite,kts,kte,n_iceCat,         &
-                              diag_ZET,diag_reffc,diag_reffi,diag_vmi,diag_di,diag_rhoi,        &
+                              diag_ZET,diag_reffc,diag_reffi,diag_vmi,diag_di,diag_rhoi,diag_dhmax,        &
                               n_diag_2d,diag_2d,n_diag_3d,diag_3d,log_predictNc,                &
                               typeDiags_ON,trim(model),clbfact_dep,clbfact_sub,debug_on,        &
                               scpf_on,scpf_pfrac,scpf_resfact,scpf_cldfrac,                     &
@@ -620,7 +620,7 @@
 
                 CALL P3_MAIN(Qc1,Nc1,Qr1,Nr1,th2d0,th2d1,Qv0,Qv1,dt,Qi1,Qg1,Ni1,Bg1,ssat1,     &
                              w,p2d,dz2d,step,prt_liq,prt_sol,its,ite,kts,kte,n_iceCat,         &
-                             diag_ZET,diag_reffc,diag_reffi,diag_vmi,diag_di,diag_rhoi,        &
+                             diag_ZET,diag_reffc,diag_reffi,diag_vmi,diag_di,diag_rhoi,diag_dhmax,        &
                              n_diag_2d,diag_2d,n_diag_3d,diag_3d,log_predictNc,                &
                              typeDiags_ON,trim(model),clbfact_dep,clbfact_sub,debug_on,        &
                              scpf_on,scpf_pfrac,scpf_resfact,scpf_cldfrac,                     &
@@ -639,7 +639,7 @@
 
                 CALL P3_MAIN(Qc1,Nc1,Qr1,Nr1,th2d0,th2d1,Qv0,Qv1,dt,Qi1,Qg1,Ni1,Bg1,ssat1,     &
                              w,p2d,dz2d,step,prt_liq,prt_sol,its,ite,kts,kte,n_iceCat,         &
-                             diag_ZET,diag_reffc,diag_reffi,diag_vmi,diag_di,diag_rhoi,        &
+                             diag_ZET,diag_reffc,diag_reffi,diag_vmi,diag_di,diag_rhoi,diag_dhmax,        &
                              n_diag_2d,diag_2d,n_diag_3d,diag_3d,log_predictNc,                &
                              typeDiags_ON,trim(model),clbfact_dep,clbfact_sub,debug_on,        &
                              scpf_on,scpf_pfrac,scpf_resfact,scpf_cldfrac,                     &
