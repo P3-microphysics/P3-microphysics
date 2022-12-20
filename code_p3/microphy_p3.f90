@@ -21,7 +21,7 @@
 !    Melissa Cholette (melissa.cholette@ec.gc.ca)                                          !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.1.1.5                                                                   !
+! Version:       5.1.1.6                                                                   !
 ! Last updated:  2022-DEC                                                                  !
 !__________________________________________________________________________________________!
 
@@ -140,7 +140,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.1.1.5'
+ character(len=1024), parameter :: version_p3                    = '5.1.1.6'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.3-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '6.3-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.0'
@@ -2623,7 +2623,7 @@ END subroutine p3_init
 ! added for triple moment ice
  real                  :: mu_i               !shape parameter for ice
  real                  :: mu_i_new           !shape parameter for processes that specify mu_i
- real, dimension(nCat) :: dumm0,dumm3,dumml
+ real, dimension(nCat) :: dumm0,dumm3,dumml,liquidfraction,rimefraction,rimevolume
 
 ! add integers for mu_i index
  integer :: imu
@@ -4388,12 +4388,12 @@ END subroutine p3_init
                     qrhetc(iice)+qrheti(iice)+qchetc(iice)+qcheti(iice)+qrmul(iice)+        &
                     qrcoll(iice)+qccoll(iice)+qlcon(iice)+qwgrth1c(iice)+qwgrth1r(iice))*dt
           do catcoll = 1,nCat
-            if (catcoll.ne.iice) then
+            ! No need to insert if (catcoll.ne.iice) because qicol is 0 in these cases
+            ! Multiplication is cheaper than an if-block in a do-loop.
             !category interaction leading to source for iice category
              sources = sources + qicol(catcoll,iice)*dt
             !category interaction leading to sink for iice category
              sinks = sinks + qicol(iice,catcoll)*dt
-            endif
           enddo
           if (sinks.gt.sources .and. sinks.ge.1.e-20) then
              ratio = sources/sinks
@@ -4406,10 +4406,8 @@ END subroutine p3_init
              nimlt(iice) = nimlt(iice)*ratio
              nlshd(iice) = nlshd(iice)*ratio
              do catcoll = 1,nCat
-              if (catcoll.ne.iice) then
                 qicol(iice,catcoll) = qicol(iice,catcoll)*ratio
                 nicol(iice,catcoll) = nicol(iice,catcoll)*ratio
-              endif
              enddo
           endif
       enddo  !iice-loop
@@ -4421,12 +4419,12 @@ END subroutine p3_init
           sources = qiliq(i,k,iice) + (qimlt(iice)+qrcoll(iice)+qccoll(iice)+qlcon(iice)+ &
                     qwgrth1c(iice)+qwgrth1r(iice))*dt
           do catcoll = 1,nCat
-            if (catcoll.ne.iice) then
+            ! No need to insert if (catcoll.ne.iice) because qicol is 0 in these cases
+            ! Multiplication is cheaper than an if-block in a do-loop.
             !category interaction leading to source for iice category
              sources = sources + qicol(catcoll,iice)*dt
             !category interaction leading to sink for iice category
              sinks = sinks + qicol(iice,catcoll)*dt
-            endif
           enddo
           if (sinks.gt.sources .and. sinks.ge.1.e-20) then
              ratio = sources/sinks
@@ -4436,10 +4434,8 @@ END subroutine p3_init
              nlevp(iice) = nlevp(iice)*ratio
              nlshd(iice) = nlshd(iice)*ratio
              do catcoll = 1,nCat
-              if (catcoll.ne.iice) then
                 qicol(iice,catcoll) = qicol(iice,catcoll)*ratio
                 nicol(iice,catcoll) = nicol(iice,catcoll)*ratio
-              endif
              enddo
           endif
        enddo !iice-loop
@@ -4468,7 +4464,7 @@ END subroutine p3_init
 
       update_refl_processes: if (log_3momentIce) then
 
-       iice_loop_z: do iice = 1,nCat
+       iice_loop_z1: do iice = 1,nCat
 
        !----  Group 1 process rates (assume mu_i does not change)
        !
@@ -4487,13 +4483,17 @@ END subroutine p3_init
                                           nislf(iice)+nimul(iice)-        &
                                           nlevp(iice))*dt
 
+       enddo iice_loop_z1
+
+       iice_loop_z2: do iice = 1,nCat
+
          !update further due to category interactions:
           do catcoll = 1,nCat
-           if (catcoll.ne.iice) then
+            ! No need to insert if (catcoll.ne.iice) because qicol is 0 in these cases
+            ! Sommation is cheaper than an if-block in a do-loop.
              dumm3(catcoll) = dumm3(catcoll) - qicol(catcoll,iice)*dt
              dumm3(iice)    = dumm3(iice)    + qicol(catcoll,iice)*dt
              dumm0(catcoll) = dumm0(catcoll) - nicol(catcoll,iice)*dt
-           endif
           enddo ! catcoll loop
 
        !====
@@ -4562,7 +4562,7 @@ END subroutine p3_init
        ! FUTURE.  e.g. diffusional growth, riming, drop freezing
        !====
 
-       end do iice_loop_z
+       end do iice_loop_z2
 
       endif update_refl_processes
 
@@ -4576,6 +4576,16 @@ END subroutine p3_init
 !---------------------------------------------------------------------------------
 
    !-- ice-phase dependent processes:
+
+      iice_loop21: do iice = 1,nCat
+        if ((qitot(i,k,iice)-qiliq(i,k,iice)).ge.qsmall) then
+         tmp1 = 1./(qitot(i,k,iice)-qiliq(i,k,iice))
+         rimevolume(iice) = birim(i,k,iice)*tmp1
+         rimefraction(iice) = qirim(i,k,iice)*tmp1
+         liquidfraction(iice) = qiliq(i,k,iice)/qitot(i,k,iice)
+        endif
+      enddo iice_loop21
+
        iice_loop2: do iice = 1,nCat
 
           qc(i,k) = qc(i,k) + (-qchetc(iice)-qcheti(iice)-qccol(iice)-qcshd(iice)-            &
@@ -4598,15 +4608,15 @@ END subroutine p3_init
                        nrshdr(iice)+ncshdc(iice))*dt
           endif
 
-          if ((qitot(i,k,iice)-qiliq(i,k,iice)).ge.qsmall) then
+         ! if ((qitot(i,k,iice)-qiliq(i,k,iice)).ge.qsmall) then
          ! add sink terms, assume density stays constant for sink terms
-             birim(i,k,iice) = birim(i,k,iice) - ((qisub(iice)+qrmlt(iice)+qimlt(iice))/(qitot(i,k,iice)- &
-                               qiliq(i,k,iice)))*dt*birim(i,k,iice)
-             qirim(i,k,iice) = qirim(i,k,iice) - ((qisub(iice)+qrmlt(iice)+qimlt(iice))*qirim(i,k,iice)/  &
-                               (qitot(i,k,iice)-qiliq(i,k,iice)))*dt
+             birim(i,k,iice) = birim(i,k,iice) - ((qisub(iice)+qrmlt(iice)+qimlt(iice))*dt* &
+                                                 rimevolume(iice))
+             qirim(i,k,iice) = qirim(i,k,iice) - ((qisub(iice)+qrmlt(iice)+qimlt(iice))*dt* &
+                                                 rimefraction(iice))
              qiliq(i,k,iice) = qiliq(i,k,iice) + qimlt(iice)*dt
              qitot(i,k,iice) = qitot(i,k,iice) - (qisub(iice)+qrmlt(iice))*dt
-          endif
+         ! endif
 
           dum             = (qrcol(iice)+qccol(iice)+qrhetc(iice)+qrheti(iice)+          &
                             qchetc(iice)+qcheti(iice)+qrmul(iice))*dt
@@ -4634,22 +4644,22 @@ END subroutine p3_init
              ! now modify rime mass and density, assume collection does not modify rime or liquid mass
              ! fractions or density of the collectee, consistent with the assumption that
              ! these are constant over the PSD
-             if ((qitot(i,k,catcoll)-qiliq(i,k,catcoll)).ge.qsmall) then
+             !if ((qitot(i,k,catcoll)-qiliq(i,k,catcoll)).ge.qsmall) then
               !source for collector category
-                qirim(i,k,iice) = qirim(i,k,iice)+qicol(catcoll,iice)*dt*                    &
-                                  qirim(i,k,catcoll)/(qitot(i,k,catcoll)-qiliq(i,k,catcoll))
-                birim(i,k,iice) = birim(i,k,iice)+qicol(catcoll,iice)*dt*                    &
-                                  birim(i,k,catcoll)/(qitot(i,k,catcoll)-qiliq(i,k,catcoll))
-                qiliq(i,k,iice) = qiliq(i,k,iice)+qicol(catcoll,iice)*dt*                    &
-                                  qiliq(i,k,catcoll)/qitot(i,k,catcoll)
+                qirim(i,k,iice) = qirim(i,k,iice)+qicol(catcoll,iice)*dt* &
+                                  rimefraction(catcoll)
+                birim(i,k,iice) = birim(i,k,iice)+qicol(catcoll,iice)*dt* &
+                                  rimevolume(catcoll)
+                qiliq(i,k,iice) = qiliq(i,k,iice)+qicol(catcoll,iice)*dt* &
+                                  liquidfraction(catcoll)
               !sink for collectee category
-                qirim(i,k,catcoll) = qirim(i,k,catcoll)-qicol(catcoll,iice)*dt*                 &
-                                     qirim(i,k,catcoll)/(qitot(i,k,catcoll)-qiliq(i,k,catcoll))
-                birim(i,k,catcoll) = birim(i,k,catcoll)-qicol(catcoll,iice)*dt*                 &
-                                     birim(i,k,catcoll)/(qitot(i,k,catcoll)-qiliq(i,k,catcoll))
-                qiliq(i,k,catcoll) = qiliq(i,k,catcoll)-qicol(catcoll,iice)*dt*                 &
-                                     qiliq(i,k,catcoll)/qitot(i,k,catcoll)
-             endif
+                qirim(i,k,catcoll) = qirim(i,k,catcoll)-qicol(catcoll,iice)*dt* &
+                                     rimefraction(catcoll)
+                birim(i,k,catcoll) = birim(i,k,catcoll)-qicol(catcoll,iice)*dt* &
+                                     rimevolume(catcoll)
+                qiliq(i,k,catcoll) = qiliq(i,k,catcoll)-qicol(catcoll,iice)*dt* &
+                                     liquidfraction(catcoll)
+             !endif
              qitot(i,k,catcoll) = qitot(i,k,catcoll) - qicol(catcoll,iice)*dt
              nitot(i,k,catcoll) = nitot(i,k,catcoll) - nicol(catcoll,iice)*dt
              qitot(i,k,iice)    = qitot(i,k,iice)    + qicol(catcoll,iice)*dt
@@ -6035,11 +6045,11 @@ END subroutine p3_init
              diag_mui(i,k,iice)  = f1pr23
              diag_dhmax(i,k,iice) = maxHailSize(rho(i,k),qitot(i,k,iice),                           &
                            qirim(i,k,iice),qiliq(i,k,iice),nitot(i,k,iice),diag_rhoi(i,k,iice),     &
-                           rhofaci(i,k),f1pr22,f1pr23,diag_di(i,k,iice))
+                           rhofaci(i,k),diag_lami(i,k,iice),diag_mui(i,k,iice),diag_di(i,k,iice))
              diag_3d(i,k,1) = diag_dhmax(i,k,iice)
              diag_3d(i,k,2) = maxHailSize(rho(i,k),qitot(i,k,iice),                                 &
                            qirim(i,k,iice),qiliq(i,k,iice),nitot(i,k,iice),diag_rhoi(i,k,iice),     &
-                           rhofaci(i,k),f1pr22,f1pr23,diag_di(i,k,iice))
+                           rhofaci(i,k),diag_lami(i,k,iice),diag_mui(i,k,iice),diag_di(i,k,iice))
              if ((qitot(i,k,iice)-qiliq(i,k,iice)).ge.qsmall) then
                 diag_3d(i,k,3) = qirim(i,k,iice)/(qitot(i,k,iice)-qiliq(i,k,iice))
              endif
@@ -12049,17 +12059,18 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
  real, parameter  :: Dmax_psd = 200.e-3  ! maximum diameter in PSD to compute integral  [m]
  real, parameter  :: FrThrs   = 0.75     ! theshold rime fraction to be considered graupel/hail
  real, parameter  :: rhoiThrs = 700      ! theshold density of ice to be considered graupel/hail
- real, parameter  :: Ncrit    = 1.e-4    ! threshold physically observable number concentration [# m-3]
+! real, parameter  :: Ncrit    = 1.e-4    ! threshold physically observable number concentration [# m-3]
+ real, parameter  :: Ncrit    = 100.    ! threshold physically observable number concentration [# m-3]
  real, parameter  :: Rcrit    = 1.e-3/6. ! threshold physically observable number flux          [# m-2 s-1]
  !real, parameter  :: Rcrit    = 1.e-4/6. ! threshold physically observable number flux          [# m-2 s-1]
  real, parameter  :: ch       = 206.89   ! coefficient in V-D fall speed relation for hail (from MY2006a)
  real, parameter  :: dh       = 0.6384   ! exponent in V-D fall speed relation for hail (from MY2006a)
- real             :: n0                  ! shape parameter in gamma distribution
+ double precision             :: n0                  ! shape parameter in gamma distribution
  real             :: Frim                ! rime mass fraction
  real             :: Di                  ! diameter  [m]
  real             :: N_tot               ! total number concentration                             [# m-3]
- real             :: N_tail              ! number conc. from Di to infinity; i.e. trial for Nh*{D*} in MY2006a [# m-3]
- real             :: R_tail              ! number flux of large hail; i.e. trial for Rh*{D*} (corrected from MY2006a [# m-2 s-1]
+! real             :: N_tail              ! number conc. from Di to infinity; i.e. trial for Nh*{D*} in MY2006a [# m-3]
+! real             :: R_tail              ! number flux of large hail; i.e. trial for Rh*{D*} (corrected from MY2006a [# m-2 s-1]
  real             :: Dhmax_1             ! maximum hail sized based on Nh*  [m]
  real             :: Dhmax_2             ! maximum hail sized based on Rh*  [m]
  real             :: V_h                 ! fall speed of hail of size D     [m s-1]
@@ -12070,45 +12081,59 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
 !real, parameter  :: ch       = 1207   ! coefficient in V-D fall speed relation for hail (from MY2006a)
 !real, parameter  :: dh       = 0.64   ! exponent in V-D fall speed relation for hail (from MY2006a)
 
+ double precision :: gg, ff, llp, R_tail,ggg, N_tail
  Frim  = qim/max((qit-qil),1.e-14)
  N_tot = rho*nit
 
 ! considered_hail: if (Frim>FrThrs .and. N_tot>Ncrit) then
- considered_hail: if (Dim>0.0001 .and. Frim>FrThrs .and. rhoi>rhoiThrs) then
-! considered_hail: if (Frim>FrThrs .and. rhoi>rhoiThrs) then
+! considered_hail: if (N_tot>10. .and. Frim>FrThrs .and. rhoi>rhoiThrs) then
+ considered_hail: if (Frim>FrThrs .and. rhoi>rhoiThrs) then
     nd  = int(Dmax_psd/dD)
-!    n0 = N_tot*lam**((mu+1.)/2.)/gamma(mu+1.)*lam**((mu+1.)/2.)
+    n0 = N_tot*dble(lam)**(mu+1.)*3./4.
+    n0 = n0*dble(lam)**(mu+1.)/4.
+    n0 = n0/gamma(mu+1.)
+!    n0 = N_tot*dble(lam**((mu+1.)/4.)/gamma(mu+1.))*dble(lam**((mu+1.)*3./4.))
 !    n0  = N_tot*lam**(mu+1.)/gamma(mu+1.)
 !    n0  = dble(N_tot)*dexp( dble(mu+1.)*dlog(dble(lam)) )/dble(gamma(mu+1.))
     N_tail = 0.
 
 
 !   !-- method 1, based on Nh*crit only:
-!     Dhmax_1 = 0.
-!     do i = nd,1,-1
-!        Di = i*dD
-!        N_tail = N_tail + n0*Di**mu*exp(-lam*Di)*dD
-!        if (N_tail>Ncrit) then
-!           Dhmax_1 = Di
-!           exit
-!        endif
-!     enddo
-!     maxHailSize = Dhmax_1
+     Dhmax_1 = 0.
+     do i = nd,1,-1
+        Di = i*dD
+        gg = n0*Di**mu*dD
+        ff = -lam*Di
+        llp = dexp(ff)
+        ggg = (gg*llp)/4.
+        N_tail = N_tail + 4.*ggg
+        !N_tail = N_tail + n0*Di**mu*exp(-lam*Di)*dD
+        if (N_tail>Ncrit) then
+           Dhmax_1 = Di
+           exit
+        endif
+     enddo
+     maxHailSize = Dhmax_1
 
 !-- method 2, based on Rh*crit only:
-    R_tail  = 0.
-    Dhmax_2 = 0.
-    do i = nd,1,-1
-       Di  = i*dD
-       V_h = rhofaci*(ch*Di**Dh)
-       R_tail = R_tail + V_h*N_tot*Di**mu*exp(-lam*Di)*dD
-!      R_tail = R_tail + V_h*sngl(n0*dble(Di)**dble(mu)*exp(-dble(lam)*dble(Di))*dble(dD))
-       if (R_tail>Rcrit) then
-          Dhmax_2 = Di
-          exit
-       endif
-    enddo
-    maxHailSize = 2.*Dim
+!    R_tail  = 0.
+!    Dhmax_2 = 0.
+!    do i = nd,1,-1
+!       Di  = i*dD
+!       V_h = rhofaci*(ch*Di**Dh)
+!       gg = V_h*n0*Di**mu*dD
+!       ff = -lam*Di
+!       llp = dexp(ff)
+!       ggg = (gg*llp)/4.
+!       R_tail = R_tail+4.*ggg   
+!!       R_tail = R_tail + V_h*n0*Di**mu*exp(-lam*Di)*dD
+!!       R_tail = R_tail + V_h*sngl(n0*dble(Di)**dble(mu)*exp(-dble(lam)*dble(Di))*dble(dD))
+!       if (R_tail>Rcrit) then
+!          Dhmax_2 = Di
+!          exit
+!       endif
+!    enddo
+!    maxHailSize = Dhmax_2
 
 !!-- method 3, finds values based on Nh*crit and Rh*crit methods
 !  found_N2 = .false.
