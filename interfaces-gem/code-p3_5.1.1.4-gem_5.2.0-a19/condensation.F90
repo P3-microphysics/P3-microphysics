@@ -161,10 +161,10 @@ contains
               p3_depfact,p3_subfact,p3_debug,a_h_cb,a_h_sn,a_vis,a_vis1,                                                   &
               a_vis2,a_vis3,slw,p3_scpf_on,p3_pfrac,p3_resfact,a_fxp,                                                      &
               a_qi_1,a_qi_2,a_qi_3,a_qi_4,a_qi_5,a_qi_6,                                                                   &
-              qti1p,qmi1p,nti1p,bmi1p,a_effradi1,diag_dhmax_1=a_dhmax1,zitot_1=zti1p,qiliq_1=qli1p,                                              &
-              qitot_2=qti2p,qirim_2=qmi2p,nitot_2=nti2p,birim_2=bmi2p,diag_effi_2=a_effradi2,diag_dhmax_2=a_dhmax2,zitot_2=zti2p,qiliq_2=qli2p,  &
-              qitot_3=qti3p,qirim_3=qmi3p,nitot_3=nti3p,birim_3=bmi3p,diag_effi_3=a_effradi3,diag_dhmax_3=a_dhmax3,zitot_3=zti3p,qiliq_3=qli3p,  &
-              qitot_4=qti4p,qirim_4=qmi4p,nitot_4=nti4p,birim_4=bmi4p,diag_effi_4=a_effradi4,diag_dhmax_4=a_dhmax4,zitot_4=zti4p,qiliq_4=qli4p)
+              qti1p,qmi1p,nti1p,bmi1p,a_effradi1,zitot_1=zti1p,qiliq_1=qli1p,                                              &
+              qitot_2=qti2p,qirim_2=qmi2p,nitot_2=nti2p,birim_2=bmi2p,diag_effi_2=a_effradi2,zitot_2=zti2p,qiliq_2=qli2p,  &
+              qitot_3=qti3p,qirim_3=qmi3p,nitot_3=nti3p,birim_3=bmi3p,diag_effi_3=a_effradi3,zitot_3=zti3p,qiliq_3=qli3p,  &
+              qitot_4=qti4p,qirim_4=qmi4p,nitot_4=nti4p,birim_4=bmi4p,diag_effi_4=a_effradi4,zitot_4=zti4p,qiliq_4=qli4p)
          if (istat1 /= P3_OK) then
             call physeterror('condensation', 'Error returned by P3 gem wrapper')
             return

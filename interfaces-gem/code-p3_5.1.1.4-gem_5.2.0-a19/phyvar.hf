@@ -647,11 +647,6 @@
    PHYVAR3DK(effradi2,   "VN=effradi2  ; ON=REI2; VB=p0; VD=effective radius ice cat. 2 (microphysics)    ; VS=T; MIN=0", "ICE_EFF_RAD")
    PHYVAR3DK(effradi3,   "VN=effradi3  ; ON=REI3; VB=p0; VD=effective radius ice cat. 3 (microphysics)    ; VS=T; MIN=0", "ICE_EFF_RAD")
    PHYVAR3DK(effradi4,   "VN=effradi4  ; ON=REI4; VB=p0; VD=effective radius ice cat. 4 (microphysics)    ; VS=T; MIN=0", "ICE_EFF_RAD")
-   PHYVAR3DK(dhmax1,   "VN=dhmax1  ; ON=DMX1; VB=p0; VD=max hail size ice cat. 1 (microphysics)    ; VS=T; MIN=0", "ICE_DHMAX")
-   PHYVAR3DK(dhmax2,   "VN=dhmax2  ; ON=DMX2; VB=p0; VD=max hail size ice cat. 2 (microphysics)    ; VS=T; MIN=0", "ICE_DHMAX")
-   PHYVAR3DK(dhmax3,   "VN=dhmax3  ; ON=DMX3; VB=p0; VD=max hail size ice cat. 3 (microphysics)    ; VS=T; MIN=0", "ICE_DHMAX")
-   PHYVAR3DK(dhmax4,   "VN=dhmax4  ; ON=DMX4; VB=p0; VD=max hail size ice cat. 4 (microphysics)    ; VS=T; MIN=0", "ICE_DHMAX")
-   PHYVAR2D1(mdhmax1,  "VN=mdhmax1 ; ON=DMM1 ; VB=p0; VD=integration of max hail size cat. 1 (microphysics) ; MIN=0")
 
    PHYVAR3D1(ste,        "VN=ste       ; ON=STE ; VB=v0; VD=cond. T tendency                              ; VS=T")
    

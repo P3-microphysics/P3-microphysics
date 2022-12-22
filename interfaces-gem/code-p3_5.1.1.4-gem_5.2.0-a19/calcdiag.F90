@@ -250,8 +250,6 @@ contains
          if (associated(zass_mx)) zass_mx(:)   = 0.
          if (associated(zass_s2l)) zass_s2l(:)  = 0.
 
-         zmdhmax1(:) =0.
-
       endif IF_RESET_PRECIP
 
       IF_KOUNT_NOT_0: if (.not.lkount0) then
@@ -300,10 +298,6 @@ contains
 
 !VDIR NODEP
          DO_NI: do i = 1,ni
-
-            !max hail size
-            zmdhmax1(i) = max(zmdhmax1(i),zdhmax1(i,nkm1))
-!            zmdhmax1(i) = max(zmdhmax1(i), zdhmax1(i,nk))
 
             !taux des precipitations de la convection profonde
             zry(i) = ztsc(i) + ztlc(i)
@@ -740,36 +734,36 @@ contains
             if (associated(zvmim)) zvmim(:,1:nk-1) = 0.0
             if (associated(zkmidm)) zkmidm(:) = 0.0
             ! Cholette -- just for testing mean profiles (to be deleted)
-            !zqrme(:,1:nk-1)    = 0.0
-            !znrme(:,1:nk-1)    = 0.0
-            !zqcme(:,1:nk-1)    = 0.0
-            !zncme(:,1:nk-1)    = 0.0
-            !zqctme(:,1:nk-1)    = 0.0
-            !zqti1me(:,1:nk-1)    = 0.0
-            !znti1me(:,1:nk-1)    = 0.0
-            !zqmi1me(:,1:nk-1)    = 0.0
-            !!zqli1me(:,1:nk-1)    = 0.0
-            !zbmi1me(:,1:nk-1)    = 0.0
-            !zs01m(:,1:nk-1)    = 0.0
-            !zs02m(:,1:nk-1)    = 0.0
-            !zs03m(:,1:nk-1)    = 0.0
-            !zs04m(:,1:nk-1)    = 0.0
-            !zs05m(:,1:nk-1)    = 0.0
-            !zs06m(:,1:nk-1)    = 0.0
-            !zs07m(:,1:nk-1)    = 0.0
-            !zs08m(:,1:nk-1)    = 0.0
-            !zs09m(:,1:nk-1)    = 0.0
-            !zs10m(:,1:nk-1)    = 0.0
-            !zs11m(:,1:nk-1)    = 0.0
-            !zs12m(:,1:nk-1)    = 0.0
-            !zs13m(:,1:nk-1)    = 0.0
-            !zs14m(:,1:nk-1)    = 0.0
-            !zs15m(:,1:nk-1)    = 0.0
-            !zs16m(:,1:nk-1)    = 0.0
-            !zs17m(:,1:nk-1)    = 0.0
-            !zs18m(:,1:nk-1)    = 0.0
-            !zs19m(:,1:nk-1)    = 0.0
-            !zs20m(:,1:nk-1)    = 0.0
+            zqrme(:,1:nk-1)    = 0.0
+            znrme(:,1:nk-1)    = 0.0
+            zqcme(:,1:nk-1)    = 0.0
+            zncme(:,1:nk-1)    = 0.0
+            zqctme(:,1:nk-1)    = 0.0
+            zqti1me(:,1:nk-1)    = 0.0
+            znti1me(:,1:nk-1)    = 0.0
+            zqmi1me(:,1:nk-1)    = 0.0
+            !zqli1me(:,1:nk-1)    = 0.0
+            zbmi1me(:,1:nk-1)    = 0.0
+            zs01m(:,1:nk-1)    = 0.0
+            zs02m(:,1:nk-1)    = 0.0
+            zs03m(:,1:nk-1)    = 0.0
+            zs04m(:,1:nk-1)    = 0.0
+            zs05m(:,1:nk-1)    = 0.0
+            zs06m(:,1:nk-1)    = 0.0
+            zs07m(:,1:nk-1)    = 0.0
+            zs08m(:,1:nk-1)    = 0.0
+            zs09m(:,1:nk-1)    = 0.0
+            zs10m(:,1:nk-1)    = 0.0
+            zs11m(:,1:nk-1)    = 0.0
+            zs12m(:,1:nk-1)    = 0.0
+            zs13m(:,1:nk-1)    = 0.0
+            zs14m(:,1:nk-1)    = 0.0
+            zs15m(:,1:nk-1)    = 0.0
+            zs16m(:,1:nk-1)    = 0.0
+            zs17m(:,1:nk-1)    = 0.0
+            zs18m(:,1:nk-1)    = 0.0
+            zs19m(:,1:nk-1)    = 0.0
+            zs20m(:,1:nk-1)    = 0.0
             ! End to be deleted (Cholette)
 
             !#Note: all convec str in the if below must have same len
@@ -1110,36 +1104,36 @@ contains
                if (associated(zumim).and.associated(zumid)) zumim(i,k) = zumim(i,k) + zumid(i,k) 
                if (associated(zvmim).and.associated(zvmid)) zvmim(i,k) = zvmim(i,k) + zvmid(i,k) 
                ! Cholette -- only for testing (to be deleted)
-               !zqrme(i,k) = zqrme(i,k) + zqrp(i,k)
-               !zqcme(i,k) = zqcme(i,k) + zqcp(i,k)
-               !znrme(i,k) = znrme(i,k) + znrp(i,k)
-               !zncme(i,k) = zncme(i,k) + zncp(i,k)
-               !zqctme(i,k) = zqctme(i,k) + zqctp(i,k)
-               !zqti1me(i,k) = zqti1me(i,k) + zqti1p(i,k)
-               !znti1me(i,k) = znti1me(i,k) + znti1p(i,k)
-               !zqmi1me(i,k) = zqmi1me(i,k) + zqmi1p(i,k)
-               !!zqli1me(i,k) = zqli1me(i,k) + zqli1p(i,k)
-               !zbmi1me(i,k) = zbmi1me(i,k) + zbmi1p(i,k)
-               !zs01m(i,k) = zs01m(i,k) + zss01(i,k)
-               !zs02m(i,k) = zs02m(i,k) + zss02(i,k)
-               !zs03m(i,k) = zs03m(i,k) + zss03(i,k)
-               !zs04m(i,k) = zs04m(i,k) + zss04(i,k)
-               !zs05m(i,k) = zs05m(i,k) + zss05(i,k)
-               !zs06m(i,k) = zs06m(i,k) + zss06(i,k)
-               !zs07m(i,k) = zs07m(i,k) + zss07(i,k)
-               !zs08m(i,k) = zs08m(i,k) + zss08(i,k)
-               !zs09m(i,k) = zs09m(i,k) + zss09(i,k)
-               !zs10m(i,k) = zs10m(i,k) + zss10(i,k)
-               !zs11m(i,k) = zs11m(i,k) + zss11(i,k)
-               !zs12m(i,k) = zs12m(i,k) + zss12(i,k)
-               !zs13m(i,k) = zs13m(i,k) + zss13(i,k)
-               !zs14m(i,k) = zs14m(i,k) + zss14(i,k)
-               !zs15m(i,k) = zs15m(i,k) + zss15(i,k)
-               !zs16m(i,k) = zs16m(i,k) + zss16(i,k)
-               !zs17m(i,k) = zs17m(i,k) + zss17(i,k)
-               !zs18m(i,k) = zs18m(i,k) + zss18(i,k)
-               !zs19m(i,k) = zs19m(i,k) + zss19(i,k)
-               !zs20m(i,k) = zs20m(i,k) + zss20(i,k)
+               zqrme(i,k) = zqrme(i,k) + zqrp(i,k)
+               zqcme(i,k) = zqcme(i,k) + zqcp(i,k)
+               znrme(i,k) = znrme(i,k) + znrp(i,k)
+               zncme(i,k) = zncme(i,k) + zncp(i,k)
+               zqctme(i,k) = zqctme(i,k) + zqctp(i,k)
+               zqti1me(i,k) = zqti1me(i,k) + zqti1p(i,k)
+               znti1me(i,k) = znti1me(i,k) + znti1p(i,k)
+               zqmi1me(i,k) = zqmi1me(i,k) + zqmi1p(i,k)
+               !zqli1me(i,k) = zqli1me(i,k) + zqli1p(i,k)
+               zbmi1me(i,k) = zbmi1me(i,k) + zbmi1p(i,k)
+               zs01m(i,k) = zs01m(i,k) + zss01(i,k)
+               zs02m(i,k) = zs02m(i,k) + zss02(i,k)
+               zs03m(i,k) = zs03m(i,k) + zss03(i,k)
+               zs04m(i,k) = zs04m(i,k) + zss04(i,k)
+               zs05m(i,k) = zs05m(i,k) + zss05(i,k)
+               zs06m(i,k) = zs06m(i,k) + zss06(i,k)
+               zs07m(i,k) = zs07m(i,k) + zss07(i,k)
+               zs08m(i,k) = zs08m(i,k) + zss08(i,k)
+               zs09m(i,k) = zs09m(i,k) + zss09(i,k)
+               zs10m(i,k) = zs10m(i,k) + zss10(i,k)
+               zs11m(i,k) = zs11m(i,k) + zss11(i,k)
+               zs12m(i,k) = zs12m(i,k) + zss12(i,k)
+               zs13m(i,k) = zs13m(i,k) + zss13(i,k)
+               zs14m(i,k) = zs14m(i,k) + zss14(i,k)
+               zs15m(i,k) = zs15m(i,k) + zss15(i,k)
+               zs16m(i,k) = zs16m(i,k) + zss16(i,k)
+               zs17m(i,k) = zs17m(i,k) + zss17(i,k)
+               zs18m(i,k) = zs18m(i,k) + zss18(i,k)
+               zs19m(i,k) = zs19m(i,k) + zss19(i,k)
+               zs20m(i,k) = zs20m(i,k) + zss20(i,k)
                ! end to be deleted
 
                IF_AVG_1: if (lavg) then
@@ -1182,36 +1176,36 @@ contains
                   zuphytdm(i,k) = zuphytdm(i,k) * moyhri
                   zvphytdm(i,k) = zvphytdm(i,k) * moyhri
                   ! Cholette -- testing only (to be deleted)
-                  !zqrme(i,k) = zqrme(i,k) * moyhri
-                  !zqcme(i,k) = zqcme(i,k) * moyhri
-                  !znrme(i,k) = znrme(i,k) * moyhri
-                  !zncme(i,k) = zncme(i,k) * moyhri
-                  !zqctme(i,k) = zqctme(i,k) * moyhri
-                  !zqti1me(i,k) = zqti1me(i,k) * moyhri
-                  !znti1me(i,k) = znti1me(i,k) * moyhri
-                  !zqmi1me(i,k) = zqmi1me(i,k) * moyhri
-                  !!zqli1me(i,k) = zqli1me(i,k) * moyhri
-                  !zbmi1me(i,k) = zbmi1me(i,k) * moyhri
-                  !zs01m(i,k) = zs01m(i,k) * moyhri
-                  !zs02m(i,k) = zs02m(i,k) * moyhri
-                  !zs03m(i,k) = zs03m(i,k) * moyhri
-                  !zs04m(i,k) = zs04m(i,k) * moyhri
-                  !zs05m(i,k) = zs05m(i,k) * moyhri
-                  !zs06m(i,k) = zs06m(i,k) * moyhri
-                  !zs07m(i,k) = zs07m(i,k) * moyhri
-                  !zs08m(i,k) = zs08m(i,k) * moyhri
-                  !zs09m(i,k) = zs09m(i,k) * moyhri
-                  !zs10m(i,k) = zs10m(i,k) * moyhri
-                  !zs11m(i,k) = zs11m(i,k) * moyhri
-                  !zs12m(i,k) = zs12m(i,k) * moyhri
-                  !zs13m(i,k) = zs13m(i,k) * moyhri
-                  !zs14m(i,k) = zs14m(i,k) * moyhri
-                  !zs15m(i,k) = zs15m(i,k) * moyhri
-                  !zs16m(i,k) = zs16m(i,k) * moyhri
-                  !zs17m(i,k) = zs17m(i,k) * moyhri
-                  !zs18m(i,k) = zs18m(i,k) * moyhri
-                  !zs19m(i,k) = zs19m(i,k) * moyhri
-                  !zs20m(i,k) = zs20m(i,k) * moyhri
+                  zqrme(i,k) = zqrme(i,k) * moyhri
+                  zqcme(i,k) = zqcme(i,k) * moyhri
+                  znrme(i,k) = znrme(i,k) * moyhri
+                  zncme(i,k) = zncme(i,k) * moyhri
+                  zqctme(i,k) = zqctme(i,k) * moyhri
+                  zqti1me(i,k) = zqti1me(i,k) * moyhri
+                  znti1me(i,k) = znti1me(i,k) * moyhri
+                  zqmi1me(i,k) = zqmi1me(i,k) * moyhri
+                  !zqli1me(i,k) = zqli1me(i,k) * moyhri
+                  zbmi1me(i,k) = zbmi1me(i,k) * moyhri
+                  zs01m(i,k) = zs01m(i,k) * moyhri
+                  zs02m(i,k) = zs02m(i,k) * moyhri
+                  zs03m(i,k) = zs03m(i,k) * moyhri
+                  zs04m(i,k) = zs04m(i,k) * moyhri
+                  zs05m(i,k) = zs05m(i,k) * moyhri
+                  zs06m(i,k) = zs06m(i,k) * moyhri
+                  zs07m(i,k) = zs07m(i,k) * moyhri
+                  zs08m(i,k) = zs08m(i,k) * moyhri
+                  zs09m(i,k) = zs09m(i,k) * moyhri
+                  zs10m(i,k) = zs10m(i,k) * moyhri
+                  zs11m(i,k) = zs11m(i,k) * moyhri
+                  zs12m(i,k) = zs12m(i,k) * moyhri
+                  zs13m(i,k) = zs13m(i,k) * moyhri
+                  zs14m(i,k) = zs14m(i,k) * moyhri
+                  zs15m(i,k) = zs15m(i,k) * moyhri
+                  zs16m(i,k) = zs16m(i,k) * moyhri
+                  zs17m(i,k) = zs17m(i,k) * moyhri
+                  zs18m(i,k) = zs18m(i,k) * moyhri
+                  zs19m(i,k) = zs19m(i,k) * moyhri
+                  zs20m(i,k) = zs20m(i,k) * moyhri
                   ! End to be deleted
                   if (associated(zmqem).and.associated(zmqe)) zmqem(i,k) = zmqem(i,k) * moyhri 
                   if (associated(zmtem).and.associated(zmte)) zmtem(i,k) = zmtem(i,k) * moyhri
