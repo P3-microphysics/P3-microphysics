@@ -4621,7 +4621,7 @@ END subroutine p3_init
              ! now modify rime mass and density, assume collection does not modify rime or liquid mass
              ! fractions or density of the collectee, consistent with the assumption that
              ! these are constant over the PSD
-             ! if ((qitot(i,k,catcoll)-qiliq(i,k,catcoll)).ge.qsmall) then ! not needed in 5.1.1.4.1
+              if ((qitot(i,k,catcoll)-qiliq(i,k,catcoll)).ge.qsmall) then ! not needed in 5.1.1.4.1
               !source for collector category
                 qirim(i,k,iice) = qirim(i,k,iice)+qicol(catcoll,iice)*dt*                    &
                                   rimefraction(catcoll)
@@ -4636,7 +4636,7 @@ END subroutine p3_init
                                      rimevolume(catcoll)
                 qiliq(i,k,catcoll) = qiliq(i,k,catcoll)-qicol(catcoll,iice)*dt*                 &
                                      liquidfraction(catcoll)
-             ! endif
+              endif
              qitot(i,k,catcoll) = qitot(i,k,catcoll) - qicol(catcoll,iice)*dt
              nitot(i,k,catcoll) = nitot(i,k,catcoll) - nicol(catcoll,iice)*dt
              qitot(i,k,iice)    = qitot(i,k,iice)    + qicol(catcoll,iice)*dt
