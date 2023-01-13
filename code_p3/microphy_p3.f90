@@ -21,7 +21,7 @@
 !    Melissa Cholette (melissa.cholette@ec.gc.ca)                                          !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.1.1.4.2                                                                 !
+! Version:       5.1.1.5                                                                   !
 ! Last updated:  2022-DEC                                                                  !
 !__________________________________________________________________________________________!
 
@@ -140,7 +140,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.1.1.4.2'
+ character(len=1024), parameter :: version_p3                    = '5.1.1.5'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.3-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '6.3-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.0'
@@ -161,12 +161,19 @@
   read_path = lookup_file_dir           ! path for lookup tables from official model library
 !read_path = '/MY/LOOKUP_TABLE/PATH'   ! path for lookup tables from specified location
 
+! if (trplMomI) then
+!   lookup_file_1 = trim(read_path)//'/'//'p3_lookupTable_1.dat-v'//trim(version_intended_table_1_3mom)
+! else
+!   lookup_file_1 = trim(read_path)//'/'//'p3_lookupTable_1.dat-v'//trim(version_intended_table_1_2mom)
+! endif
+! lookup_file_2 = trim(read_path)//'/'//'p3_lookupTable_2.dat-v'//trim(version_intended_table_2)
+
  if (trplMomI) then
-   lookup_file_1 = trim(read_path)//'/'//'p3_lookupTable_1.dat-v'//trim(version_intended_table_1_3mom)
+    lookup_file_1 = '/fs/homeu2/eccc/mrd/ords/rpnatm/mec000/p3_lookup_tables/p3v510/p3_lookupTable_1.dat-v'//trim(version_intended_table_1_3mom)
  else
-   lookup_file_1 = trim(read_path)//'/'//'p3_lookupTable_1.dat-v'//trim(version_intended_table_1_2mom)
+    lookup_file_1 = '/fs/homeu2/eccc/mrd/ords/rpnatm/mec000/p3_lookup_tables/p3v510/p3_lookupTable_1.dat-v'//trim(version_intended_table_1_2mom)
  endif
- lookup_file_2 = trim(read_path)//'/'//'p3_lookupTable_2.dat-v'//trim(version_intended_table_2)
+ lookup_file_2 = '/fs/homeu2/eccc/mrd/ords/rpnatm/mec000/p3_lookup_tables/p3v510/p3_lookupTable_2.dat-v'//trim(version_intended_table_2)
 
 !------------------------------------------------------------------------------------------!
 
@@ -2522,8 +2529,7 @@ END subroutine p3_init
  real, dimension(nCat) :: Eii_fact,epsi,epsiw
  real :: eii ! temperature dependent aggregation efficiency
 
- real, dimension(its:ite,kts:kte,nCat) :: diam_ice
- real, dimension(nCat) :: liquidfraction,rimefraction,rimevolume
+ real, dimension(its:ite,kts:kte,nCat) :: diam_ice,liquidfraction,rimefraction,rimevolume
 
  real, dimension(its:ite,kts:kte)      :: inv_dzq,inv_rho,ze_ice,ze_rain,prec,acn,rho,   &
             rhofacr,rhofaci,xxls,xxlv,xlf,qvs,qvi,sup,supi,vtrmi1,tmparr1,mflux_r,       &
@@ -2726,6 +2732,9 @@ END subroutine p3_init
  mu_r      = 0.
  diag_ze   = -99.
  diam_ice  = 0.
+ rimefraction = 0.
+ rimevolume = 0.
+ liquidfraction = 0.
  ze_ice    = 1.e-22
  ze_rain   = 1.e-22
  diag_effc = 10.e-6 ! default value
@@ -2871,6 +2880,7 @@ END subroutine p3_init
           if (qitot(i,k,iice).ge.qsmall .and. qitot(i,k,iice).lt.1.e-8 .and.             &
            t(i,k).ge.273.15) then
              qr(i,k) = qr(i,k) + qitot(i,k,iice)
+             nr(i,k) = nr(i,k) + nitot(i,k,iice)
              th(i,k) = th(i,k) - invexn(i,k)*(qitot(i,k,iice)-qiliq(i,k,iice))*xlf(i,k)*inv_cp
              qitot(i,k,iice) = 0.
              nitot(i,k,iice) = 0.
@@ -4557,9 +4567,9 @@ END subroutine p3_init
        iice_loop2: do iice = 1,nCat
         if ((qitot(i,k,iice)-qiliq(i,k,iice)).ge.qsmall) then
          tmp1 = 1./(qitot(i,k,iice)-qiliq(i,k,iice))
-         rimevolume(iice) = birim(i,k,iice)*tmp1
-         rimefraction(iice) = qirim(i,k,iice)*tmp1
-         liquidfraction(iice) = qiliq(i,k,iice)/qitot(i,k,iice)
+         rimevolume(i,k,iice) = birim(i,k,iice)*tmp1
+         rimefraction(i,k,iice) = qirim(i,k,iice)*tmp1
+         liquidfraction(i,k,iice) = qiliq(i,k,iice)/qitot(i,k,iice)
         endif
        enddo iice_loop2
 
@@ -4588,9 +4598,9 @@ END subroutine p3_init
          ! if ((qitot(i,k,iice)-qiliq(i,k,iice)).ge.qsmall) then ! not needed in 5.1.1.4.1
          ! add sink terms, assume density stays constant for sink terms
              birim(i,k,iice) = birim(i,k,iice) - (qisub(iice)+qrmlt(iice)+qimlt(iice))*dt*    &
-                               rimevolume(iice)
+                               rimevolume(i,k,iice)
              qirim(i,k,iice) = qirim(i,k,iice) - (qisub(iice)+qrmlt(iice)+qimlt(iice))*dt*    &
-                               rimefraction(iice)
+                               rimefraction(i,k,iice)
              qiliq(i,k,iice) = qiliq(i,k,iice) + qimlt(iice)*dt
              qitot(i,k,iice) = qitot(i,k,iice) - (qisub(iice)+qrmlt(iice))*dt
          ! endif
@@ -4624,18 +4634,18 @@ END subroutine p3_init
              ! if ((qitot(i,k,catcoll)-qiliq(i,k,catcoll)).ge.qsmall) then ! not needed in 5.1.1.4.1
               !source for collector category
                 qirim(i,k,iice) = qirim(i,k,iice)+qicol(catcoll,iice)*dt*                    &
-                                  rimefraction(catcoll)
+                                  rimefraction(i,k,catcoll)
                 birim(i,k,iice) = birim(i,k,iice)+qicol(catcoll,iice)*dt*                    &
-                                  rimevolume(catcoll)
+                                  rimevolume(i,k,catcoll)
                 qiliq(i,k,iice) = qiliq(i,k,iice)+qicol(catcoll,iice)*dt*                    &
-                                  liquidfraction(catcoll)
+                                  liquidfraction(i,k,catcoll)
               !sink for collectee category
                 qirim(i,k,catcoll) = qirim(i,k,catcoll)-qicol(catcoll,iice)*dt*                 &
-                                     rimefraction(catcoll)
+                                     rimefraction(i,k,catcoll)
                 birim(i,k,catcoll) = birim(i,k,catcoll)-qicol(catcoll,iice)*dt*                 &
-                                     rimevolume(catcoll)
+                                     rimevolume(i,k,catcoll)
                 qiliq(i,k,catcoll) = qiliq(i,k,catcoll)-qicol(catcoll,iice)*dt*                 &
-                                     liquidfraction(catcoll)
+                                     liquidfraction(i,k,catcoll)
              ! endif
              qitot(i,k,catcoll) = qitot(i,k,catcoll) - qicol(catcoll,iice)*dt
              nitot(i,k,catcoll) = nitot(i,k,catcoll) - nicol(catcoll,iice)*dt
