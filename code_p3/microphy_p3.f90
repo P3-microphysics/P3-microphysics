@@ -4595,7 +4595,7 @@ END subroutine p3_init
                        nrshdr(iice)+ncshdc(iice))*dt
           endif
 
-          if ((qitot(i,k,iice)-qiliq(i,k,iice)).ge.qsmall) then ! not needed in 5.1.1.4.1
+         ! if ((qitot(i,k,iice)-qiliq(i,k,iice)).ge.qsmall) then ! not needed in 5.1.1.4.1
          ! add sink terms, assume density stays constant for sink terms
              birim(i,k,iice) = birim(i,k,iice) - (qisub(iice)+qrmlt(iice)+qimlt(iice))*dt*    &
                                rimevolume(i,k,iice)
@@ -4603,7 +4603,7 @@ END subroutine p3_init
                                rimefraction(i,k,iice)
              qiliq(i,k,iice) = qiliq(i,k,iice) + qimlt(iice)*dt
              qitot(i,k,iice) = qitot(i,k,iice) - (qisub(iice)+qrmlt(iice))*dt
-          endif
+         ! endif
 
           dum             = (qrcol(iice)+qccol(iice)+qrhetc(iice)+qrheti(iice)+          &
                             qchetc(iice)+qcheti(iice)+qrmul(iice))*dt
@@ -4631,7 +4631,7 @@ END subroutine p3_init
              ! now modify rime mass and density, assume collection does not modify rime or liquid mass
              ! fractions or density of the collectee, consistent with the assumption that
              ! these are constant over the PSD
-              if ((qitot(i,k,catcoll)-qiliq(i,k,catcoll)).ge.qsmall) then ! not needed in 5.1.1.4.1
+             ! if ((qitot(i,k,catcoll)-qiliq(i,k,catcoll)).ge.qsmall) then ! not needed in 5.1.1.4.1
               !source for collector category
                 qirim(i,k,iice) = qirim(i,k,iice)+qicol(catcoll,iice)*dt*                    &
                                   rimefraction(i,k,catcoll)
@@ -4645,13 +4645,8 @@ END subroutine p3_init
                 birim(i,k,catcoll) = birim(i,k,catcoll)-qicol(catcoll,iice)*dt*                 &
                                      rimevolume(i,k,catcoll)
                 qiliq(i,k,catcoll) = qiliq(i,k,catcoll)-qicol(catcoll,iice)*dt*                 &
-<<<<<<< HEAD
                                      liquidfraction(i,k,catcoll)
              ! endif
-=======
-                                     liquidfraction(catcoll)
-              endif
->>>>>>> 8d56224e75ed3db04c66e9b3b0b9db3ddaa91c6a
              qitot(i,k,catcoll) = qitot(i,k,catcoll) - qicol(catcoll,iice)*dt
              nitot(i,k,catcoll) = nitot(i,k,catcoll) - nicol(catcoll,iice)*dt
              qitot(i,k,iice)    = qitot(i,k,iice)    + qicol(catcoll,iice)*dt
