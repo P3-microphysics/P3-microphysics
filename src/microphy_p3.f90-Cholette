@@ -3785,9 +3785,9 @@ END subroutine p3_init
          ! if (qitot(i,k,iice).ge.qsmall) then
          ! add sink terms, assume density stays constant for sink terms
              birim(i,k,iice) = birim(i,k,iice) - ((qisub(iice)+qimlt(iice))*dt*               &
-                               rimevolume(i,k,iice)
+                               rimevolume(i,k,iice))
              qirim(i,k,iice) = qirim(i,k,iice) - ((qisub(iice)+qimlt(iice))*dt*               &
-                               rimefraction(i,k,iice)
+                               rimefraction(i,k,iice))
              qitot(i,k,iice) = qitot(i,k,iice) - (qisub(iice)+qimlt(iice))*dt
          ! endif
 
