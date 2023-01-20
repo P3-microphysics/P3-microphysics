@@ -20,7 +20,7 @@
 !    Melissa Cholette (melissa.cholette@ec.gc.ca)                                          !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       4.5.0+dev-v4changes                                                       !
+! Version:       4.5.1                                                                     !
 ! Last updated:  2023-JAN                                                                  !
 !__________________________________________________________________________________________!
 
@@ -134,7 +134,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '4.5.0+dev-v4changes'
+ character(len=1024), parameter :: version_p3                    = '4.5.1'
  character(len=1024), parameter :: version_intended_table_1_2mom = '5.4_2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '5.4_3momI'
  character(len=1024), parameter :: version_intended_table_2      = '5.3'
