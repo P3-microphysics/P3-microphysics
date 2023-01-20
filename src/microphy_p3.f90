@@ -20,11 +20,15 @@
 !    Melissa Cholette (melissa.cholette@ec.gc.ca)                                          !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       4.5.0                                                                     !
-! Last updated:  2022-NOV                                                                  !
+! Version:       4.5.0+dev-v4changes                                                       !
+! Last updated:  2023-JAN                                                                  !
 !__________________________________________________________________________________________!
 
  MODULE microphy_p3
+
+#ifdef ECCCGEM
+ use tdpack, only: foew, foewa
+#endif
 
  implicit none
 
@@ -130,7 +134,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '4.5.0' 
+ character(len=1024), parameter :: version_p3                    = '4.5.0+dev-v4changes'
  character(len=1024), parameter :: version_intended_table_1_2mom = '5.4_2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '5.4_3momI'
  character(len=1024), parameter :: version_intended_table_2      = '5.3'
@@ -150,10 +154,6 @@
 
  read_path = lookup_file_dir           ! path for lookup tables from official model library
 !read_path = '/MY/LOOKUP_TABLE/PATH'   ! path for lookup tables from specified location
-!read_path = '/users/dor/armn/gr8/ords/p3_lookup_tables'   !JM, ECCC network
-!read_path = 'xxx'     !JM, Science network
-
-
 
  if (trplMomI) then
    lookup_file_1 = trim(read_path)//'/'//'p3_lookupTable_1.dat-v'//trim(version_intended_table_1_3mom)
@@ -520,7 +520,6 @@
 
  endif IF_PROC0
 
-! commented out for 1D
 #ifdef ECCCGEM
  call rpn_comm_bcast(global_status,1,RPN_COMM_INTEGER,0,RPN_COMM_GRID,istat)
 #endif
@@ -1382,11 +1381,11 @@ END subroutine p3_init
    if (n_iceCat > 2) iwc0(:,:) = iwc0(:,:) + qitot_3(:,:)
    if (n_iceCat > 3) iwc0(:,:) = iwc0(:,:) + qitot_4(:,:)
 
-   ! External forcings are distributed evenly over steps
-   qqdelta = (qvap-qvap_m) / float(n_substep)
+   ! Note qqdelta is converted from specific to mixing ratio
+   qqdelta = (qvap/(1-qvap)-qvap_m/(1-qvap_m)) / float(n_substep)
    ttdelta = (temp-temp_m) / float(n_substep)
    ! initialise for the 1st substepping
-   qvap = qvap_m
+   qvap = qvap_m/(1-qvap_m) ! mixing ratio instead of specific humidity
    temp = temp_m
 
   !if (kount == 0) then
@@ -1498,7 +1497,7 @@ END subroutine p3_init
       snd_ave(:) = 0.
    endif
 
-   tmparr_ik = (1.e+5/pres)**0.286  !for optimization of calc of theta, temp
+   tmparr_ik = (1.e+5/pres)**(rd*inv_cp)  !for optimization of calc of theta, temp
 
    substep_loop: do i_substep = 1, n_substep
 
@@ -1537,7 +1536,7 @@ END subroutine p3_init
       if (global_status /= STATUS_OK) return
 
      !convert back to temperature:
-      temp = theta/tmparr_ik    !i.e.: temp = theta*(pres*1.e-5)**0.286
+      temp = theta/tmparr_ik    !i.e.: temp = theta*(pres*1.e-5)**(rd*inv_cp)
 
       if (n_substep > 1) then
          prt_liq_ave(:) = prt_liq_ave(:) + prt_liq(:)
@@ -1553,6 +1552,9 @@ END subroutine p3_init
       endif
 
    enddo substep_loop
+
+   ! retransferring mixing ratio to specific humidity (only t* is needed)
+   qvap = qvap/(1+qvap)
 
    if (n_substep > 1) then
       tmp1 = 1./float(n_substep)
@@ -2077,7 +2079,7 @@ END subroutine p3_init
  real, dimension(nCat) :: Eii_fact,epsi
  real :: eii ! temperature dependent aggregation efficiency
 
- real, dimension(its:ite,kts:kte,nCat) :: diam_ice
+ real, dimension(its:ite,kts:kte,nCat) :: diam_ice,rimefraction,rimevolume
 
  real, dimension(its:ite,kts:kte)      :: inv_dzq,inv_rho,ze_ice,ze_rain,prec,acn,rho,   &
             rhofacr,rhofaci,xxls,xxlv,xlf,qvs,qvi,sup,supi,vtrmi1,tmparr1,mflux_r,       &
@@ -2270,6 +2272,8 @@ END subroutine p3_init
  mu_r      = 0.
  diag_ze   = -99.
  diam_ice  = 0.
+ rimefraction = 0.
+ rimevolume = 0.
  ze_ice    = 1.e-22
  ze_rain   = 1.e-22
  diag_effc = 10.e-6 ! default value
@@ -2392,6 +2396,7 @@ END subroutine p3_init
           if (qitot(i,k,iice).ge.qsmall .and. qitot(i,k,iice).lt.1.e-8 .and.             &
            t(i,k).ge.273.15) then
              qr(i,k) = qr(i,k) + qitot(i,k,iice)
+             nr(i,k) = nr(i,k) + nitot(i,k,iice)
              th(i,k) = th(i,k) - invexn(i,k)*qitot(i,k,iice)*xlf(i,k)*inv_cp
              qitot(i,k,iice) = 0.
              nitot(i,k,iice) = 0.
@@ -2833,7 +2838,7 @@ END subroutine p3_init
     ! note 'f1pr' values are normalized, so we need to multiply by N
 
           if (qitot(i,k,iice).ge.qsmall) then
-             nislf(iice) = f1pr03*rho(i,k)*eii*Eii_fact(iice)*rhofaci(i,k)*nitot(i,k,iice)*nitot(i,k,iice)
+             nislf(iice) = f1pr03*rho(i,k)*eii*Eii_fact(iice)*rhofaci(i,k)*nitot(i,k,iice)*nitot(i,k,iice)*iSCF(k)
           endif
 
 
@@ -3008,7 +3013,6 @@ END subroutine p3_init
           qcheti(iice_dest) = Q_nuc
           ncheti(iice_dest) = N_nuc
        endif
-
 
 !............................................................
 ! immersion freezing of rain
@@ -3355,7 +3359,7 @@ END subroutine p3_init
 !................................................................
 ! autoconversion
 
-       qc_not_small_1: if (qc(i,k).ge.1.e-8) then
+       qc_not_small_1: if (qc(i,k)*iSCF(k).ge.1.e-8) then
 
           if (iparam.eq.1) then
 
@@ -3371,7 +3375,7 @@ END subroutine p3_init
           elseif (iparam.eq.2) then
 
             !Beheng (1994)
-             if (nc(i,k)*rho(i,k)*1.e-6 .lt. 100.) then
+             if (nc(i,k)*iSCF(k)*rho(i,k)*1.e-6 .lt. 100.) then
                 qcaut = 6.e+28*inv_rho(i,k)*mu_c(i,k)**(-1.7)*(1.e-6*rho(i,k)*           &
                         nc(i,k)*iSCF(k))**(-3.3)*(1.e-3*rho(i,k)*qc(i,k)*iSCF(k))**(4.7) &
                         *SCF(k)
@@ -3647,7 +3651,7 @@ END subroutine p3_init
 
       update_refl_processes: if (log_3momentIce) then
 
-       iice_loop_z: do iice = 1,nCat
+       iice_loop_z1: do iice = 1,nCat
 
        !----  Group 1 process rates (assume mu_i does not change)
        !
@@ -3667,7 +3671,9 @@ END subroutine p3_init
              dumm0(catcoll) = dumm0(catcoll) - nicol(catcoll,iice)*dt
           enddo ! catcoll loop
 
+       enddo iice_loop_z1
        !====
+       iice_loop_z2: do iice = 1,nCat
 
           if (dumm3(iice).ge.qsmall) then
 
@@ -3732,7 +3738,7 @@ END subroutine p3_init
        ! FUTURE.  e.g. diffusional growth, riming, drop freezing
        !====
 
-       end do iice_loop_z
+       end do iice_loop_z2
 
       endif update_refl_processes
 
@@ -3746,7 +3752,19 @@ END subroutine p3_init
 !---------------------------------------------------------------------------------
 
    !-- ice-phase dependent processes:
+
        iice_loop2: do iice = 1,nCat
+
+       ! compute fractions before update (assumed constant during ice-ice coll.)
+        if (qitot(i,k,iice).ge.qsmall) then
+         tmp1 = 1./qitot(i,k,iice)
+         rimevolume(i,k,iice) = birim(i,k,iice)*tmp1
+         rimefraction(i,k,iice) = qirim(i,k,iice)*tmp1
+        endif
+
+       enddo iice_loop2
+
+       iice_loop3: do iice = 1,nCat
 
           qc(i,k) = qc(i,k) + (-qchetc(iice)-qcheti(iice)-qccol(iice)-qcshd(iice))*dt
           if (log_predictNc) then
@@ -3760,14 +3778,14 @@ END subroutine p3_init
           nr(i,k) = nr(i,k) + (-nrcol(iice)-nrhetc(iice)-nrheti(iice)+nmltratio*nimlt(iice)+  &
                     nrshdr(iice)+ncshdc(iice))*dt
 
-          if (qitot(i,k,iice).ge.qsmall) then
+         ! if (qitot(i,k,iice).ge.qsmall) then
          ! add sink terms, assume density stays constant for sink terms
-             birim(i,k,iice) = birim(i,k,iice) - ((qisub(iice)+qimlt(iice))/qitot(i,k,iice))* &
-                               dt*birim(i,k,iice)
-             qirim(i,k,iice) = qirim(i,k,iice) - ((qisub(iice)+qimlt(iice))*qirim(i,k,iice)/  &
-                               qitot(i,k,iice))*dt
+             birim(i,k,iice) = birim(i,k,iice) - ((qisub(iice)+qimlt(iice))*dt*               &
+                               rimevolume(i,k,iice))
+             qirim(i,k,iice) = qirim(i,k,iice) - ((qisub(iice)+qimlt(iice))*dt*               &
+                               rimefraction(i,k,iice))
              qitot(i,k,iice) = qitot(i,k,iice) - (qisub(iice)+qimlt(iice))*dt
-          endif
+         ! endif
 
           dum             = (qrcol(iice)+qccol(iice)+qrhetc(iice)+qrheti(iice)+          &
                             qchetc(iice)+qcheti(iice)+qrmul(iice))*dt
@@ -3782,6 +3800,7 @@ END subroutine p3_init
 
           if (nCat.gt.1) then
              interactions_loop: do catcoll = 1,nCat
+               diff_categories:     if (iice.ne.catcoll) then
                 ! add ice-ice category interaction collection tendencies
                 ! note: nicol is a sink for the collectee category, but NOT a source for collector
                 ! modify rime mass and density, assume collection does not modify rime mass
@@ -3789,20 +3808,21 @@ END subroutine p3_init
                 ! these are constant over the PSD
                 if (qitot(i,k,catcoll).ge.qsmall) then
                  !source for collector category
-                   qirim(i,k,iice) = qirim(i,k,iice)+qicol(catcoll,iice)*dt*             &
-                                     qirim(i,k,catcoll)/qitot(i,k,catcoll)
-                   birim(i,k,iice) = birim(i,k,iice)+qicol(catcoll,iice)*dt*             &
-                                     birim(i,k,catcoll)/qitot(i,k,catcoll)
+                  qirim(i,k,iice) = qirim(i,k,iice)+qicol(catcoll,iice)*dt*                    &
+                                    rimefraction(i,k,catcoll)
+                  birim(i,k,iice) = birim(i,k,iice)+qicol(catcoll,iice)*dt*                    &
+                                    rimevolume(i,k,catcoll)
                  !sink for collectee category
-                   qirim(i,k,catcoll) = qirim(i,k,catcoll)-qicol(catcoll,iice)*dt*       &
-                                        qirim(i,k,catcoll)/qitot(i,k,catcoll)
-                   birim(i,k,catcoll) = birim(i,k,catcoll)-qicol(catcoll,iice)*dt*       &
-                                        birim(i,k,catcoll)/qitot(i,k,catcoll)
+                  qirim(i,k,catcoll) = qirim(i,k,catcoll)-qicol(catcoll,iice)*dt*                 &
+                                       rimefraction(i,k,catcoll)
+                  birim(i,k,catcoll) = birim(i,k,catcoll)-qicol(catcoll,iice)*dt*                 &
+                                       rimevolume(i,k,catcoll)
                 endif
                 qitot(i,k,catcoll) = qitot(i,k,catcoll) - qicol(catcoll,iice)*dt
                 nitot(i,k,catcoll) = nitot(i,k,catcoll) - nicol(catcoll,iice)*dt
                 qitot(i,k,iice)    = qitot(i,k,iice)    + qicol(catcoll,iice)*dt
 
+               endif diff_categories
              enddo interactions_loop ! catcoll loop
           endif
 
@@ -3842,7 +3862,7 @@ END subroutine p3_init
                               qrmul(iice)-qimlt(iice))*                                &
                               xlf(i,k)*inv_cp)*dt
 
-       enddo iice_loop2
+       enddo iice_loop3
    !==
 
    !-- warm-phase only processes:
@@ -4627,10 +4647,6 @@ END subroutine p3_init
 
                 endif
 
-               !impose mean ice size bounds (i.e. apply lambda limiters)
-                nitot(i,k,iice) = min(nitot(i,k,iice),f1pr09*qitot(i,k,iice))
-                nitot(i,k,iice) = max(nitot(i,k,iice),f1pr10*qitot(i,k,iice))
-
                !adjust Zitot to make sure mu is in bounds
                 if (log_3momentIce) then
                    dum1 =  6./(f1pr16*pi)*qitot(i,k,iice)  !estimate of moment3
@@ -4699,7 +4715,6 @@ END subroutine p3_init
 !   endif
 
 !...................................................
-
 ! Final checks to ensure consistency of mass/number
 ! and compute diagnostic fields for output
 
@@ -6616,7 +6631,6 @@ SUBROUTINE access_lookup_table_coll_3mom(dumzz,dumjj,dumii,dumj,dumi,index,dum1,
 
  end subroutine find_lookupTable_indices_3
 
-
 !===========================================================================================
  subroutine get_cloud_dsd2(qc_grd,nc_grd,mu_c,rho,nu,dnu,lamc,lammin,lammax,cdist,cdist1,iSCF)
 
@@ -6862,8 +6876,14 @@ SUBROUTINE access_lookup_table_coll_3mom(dumzz,dumjj,dumii,dumj,dumi,index,dum1,
 
  !------------------
 
- e_pres = polysvp1(t_atm,i_wrt)
- qv_sat = ep_2*e_pres/max(1.e-3,(p_atm-e_pres))
+#ifdef ECCCGEM
+  if (i_wrt.eq.1) e_pres = foew(t_atm)
+  if (i_wrt.eq.0) e_pres = foewa(t_atm)
+  qv_sat = ep_2*e_pres/max(1.e-3,(p_atm-e_pres))
+#else
+  e_pres = polysvp1(t_atm,i_wrt)
+  qv_sat = ep_2*e_pres/max(1.e-3,(p_atm-e_pres))
+#endif
 
  return
  end function qv_sat
@@ -7054,7 +7074,9 @@ SUBROUTINE access_lookup_table_coll_3mom(dumzz,dumjj,dumii,dumj,dumi,index,dum1,
 
  if (mom3>eps_m3) then
 
-    G = (mom0*mom6)/(mom3**2)
+    !G = (mom0*mom6)/(mom3**2)
+    !To avoid very small values of mom3**2
+     G = (mom0/mom3)*(mom6/mom3)
 
 !----------------------------------------------------------!
 ! !Solve alpha numerically: (brute-force)
