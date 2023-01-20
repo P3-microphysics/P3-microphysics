@@ -1,19 +1,15 @@
+FC=gfortran
 #FC=mpif90
 #FC=f90
 #FC=pgf90
-#FC=ifort 
-FC=gfortran 
 
 #FFLAGS=-C -g
-#FFLAGS=-C -g -qflttrap=invalid:nanq:ov:zerodivide:enable:imp:overflow  #IBM
-
-#gFortran:
-#FFLAGS=-fdefault-real-8 -Wno-line-truncation -fbounds-check -finit-real=nan 
-#FFLAGS=-fdefault-real-8 -Wno-line-truncation 
-#FFLAGS=-fdefault-real-8 -Wno-line-truncation -fbounds-check -finit-real=nan -Wall -Wno-conversion -Wno-unused-dummy-argument -std=f2008 -Wunused-parameter
+##FFLAGS=-C -g -qflttrap=invalid:nanq:ov:zerodivide:enable:imp:overflow  #IBM
+##FFLAGS=-fdefault-real-8 -Wno-line-truncation -fbounds-check -finit-real=nan 
+##FFLAGS=-fdefault-real-8 -Wno-line-truncation 
+##FFLAGS=-fdefault-real-8 -Wno-line-truncation -fbounds-check -finit-real=nan -Wall -Wno-conversion -Wno-unused-dummy-argument -std=f2008 -Wunused-parameter
 #FFLAGS=-fdefault-real-8 -Wno-line-truncation -fbounds-check -finit-real=nan -Wall -Wno-unused-dummy-argument -std=f2008 -Wno-intrinsics-std -Wunused-parameter
-FFLAGS=-fdefault-real-8 -fbounds-check  -cpp
-
+FFLAGS=-fdefault-real-8 -fbounds-check -cpp
 LDFLAGS=
 LIBS=
 
@@ -31,7 +27,7 @@ LIBS=
 default:
 
 clean:
-	rm -f *.o *.mod fort.* execld out_p3.dat
+	rm -f *.o *.mod fort.* execld out_p3.dat out* sfcprec.dat
 
 OBJS = microphy_p3.o routinesCld1d.o   cld1d.o
 exec:

@@ -1,6 +1,7 @@
 Before running the 1d kinematic cloud model, set up the following:
 
 1. Link the source directory containing the P3 lookup tables to the local ./lookup_tables
+   Need to unzip them as well.
 
 2. Link/copy the P3 source file '../src /microphy_p3.f90' to the local work directory
    Link/copy the kin1D files (cld1d.f90, execld.f90, routinesCld1d.f90) from ./src to the local work directory.
