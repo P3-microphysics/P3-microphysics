@@ -1,0 +1,10 @@
+This respository contains modified code to interface P3-v5.1 to the CM1 model, including
+modifications to the P3 code itself.
+
+This code is expected to be used for general CM1 usage, but the focus is on the hail modeling
+project, started at NCAR in September 2022, targeting a publication on the impacts of v5.1 on hail.
+
+The "pristine" version of the P3 code was Melissa's most recent version of v5.1 as of Sept. 2022.
+
+
+NOTE:  Melissa changed 'log_predictFL' to 'log_LiquidFraction' in the WRF (CM1) wrappers.
