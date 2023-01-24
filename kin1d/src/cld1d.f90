@@ -16,19 +16,8 @@
 !  - compute total integrated mass after call to microphysics
 !  - add low-level moisture (to prevent depletion)
 !  - write output files
-!--------------------------------------------------------------------------!
-!  Modified; interfaced with P3-Ice microphysics scheme
-!  - 2014-03-28:  v1.0.0  (1-category ice)
-!  - 2014-07   :  v2.0    (multi-category ice)
-!  - 2016-12   :  v2.4    (prognostic Nc-SSAT)
-!  - 2017-02   :  v2.3.2  (prognostic Nc; WRF release + mods)
-!  - 2017-03   :  v2.4.0
-!  - 2017-04   :  v2.5.0
-!  - 2017-08   :  v2.5.1, v2.6.0
-!  - 2018-02   :  v2.9.1
-!  - 2018-0x   :  v3.1.0
-!  - 2018-08   :  v4.0.0
 !
+!--------------------------------------------------------------------------!
 ! Variable names:
 ! -----   ----
 ! cld1d    p3
@@ -38,16 +27,31 @@
 !  QL     qiliq_in  - liquid on ice mass mixing ratio (optional)
 !  NI     nitot  - ice number mixing ratio
 !  BG     birim  - rime volume mixing ratio
+!  ZI     zitot  - 6th moment mixing ratio
 !
 !--------------------------------------------------------------------------!
 !  Author:         Jason Milbrandt
-!  Last modified:  2019-07-30
+!  Last modified:  2023-01-23
 !--------------------------------------------------------------------------!
 
-      use SUBS_CLD1D
-      use MICROPHY_P3
+      use subs_cld1d
+      use microphy_p3
 
       implicit none
+
+      integer, parameter :: n_iceCat     =  1
+      logical, parameter :: PredictFl    = .false.
+      logical, parameter :: trplMomIce   = .true.
+      
+      logical, parameter :: scpf_on      = .false.  ! switch for cloud fraction parameterization (SCPF)
+      real,    parameter :: scpf_pfrac   = 1.        ! precipitation fraction factor (SCPF)
+      real,    parameter :: scpf_resfact = 1.        ! model resolution factor (SCPF)
+      logical, parameter :: prog_nc_ssat = .true.
+     !logical, parameter :: nk_BOTTOM    = .true.   !.T. --> nk at bottom
+      logical, parameter :: typeDiags_ON = .true.   ! switch for hydrometeor/precip type diagnostics
+      logical, parameter :: debug_on     = .false.   ! switch for run-time check-values in p3_main
+      real, parameter    :: clbfact_dep = 1.0       !calibration factor for deposition
+      real, parameter    :: clbfact_sub = 1.0       !calibration factor for sublimation
 
       integer      :: airmass,SCHEME,nk,outfreq,ttotmin,iice
       real         :: AMPA,AMPB,Htop0,tscale1,tscale2,dt
@@ -58,7 +62,6 @@
       parameter (microON = .true. )     ! call microphysics SCHEME
       parameter (TDMIN   = .true. )     ! prevent low-level moisture depletion
       parameter (EVOLVING= .true. )     ! switch for evolving updraft
-
       parameter (AMPA    = 2.     )     ! initial central updraft speed [m s-1] (evolving only)
       parameter (AMPB    = 5.     )     ! maximum central updraft speed [m s-1]
       parameter (Htop0   = 5000.  )     ! initial height of cloud top   [m]
@@ -71,31 +74,13 @@
       parameter (dt      = 10.    )     ! time step                     [s]
       parameter (ttotmin = 90     )     ! total integration time	[min]
 
-      integer, parameter :: n_iceCat     =  2
-      logical, parameter           :: PredictFl    = .true.
-      logical, parameter           :: trplMomIce   = .true.
+      character(len=16), parameter :: model = 'KIN1D'
+!     character(len=16), parameter :: model = 'WRF'  !for level tests
+      logical, parameter           :: abort_on_err = .false.
+      logical, parameter           :: dowr = .true.
 
-      logical, parameter :: prog_nc_ssat = .true.
-     !logical, parameter :: nk_BOTTOM    = .true.   !.T. --> nk at bottom
-      logical, parameter :: typeDiags_ON = .false.   ! switch for hydrometeor/precip type diagnostics
-      logical, parameter :: debug_on     = .false.   ! switch for run-time check-values in p3_main
-
-      logical, parameter :: scpf_on      = .false.  ! switch for cloud fraction parameterization (SCPF)
-      real,    parameter :: scpf_pfrac   = 1.        ! precipitation fraction factor (SCPF)
-      real,    parameter :: scpf_resfact = 1.        ! model resolution factor (SCPF)
-
-
-      real, parameter    :: clbfact_dep = 1.0       !calibration factor for deposition
-      real, parameter    :: clbfact_sub = 1.0       !calibration factor for sublimation
-
-     character(len=16), parameter :: model = 'KIN1D'
-!    character(len=16), parameter :: model = 'WRF'  !for level tests
-
-     logical, parameter           :: abort_on_err = .false.
-     logical, parameter           :: dowr = .true.
-
-     character(len=1024), parameter :: LT_path  = './lookup_tables'
-!    character(len=1024), parameter :: LT_path = '/users/milbrand/mp_p3/lookupTables/tables'  ! override default
+      character(len=1024), parameter :: LT_path  = './lookup_tables'
+!     character(len=1024), parameter :: LT_path = '/users/milbrand/mp_p3/lookupTables/tables'  ! override default
 
 
 !---------------------------------------------------------------------------------!
@@ -186,6 +171,14 @@
       real                     :: time1,time2,time3,time4,time5 ! for timing tests
 
 !---------------------------------------------------------------------------------------!
+
+      print*
+      print*, '** Remember to use compiler debug options for testing new code (modfify Makefile appropriately) **'
+      print*
+
+      diag_dhmax = -36.
+      diag_lami  = -1.
+      diag_mui   = -1.
 
       open (unit=30, file='out_p3.dat')
 ! for bit-pattern
@@ -525,41 +518,7 @@
           th2d0(1,:) = tt0(1,:)*(1.e+5/p(:))**0.286
           th2d1(1,:) = tt1(1,:)*(1.e+5/p(:))**0.286
 
-!v2.8.4, v2.9.1:
-!              CALL P3_MAIN(Qc1,Nc1,Qr1,Nr1,th2d0,th2d1,Qv0,Qv1,dt,Qi1,Qg1,Ni1,Bg1,ssat1, &
-!                           w,p2d,dz2d,step,prt_liq,prt_sol,its,ite,kts,kte,n_iceCat,     &
-!                           diag_ZET,diag_reffc,diag_reffi,diag_vmi,diag_di,diag_rhoi,    &
-!                           n_diag_2d,diag_2d,n_diag_3d,diag_3d,log_predictNc,            &
-!                           typeDiags_ON,trim(model),clbfact_dep,clbfact_sub,debug_on,    &
-!                           prt_drzl,prt_rain,prt_crys,prt_snow,prt_grpl,prt_pell,        &
-!                           prt_hail,prt_sndp,cldfrac)
-
-!v2.10.1:
-!              CALL P3_MAIN(Qc1,Nc1,Qr1,Nr1,th2d0,th2d1,Qv0,Qv1,dt,Qi1,Qg1,Ni1,Bg1,ssat1, &
-!                           w,p2d,dz2d,step,prt_liq,prt_sol,its,ite,kts,kte,n_iceCat,     &
-!                           diag_ZET,diag_reffc,diag_reffi,diag_vmi,diag_di,diag_rhoi,    &
-!                           n_diag_2d,diag_2d,n_diag_3d,diag_3d,log_predictNc,            &
-!                           typeDiags_ON,trim(model),clbfact_dep,clbfact_sub,debug_on,    &
-!                           prt_drzl,prt_rain,prt_crys,prt_snow,prt_grpl,prt_pell,        &
-!                           prt_hail,prt_sndp,qi_type,cldfrac)
-
-!v3.0.0
-!              CALL P3_MAIN(Qc1,Nc1,Qr1,Nr1,th2d0,th2d1,Qv0,Qv1,dt,Qi1,Qg1,Ni1,Bg1,ssat1, &
-!                           w,p2d,dz2d,step,prt_liq,prt_sol,its,ite,kts,kte,.true.,       &
-!                           n_iceCat,diag_ZET,diag_reffc,diag_reffi,n_diag_2d,diag_2d,    &
-!                           n_diag_3d,diag_3d,log_predictNc,SCPF_on,cldfrac)
-
-!v3.1.0, v3.1.1
-!              CALL P3_MAIN(Qc1,Nc1,Qr1,Nr1,th2d0,th2d1,Qv0,Qv1,dt,Qi1,Qg1,Ni1,Bg1,ssat1, &
-!                           w,p2d,dz2d,step,prt_liq,prt_sol,its,ite,kts,kte,n_iceCat,     &
-!                           diag_ZET,diag_reffc,diag_reffi,diag_vmi,diag_di,diag_rhoi,    &
-!                           n_diag_2d,diag_2d,n_diag_3d,diag_3d,log_predictNc,            &
-!                           typeDiags_ON,trim(model),clbfact_dep,clbfact_sub,debug_on,    &
-!                           scpf_on,scpf_pfrac,scpf_resfact,scpf_cldfrac,                 &
-!                           prt_drzl,prt_rain,prt_crys,prt_snow,prt_grpl,prt_pell,        &
-!                           prt_hail,prt_sndp,qi_type)
-
-!v5.0.7
+!v5.2.0
 
           call cpu_time(time1)
 
@@ -581,7 +540,12 @@
                               prt_pell = prt_pell,  &
                               prt_hail = prt_hail,  &
                               prt_sndp = prt_sndp,  &
-                              qi_type  = qi_type)
+!                              qi_type  = qi_type)
+                          qi_type    = qi_type,    &
+                          diag_dhmax = diag_dhmax, &
+                          diag_lami  = diag_lami,  &
+                          diag_mui   = diag_mui)
+                              
             else
 
                  CALL P3_MAIN(Qc1,Nc1,Qr1,Nr1,th2d0,th2d1,Qv0,Qv1,dt,Qi1,Qg1,Ni1,Bg1,ssat1,     &
@@ -599,9 +563,12 @@
                               prt_hail = prt_hail,  &
                               prt_sndp = prt_sndp,  &
                               qi_type  = qi_type,   &
-                              qiliq_in = Ql1)
+                              qiliq_in = Ql1,       &   !)
+                          diag_dhmax = diag_dhmax, &
+                          diag_lami  = diag_lami,  &
+                          diag_mui   = diag_mui)
+                          
             endif
-
 
           else
 
@@ -633,7 +600,10 @@
                              prt_hail = prt_hail,  &
                              prt_sndp = prt_sndp,  &
                              qi_type  = qi_type,   &
-                             zitot    = Zi1)
+                             zitot    = Zi1,       &
+                          diag_dhmax = diag_dhmax, &
+                          diag_lami  = diag_lami,  &
+                          diag_mui   = diag_mui)
 
               else
 
@@ -653,7 +623,10 @@
                              prt_sndp = prt_sndp,  &
                              qi_type  = qi_type,   &
                              zitot    = Zi1,       &
-                             qiliq_in = Ql1)
+                             qiliq_in = Ql1,       &
+                          diag_dhmax = diag_dhmax, &
+                          diag_lami  = diag_lami,  &
+                          diag_mui   = diag_mui)
               endif
 
             !compute prog var from Z:    (for wrapper)
@@ -946,7 +919,7 @@
                       diag_di(1,k,1),    &  !col 8
                       diag_dhmax(1,k,1), &  !col 9 Dh_max
                       prt_liq(1),        &  !col 10
-                      prt_sol(1),         &   !col 11
+                      prt_sol(1),        &   !col 11
                       Nc1(1,k),          &  !col 12
                       Nr1(1,k),          &  !col 13
                       sum(Ni1(1,k,:)),   &  !col 14
