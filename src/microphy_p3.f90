@@ -2389,9 +2389,9 @@ END subroutine p3_init
  real, intent(out),   dimension(its:ite,kts:kte,nCat) :: diag_vmi   ! mass-weighted fall speed of ice  m s-1
  real, intent(out),   dimension(its:ite,kts:kte,nCat) :: diag_di    ! mean diameter of ice             m
  real, intent(out),   dimension(its:ite,kts:kte,nCat) :: diag_rhoi  ! bulk density of ice              kg m-1
-real, intent(out),   dimension(its:ite,kts:kte,nCat), optional :: diag_dhmax ! maximum hail size                m
-real, intent(out),   dimension(its:ite,kts:kte,nCat), optional :: diag_lami  ! lambda parameter for ice PSD     m-1
-real, intent(out),   dimension(its:ite,kts:kte,nCat), optional :: diag_mui   ! mu parameter for ice PSD
+ real, intent(out),   dimension(its:ite,kts:kte,nCat), optional :: diag_dhmax ! maximum hail size                m
+ real, intent(out),   dimension(its:ite,kts:kte,nCat), optional :: diag_lami  ! lambda parameter for ice PSD     m-1
+ real, intent(out),   dimension(its:ite,kts:kte,nCat), optional :: diag_mui   ! mu parameter for ice PSD
 
 !real, intent(out),   dimension(its:ite,kts:kte,nCat), optional :: diag_Dhm  ! maximum hail diameter   m
  real, intent(out),   dimension(its:ite,kts:kte), optional :: diag_vis   ! visibility (total)          m
@@ -11965,19 +11965,14 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
  ! physically observable (and not just a numerical artifact of the complete
  ! gamma size distribution).
  !
- ! Follows method described in Milbrandt and Yau (2006a)
+ ! Follows methods described in Milbrandt and Yau (2006a).
+ !
+ ! Note: Use of double-precision for integral calculations is necessary since
+ !       intermediate calculations, and n0, can be quite large.
  !
  ! TO DO:
  ! - pass density (not just rime density) and add to is_hail criteria
- ! - clean up method selection (e.g. argument parameter to specify method)
  !
- !                                 *** NOTE ***
- !
- !   The current coding for this function is problematic.
- !   In GEM, overflows (apparently) result in crashes.  In WRF, no crashes but erroneous
- !   zero values in spots (possibly resulting from over/underflows)
- !  --> Code is kep here for now; however this fields is better computed in 
- !      post-processing.  Eventaully this function will be removed.
  !--------------------------------------------------------------------------
 
  implicit none
@@ -11991,92 +11986,68 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
  real, intent(in) :: lam,mu     ! PSD slope and shape parameters
 
 ! Local variables:
- real, parameter  :: dD       =   1.e-3  ! diameter bin width [m]
- real, parameter  :: Dmax_psd = 200.e-3  ! maximum diameter in PSD to compute integral  [m]
+ real, parameter  :: dD       = 1.e-3    ! diameter bin width [m]
+ real, parameter  :: Dmax_psd = 150.e-3  ! maximum diameter in PSD to compute integral  [m]
  real, parameter  :: FrThrs   = 0.75     ! theshold rime fraction to be considered graupel/hail
- real, parameter  :: Ncrit    = 1.e-4    ! threshold physically observable number concentration [# m-3]
- real, parameter  :: Rcrit    = 1.e-3/6. ! threshold physically observable number flux          [# m-2 s-1]
+ real, parameter  :: Ncrit    = 5.e-4    ! threshold physically observable number concentration [# m-3]
+ real, parameter  :: Rcrit    = 1.e-3    ! threshold physically observable number flux          [# m-2 s-1]
  real, parameter  :: ch       = 206.89   ! coefficient in V-D fall speed relation for hail (from MY2006a)
  real, parameter  :: dh       = 0.6384   ! exponent in V-D fall speed relation for hail (from MY2006a)
- real             :: n0                  ! shape parameter in gamma distribution
+ double precision :: n0                  ! shape parameter in gamma distribution
  real             :: Frim                ! rime mass fraction
  real             :: Di                  ! diameter  [m]
- real             :: N_tot               ! total number concentration                             [# m-3]
+ real             :: N_tot               ! total number concentration  [# m-3]
  real             :: N_tail              ! number conc. from Di to infinity; i.e. trial for Nh*{D*} in MY2006a [# m-3]
  real             :: R_tail              ! number flux of large hail; i.e. trial for Rh*{D*} (corrected from MY2006a [# m-2 s-1]
- real             :: Dhmax_1             ! maximum hail sized based on Nh*  [m]
- real             :: Dhmax_2             ! maximum hail sized based on Rh*  [m]
  real             :: V_h                 ! fall speed of hail of size D     [m s-1]
  integer          :: nd                  ! maximum number of size bins for integral
  integer          :: i                   ! index for integration
+ 
+! real :: tmp1,tmp2,tmp3,tmp4,tmp5
+!-----------------------------------------------------------------------
 
+ maxHailSize = 0.
  Frim  = qim/max(qit,1.e-14)
- N_tot = rho*nit
+!N_tot = rho*nit
 
-! considered_hail: if (Frim>FrThrs .and. N_tot>Ncrit) then
  considered_hail: if (Frim>FrThrs) then
 
-    nd  = int(Dmax_psd/dD)
-    n0  = N_tot*lam**(mu+1.)/gamma(mu+1.)
-!   n0  = dble(N_tot)*dexp( dble(mu+1.)*dlog(dble(lam)) )/dble(gamma(mu+1.))
     N_tail = 0.
+    nd  = int(Dmax_psd/dD)
+!   n0  = nit*lam**(mu+1.)/gamma(mu+1.)
+    n0  = dble(nit)*dble(lam)**dble(mu+1.)/dble(gamma(mu+1.))      
 
-
-   !-- method 1, based on Nh*crit only:
-    Dhmax_1 = 0.
-    do i = nd,1,-1
-       Di = i*dD
-       N_tail = N_tail + n0*Di**mu*exp(-lam*Di)*dD
-    if (qit>0.0001) print*, 'N_tail: ',N_tot,gamma(mu+1.),N_tail,n0,lam,mu
-       if (N_tail>Ncrit) then
-          Dhmax_1 = Di
-          exit
-       endif
-    enddo
-    maxHailSize = Dhmax_1
-
-!-- method 2, based on Rh*crit only:
-!     R_tail  = 0.
-!     Dhmax_2 = 0.
+!    !-- method 1, based on Nh*crit:
 !     do i = nd,1,-1
-!        Di  = i*dD
-!        V_h = rhofaci*(ch*Di**Dh)
-!        R_tail = R_tail + V_h*n0*Di**mu*exp(-lam*Di)*dD
-! !      R_tail = R_tail + V_h*sngl(n0*dble(Di)**dble(mu)*exp(-dble(lam)*dble(Di))*dble(dD))
-!        if (R_tail>Rcrit) then
-!           Dhmax_2 = Di
+!        Di = i*dD       
+! !      N_tail = N_tail + n0*Di**mu*exp(-lam*Di)*dD
+!        N_tail = N_tail + sngl(n0*dble(Di)**dble(mu)*dble(exp(-lam*Di)))*dD
+!        !-- alternative:       
+!        ! N_tail = N_tail + nit*lam**(mu+1.)/gamma(mu+1.) *Di**mu*exp(-lam*Di)*dD  !formulated in terms of nit
+!        ! reorganized to avoid overflows from intermediate calculations e.g. lam**(mu+1)]
+!        ! tmp2 = lam**tmp1
+!        !        N_tail = N_tail + nit*tmp2/gamma(mu+1.)*tmp2*Di**mu*tmp2*exp(-lam*Di)*dD
+!        if (N_tail>Ncrit) then
+!           maxHailSize = Di
 !           exit
 !        endif
 !     enddo
-!     maxHailSize = Dhmax_2
-
-!-- method 3, finds values based on Nh*crit and Rh*crit methods
-! !  found_N2 = .false.
-! !  found_R2 = .false.
-! !  do i = nd,1,-1
-! !     Di = i*dD
-! !     N_tail = N_tail + n0*Di**mu*exp(-lam*Di)*dD
-! !     R_tail = N_tail*(ch*Di**Dh)
-! !     if (N_tail>Ncrit) .and. .not.found_N2) then
-! !        Dhmax_1 = Di       ! max hail size based on N*crit
-! !        found_N2 = .true.
-! !     endif
-! !     if (R_tail>Rcrit) .and. .not.found_R2) then
-! !        Dhmax_2 = Di       ! max hail size based on R*crit
-! !        found_R2 = .true.
-! !     endif
-! !     if (found_N2 .and. found_R2) exit
-! !
-! !  enddo
-
- else
-
-    maxHailSize = 0.
-
+    
+!-- method 2, based on Rh*crit:
+    R_tail  = 0.
+    do i = nd,1,-1
+       Di  = i*dD
+       V_h = rhofaci*(ch*Di**Dh)
+      !R_tail = R_tail + V_h*n0*Di**mu*exp(-lam*Di)*dD
+       R_tail = R_tail + V_h*sngl(n0*dble(Di)**dble(mu)*dble(exp(-lam*Di)))*dD
+       if (R_tail>Rcrit) then
+          maxHailSize = Di
+          exit
+       endif
+    enddo
+   
  endif considered_hail
 
- !maxHailSize = 999.  !temporary
- 
  end function maxHailSize
 
 !===========================================================================================
