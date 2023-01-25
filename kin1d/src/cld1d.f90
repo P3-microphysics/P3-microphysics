@@ -40,7 +40,7 @@ subroutine columnmodel
       implicit none
 
       integer, parameter :: n_iceCat     =  1
-      logical, parameter :: PredictFl    = .false.
+      logical, parameter :: liqFrac      = .true.
       logical, parameter :: trplMomIce   = .true.
       
       logical, parameter :: scpf_on      = .false.  ! switch for cloud fraction parameterization (SCPF)
@@ -405,7 +405,7 @@ subroutine columnmodel
 !     call P3_INIT('./lookup_tables/',n_iceCat,trplMomIce,stat)  !v4.0.0
 !     call P3_INIT('./lookup_tables/',override_path=my_LT_path,n_iceCat,trplMomIce,stat)  !v4.0.0_b38
 
-      call P3_INIT(LT_path,n_iceCat,trplMomIce,PredictFl,model,stat,abort_on_err,dowr)      !v4.0.0_b42
+      call P3_INIT(LT_path,n_iceCat,trplMomIce,liqFrac,model,stat,abort_on_err,dowr)      !v4.0.0_b42
 
 
       do k=1,nk
@@ -521,7 +521,7 @@ subroutine columnmodel
 
           if (.not. trplMomIce) then
 
-            if (.not. PredictFl) then
+            if (.not. liqFrac) then
 
                  CALL P3_MAIN(Qc1,Nc1,Qr1,Nr1,th2d0,th2d1,Qv0,Qv1,dt,Qi1,Qg1,Ni1,Bg1,ssat1,     &
                               w,p2d,dz2d,step,prt_liq,prt_sol,its,ite,kts,kte,n_iceCat,         &
@@ -575,7 +575,7 @@ subroutine columnmodel
              enddo
 
 
-             if (.not. PredictFl) then
+             if (.not. liqFrac) then
 
                 CALL P3_MAIN(Qc1,Nc1,Qr1,Nr1,th2d0,th2d1,Qv0,Qv1,dt,Qi1,Qg1,Ni1,Bg1,ssat1,     &
                              w,p2d,dz2d,step,prt_liq,prt_sol,its,ite,kts,kte,n_iceCat,         &

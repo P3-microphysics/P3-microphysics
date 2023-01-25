@@ -829,8 +829,6 @@ END subroutine p3_init
    real, dimension(ims:ime, kms:kme, jms:jme), intent(inout):: th_3d,qv_3d,qc_3d,qr_3d,   &                   
                    qnr_3d,diag_zdbz_3d,diag_effc_3d,diag_effi_3d,diag_vmi_3d,diag_di_3d,  &                   
                    diag_rhopo_3d,th_old_3d,qv_old_3d
-!   real, dimension(ims:ime, kms:kme, jms:jme), intent(inout):: diag_dhmax_3d,             &                  
-!                   diag_lami_3d,diag_mui_3d                                                                  
    real, dimension(ims:ime, kms:kme, jms:jme), intent(inout):: qi1_3d,qni1_3d,qir1_3d,    &                   
                                                                qib1_3d
    real, dimension(ims:ime, kms:kme, jms:jme), intent(inout), optional :: nc_3d                               
@@ -936,8 +934,7 @@ END subroutine p3_init
                n_diag_2d,diag_2d(its:ite,1:n_diag_2d),                                                  &     
                n_diag_3d,diag_3d(its:ite,kts:kte,1:n_diag_3d),                                          &     
                log_predictNc,typeDiags_ON,trim(model),clbfact_dep,clbfact_sub,debug_on,                 &     
-               scpf_on,scpf_pfrac,scpf_resfact,cldfrac )!,diag_dhmax=diag_dhmax_3d(its:ite,kts:kte,j),     &  
-!               diag_lami=diag_lami_3d(its:ite,kts:kte,j),diag_mui=diag_mui_3d(its:ite,kts:kte,j))            
+               scpf_on,scpf_pfrac,scpf_resfact,cldfrac ) 
 
       else if (log_3momentIce .and. (.not. log_LiquidFraction)) then
 
@@ -956,8 +953,6 @@ END subroutine p3_init
                n_diag_3d,diag_3d(its:ite,kts:kte,1:n_diag_3d),                                          &     
                log_predictNc,typeDiags_ON,trim(model),clbfact_dep,clbfact_sub,debug_on,                 &     
                scpf_on,scpf_pfrac,scpf_resfact,cldfrac,zitot=qzi1_3d(its:ite,kts:kte,j))                      
-!               diag_dhmax=diag_dhmax_3d(its:ite,kts:kte,j),diag_lami=diag_lami_3d(its:ite,kts:kte,j),   &    
-!               diag_mui=diag_mui_3d(its:ite,kts:kte,j))                                                      
 
       else if (log_3momentIce .and. log_LiquidFraction) then
 
@@ -977,8 +972,6 @@ END subroutine p3_init
                log_predictNc,typeDiags_ON,trim(model),clbfact_dep,clbfact_sub,debug_on,                 &     
                scpf_on,scpf_pfrac,scpf_resfact,cldfrac,zitot=qzi1_3d(its:ite,kts:kte,j),                &     
                qiliq_in=qli1_3d(its:ite,kts:kte,j))
-!               diag_dhmax=diag_dhmax_3d(its:ite,kts:kte,j),diag_lami=diag_lami_3d(its:ite,kts:kte,j),   &    
-!               diag_mui=diag_mui_3d(its:ite,kts:kte,j))                                                      
 
       endif ! 3momentIce and predict Fl                                                                       
 
@@ -2522,7 +2515,7 @@ END subroutine p3_init
  real :: eii ! temperature dependent aggregation efficiency
 
  real, dimension(its:ite,kts:kte,nCat) :: diam_ice,liquidfraction,rimefraction,          &
-            rimevolume,diag_lami,diag_mui
+            rimevolume,arr_lami,arr_mui
 
  real, dimension(its:ite,kts:kte)      :: inv_dzq,inv_rho,ze_ice,ze_rain,prec,acn,rho,   &
             rhofacr,rhofaci,xxls,xxlv,xlf,qvs,qvi,sup,supi,vtrmi1,tmparr1,mflux_r,       &
@@ -5984,13 +5977,9 @@ END subroutine p3_init
              diag_effi(i,k,iice) = f1pr06 ! units are in m
              diag_di(i,k,iice)   = f1pr15
              diag_rhoi(i,k,iice) = f1pr16
-             diag_lami(i,k,iice) = f1pr22  !local only
-             diag_mui(i,k,iice)  = f1pr23  !local only
+             arr_lami(i,k,iice)  = f1pr22  !local only (not for output)
+             arr_mui(i,k,iice)   = f1pr23  !local only
              
-!              if (present(diag_dhmax)) diag_dhmax(i,k,iice) = maxHailSize(rho(i,k),            &
-!                 qitot(i,k,iice),qirim(i,k,iice),qiliq(i,k,iice),nitot(i,k,iice),rhofaci(i,k), &
-!                 diag_lami(i,k,iice),diag_mui(i,k,iice))
-
           ! note factor of air density below is to convert from m^6/kg to m^6/m^3
           ! original ze_ice
              ze_ice(i,k) = ze_ice(i,k) + f1pr13*nitot(i,k,iice)*rho(i,k)
@@ -6273,9 +6262,9 @@ END subroutine p3_init
                          Q_pellets(i,k,iice) = qitot(i,k,iice)
                       else
                          Q_hail(i,k,iice) = qitot(i,k,iice)
-                         if (present(diag_dhmax)) diag_dhmax(i,k,iice) = maxHailSize(rho(i,k),            &
-                qitot(i,k,iice),qirim(i,k,iice),qiliq(i,k,iice),nitot(i,k,iice),rhofaci(i,k), &
-                diag_lami(i,k,iice),diag_mui(i,k,iice))
+                         if (present(diag_dhmax)) diag_dhmax(i,k,iice) = maxHailSize(rho(i,k),  &
+                             qitot(i,k,iice),qirim(i,k,iice),qiliq(i,k,iice),nitot(i,k,iice),   &
+                             rhofaci(i,k),arr_lami(i,k,iice),arr_mui(i,k,iice))
                       endif
                    endif
                 else
@@ -11962,23 +11951,17 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
  real function maxHailSize(rho,qit,qim,qil,nit,rhofaci,lam,mu)
 
  !--------------------------------------------------------------------------
- ! Computes the maximum hail size, by estimating the maximum size that is
+ ! Computes the maximum hail size by estimating the maximum size that is
  ! physically observable (and not just a numerical artifact of the complete
  ! gamma size distribution).
  !
- ! Follows methods described in Milbrandt and Yau (2006a).
- !
- ! Note: Use of double-precision for integral calculations is necessary since
- !       intermediate calculations, and n0, can be quite large.
- !
- ! TO DO:
- ! - pass density (not just rime density) and add to is_hail criteria
+ ! Follows the method described in Milbrandt and Yau (2006a).
  !
  !--------------------------------------------------------------------------
 
  implicit none
 
-! Arguments passed:
+! Arguments:
  real, intent(in) :: rho        ! air density   [kg m-3]
  real, intent(in) :: qit        ! prognostic ice total mass mixing ratio
  real, intent(in) :: qim        ! prognostic ice rime  mass mixing ratio
@@ -12009,16 +11992,18 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
 
  maxHailSize = 0.
  Frim  = qim/max((qit-qil),1.e-14)
-!N_tot = rho*nit
 
  considered_hail: if (Frim>FrThrs) then
 
     N_tail = 0.
     nd  = int(Dmax_psd/dD)
-!   n0  = nit*lam**(mu+1.)/gamma(mu+1.)
+   !note: Use of double-precision for for n0 and integral calculations below are
+   !      necessary since intermediate calculations, and n0, can be quite large.
+   !n0  = nit*lam**(mu+1.)/gamma(mu+1.)
     n0  = dble(nit)*dble(lam)**dble(mu+1.)/dble(gamma(mu+1.))      
 
 !    !-- method 1, based on Nh*crit:
+!     N_tot = rho*nit
 !     do i = nd,1,-1
 !        Di = i*dD       
 ! !      N_tail = N_tail + n0*Di**mu*exp(-lam*Di)*dD
