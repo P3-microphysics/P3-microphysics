@@ -2332,8 +2332,7 @@ END subroutine p3_init
                     diag_3d,log_predictNc,typeDiags_ON,model,clbfact_dep,clbfact_sub,     &
                     debug_on,scpf_on,scpf_pfrac,scpf_resfact,SCF_out,prt_drzl,prt_rain,   &
                     prt_crys,prt_snow,prt_grpl,prt_pell,prt_hail,prt_sndp,qi_type,        &
-                    zitot,qiliq_in,diag_vis,diag_vis1,diag_vis2,diag_vis3,diag_dhmax,     &
-                    diag_lami,diag_mui)
+                    zitot,qiliq_in,diag_vis,diag_vis1,diag_vis2,diag_vis3,diag_dhmax)
 
 !----------------------------------------------------------------------------------------!
 !                                                                                        !
@@ -2390,8 +2389,6 @@ END subroutine p3_init
  real, intent(out),   dimension(its:ite,kts:kte,nCat) :: diag_di    ! mean diameter of ice             m
  real, intent(out),   dimension(its:ite,kts:kte,nCat) :: diag_rhoi  ! bulk density of ice              kg m-1
  real, intent(out),   dimension(its:ite,kts:kte,nCat), optional :: diag_dhmax ! maximum hail size                m
- real, intent(out),   dimension(its:ite,kts:kte,nCat), optional :: diag_lami  ! lambda parameter for ice PSD     m-1
- real, intent(out),   dimension(its:ite,kts:kte,nCat), optional :: diag_mui   ! mu parameter for ice PSD
 
 !real, intent(out),   dimension(its:ite,kts:kte,nCat), optional :: diag_Dhm  ! maximum hail diameter   m
  real, intent(out),   dimension(its:ite,kts:kte), optional :: diag_vis   ! visibility (total)          m
@@ -2524,7 +2521,8 @@ END subroutine p3_init
  real, dimension(nCat) :: Eii_fact,epsi,epsiw
  real :: eii ! temperature dependent aggregation efficiency
 
- real, dimension(its:ite,kts:kte,nCat) :: diam_ice,liquidfraction,rimefraction,rimevolume
+ real, dimension(its:ite,kts:kte,nCat) :: diam_ice,liquidfraction,rimefraction,          &
+            rimevolume,diag_lami,diag_mui
 
  real, dimension(its:ite,kts:kte)      :: inv_dzq,inv_rho,ze_ice,ze_rain,prec,acn,rho,   &
             rhofacr,rhofaci,xxls,xxlv,xlf,qvs,qvi,sup,supi,vtrmi1,tmparr1,mflux_r,       &
@@ -2736,9 +2734,7 @@ END subroutine p3_init
  diag_vmi  = 0.
  diag_di   = 0.
  diag_rhoi = 0.
-if (present(diag_dhmax)) diag_dhmax = 0.
-if (present(diag_lami))  diag_lami  = 0.
-if (present(diag_mui))   diag_mui   = 0.
+ if (present(diag_dhmax)) diag_dhmax = 0.
  diag_2d   = 0.
  diag_3d   = 0.
  rhorime_c = 400.
@@ -5889,13 +5885,10 @@ if (present(diag_mui))   diag_mui   = 0.
                   call access_lookup_table_LF(dumjj,dumii,dumll,dumi, 9,dum1,dum4,dum5,dum7,f1pr13)
                   call access_lookup_table_LF(dumjj,dumii,dumll,dumi,11,dum1,dum4,dum5,dum7,f1pr15)
                   call access_lookup_table_LF(dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum7,f1pr16)
-                  
-    !NOTE: Should add 'if (present(diag_lami))' [and for mui] in case these optional variables are not included;
-    !      Some alternative optimization could be considered (since there cost to computing these)   
-!                   if (present(diag_lami)) call access_lookup_table_LF(dumjj,dumii,dumll,dumi,13,dum1,dum4,dum5,dum7,f1pr22)
-!                   if (present(diag_mui))  call access_lookup_table_LF(dumjj,dumii,dumll,dumi,14,dum1,dum4,dum5,dum7,f1pr23)
-                  call access_lookup_table_LF(dumjj,dumii,dumll,dumi,13,dum1,dum4,dum5,dum7,f1pr22)
-                  call access_lookup_table_LF(dumjj,dumii,dumll,dumi,14,dum1,dum4,dum5,dum7,f1pr23)
+                  if (present(diag_dhmax)) then
+                     call access_lookup_table_LF(dumjj,dumii,dumll,dumi,13,dum1,dum4,dum5,dum7,f1pr22)
+                     call access_lookup_table_LF(dumjj,dumii,dumll,dumi,14,dum1,dum4,dum5,dum7,f1pr23)
+                  endif
                   
                 else
                   call access_lookup_table(dumjj,dumii,dumi, 1,dum1,dum4,dum5,f1pr01)
@@ -5906,10 +5899,10 @@ if (present(diag_mui))   diag_mui   = 0.
                   call access_lookup_table(dumjj,dumii,dumi, 9,dum1,dum4,dum5,f1pr13)
                   call access_lookup_table(dumjj,dumii,dumi,11,dum1,dum4,dum5,f1pr15)
                   call access_lookup_table(dumjj,dumii,dumi,12,dum1,dum4,dum5,f1pr16)
-                  
-                  call access_lookup_table(dumjj,dumii,dumi,13,dum1,dum4,dum5,f1pr22)
-                  call access_lookup_table(dumjj,dumii,dumi,14,dum1,dum4,dum5,f1pr23)
-                  
+                  if (present(diag_dhmax)) then                
+                     call access_lookup_table(dumjj,dumii,dumi,13,dum1,dum4,dum5,f1pr22)
+                     call access_lookup_table(dumjj,dumii,dumi,14,dum1,dum4,dum5,f1pr23)
+                  endif                  
                 endif
 
              else ! triple moment ice
@@ -5939,10 +5932,11 @@ if (present(diag_mui))   diag_mui   = 0.
                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi, 7,dum1,dum4,dum5,dum6,dum7,f1pr09)
                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi, 8,dum1,dum4,dum5,dum6,dum7,f1pr10)
                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi, 9,dum1,dum4,dum5,dum6,dum7,f1pr13)
-                  call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,11,dum1,dum4,dum5,dum6,dum7,f1pr15)
-                  
-                  call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,14,dum1,dum4,dum5,dum6,dum7,f1pr22)
-                  call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,15,dum1,dum4,dum5,dum6,dum7,f1pr23)
+                  call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,11,dum1,dum4,dum5,dum6,dum7,f1pr15)                 
+                  if (present(diag_dhmax)) then
+                     call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,14,dum1,dum4,dum5,dum6,dum7,f1pr22)
+                     call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,15,dum1,dum4,dum5,dum6,dum7,f1pr23)
+                  endif
                   
                 else
                   call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 1,dum1,dum4,dum5,dum6,f1pr01)
@@ -5951,11 +5945,11 @@ if (present(diag_mui))   diag_mui   = 0.
                   call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 7,dum1,dum4,dum5,dum6,f1pr09)
                   call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 8,dum1,dum4,dum5,dum6,f1pr10)
                   call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 9,dum1,dum4,dum5,dum6,f1pr13)
-                  call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,11,dum1,dum4,dum5,dum6,f1pr15)
-                  
-                  call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,14,dum1,dum4,dum5,dum6,f1pr22)
-                  call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,15,dum1,dum4,dum5,dum6,f1pr23)
-                  
+                  call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,11,dum1,dum4,dum5,dum6,f1pr15)                 
+                  if (present(diag_dhmax)) then
+                     call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,14,dum1,dum4,dum5,dum6,f1pr22)
+                     call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,15,dum1,dum4,dum5,dum6,f1pr23)
+                  endif
                 endif
              endif
 
@@ -5985,15 +5979,17 @@ if (present(diag_mui))   diag_mui   = 0.
   !==
 
   ! note that reflectivity from lookup table is normalized, so we need to multiply by N
-             diag_vmi(i,k,iice)  = f1pr02*rhofaci(i,k)
+             diag_vmi(i,k,iice)  = f1pr02*rhofaci(i,k)! real :: tmp1,tmp2,tmp3,tmp4,tmp5
+
              diag_effi(i,k,iice) = f1pr06 ! units are in m
              diag_di(i,k,iice)   = f1pr15
              diag_rhoi(i,k,iice) = f1pr16
-             if (present(diag_lami))  diag_lami(i,k,iice) = f1pr22
-             if (present(diag_mui))   diag_mui(i,k,iice)  = f1pr23
-             if (present(diag_dhmax)) diag_dhmax(i,k,iice) = maxHailSize(rho(i,k),      &
-                qitot(i,k,iice),qirim(i,k,iice),nitot(i,k,iice),rhofaci(i,k),f1pr22,    &
-                f1pr23)
+             diag_lami(i,k,iice) = f1pr22  !local only
+             diag_mui(i,k,iice)  = f1pr23  !local only
+             
+!              if (present(diag_dhmax)) diag_dhmax(i,k,iice) = maxHailSize(rho(i,k),            &
+!                 qitot(i,k,iice),qirim(i,k,iice),qiliq(i,k,iice),nitot(i,k,iice),rhofaci(i,k), &
+!                 diag_lami(i,k,iice),diag_mui(i,k,iice))
 
           ! note factor of air density below is to convert from m^6/kg to m^6/m^3
           ! original ze_ice
@@ -6183,6 +6179,7 @@ if (present(diag_mui))   diag_mui   = 0.
 ! Compute diagnostic hydrometeor types for output as 3D fields and
 ! for partitioning into corresponding surface precipitation rates.
 
+
  compute_type_diags: if (typeDiags_ON) then
 
     if (.not.(present(prt_drzl).and.present(prt_rain).and.present(prt_crys).and. &
@@ -6254,7 +6251,8 @@ if (present(diag_mui))   diag_mui   = 0.
             !Note: The following partitioning of ice into types is subjective.  However,
             !      this is a diagnostic only; it does not affect the model solution.
 
-             if ((qitot(i,k,iice)-qiliq(i,k,iice))>qsmall) then
+             if ((qitot(i,k,iice)-qiliq(i,k,iice))>=qsmall) then
+
                  tmp1 = qirim(i,k,iice)/(qitot(i,k,iice)-qiliq(i,k,iice))   !rime mass fraction
                 if (tmp1<0.1) then
                 !zero or trace rime:
@@ -6275,6 +6273,9 @@ if (present(diag_mui))   diag_mui   = 0.
                          Q_pellets(i,k,iice) = qitot(i,k,iice)
                       else
                          Q_hail(i,k,iice) = qitot(i,k,iice)
+                         if (present(diag_dhmax)) diag_dhmax(i,k,iice) = maxHailSize(rho(i,k),            &
+                qitot(i,k,iice),qirim(i,k,iice),qiliq(i,k,iice),nitot(i,k,iice),rhofaci(i,k), &
+                diag_lami(i,k,iice),diag_mui(i,k,iice))
                       endif
                    endif
                 else
@@ -11958,7 +11959,7 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
 
 !======================================================================================!
 
- real function maxHailSize(rho,qit,qim,nit,rhofaci,lam,mu)
+ real function maxHailSize(rho,qit,qim,qil,nit,rhofaci,lam,mu)
 
  !--------------------------------------------------------------------------
  ! Computes the maximum hail size, by estimating the maximum size that is
@@ -11979,8 +11980,9 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
 
 ! Arguments passed:
  real, intent(in) :: rho        ! air density   [kg m-3]
- real, intent(in) :: qit        ! prognostic ice total mass mixing ratios
- real, intent(in) :: qim        ! prognostic ice rime  mass mixing ratios
+ real, intent(in) :: qit        ! prognostic ice total mass mixing ratio
+ real, intent(in) :: qim        ! prognostic ice rime  mass mixing ratio
+ real, intent(in) :: qil        ! prognostic liquid (on ice) mass mixing ratio
  real, intent(in) :: nit        ! total num and total number mixing ratio
  real, intent(in) :: rhofaci    ! air density correction factor for ice fall speed
  real, intent(in) :: lam,mu     ! PSD slope and shape parameters
@@ -12003,11 +12005,10 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
  integer          :: nd                  ! maximum number of size bins for integral
  integer          :: i                   ! index for integration
  
-! real :: tmp1,tmp2,tmp3,tmp4,tmp5
 !-----------------------------------------------------------------------
 
  maxHailSize = 0.
- Frim  = qim/max(qit,1.e-14)
+ Frim  = qim/max((qit-qil),1.e-14)
 !N_tot = rho*nit
 
  considered_hail: if (Frim>FrThrs) then

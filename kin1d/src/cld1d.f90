@@ -1,4 +1,4 @@
- subroutine columnmodel
+subroutine columnmodel
 
 !----------------------------------------------------------------------------!
 !  1-D kinematic cloud model driver for testing microphysics scheme.
@@ -149,8 +149,7 @@
       integer, parameter               :: n_diag_3d = 20
       real, dimension(ni,n_diag_2d)    :: diag_2d     !user-defined 2D diagnostic arrays (for output)
       real, dimension(ni,nk,n_diag_3d) :: diag_3d     !user-defined 3D diagnostic arrays (for output)
-      real, dimension(ni,nk,n_iceCat)  :: diag_reffi,diag_vmi,diag_di,diag_rhoi,diag_dhmax,  &
-                                          diag_lami,diag_mui,diag_vni,diag_vzi
+      real, dimension(ni,nk,n_iceCat)  :: diag_reffi,diag_vmi,diag_di,diag_rhoi,diag_dhmax,diag_vni,diag_vzi
       real, dimension(ni,nk)           :: diag_reffc
 
     ! Precipitation rates:
@@ -176,9 +175,7 @@
       print*, '** Remember to use compiler debug options for testing new code (modfify Makefile appropriately) **'
       print*
 
-      diag_dhmax = -36.
-      diag_lami  = -1.
-      diag_mui   = -1.
+      diag_dhmax = -1.
 
       open (unit=30, file='out_p3.dat')
 ! for bit-pattern
@@ -540,11 +537,8 @@
                               prt_pell = prt_pell,  &
                               prt_hail = prt_hail,  &
                               prt_sndp = prt_sndp,  &
-!                              qi_type  = qi_type)
-                          qi_type    = qi_type,    &
-                          diag_dhmax = diag_dhmax, &
-                          diag_lami  = diag_lami,  &
-                          diag_mui   = diag_mui)
+                              qi_type  = qi_type,   &
+                              diag_dhmax = diag_dhmax)
                               
             else
 
@@ -563,10 +557,8 @@
                               prt_hail = prt_hail,  &
                               prt_sndp = prt_sndp,  &
                               qi_type  = qi_type,   &
-                              qiliq_in = Ql1,       &   !)
-                          diag_dhmax = diag_dhmax, &
-                          diag_lami  = diag_lami,  &
-                          diag_mui   = diag_mui)
+                              qiliq_in = Ql1,       &
+                              diag_dhmax = diag_dhmax)
                           
             endif
 
@@ -601,9 +593,7 @@
                              prt_sndp = prt_sndp,  &
                              qi_type  = qi_type,   &
                              zitot    = Zi1,       &
-                          diag_dhmax = diag_dhmax, &
-                          diag_lami  = diag_lami,  &
-                          diag_mui   = diag_mui)
+                             diag_dhmax = diag_dhmax)
 
               else
 
@@ -624,9 +614,7 @@
                              qi_type  = qi_type,   &
                              zitot    = Zi1,       &
                              qiliq_in = Ql1,       &
-                          diag_dhmax = diag_dhmax, &
-                          diag_lami  = diag_lami,  &
-                          diag_mui   = diag_mui)
+                             diag_dhmax = diag_dhmax)
               endif
 
             !compute prog var from Z:    (for wrapper)
