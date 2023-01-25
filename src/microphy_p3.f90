@@ -6263,8 +6263,7 @@ END subroutine p3_init
                       else
                          Q_hail(i,k,iice) = qitot(i,k,iice)
                          if (present(diag_dhmax)) diag_dhmax(i,k,iice) = maxHailSize(rho(i,k),  &
-                             qitot(i,k,iice),qirim(i,k,iice),qiliq(i,k,iice),nitot(i,k,iice),   &
-                             rhofaci(i,k),arr_lami(i,k,iice),arr_mui(i,k,iice))
+                             nitot(i,k,iice),rhofaci(i,k),arr_lami(i,k,iice),arr_mui(i,k,iice))
                       endif
                    endif
                 else
@@ -11948,7 +11947,7 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
 
 !======================================================================================!
 
- real function maxHailSize(rho,qit,qim,qil,nit,rhofaci,lam,mu)
+ real function maxHailSize(rho,nit,rhofaci,lam,mu)
 
  !--------------------------------------------------------------------------
  ! Computes the maximum hail size by estimating the maximum size that is
@@ -11963,9 +11962,6 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
 
 ! Arguments:
  real, intent(in) :: rho        ! air density   [kg m-3]
- real, intent(in) :: qit        ! prognostic ice total mass mixing ratio
- real, intent(in) :: qim        ! prognostic ice rime  mass mixing ratio
- real, intent(in) :: qil        ! prognostic liquid (on ice) mass mixing ratio
  real, intent(in) :: nit        ! total num and total number mixing ratio
  real, intent(in) :: rhofaci    ! air density correction factor for ice fall speed
  real, intent(in) :: lam,mu     ! PSD slope and shape parameters
@@ -11973,13 +11969,11 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
 ! Local variables:
  real, parameter  :: dD       = 1.e-3    ! diameter bin width [m]
  real, parameter  :: Dmax_psd = 150.e-3  ! maximum diameter in PSD to compute integral  [m]
- real, parameter  :: FrThrs   = 0.75     ! theshold rime fraction to be considered graupel/hail
  real, parameter  :: Ncrit    = 5.e-4    ! threshold physically observable number concentration [# m-3]
  real, parameter  :: Rcrit    = 1.e-3    ! threshold physically observable number flux          [# m-2 s-1]
  real, parameter  :: ch       = 206.89   ! coefficient in V-D fall speed relation for hail (from MY2006a)
  real, parameter  :: dh       = 0.6384   ! exponent in V-D fall speed relation for hail (from MY2006a)
  double precision :: n0                  ! shape parameter in gamma distribution
- real             :: Frim                ! rime mass fraction
  real             :: Di                  ! diameter  [m]
  real             :: N_tot               ! total number concentration  [# m-3]
  real             :: N_tail              ! number conc. from Di to infinity; i.e. trial for Nh*{D*} in MY2006a [# m-3]
@@ -11991,49 +11985,43 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
 !-----------------------------------------------------------------------
 
  maxHailSize = 0.
- Frim  = qim/max((qit-qil),1.e-14)
+ nd  = int(Dmax_psd/dD)
+!note: Use of double-precision for for n0 and integral calculations below are
+!      necessary since intermediate calculations, and n0, can be quite large.
+!n0  = nit*lam**(mu+1.)/gamma(mu+1.)
+ n0  = dble(nit)*dble(lam)**dble(mu+1.)/dble(gamma(mu+1.))      
 
- considered_hail: if (Frim>FrThrs) then
+!-- method 1, based on Rh*crit:
+ R_tail  = 0.
+ do i = nd,1,-1
+    Di  = i*dD
+    V_h = rhofaci*(ch*Di**Dh)
+   !R_tail = R_tail + V_h*n0*Di**mu*exp(-lam*Di)*dD
+    R_tail = R_tail + V_h*sngl(n0*dble(Di)**dble(mu)*dble(exp(-lam*Di)))*dD
+    if (R_tail>Rcrit) then
+       maxHailSize = Di
+       exit
+    endif
+ enddo
 
-    N_tail = 0.
-    nd  = int(Dmax_psd/dD)
-   !note: Use of double-precision for for n0 and integral calculations below are
-   !      necessary since intermediate calculations, and n0, can be quite large.
-   !n0  = nit*lam**(mu+1.)/gamma(mu+1.)
-    n0  = dble(nit)*dble(lam)**dble(mu+1.)/dble(gamma(mu+1.))      
-
-!    !-- method 1, based on Nh*crit:
-!     N_tot = rho*nit
-!     do i = nd,1,-1
-!        Di = i*dD       
-! !      N_tail = N_tail + n0*Di**mu*exp(-lam*Di)*dD
-!        N_tail = N_tail + sngl(n0*dble(Di)**dble(mu)*dble(exp(-lam*Di)))*dD
-!        !-- alternative:       
-!        ! N_tail = N_tail + nit*lam**(mu+1.)/gamma(mu+1.) *Di**mu*exp(-lam*Di)*dD  !formulated in terms of nit
-!        ! reorganized to avoid overflows from intermediate calculations e.g. lam**(mu+1)]
-!        ! tmp2 = lam**tmp1
-!        !        N_tail = N_tail + nit*tmp2/gamma(mu+1.)*tmp2*Di**mu*tmp2*exp(-lam*Di)*dD
-!        if (N_tail>Ncrit) then
-!           maxHailSize = Di
-!           exit
-!        endif
-!     enddo
+! !-- method 2, based on Nh*crit:
+!  N_tot = rho*nit
+!  N_tail = 0.
+!  do i = nd,1,-1
+!     Di = i*dD       
+! !   N_tail = N_tail + n0*Di**mu*exp(-lam*Di)*dD
+!     N_tail = N_tail + sngl(n0*dble(Di)**dble(mu)*dble(exp(-lam*Di)))*dD
+!     !-- alternative:       
+!     ! N_tail = N_tail + nit*lam**(mu+1.)/gamma(mu+1.) *Di**mu*exp(-lam*Di)*dD  !formulated in terms of nit
+!     ! reorganized to avoid overflows from intermediate calculations e.g. lam**(mu+1)]
+!     ! tmp2 = lam**tmp1
+!     !        N_tail = N_tail + nit*tmp2/gamma(mu+1.)*tmp2*Di**mu*tmp2*exp(-lam*Di)*dD
+!     if (N_tail>Ncrit) then
+!        maxHailSize = Di
+!        exit
+!     endif
+!  enddo
     
-!-- method 2, based on Rh*crit:
-    R_tail  = 0.
-    do i = nd,1,-1
-       Di  = i*dD
-       V_h = rhofaci*(ch*Di**Dh)
-      !R_tail = R_tail + V_h*n0*Di**mu*exp(-lam*Di)*dD
-       R_tail = R_tail + V_h*sngl(n0*dble(Di)**dble(mu)*dble(exp(-lam*Di)))*dD
-       if (R_tail>Rcrit) then
-          maxHailSize = Di
-          exit
-       endif
-    enddo
-   
- endif considered_hail
-
  end function maxHailSize
 
 !===========================================================================================
