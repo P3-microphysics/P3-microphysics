@@ -2581,8 +2581,9 @@ END subroutine p3_init
  real,    parameter                       :: thres_raindrop     = 100.e-6 !size threshold for drizzle vs. rain
  real,    dimension(its:ite,kts:kte)      :: Q_drizzle,Q_rain
  real,    dimension(its:ite,kts:kte,nCat) :: Q_crystals,Q_ursnow,Q_lrsnow,Q_grpl,Q_pellets,Q_hail
- integer                                  :: ktop_typeDiag
-
+ integer                                  :: ktop_typeDiag_r,ktop_typeDiag_i
+ logical                                  :: log_typeDiag_column
+ 
 ! to be added as namelist parameters (future)
  logical, parameter :: debug_ABORT  = .true. !.true. will result in forced abort in s/r 'check_values'
  logical            :: force_abort
@@ -6191,22 +6192,35 @@ END subroutine p3_init
     prt_sndp(:) = 0.
     if (present(qi_type)) qi_type(:,:,:) = 0.
 
-    if (freq3DtypeDiag>0. .and. mod(it*dt,freq3DtypeDiag*60.)==0.) then
-      !diagnose hydrometeor types for full columns
-       ktop_typeDiag = ktop
-    else
-      !diagnose hydrometeor types at bottom level only (for specific precip rates)
-       ktop_typeDiag = kbot
-    endif
-
     i_loop_typediag: do i = its,ite
 
+       if (freq3DtypeDiag>0. .and. mod(it*dt,freq3DtypeDiag*60.)==0.) then
+       !diagnose hydrometeor types for full columns
+          log_typeDiag_column = .true.
+       else
+       !diagnose hydrometeor types at bottom level only (for specific precip rates and max. hail size)
+          log_typeDiag_column = .false.
+       endif
+      
       !-- rain vs. drizzle:
-       k_loop_typdiag_1: do k = kbot,ktop_typeDiag,kdir
+      !find top (rain):
+       if (log_typeDiag_column) then  
+          do k = ktop,kbot,-kdir
+             if (qr(i,k).ge.qsmall) then
+                ktop_typeDiag_r = k
+                exit
+             endif
+          enddo
+       else
+          ktop_typeDiag_r = kbot
+       endif
+
+       k_loop_typdiag_1: do k = kbot,ktop_typeDiag_r,kdir
 
           Q_drizzle(i,k) = 0.
           Q_rain(i,k)    = 0.
-          !note:  these can be broken down further (outside of microphysics) into
+          
+          !note:  These can be broken down further (outside of microphysics) into
           !       liquid rain (drizzle) vs. freezing rain (drizzle) based on sfc temp.
           if (qr(i,k)>qsmall .and. nr(i,k)>nsmall) then
              tmp1 = (6.*qr(i,k)/(pi*rhow*nr(i,k)))**thrd   !mean-mass diameter
@@ -6225,10 +6239,23 @@ END subroutine p3_init
           prt_rain(i) = prt_liq(i)
        endif
 
-      !-- ice-phase:
-      iice_loop_diag: do iice = 1,nCat
+       
+       iice_loop_diag: do iice = 1,nCat
 
-          k_loop_typdiag_2: do k = kbot,ktop_typeDiag,kdir
+         !-- ice-phase:
+          if (log_typeDiag_column) then  
+            !find top (ice):
+             do k = ktop,kbot,-kdir
+                if (qitot(i,k,iice).ge.qsmall) then
+                   ktop_typeDiag_i = k
+                   exit
+                endif
+             enddo       
+          else
+             ktop_typeDiag_i = kbot
+          endif
+
+          k_loop_typdiag_2: do k = kbot,ktop_typeDiag_i,kdir
 
              Q_crystals(i,k,iice) = 0.
              Q_ursnow(i,k,iice)   = 0.
@@ -6237,9 +6264,8 @@ END subroutine p3_init
              Q_pellets(i,k,iice)  = 0.
              Q_hail(i,k,iice)     = 0.
 
-            !Note: The following partitioning of ice into types is subjective.  However,
+            !note: The following partitioning of ice into types is subjective.  However,
             !      this is a diagnostic only; it does not affect the model solution.
-
              if ((qitot(i,k,iice)-qiliq(i,k,iice))>=qsmall) then
 
                  tmp1 = qirim(i,k,iice)/(qitot(i,k,iice)-qiliq(i,k,iice))   !rime mass fraction
@@ -6318,7 +6344,7 @@ END subroutine p3_init
     enddo i_loop_typediag
 
    !- for output of 3D fields of diagnostic ice-phase hydrometeor type
-    if (ktop_typeDiag==ktop .and. present(qi_type)) then
+    if (log_typeDiag_column .and. present(qi_type)) then
       !diag_3d(:,:,1) = Q_drizzle(:,:)
       !diag_3d(:,:,2) = Q_rain(:,:)
        do ii = 1,nCat
