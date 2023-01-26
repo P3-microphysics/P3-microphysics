@@ -13,14 +13,9 @@ PROGRAM create_p3_lookuptable_1
 ! All other parameter settings are linked uniquely to the version number.
 !
 !--------------------------------------------------------------------------------------
-<<<<<<< HEAD:src/create_p3_lookupTable_1.f90
-! Version:       5.4
-! Last modified: 2021 June          
-=======
 ! Version:       6.1
 ! Last modified: 2021-July
 ! Version: including the liquid fraction (inner-loop i_Fl)
->>>>>>> dev-liqfrac:code_p3/create_p3_lookupTable_1.f90
 !______________________________________________________________________________________
 
 !______________________________________________________________________________________
@@ -93,7 +88,7 @@ PROGRAM create_p3_lookuptable_1
 !
 ! for i_Znorm in 01 02 03 04 05 06 07 08 09 10 11
 ! do
-!
+
 !    rm cfg_input full_code.f90
 !    cat > cfg_input << EOF
 !     i_Znorm = ${i_Znorm}
@@ -165,11 +160,7 @@ PROGRAM create_p3_lookuptable_1
 !       with resulting sub-tables subsequently concatenated.  The same is true for the second (i_rhor) "loop"; however, n_rhor
 !       is used to decare the ranges of other arrays, hence it is declared/initialized here
 
-<<<<<<< HEAD:src/create_p3_lookupTable_1.f90
- integer, parameter :: n_Znorm   = 10  ! number of indices for i_Znorm loop           (1nd "loop")  [not used in parallelized version]
-=======
 !integer, parameter :: n_Znorm   = 11  ! number of indices for i_Znorm loop           (1nd "loop")  [not used in parallelized version]
->>>>>>> dev-liqfrac:code_p3/create_p3_lookupTable_1.f90
  integer, parameter :: n_rhor    =  5  ! number of indices for i_rhor  loop           (2nd "loop")
  integer, parameter :: n_Fr      =  4  ! number of indices for i_Fr    loop           (3rd loop)
  integer, parameter :: n_Fl      =  4  ! number of indices for i_Fl    loop           (4th loop)
@@ -479,18 +470,6 @@ hostinclusionstring_m = 'spheroidal'
 ! The values of i_Znorm (and possibly i_rhor) are "passed in" for parallelized version of code for 3-moment.
 ! The values of i_rhor are "passed in" for parallelized version of code for 2-moment.
 ! Thus, the loops 'i_Znorm_loop' and 'i_rhor_loop' are commented out accordingingly.
-<<<<<<< HEAD:src/create_p3_lookupTable_1.f90
- 
- if (log_3momI) then
-    Z_value =2.*(i_Znorm-1)   !mu_i values set to 0., 2., 4., ... 20.
- else
-    Z_value = -99.  !this gets overwritten below
- endif    
-
-!i_Znorm_loop: do i_Znorm = 1,n_Znorm   !normally commented (kept to illustrate the structure (and to run in serial)
-!   i_rhor_loop: do i_rhor = 1,n_rhor    !COMMENT OUT FOR PARALLELIZATION (2-MOMENT ONLY)
-     i_Fr_loop_1: do i_Fr = 1,n_Fr       !COMMENT OUT FOR PARALLELIZATION (2-MOMENT ONLY)
-=======
 !
 !i_Znorm_loop: do i_Znorm = 1,n_Znorm   !normally commented (kept to illustrate the structure (and to run in serial)
    i_rhor_loop: do i_rhor = 1,n_rhor    !COMMENT OUT FOR PARALLELIZATION (2-MOMENT ONLY)
@@ -500,7 +479,6 @@ hostinclusionstring_m = 'spheroidal'
 ! compute Z value from input Z index whose value is "passed in" through the script
 ! Z_value = 2.1**(i_Znorm)*1.e-23 ! range from 2x10^(-23) to 600 using 80 values
   Z_value = 2.*(i_Znorm-1.) ! mu values of 0,2,4,6,8, temporary.... NOTE IF 2 MOM JUST SET TO ARBITRARY VALUE, WILL BE OVERWRITTEN LATER
->>>>>>> dev-liqfrac:code_p3/create_p3_lookupTable_1.f90
 
        ! write header to first file:
        if (log_3momI .and. i_Znorm==1 .and. i_rhor==1 .and. i_Fr==1) then
@@ -2004,13 +1982,8 @@ hostinclusionstring_m = 'spheroidal'
 ! version of code, thus the loops are commented out.
         enddo i_Fl_loop_1
       enddo i_Fr_loop_1
-<<<<<<< HEAD:src/create_p3_lookupTable_1.f90
-!   enddo i_rhor_loop
-! enddo i_Znorm_loop
-=======
     enddo i_rhor_loop
 !enddo i_Znorm_loop
->>>>>>> dev-liqfrac:code_p3/create_p3_lookupTable_1.f90
 !==
 
  close(1)

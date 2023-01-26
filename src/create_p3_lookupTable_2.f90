@@ -6,10 +6,6 @@ PROGRAM create_p3_lookuptable_2
 ! interactions for the multi-ice-category configuration of the P3 microphysics scheme.
 !
 !--------------------------------------------------------------------------------------
-<<<<<<< HEAD:src/create_p3_lookupTable_2.f90
-! Version:       5.3   
-! Last modified: 2022 June 
-=======
 ! Version:       6.0
 ! Last modified: 2022-JUN
 ! For coupling with liquid fraction
@@ -17,7 +13,6 @@ PROGRAM create_p3_lookuptable_2
 ! _10 is Fi,liq1=1 and Fi,liq2=0
 ! _01 is Fi,liq1=0 and Fi,liq2=1
 ! _11 is Fi,liq1=1 and Fi,liq2=1
->>>>>>> dev-liqfrac:code_p3/create_p3_lookupTable_2.f90
 !______________________________________________________________________________________
 
 !______________________________________________________________________________________
@@ -63,19 +58,19 @@ PROGRAM create_p3_lookuptable_2
 ! for i1 in 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25
 ! do
 ! 
-!  rm cfg_input full_code.f90
+! rm cfg_input full_code.f90
 ! 
-!  cat > cfg_input << EOF
-!   i1  = ${i1}
-!EOF
+! cat > cfg_input << EOF
+!  i1  = ${i1}
+! EOF
 ! 
-!  cat create_p3_lookupTable_2-top.f90 cfg_input create_p3_lookupTable_2-bottom.f90 > full_code.f90
+! cat create_p3_lookupTable_2-top.f90 cfg_input create_p3_lookupTable_2-bottom.f90 > full_code.f90
 ! 
-!  echo 'Compiling 'exec_${i1}
-!  #pgf90 -r8 full_code.f90
-!  #gfortran -fdefault-real-8 full_code.f90
-!  ifort -r8 full_code.f90
-!  mv a.out exec_${i1}
+! echo 'Compiling 'exec_${i1}
+! #pgf90 -r8 full_code.f90
+! #gfortran -fdefault-real-8 full_code.f90
+! ifort -r8 full_code.f90
+! mv a.out exec_${i1}
 ! 
 ! done
 ! 
@@ -122,14 +117,10 @@ PROGRAM create_p3_lookuptable_2
 
  implicit none
  
-<<<<<<< HEAD:src/create_p3_lookupTable_2.f90
- character(len=16), parameter :: version = '5.3'
-=======
  character(len=16), parameter :: version = '6.0_00'
 
  real, parameter :: Fl1 = 0.   ! liquid fraction of cat 1
  real, parameter :: Fl2 = 0.   ! liquid fraction of cat 2
->>>>>>> dev-liqfrac:code_p3/create_p3_lookupTable_2.f90
 
  real    :: pi,g,p,t,rho,mu,pgam,ds,cs,bas,aas,dcrit,eii
  integer :: k,ii,jj,kk,dumii,j2
@@ -923,13 +914,9 @@ PROGRAM create_p3_lookuptable_2
 
  
  ! Note: i1 loop (do/enddo statements) is commented out for parallelization; i1 gets initizatized there
- ! - to run in serial, uncomment the 'Qnorm_loop_3: do i1' statement and the corresponding 'enddo'
+ ! - to run in serial, uncomment the 'do i1' statement and the corresponding 'enddo'
  
-<<<<<<< HEAD:src/create_p3_lookupTable_2.f90
-!Qnorm_loop_3: do i1 = 1,n_Qnorm    ! COMMENTED OUT FOR PARALLELIZATION
-=======
  !Qnorm_loop_3: do i1 = 1,n_Qnorm    ! COMMENT OUT FOR PARALLELIZATION
->>>>>>> dev-liqfrac:code_p3/create_p3_lookupTable_2.f90
    do i_Fr1 = 1,n_Fr
      do i_rhor1 = 1,n_rhor
        do i2 = 1,n_Qnorm
@@ -1112,11 +1099,7 @@ PROGRAM create_p3_lookuptable_2
        enddo   ! i2 loop
      enddo   ! i_rhor1 loop
    enddo   ! i_Fr1
-<<<<<<< HEAD:src/create_p3_lookupTable_2.f90
-!enddo Qnorm_loop_3  ! i1 loop  (Qnorm)     ! COMMENTED OUT FOR PARALLELIZATION
-=======
  !enddo Qnorm_loop_3  ! i1 loop  (Qnorm)     ! COMMENTED OUT FOR PARALLELIZATION
->>>>>>> dev-liqfrac:code_p3/create_p3_lookupTable_2.f90
  
  close(1)
              
@@ -1239,10 +1222,7 @@ END PROGRAM create_p3_lookuptable_2
     dum2 = (6./pi)*rho                     ! mean density (total)
     dum3 = max(1., 1.+0.00842*(dum2-400.)) ! adjustment factor for density
     mu_i = 0.25*(dum1-Di_thres)*dum3*Fr
-<<<<<<< HEAD:src/create_p3_lookupTable_2.f90
-=======
    !mu_i = 4.*(dum1-Di_thres)*dum3*Fr
->>>>>>> dev-liqfrac:code_p3/create_p3_lookupTable_2.f90
  endif
  mu_i = max(mu_i, mu_i_min)
  mu_i = min(mu_i, mu_i_max)
