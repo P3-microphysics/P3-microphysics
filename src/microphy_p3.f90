@@ -22,7 +22,7 @@
 !__________________________________________________________________________________________!
 !                                                                                          !
 ! Version:       5.2.0 + dev-dhmax                                                         !
-! Last updated:  2023-JAN                                                                  !
+! Last updated:  2023-FEB                                                                  !
 !__________________________________________________________________________________________!
 
  MODULE microphy_p3
@@ -428,7 +428,7 @@
 
   else ! TRIPLE_MOMENT_ICE  (the following is for trplMomI=.true.)
 
-    print*, '     Reading table 1 [',trim(version_intended_table_1_3mom),'] ...'
+    print*, '     Reading table 1 [v',trim(version_intended_table_1_3mom),'] ...'
 
     open(unit=10,file=lookup_file_1,status='old',iostat=ierr,err=101)
  101  if (ierr.ne.0) then
@@ -494,7 +494,7 @@
   IF_NCAT: if (nCat>1) then
    ! read in ice-ice collision lookup table  (used for multicategory only)
 
-       if(dowr) print*, '     Reading table 2 [',trim(version_intended_table_2),'] ...'
+       if(dowr) print*, '     Reading table 2 [v',trim(version_intended_table_2),'] ...'
        open(unit=10,file=lookup_file_2,status='old')
 
        !--check that table version is correct:
@@ -658,7 +658,7 @@
 
  if (procnum == 0) then
     if(dowr) then
-    print*, 'Generating table for rain fallspeed/ventilation parameters'
+    print*, '     Generating table for rain parameters ...'
     end if
  endif
 
@@ -866,7 +866,6 @@ END subroutine p3_init
    logical                  :: log_3momentIce
    logical                  :: log_LiquidFraction
    logical, parameter       :: debug_on      = .false. !switch for internal debug checking                    
-   logical, parameter       :: log_typeDiags = .false.
    real,    parameter       :: clbfact_dep   = 1.0     !calibration factor for deposition                     
    real,    parameter       :: clbfact_sub   = 1.0     !calibration factor for sublimation                    
 
@@ -933,7 +932,7 @@ END subroutine p3_init
                diag_di_3d(its:ite,kts:kte,j),diag_rhopo_3d(its:ite,kts:kte,j),                          &     
                n_diag_2d,diag_2d(its:ite,1:n_diag_2d),                                                  &     
                n_diag_3d,diag_3d(its:ite,kts:kte,1:n_diag_3d),                                          &     
-               log_predictNc,log_typeDiags,trim(model),clbfact_dep,clbfact_sub,debug_on,                &     
+               log_predictNc,trim(model),clbfact_dep,clbfact_sub,debug_on,                              &     
                scpf_on,scpf_pfrac,scpf_resfact,cldfrac ) 
 
       else if (log_3momentIce .and. (.not. log_LiquidFraction)) then
@@ -951,7 +950,7 @@ END subroutine p3_init
                diag_di_3d(its:ite,kts:kte,j),diag_rhopo_3d(its:ite,kts:kte,j),                          &     
                n_diag_2d,diag_2d(its:ite,1:n_diag_2d),                                                  &     
                n_diag_3d,diag_3d(its:ite,kts:kte,1:n_diag_3d),                                          &     
-               log_predictNc,log_typeDiags,trim(model),clbfact_dep,clbfact_sub,debug_on,                &     
+               log_predictNc,trim(model),clbfact_dep,clbfact_sub,debug_on,                              &     
                scpf_on,scpf_pfrac,scpf_resfact,cldfrac,zitot=qzi1_3d(its:ite,kts:kte,j))                      
 
       else if (log_3momentIce .and. log_LiquidFraction) then
@@ -969,7 +968,7 @@ END subroutine p3_init
                diag_di_3d(its:ite,kts:kte,j),diag_rhopo_3d(its:ite,kts:kte,j),                          &     
                n_diag_2d,diag_2d(its:ite,1:n_diag_2d),                                                  &     
                n_diag_3d,diag_3d(its:ite,kts:kte,1:n_diag_3d),                                          &     
-               log_predictNc,log_typeDiags,trim(model),clbfact_dep,clbfact_sub,debug_on,                &     
+               log_predictNc,trim(model),clbfact_dep,clbfact_sub,debug_on,                              &     
                scpf_on,scpf_pfrac,scpf_resfact,cldfrac,zitot=qzi1_3d(its:ite,kts:kte,j),                &     
                qiliq_in=qli1_3d(its:ite,kts:kte,j))
 
@@ -1178,7 +1177,6 @@ END subroutine p3_init
    logical                  :: log_3cat
    logical                  :: log_4cat
 
-   logical, parameter       :: log_typeDiags = .false.
    logical, parameter       :: debug_on      = .false. !switch for internal debug checking                        
    real,    parameter       :: clbfact_dep   = 1.0     !calibration factor for deposition                         
    real,    parameter       :: clbfact_sub   = 1.0     !calibration factor for sublimation                        
@@ -1316,7 +1314,7 @@ END subroutine p3_init
                diag_di(its:ite,kts:kte,1:n_iceCat),diag_rhopo(its:ite,kts:kte,1:n_iceCat),          &             
                n_diag_2d,diag_2d(its:ite,1:n_diag_2d),                                              &             
                n_diag_3d,diag_3d(its:ite,kts:kte,1:n_diag_3d),                                      &             
-               log_predictNc,log_typeDiags,trim(model),clbfact_dep,clbfact_sub,debug_on,            &             
+               log_predictNc,trim(model),clbfact_dep,clbfact_sub,debug_on,                          &             
                scpf_on,scpf_pfrac,scpf_resfact,cldfrac,zitot=zitot(its:ite,kts:kte,1:n_iceCat))
 
 !!!!!!!!! NOTE: CODE NOT SET UP TO RUN WITH PREDICTED LIQUID FRACTION BUT WITHOUT 3-MOMENT!!!!!!!!!
@@ -1335,7 +1333,7 @@ END subroutine p3_init
                diag_di(its:ite,kts:kte,1:n_iceCat),diag_rhopo(its:ite,kts:kte,1:n_iceCat),          &               
                n_diag_2d,diag_2d(its:ite,1:n_diag_2d),                                              &               
                n_diag_3d,diag_3d(its:ite,kts:kte,1:n_diag_3d),                                      &               
-               log_predictNc,log_typeDiags,trim(model),clbfact_dep,clbfact_sub,debug_on,            &               
+               log_predictNc,trim(model),clbfact_dep,clbfact_sub,debug_on,                          &               
                scpf_on,scpf_pfrac,scpf_resfact,cldfrac,zitot=zitot(its:ite,kts:kte,1:n_iceCat))
 
       else if (log_3momentIce .and. log_LiquidFraction) then
@@ -1353,7 +1351,7 @@ END subroutine p3_init
                diag_di(its:ite,kts:kte,1:n_iceCat),diag_rhopo(its:ite,kts:kte,1:n_iceCat),          &               
                n_diag_2d,diag_2d(its:ite,1:n_diag_2d),                                              &               
                n_diag_3d,diag_3d(its:ite,kts:kte,1:n_diag_3d),                                      &               
-               log_predictNc,log_typeDiags,trim(model),clbfact_dep,clbfact_sub,debug_on,            &               
+               log_predictNc,trim(model),clbfact_dep,clbfact_sub,debug_on,                          &               
                scpf_on,scpf_pfrac,scpf_resfact,cldfrac,zitot=zitot(its:ite,kts:kte,1:n_iceCat),     &               
                qiliq_in=qiliq_in(its:ite,kts:kte,1:n_iceCat))
 
@@ -1721,7 +1719,6 @@ END subroutine p3_init
 
  logical                 :: log_tmp1,log_tmp2,log_trplMomI,log_liquidFraction
  logical, parameter      :: log_predictNc = .true.      ! temporary; to be put as GEM namelist
- logical, parameter      :: log_typeDiags = .true.      ! switch for hydrometeor/precip type diagnostics
  real, parameter         :: SMALL_ICE_MASS = 1e-14      ! threshold for very small specific ice content
 
  character(len=16), parameter :: model = 'GEM'
@@ -1894,7 +1891,7 @@ END subroutine p3_init
             call p3_main(qc,nc,qr,nr,theta_m,theta,qvapm,qvap,dt_mp,qitot,qirim,nitot,birim,    &
                    ssat,ww,pres,DZ,kount,prt_liq,prt_sol,i_strt,ni,k_strt,nk,n_iceCat,          &
                    diag_Zet,diag_effc,diag_effi,diag_vmi,diag_di,diag_rhoi,n_diag_2d,diag_2d,   &
-                   n_diag_3d,diag_3d,log_predictNc,log_typeDiags,trim(model),clbfact_dep,       &
+                   n_diag_3d,diag_3d,log_predictNc,trim(model),clbfact_dep,                     &
                    clbfact_sub,debug_on,scpf_on,scpf_pfrac,scpf_resfact,cldfrac,prt_drzl,       &
                    prt_rain,prt_crys,prt_snow,prt_grpl,prt_pell,prt_hail,prt_sndp,qi_type,      &
                    zitot     = zitot,                                                           &
@@ -1907,7 +1904,7 @@ END subroutine p3_init
             call p3_main(qc,nc,qr,nr,theta_m,theta,qvapm,qvap,dt_mp,qitot,qirim,nitot,birim,    &
                    ssat,ww,pres,DZ,kount,prt_liq,prt_sol,i_strt,ni,k_strt,nk,n_iceCat,          &
                    diag_Zet,diag_effc,diag_effi,diag_vmi,diag_di,diag_rhoi,n_diag_2d,diag_2d,   &
-                   n_diag_3d,diag_3d,log_predictNc,log_typeDiags,trim(model),clbfact_dep,       &
+                   n_diag_3d,diag_3d,log_predictNc,trim(model),clbfact_dep,                     &
                    clbfact_sub,debug_on,scpf_on,scpf_pfrac,scpf_resfact,cldfrac,prt_drzl,       &
                    prt_rain,prt_crys,prt_snow,prt_grpl,prt_pell,prt_hail,prt_sndp,qi_type,      &
                    zitot     = zitot,                                                           &
@@ -1921,7 +1918,7 @@ END subroutine p3_init
             call p3_main(qc,nc,qr,nr,theta_m,theta,qvapm,qvap,dt_mp,qitot,qirim,nitot,birim,    &
                    ssat,ww,pres,DZ,kount,prt_liq,prt_sol,i_strt,ni,k_strt,nk,n_iceCat,          &
                    diag_Zet,diag_effc,diag_effi,diag_vmi,diag_di,diag_rhoi,n_diag_2d,diag_2d,   &
-                   n_diag_3d,diag_3d,log_predictNc,log_typeDiags,trim(model),clbfact_dep,       &
+                   n_diag_3d,diag_3d,log_typeDiags,trim(model),clbfact_dep,                     &
                    clbfact_sub,debug_on,scpf_on,scpf_pfrac,scpf_resfact,cldfrac,prt_drzl,       &
                    prt_rain,prt_crys,prt_snow,prt_grpl,prt_pell,prt_hail,prt_sndp,qi_type,      &
                    qiliq_in  = qiliq_in,                                                        &
@@ -1933,7 +1930,7 @@ END subroutine p3_init
             call p3_main(qc,nc,qr,nr,theta_m,theta,qvapm,qvap,dt_mp,qitot,qirim,nitot,birim,    &
                    ssat,ww,pres,DZ,kount,prt_liq,prt_sol,i_strt,ni,k_strt,nk,n_iceCat,          &
                    diag_Zet,diag_effc,diag_effi,diag_vmi,diag_di,diag_rhoi,n_diag_2d,diag_2d,   &
-                   n_diag_3d,diag_3d,log_predictNc,log_typeDiags,trim(model),clbfact_dep,       &
+                   n_diag_3d,diag_3d,log_predictNc,trim(model),clbfact_dep,                     &
                    clbfact_sub,debug_on,scpf_on,scpf_pfrac,scpf_resfact,cldfrac,prt_drzl,       &
                    prt_rain,prt_crys,prt_snow,prt_grpl,prt_pell,prt_hail,prt_sndp,qi_type,      &
                    diag_vis  = diag_vis,                                                        &
@@ -2322,7 +2319,7 @@ END subroutine p3_init
  SUBROUTINE p3_main(qc,nc,qr,nr,th_old,th,qv_old,qv,dt,qitot,qirim,nitot,birim,ssat,uzpl, &
                     pres,dzq,it,prt_liq,prt_sol,its,ite,kts,kte,nCat,diag_ze,diag_effc,   &
                     diag_effi,diag_vmi,diag_di,diag_rhoi,n_diag_2d,diag_2d,n_diag_3d,     &
-                    diag_3d,log_predictNc,log_typeDiags,model,clbfact_dep,clbfact_sub,    &
+                    diag_3d,log_predictNc,model,clbfact_dep,clbfact_sub,                  &
                     debug_on,scpf_on,scpf_pfrac,scpf_resfact,SCF_out,prt_drzl,prt_rain,   &
                     prt_crys,prt_snow,prt_grpl,prt_pell,prt_hail,prt_sndp,qi_type,        &
                     zitot,qiliq_in,diag_vis,diag_vis1,diag_vis2,diag_vis3,diag_dhmax)
@@ -2395,7 +2392,6 @@ END subroutine p3_init
  integer, intent(in)                                  :: it         ! time step counter NOTE: starts at 1 for first time step
 
  logical, intent(in)                                  :: log_predictNc ! .T. (.F.) for prediction (specification) of Nc
- logical, intent(in)                                  :: log_typeDiags !for diagnostic hydrometeor/precip rate types
  logical, intent(in)                                  :: debug_on      !switch for internal debug checks
  character(len=*), intent(in)                         :: model         !driving model
 
@@ -2581,8 +2577,8 @@ END subroutine p3_init
  real,    dimension(its:ite,kts:kte)      :: Q_drizzle,Q_rain
  real,    dimension(its:ite,kts:kte,nCat) :: Q_crystals,Q_ursnow,Q_lrsnow,Q_grpl,Q_pellets,Q_hail
  integer                                  :: ktop_typeDiag_r,ktop_typeDiag_i
- logical                                  :: log_typeDiag_column
- 
+ logical                                  :: log_typeDiags,log_typeDiag_column
+
 ! to be added as namelist parameters (future)
  logical, parameter :: debug_ABORT  = .true. !.true. will result in forced abort in s/r 'check_values'
  logical            :: force_abort
@@ -2657,18 +2653,6 @@ END subroutine p3_init
     kdir = 1          !(k: 1=bottom, nk=top)
  endif
 
- if (trim(model)=='GEM') then
-   if (.not. log_typeDiags) then
-      !If log_typeDiags is .false., uninitialized arrays (prt_drzl, qi_type, etc.) will be passed back.
-      !(The coding of this will be refined later)
-       print*, '*** ERROR in P3_MAIN ***'
-       print*, '* log_typeDiags must be set to .TRUE. for GEM'
-       global_status = STATUS_ERROR
-       return
-    endif
- endif
-
-
 ! Determine threshold size difference [m] as a function of nCat
 ! (used for destination category upon ice initiation)
 ! note -- this code could be moved to 'p3_init'
@@ -2696,10 +2680,10 @@ END subroutine p3_init
 
  log_3momentIce = present(zitot)
  log_LiquidFrac = present(qiliq_in)
-
- log_hmossopOn   = (nCat.gt.1)      !default: off for nCat=1, off for nCat>1
-!log_hmossopOn   = .true.           !switch to have Hallet-Mossop ON
-!log_hmossopOn   = .false.          !switch to have Hallet-Mossop OFF
+ log_typeDiags  = present(qi_type)
+ log_hmossopOn  = (nCat.gt.1)      !default: off for nCat=1, off for nCat>1
+!log_hmossopOn  = .true.           !switch to have Hallet-Mossop ON
+!log_hmossopOn  = .false.          !switch to have Hallet-Mossop OFF
 
  inv_dzq    = 1./dzq  ! inverse of thickness of layers
  odt        = 1./dt   ! inverse model time step
@@ -2727,7 +2711,6 @@ END subroutine p3_init
  diag_vmi  = 0.
  diag_di   = 0.
  diag_rhoi = 0.
- if (log_typeDiags) diag_dhmax = 0.
  diag_2d   = 0.
  diag_3d   = 0.
  rhorime_c = 400.
@@ -6095,7 +6078,8 @@ END subroutine p3_init
    !..............................................
    !Diagnostics -- visibility:
 
-    if (present(diag_vis)) then   !it is assumed that all diag_vis{x} will either be present or all not present
+    diag_visibility: if (present(diag_vis)) then
+      !it is assumed that all diag_vis{x} will either be present or all not present
 
        diag_vis(i,:)  = 3.*maxVIS
        diag_vis1(i,:) = 3.*maxVIS
@@ -6131,7 +6115,7 @@ END subroutine p3_init
           diag_vis3(i,k)= min(maxVIS, diag_vis3(i,k))
        enddo !k-loop
 
-    endif  !if present(diag_vis)
+    endif diag_visibility
 
 ! Testing Cholette Jan. 2022
 ! to remove any supersaturation w.r.t to water at the end of P3
@@ -6184,7 +6168,8 @@ END subroutine p3_init
               present(prt_snow).and.present(prt_grpl).and.present(prt_pell).and. &
               present(prt_hail).and.present(prt_sndp))) then
        print*,'***  ABORT IN P3_MAIN ***'
-       print*,'*  log_typeDiags = .true. but prt_drzl, etc. are not passed into P3_MAIN'
+       print*,'*  log_typeDiags = .true. but prt_drzl, etc.'
+       print*,'*  are not passed into P3_MAIN'
        print*,'*************************'
        global_status = STATUS_ERROR
        return
@@ -6198,8 +6183,9 @@ END subroutine p3_init
     prt_pell(:) = 0.
     prt_hail(:) = 0.
     prt_sndp(:) = 0.
+    
     diag_dhmax(:,:,:) = 0.
-    if (present(qi_type)) qi_type(:,:,:) = 0.
+    qi_type(:,:,:)    = 0.
     Q_drizzle(:,:)    = 0.
     Q_rain(:,:)       = 0.
     Q_crystals(:,:,:) = 0.
@@ -6246,7 +6232,7 @@ END subroutine p3_init
                 if (tmp1 < thres_raindrop) then
                    Q_drizzle(i,k) = qr(i,k)
                 else
-                   Q_rain(i,k)    = qr(i,k)
+                   Q_rain(i,k) = qr(i,k)
                 endif
              endif
    
@@ -6350,7 +6336,7 @@ END subroutine p3_init
     enddo i_loop_typediag
 
    !- for output of 3D fields of diagnostic ice-phase hydrometeor type
-    if (log_typeDiag_column .and. present(qi_type)) then
+    if (log_typeDiag_column) then
        do ii = 1,nCat
           qi_type(:,:,1) = qi_type(:,:,1) + Q_crystals(:,:,ii)
           qi_type(:,:,2) = qi_type(:,:,2) + Q_ursnow(:,:,ii)

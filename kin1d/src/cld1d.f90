@@ -39,7 +39,7 @@ subroutine columnmodel
 
       implicit none
 
-      integer, parameter :: n_iceCat     =  1
+      integer, parameter :: n_iceCat     =  2
       logical, parameter :: liqFrac      = .true.
       logical, parameter :: trplMomIce   = .true.
       
@@ -48,7 +48,6 @@ subroutine columnmodel
       real,    parameter :: scpf_resfact = 1.        ! model resolution factor (SCPF)
       logical, parameter :: prog_nc_ssat = .true.
      !logical, parameter :: nk_BOTTOM    = .true.   !.T. --> nk at bottom
-      logical, parameter :: typeDiags_ON = .true.   ! switch for hydrometeor/precip type diagnostics
       logical, parameter :: debug_on     = .false.   ! switch for run-time check-values in p3_main
       real, parameter    :: clbfact_dep = 1.0       !calibration factor for deposition
       real, parameter    :: clbfact_sub = 1.0       !calibration factor for sublimation
@@ -527,7 +526,7 @@ subroutine columnmodel
                               w,p2d,dz2d,step,prt_liq,prt_sol,its,ite,kts,kte,n_iceCat,         &
                               diag_ZET,diag_reffc,diag_reffi,diag_vmi,diag_di,diag_rhoi,        &
                               n_diag_2d,diag_2d,n_diag_3d,diag_3d,log_predictNc,                &
-                              typeDiags_ON,trim(model),clbfact_dep,clbfact_sub,debug_on,        &
+                              trim(model),clbfact_dep,clbfact_sub,debug_on,                     &
                               scpf_on,scpf_pfrac,scpf_resfact,scpf_cldfrac,                     &
                               prt_drzl = prt_drzl,  &
                               prt_rain = prt_rain,  &
@@ -546,7 +545,7 @@ subroutine columnmodel
                               w,p2d,dz2d,step,prt_liq,prt_sol,its,ite,kts,kte,n_iceCat,         &
                               diag_ZET,diag_reffc,diag_reffi,diag_vmi,diag_di,diag_rhoi,        &
                               n_diag_2d,diag_2d,n_diag_3d,diag_3d,log_predictNc,                &
-                              typeDiags_ON,trim(model),clbfact_dep,clbfact_sub,debug_on,        &
+                              trim(model),clbfact_dep,clbfact_sub,debug_on,                     &
                               scpf_on,scpf_pfrac,scpf_resfact,scpf_cldfrac,                     &
                               prt_drzl = prt_drzl,  &
                               prt_rain = prt_rain,  &
@@ -581,7 +580,7 @@ subroutine columnmodel
                              w,p2d,dz2d,step,prt_liq,prt_sol,its,ite,kts,kte,n_iceCat,         &
                              diag_ZET,diag_reffc,diag_reffi,diag_vmi,diag_di,diag_rhoi,        &
                              n_diag_2d,diag_2d,n_diag_3d,diag_3d,log_predictNc,                &
-                             typeDiags_ON,trim(model),clbfact_dep,clbfact_sub,debug_on,        &
+                             trim(model),clbfact_dep,clbfact_sub,debug_on,                     &
                              scpf_on,scpf_pfrac,scpf_resfact,scpf_cldfrac,                     &
                              prt_drzl = prt_drzl,  &
                              prt_rain = prt_rain,  &
@@ -601,7 +600,7 @@ subroutine columnmodel
                              w,p2d,dz2d,step,prt_liq,prt_sol,its,ite,kts,kte,n_iceCat,         &
                              diag_ZET,diag_reffc,diag_reffi,diag_vmi,diag_di,diag_rhoi,        &
                              n_diag_2d,diag_2d,n_diag_3d,diag_3d,log_predictNc,                &
-                             typeDiags_ON,trim(model),clbfact_dep,clbfact_sub,debug_on,        &
+                             trim(model),clbfact_dep,clbfact_sub,debug_on,                     &
                              scpf_on,scpf_pfrac,scpf_resfact,scpf_cldfrac,                     &
                              prt_drzl = prt_drzl,  &
                              prt_rain = prt_rain,  &
