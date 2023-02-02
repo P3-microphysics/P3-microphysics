@@ -866,7 +866,7 @@ END subroutine p3_init
    logical                  :: log_3momentIce
    logical                  :: log_LiquidFraction
    logical, parameter       :: debug_on      = .false. !switch for internal debug checking                    
-   logical, parameter       :: log_typeDiags  = .false.
+   logical, parameter       :: log_typeDiags = .false.
    real,    parameter       :: clbfact_dep   = 1.0     !calibration factor for deposition                     
    real,    parameter       :: clbfact_sub   = 1.0     !calibration factor for sublimation                    
 
@@ -933,7 +933,7 @@ END subroutine p3_init
                diag_di_3d(its:ite,kts:kte,j),diag_rhopo_3d(its:ite,kts:kte,j),                          &     
                n_diag_2d,diag_2d(its:ite,1:n_diag_2d),                                                  &     
                n_diag_3d,diag_3d(its:ite,kts:kte,1:n_diag_3d),                                          &     
-               log_predictNc,log_typeDiags,trim(model),clbfact_dep,clbfact_sub,debug_on,                 &     
+               log_predictNc,log_typeDiags,trim(model),clbfact_dep,clbfact_sub,debug_on,                &     
                scpf_on,scpf_pfrac,scpf_resfact,cldfrac ) 
 
       else if (log_3momentIce .and. (.not. log_LiquidFraction)) then
@@ -951,7 +951,7 @@ END subroutine p3_init
                diag_di_3d(its:ite,kts:kte,j),diag_rhopo_3d(its:ite,kts:kte,j),                          &     
                n_diag_2d,diag_2d(its:ite,1:n_diag_2d),                                                  &     
                n_diag_3d,diag_3d(its:ite,kts:kte,1:n_diag_3d),                                          &     
-               log_predictNc,log_typeDiags,trim(model),clbfact_dep,clbfact_sub,debug_on,                 &     
+               log_predictNc,log_typeDiags,trim(model),clbfact_dep,clbfact_sub,debug_on,                &     
                scpf_on,scpf_pfrac,scpf_resfact,cldfrac,zitot=qzi1_3d(its:ite,kts:kte,j))                      
 
       else if (log_3momentIce .and. log_LiquidFraction) then
@@ -969,7 +969,7 @@ END subroutine p3_init
                diag_di_3d(its:ite,kts:kte,j),diag_rhopo_3d(its:ite,kts:kte,j),                          &     
                n_diag_2d,diag_2d(its:ite,1:n_diag_2d),                                                  &     
                n_diag_3d,diag_3d(its:ite,kts:kte,1:n_diag_3d),                                          &     
-               log_predictNc,log_typeDiags,trim(model),clbfact_dep,clbfact_sub,debug_on,                 &     
+               log_predictNc,log_typeDiags,trim(model),clbfact_dep,clbfact_sub,debug_on,                &     
                scpf_on,scpf_pfrac,scpf_resfact,cldfrac,zitot=qzi1_3d(its:ite,kts:kte,j),                &     
                qiliq_in=qli1_3d(its:ite,kts:kte,j))
 
@@ -1178,7 +1178,7 @@ END subroutine p3_init
    logical                  :: log_3cat
    logical                  :: log_4cat
 
-   logical, parameter       :: log_typeDiags  = .false.
+   logical, parameter       :: log_typeDiags = .false.
    logical, parameter       :: debug_on      = .false. !switch for internal debug checking                        
    real,    parameter       :: clbfact_dep   = 1.0     !calibration factor for deposition                         
    real,    parameter       :: clbfact_sub   = 1.0     !calibration factor for sublimation                        
@@ -1316,7 +1316,7 @@ END subroutine p3_init
                diag_di(its:ite,kts:kte,1:n_iceCat),diag_rhopo(its:ite,kts:kte,1:n_iceCat),          &             
                n_diag_2d,diag_2d(its:ite,1:n_diag_2d),                                              &             
                n_diag_3d,diag_3d(its:ite,kts:kte,1:n_diag_3d),                                      &             
-               log_predictNc,log_typeDiags,trim(model),clbfact_dep,clbfact_sub,debug_on,             &             
+               log_predictNc,log_typeDiags,trim(model),clbfact_dep,clbfact_sub,debug_on,            &             
                scpf_on,scpf_pfrac,scpf_resfact,cldfrac,zitot=zitot(its:ite,kts:kte,1:n_iceCat))
 
 !!!!!!!!! NOTE: CODE NOT SET UP TO RUN WITH PREDICTED LIQUID FRACTION BUT WITHOUT 3-MOMENT!!!!!!!!!
@@ -1335,7 +1335,7 @@ END subroutine p3_init
                diag_di(its:ite,kts:kte,1:n_iceCat),diag_rhopo(its:ite,kts:kte,1:n_iceCat),          &               
                n_diag_2d,diag_2d(its:ite,1:n_diag_2d),                                              &               
                n_diag_3d,diag_3d(its:ite,kts:kte,1:n_diag_3d),                                      &               
-               log_predictNc,log_typeDiags,trim(model),clbfact_dep,clbfact_sub,debug_on,             &               
+               log_predictNc,log_typeDiags,trim(model),clbfact_dep,clbfact_sub,debug_on,            &               
                scpf_on,scpf_pfrac,scpf_resfact,cldfrac,zitot=zitot(its:ite,kts:kte,1:n_iceCat))
 
       else if (log_3momentIce .and. log_LiquidFraction) then
@@ -1353,7 +1353,7 @@ END subroutine p3_init
                diag_di(its:ite,kts:kte,1:n_iceCat),diag_rhopo(its:ite,kts:kte,1:n_iceCat),          &               
                n_diag_2d,diag_2d(its:ite,1:n_diag_2d),                                              &               
                n_diag_3d,diag_3d(its:ite,kts:kte,1:n_diag_3d),                                      &               
-               log_predictNc,log_typeDiags,trim(model),clbfact_dep,clbfact_sub,debug_on,             &               
+               log_predictNc,log_typeDiags,trim(model),clbfact_dep,clbfact_sub,debug_on,            &               
                scpf_on,scpf_pfrac,scpf_resfact,cldfrac,zitot=zitot(its:ite,kts:kte,1:n_iceCat),     &               
                qiliq_in=qiliq_in(its:ite,kts:kte,1:n_iceCat))
 
@@ -1721,7 +1721,7 @@ END subroutine p3_init
 
  logical                 :: log_tmp1,log_tmp2,log_trplMomI,log_liquidFraction
  logical, parameter      :: log_predictNc = .true.      ! temporary; to be put as GEM namelist
- logical, parameter      :: log_typeDiags  = .true.      ! switch for hydrometeor/precip type diagnostics
+ logical, parameter      :: log_typeDiags = .true.      ! switch for hydrometeor/precip type diagnostics
  real, parameter         :: SMALL_ICE_MASS = 1e-14      ! threshold for very small specific ice content
 
  character(len=16), parameter :: model = 'GEM'
@@ -1894,7 +1894,7 @@ END subroutine p3_init
             call p3_main(qc,nc,qr,nr,theta_m,theta,qvapm,qvap,dt_mp,qitot,qirim,nitot,birim,    &
                    ssat,ww,pres,DZ,kount,prt_liq,prt_sol,i_strt,ni,k_strt,nk,n_iceCat,          &
                    diag_Zet,diag_effc,diag_effi,diag_vmi,diag_di,diag_rhoi,n_diag_2d,diag_2d,   &
-                   n_diag_3d,diag_3d,log_predictNc,log_typeDiags,trim(model),clbfact_dep,        &
+                   n_diag_3d,diag_3d,log_predictNc,log_typeDiags,trim(model),clbfact_dep,       &
                    clbfact_sub,debug_on,scpf_on,scpf_pfrac,scpf_resfact,cldfrac,prt_drzl,       &
                    prt_rain,prt_crys,prt_snow,prt_grpl,prt_pell,prt_hail,prt_sndp,qi_type,      &
                    zitot     = zitot,                                                           &
@@ -1907,7 +1907,7 @@ END subroutine p3_init
             call p3_main(qc,nc,qr,nr,theta_m,theta,qvapm,qvap,dt_mp,qitot,qirim,nitot,birim,    &
                    ssat,ww,pres,DZ,kount,prt_liq,prt_sol,i_strt,ni,k_strt,nk,n_iceCat,          &
                    diag_Zet,diag_effc,diag_effi,diag_vmi,diag_di,diag_rhoi,n_diag_2d,diag_2d,   &
-                   n_diag_3d,diag_3d,log_predictNc,log_typeDiags,trim(model),clbfact_dep,        &
+                   n_diag_3d,diag_3d,log_predictNc,log_typeDiags,trim(model),clbfact_dep,       &
                    clbfact_sub,debug_on,scpf_on,scpf_pfrac,scpf_resfact,cldfrac,prt_drzl,       &
                    prt_rain,prt_crys,prt_snow,prt_grpl,prt_pell,prt_hail,prt_sndp,qi_type,      &
                    zitot     = zitot,                                                           &
@@ -1921,7 +1921,7 @@ END subroutine p3_init
             call p3_main(qc,nc,qr,nr,theta_m,theta,qvapm,qvap,dt_mp,qitot,qirim,nitot,birim,    &
                    ssat,ww,pres,DZ,kount,prt_liq,prt_sol,i_strt,ni,k_strt,nk,n_iceCat,          &
                    diag_Zet,diag_effc,diag_effi,diag_vmi,diag_di,diag_rhoi,n_diag_2d,diag_2d,   &
-                   n_diag_3d,diag_3d,log_predictNc,log_typeDiags,trim(model),clbfact_dep,        &
+                   n_diag_3d,diag_3d,log_predictNc,log_typeDiags,trim(model),clbfact_dep,       &
                    clbfact_sub,debug_on,scpf_on,scpf_pfrac,scpf_resfact,cldfrac,prt_drzl,       &
                    prt_rain,prt_crys,prt_snow,prt_grpl,prt_pell,prt_hail,prt_sndp,qi_type,      &
                    qiliq_in  = qiliq_in,                                                        &
@@ -1933,7 +1933,7 @@ END subroutine p3_init
             call p3_main(qc,nc,qr,nr,theta_m,theta,qvapm,qvap,dt_mp,qitot,qirim,nitot,birim,    &
                    ssat,ww,pres,DZ,kount,prt_liq,prt_sol,i_strt,ni,k_strt,nk,n_iceCat,          &
                    diag_Zet,diag_effc,diag_effi,diag_vmi,diag_di,diag_rhoi,n_diag_2d,diag_2d,   &
-                   n_diag_3d,diag_3d,log_predictNc,log_typeDiags,trim(model),clbfact_dep,        &
+                   n_diag_3d,diag_3d,log_predictNc,log_typeDiags,trim(model),clbfact_dep,       &
                    clbfact_sub,debug_on,scpf_on,scpf_pfrac,scpf_resfact,cldfrac,prt_drzl,       &
                    prt_rain,prt_crys,prt_snow,prt_grpl,prt_pell,prt_hail,prt_sndp,qi_type,      &
                    diag_vis  = diag_vis,                                                        &
@@ -2322,7 +2322,7 @@ END subroutine p3_init
  SUBROUTINE p3_main(qc,nc,qr,nr,th_old,th,qv_old,qv,dt,qitot,qirim,nitot,birim,ssat,uzpl, &
                     pres,dzq,it,prt_liq,prt_sol,its,ite,kts,kte,nCat,diag_ze,diag_effc,   &
                     diag_effi,diag_vmi,diag_di,diag_rhoi,n_diag_2d,diag_2d,n_diag_3d,     &
-                    diag_3d,log_predictNc,log_typeDiags,model,clbfact_dep,clbfact_sub,     &
+                    diag_3d,log_predictNc,log_typeDiags,model,clbfact_dep,clbfact_sub,    &
                     debug_on,scpf_on,scpf_pfrac,scpf_resfact,SCF_out,prt_drzl,prt_rain,   &
                     prt_crys,prt_snow,prt_grpl,prt_pell,prt_hail,prt_sndp,qi_type,        &
                     zitot,qiliq_in,diag_vis,diag_vis1,diag_vis2,diag_vis3,diag_dhmax)
@@ -2407,8 +2407,8 @@ END subroutine p3_init
  real, intent(out), dimension(its:ite), optional      :: prt_pell      ! precip rate, ice pellets      m s-1
  real, intent(out), dimension(its:ite), optional      :: prt_hail      ! precip rate, hail             m s-1
  real, intent(out), dimension(its:ite), optional      :: prt_sndp      ! precip rate, unmelted snow    m s-1
- real, intent(out),   dimension(its:ite,kts:kte,nCat),     optional :: diag_dhmax ! maximum hail size                      m
- real, intent(out),   dimension(its:ite,kts:kte,n_qiType), optional :: qi_type    ! mass mixing ratio, diagnosed ice type  kg kg-1
+ real, intent(out), dimension(its:ite,kts:kte,nCat),     optional :: diag_dhmax ! maximum hail size                      m
+ real, intent(out), dimension(its:ite,kts:kte,n_qiType), optional :: qi_type    ! mass mixing ratio, diagnosed ice type  kg kg-1
  
  logical, intent(in)                                  :: scpf_on       ! Switch to activate SCPF
  real,    intent(in)                                  :: scpf_pfrac    ! precipitation fraction factor (SCPF)
@@ -6170,6 +6170,12 @@ END subroutine p3_init
 !...........................................................................................
 ! Compute diagnostic hydrometeor types for output as 3D fields and
 ! for partitioning into corresponding surface precipitation rates.
+!
+!   In the code below, the full columns of diagnostic types are computed
+!   only at the specified frequency, freq3DtypeDiag.  At all other time
+!   steps, they are computed at the lowest level only (kbot) in order to
+!   partition surface precipitation rates into types (and aslo for the
+!   maximum hail size, dhmax).
 
 
  compute_type_diags: if (log_typeDiags) then
@@ -6192,7 +6198,17 @@ END subroutine p3_init
     prt_pell(:) = 0.
     prt_hail(:) = 0.
     prt_sndp(:) = 0.
+    diag_dhmax(:,:,:) = 0.
     if (present(qi_type)) qi_type(:,:,:) = 0.
+    Q_drizzle(:,:)    = 0.
+    Q_rain(:,:)       = 0.
+    Q_crystals(:,:,:) = 0.
+    Q_ursnow(:,:,:)   = 0.
+    Q_lrsnow(:,:,:)   = 0.
+    Q_grpl(:,:,:)     = 0.
+    Q_pellets(:,:,:)  = 0.
+    Q_hail(:,:,:)     = 0.
+
 
     i_loop_typediag: do i = its,ite
 
@@ -6205,150 +6221,136 @@ END subroutine p3_init
        endif
       
       !-- rain vs. drizzle:
-      !find top (rain):
+      
+      !find top (highest level with rain):
+       ktop_typeDiag_r = kbot
+       log_qxpresent = .false.
        if (log_typeDiag_column) then  
           do k = ktop,kbot,-kdir
              if (qr(i,k).ge.qsmall) then
                 ktop_typeDiag_r = k
+                log_qxpresent = .true.
                 exit
              endif
           enddo
-       else
-          ktop_typeDiag_r = kbot
        endif
 
-       k_loop_typdiag_1: do k = kbot,ktop_typeDiag_r,kdir
-
-          Q_drizzle(i,k) = 0.
-          Q_rain(i,k)    = 0.
-          
-          !note:  These can be broken down further (outside of microphysics) into
-          !       liquid rain (drizzle) vs. freezing rain (drizzle) based on sfc temp.
-          if (qr(i,k)>qsmall .and. nr(i,k)>nsmall) then
-             tmp1 = (6.*qr(i,k)/(pi*rhow*nr(i,k)))**thrd   !mean-mass diameter
-             if (tmp1 < thres_raindrop) then
-                Q_drizzle(i,k) = qr(i,k)
-             else
-                Q_rain(i,k)    = qr(i,k)
-             endif
-          endif
-
-       enddo k_loop_typdiag_1
-
-       if (Q_drizzle(i,kbot) > 0.) then
-          prt_drzl(i) = prt_liq(i)
-       elseif (Q_rain(i,kbot) > 0.) then
-          prt_rain(i) = prt_liq(i)
-       endif
-
+       rain_present: if (log_qxpresent) then
        
-       iice_loop_diag: do iice = 1,nCat
+          k_loop_typdiag_1: do k = kbot,ktop_typeDiag_r,kdir
 
-         !-- ice-phase:
+             !note:  These can be broken down further (outside of microphysics) into
+             !       liquid rain (drizzle) vs. freezing rain (drizzle) based on sfc temp.
+             if (qr(i,k)>qsmall .and. nr(i,k)>nsmall) then
+                tmp1 = (6.*qr(i,k)/(pi*rhow*nr(i,k)))**thrd   !mean-mass diameter
+                if (tmp1 < thres_raindrop) then
+                   Q_drizzle(i,k) = qr(i,k)
+                else
+                   Q_rain(i,k)    = qr(i,k)
+                endif
+             endif
+   
+          enddo k_loop_typdiag_1
+
+          if (Q_drizzle(i,kbot) > 0.) then
+             prt_drzl(i) = prt_liq(i)
+          elseif (Q_rain(i,kbot) > 0.) then
+             prt_rain(i) = prt_liq(i)
+          endif
+       
+       endif rain_present
+       
+      !-- ice-phase types:
+      
+       iice_loop_diag: do iice = 1,nCat
+        
+         !find top (highest level with ice):
+          ktop_typeDiag_i = kbot
+          log_qxpresent = .false.
           if (log_typeDiag_column) then  
-            !find top (ice):
              do k = ktop,kbot,-kdir
                 if (qitot(i,k,iice).ge.qsmall) then
                    ktop_typeDiag_i = k
+                   log_qxpresent = .true.
                    exit
                 endif
              enddo       
-          else
-             ktop_typeDiag_i = kbot
           endif
+          
+          ice_present: if (log_qxpresent) then
+          
+             k_loop_typdiag_2: do k = kbot,ktop_typeDiag_i,kdir
 
-          k_loop_typdiag_2: do k = kbot,ktop_typeDiag_i,kdir
+               !note: The following partitioning of ice into types is subjective.  However,
+               !      this is a diagnostic only; it does not affect the model solution.
+                if ((qitot(i,k,iice)-qiliq(i,k,iice))>=qsmall) then
 
-             Q_crystals(i,k,iice) = 0.
-             Q_ursnow(i,k,iice)   = 0.
-             Q_lrsnow(i,k,iice)   = 0.
-             Q_grpl(i,k,iice)     = 0.
-             Q_pellets(i,k,iice)  = 0.
-             Q_hail(i,k,iice)     = 0.
-
-            !note: The following partitioning of ice into types is subjective.  However,
-            !      this is a diagnostic only; it does not affect the model solution.
-             if ((qitot(i,k,iice)-qiliq(i,k,iice))>=qsmall) then
-
-                 tmp1 = qirim(i,k,iice)/(qitot(i,k,iice)-qiliq(i,k,iice))   !rime mass fraction
-                if (tmp1<0.1) then
-                !zero or trace rime:
-                   if (diag_di(i,k,iice)<150.e-6) then
-                      Q_crystals(i,k,iice) = qitot(i,k,iice)
-                   else
-                      Q_ursnow(i,k,iice) = qitot(i,k,iice)
-                   endif
-                elseif (tmp1>=0.1 .and. tmp1<0.6) then
-                !lightly rimed:
-                   Q_lrsnow(i,k,iice) = qitot(i,k,iice)
-                elseif (tmp1>=0.6 .and. tmp1<=1.) then
-                !moderate-to-heavily rimed:
-                   if (diag_rhoi(i,k,iice)<700.) then
-                      Q_grpl(i,k,iice) = qitot(i,k,iice)
-                   else
-                      if (diag_di(i,k,iice)<1.e-3) then
-                         Q_pellets(i,k,iice) = qitot(i,k,iice)
+                   tmp1 = qirim(i,k,iice)/(qitot(i,k,iice)-qiliq(i,k,iice))   !rime mass fraction
+                   if (tmp1<0.1) then
+                   !zero or trace rime:
+                      if (diag_di(i,k,iice)<150.e-6) then
+                         Q_crystals(i,k,iice) = qitot(i,k,iice)
                       else
-                         Q_hail(i,k,iice) = qitot(i,k,iice)
-                         if (log_typeDiags) diag_dhmax(i,k,iice) = maxHailSize(rho(i,k),       &
-                           nitot(i,k,iice),rhofaci(i,k),arr_lami(i,k,iice),arr_mui(i,k,iice))
+                         Q_ursnow(i,k,iice) = qitot(i,k,iice)
                       endif
+                   elseif (tmp1>=0.1 .and. tmp1<0.6) then
+                   !lightly rimed:
+                      Q_lrsnow(i,k,iice) = qitot(i,k,iice)
+                   elseif (tmp1>=0.6 .and. tmp1<=1.) then
+                   !moderate-to-heavily rimed:
+                      if (diag_rhoi(i,k,iice)<700.) then
+                         Q_grpl(i,k,iice) = qitot(i,k,iice)
+                      else
+                         if (diag_di(i,k,iice)<1.e-3) then
+                            Q_pellets(i,k,iice) = qitot(i,k,iice)
+                         else
+                            Q_hail(i,k,iice) = qitot(i,k,iice)
+                            diag_dhmax(i,k,iice) = maxHailSize(rho(i,k),nitot(i,k,iice),  &
+                                 rhofaci(i,k),arr_lami(i,k,iice),arr_mui(i,k,iice))
+                         endif
+                      endif
+                   else
+                      print*, 'STOP -- unrealistic rime fraction: ',tmp1
+                      global_status = STATUS_ERROR
+                      return
                    endif
-                else
-                   print*, 'STOP -- unrealistic rime fraction: ',tmp1
-                   global_status = STATUS_ERROR
-                   return
-                endif
-             endif !qitot>0
+                endif !qitot>0
 
-          enddo k_loop_typdiag_2
+             enddo k_loop_typdiag_2
 
-         !diagnostics for sfc precipitation rates: (liquid-equivalent volume flux, m s-1)
-         !  note: these are summed for all ice categories
-          if (Q_crystals(i,kbot,iice) > 0.)    then
-             prt_crys(i) = prt_crys(i) + prt_sol(i)    !precip rate of small crystals
-          elseif (Q_ursnow(i,kbot,iice) > 0.)  then
-             prt_snow(i) = prt_snow(i) + prt_sol(i)    !precip rate of unrimed + lightly rimed snow
-          elseif (Q_lrsnow(i,kbot,iice) > 0.)  then
-             prt_snow(i) = prt_snow(i) + prt_sol(i)    !precip rate of unrimed + lightly rimed snow
-          elseif (Q_grpl(i,kbot,iice) > 0.)    then
-             prt_grpl(i) = prt_grpl(i) + prt_sol(i)    !precip rate of graupel
-          elseif (Q_pellets(i,kbot,iice) > 0.) then
-             prt_pell(i) = prt_pell(i) + prt_sol(i)    !precip rate of ice pellets
-          elseif (Q_hail(i,kbot,iice) > 0.)    then
-             prt_hail(i) = prt_hail(i) + prt_sol(i)    !precip rate of hail
-          endif
-         !--- optimized version above above IF block (does not work on all FORTRAN compilers)
-!           tmp3 = -(Q_crystals(i,kbot,iice) > 0.)
-!           tmp4 = -(Q_ursnow(i,kbot,iice)   > 0.)
-!           tmp5 = -(Q_lrsnow(i,kbot,iice)   > 0.)
-!           tmp6 = -(Q_grpl(i,kbot,iice)     > 0.)
-!           tmp7 = -(Q_pellets(i,kbot,iice)  > 0.)
-!           tmp8 = -(Q_hail(i,kbot,iice)     > 0.)
-!           prt_crys(i) = prt_crys(i) + prt_sol(i)*tmp3                   !precip rate of small crystals
-!           prt_snow(i) = prt_snow(i) + prt_sol(i)*tmp4 + prt_sol(i)*tmp5 !precip rate of unrimed + lightly rimed snow
-!           prt_grpl(i) = prt_grpl(i) + prt_sol(i)*tmp6                   !precip rate of graupel
-!           prt_pell(i) = prt_pell(i) + prt_sol(i)*tmp7                   !precip rate of ice pellets
-!           prt_hail(i) = prt_hail(i) + prt_sol(i)*tmp8                   !precip rate of hail
-         !===
+            !diagnostics for sfc precipitation rates: (liquid-equivalent volume flux, m s-1)
+            !  note: these are summed for all ice categories
+             if (Q_crystals(i,kbot,iice) > 0.)    then
+                prt_crys(i) = prt_crys(i) + prt_sol(i)    !precip rate of small crystals
+             elseif (Q_ursnow(i,kbot,iice) > 0.)  then
+                prt_snow(i) = prt_snow(i) + prt_sol(i)    !precip rate of unrimed + lightly rimed snow
+             elseif (Q_lrsnow(i,kbot,iice) > 0.)  then
+                prt_snow(i) = prt_snow(i) + prt_sol(i)    !precip rate of unrimed + lightly rimed snow
+             elseif (Q_grpl(i,kbot,iice) > 0.)    then
+                prt_grpl(i) = prt_grpl(i) + prt_sol(i)    !precip rate of graupel
+             elseif (Q_pellets(i,kbot,iice) > 0.) then
+                prt_pell(i) = prt_pell(i) + prt_sol(i)    !precip rate of ice pellets
+             elseif (Q_hail(i,kbot,iice) > 0.)    then
+                prt_hail(i) = prt_hail(i) + prt_sol(i)    !precip rate of hail
+             endif
 
-          !precip rate of unmelted total "snow":
-          !  For now, an instananeous solid-to-liquid ratio (tmp1) is assumed and is multiplied
-          !  by the total liquid-equivalent precip rates of snow (small crystals + lightly-rime + ..)
-          !  Later, this can be computed explicitly as the volume flux of unmelted ice.
-         !tmp1 = 10.  !assumes 10:1 ratio
-         !tmp1 = 1000./max(1., diag_rhoi(i,kbot,iice))
-          tmp1 = 1000./max(1., 5.*diag_rhoi(i,kbot,iice))
-          prt_sndp(i) = prt_sndp(i) + tmp1*(prt_crys(i) + prt_snow(i) + prt_grpl(i))
+             !precip rate of unmelted total "snow":
+             !  For now, an instantaneous solid-to-liquid ratio (tmp1) is assumed and is multiplied
+             !  by the total liquid-equivalent precip rates of snow (small crystals + lightly-rime + ..)
+             !  Later, this can be computed explicitly as the volume flux of unmelted ice.
+            !tmp1 = 10.  !assumes 10:1 ratio
+            !tmp1 = 1000./max(1., diag_rhoi(i,kbot,iice))
+             tmp1 = 1000./max(1., 5.*diag_rhoi(i,kbot,iice))
+             prt_sndp(i) = prt_sndp(i) + tmp1*(prt_crys(i) + prt_snow(i) + prt_grpl(i))
 
+          endif ice_present
+          
        enddo iice_loop_diag
 
     enddo i_loop_typediag
 
    !- for output of 3D fields of diagnostic ice-phase hydrometeor type
     if (log_typeDiag_column .and. present(qi_type)) then
-      !diag_3d(:,:,1) = Q_drizzle(:,:)
-      !diag_3d(:,:,2) = Q_rain(:,:)
        do ii = 1,nCat
           qi_type(:,:,1) = qi_type(:,:,1) + Q_crystals(:,:,ii)
           qi_type(:,:,2) = qi_type(:,:,2) + Q_ursnow(:,:,ii)
