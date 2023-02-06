@@ -1676,45 +1676,45 @@ END subroutine p3_init
    log_liqFrac   = present(qli_1)
 
   ! convert advected (N*Z)^0.5 to Z for P3 main
-   convert_Z_1: if (log_3momIce) then
-      do j = jts,jte
-         do k = kts,kte
-            do i = its,ite
-
-               if (qni_1(i,k,j).ge.qsmall) then
-                  qzi_1(i,k,j) = qzi_1(i,k,j)**2/qni_1(i,k,j)
-               else
-                  qzi_1(i,k,j) = 0.
-               endif
-
-               if (n_iceCat.ge.2) then             
-                  if (qni_2(i,k,j).ge.qsmall) then
-                     qzi_2(i,k,j) = qzi_2(i,k,j)**2/qni_2(i,k,j)
-                  else
-                     qzi_2(i,k,j) = 0.
-                  endif
-
-                  if (n_iceCat.ge.3) then                  
-                     if (qni_3(i,k,j).ge.qsmall) then
-                        qzi_3(i,k,j) = qzi_3(i,k,j)**2/qni_3(i,k,j)
-                     else
-                        qzi_3(i,k,j) = 0.
-                     endif
-
-                     if (n_iceCat.ge.4) then                                    
-                       if (qni_4(i,k,j).ge.qsmall) then                    
-                           qzi_4(i,k,j) = qzi_4(i,k,j)**2/qni_4(i,k,j)  
-                        else                                                  
-                           qzi_4(i,k,j) = 0.                                
-                        endif                        
-                     endif ! >=4
-                  endif ! >=3
-               endif ! >=2
-
-            enddo
-         enddo
-      enddo
-   endif convert_Z_1
+!    convert_Z_1: if (log_3momIce) then
+!       do j = jts,jte
+!          do k = kts,kte
+!             do i = its,ite
+! 
+!                if (qni_1(i,k,j).ge.qsmall) then
+!                   qzi_1(i,k,j) = qzi_1(i,k,j)**2/qni_1(i,k,j)
+!                else
+!                   qzi_1(i,k,j) = 0.
+!                endif
+! 
+!                if (n_iceCat.ge.2) then             
+!                   if (qni_2(i,k,j).ge.qsmall) then
+!                      qzi_2(i,k,j) = qzi_2(i,k,j)**2/qni_2(i,k,j)
+!                   else
+!                      qzi_2(i,k,j) = 0.
+!                   endif
+! 
+!                   if (n_iceCat.ge.3) then                  
+!                      if (qni_3(i,k,j).ge.qsmall) then
+!                         qzi_3(i,k,j) = qzi_3(i,k,j)**2/qni_3(i,k,j)
+!                      else
+!                         qzi_3(i,k,j) = 0.
+!                      endif
+! 
+!                      if (n_iceCat.ge.4) then                                    
+!                        if (qni_4(i,k,j).ge.qsmall) then                    
+!                            qzi_4(i,k,j) = qzi_4(i,k,j)**2/qni_4(i,k,j)  
+!                         else                                                  
+!                            qzi_4(i,k,j) = 0.                                
+!                         endif                        
+!                      endif ! >=4
+!                   endif ! >=3
+!                endif ! >=2
+! 
+!             enddo
+!          enddo
+!       enddo
+!    endif convert_Z_1
    
 !    convert_Z_1: if (log_3momIce) then
 !    
@@ -1797,6 +1797,15 @@ END subroutine p3_init
          endif  ! >=3
       endif  ! >=2
 
+   ! convert advected variable 'qzi' (from dynamics) to 6th-moment 'zitot' (for microphysics)
+      if (log_3momIce) then  
+         where (nitot.ge.qsmall)
+            zitot = zitot**2/nitot
+         elsewhere
+            zitot = 0.
+         endwhere
+      endif
+      
       if (.not. log_3momIce .and. .not. log_LiqFrac) then                     ! ptype = 52
 
         call p3_main( qc(:,:,j),nc_loc,qr(:,:,j),qnr(:,:,j),th_old(:,:,j),th(:,:,j),     &
@@ -1848,6 +1857,8 @@ END subroutine p3_init
 
       endif
 
+      ! convert 6th moment to advected variabe for dynamics
+      if (log_3momIce) zitot = sqrt(zitot*nitot)
 
      !surface precipitation output:                                                                                        
       dum1 = 1000.*dt
@@ -1956,46 +1967,46 @@ END subroutine p3_init
    enddo j_loop
 
   ! convert Z from P3 to (N*Z)^0.5 for advection
-   convert_Z_2: if (log_3momIce) then
-      dum1 = 1.e-30
-      do j = jts,jte
-         do k = kts,kte
-            do i = its,ite
-
-               if (qni_1(i,k,j).ge.qsmall.and.qzi_1(i,k,j).ge.dum1) then
-                  qzi_1(i,k,j) = (qzi_1(i,k,j)*qni_1(i,k,j))**0.5
-               else
-                  qzi_1(i,k,j) = 0.
-               endif
-
-               if (n_iceCat.ge.2) then
-                  if (qni_2(i,k,j).ge.qsmall.and.qzi_2(i,k,j).ge.dum1) then  
-                     qzi_2(i,k,j) = (qzi_2(i,k,j)*qni_2(i,k,j))**0.5         
-                  else                                                             
-                     qzi_2(i,k,j) = 0.                                           
-                  endif
-
-                  if (n_iceCat.ge.3) then
-                     if (qni_3(i,k,j).ge.qsmall.and.qzi_3(i,k,j).ge.dum1) then
-                        qzi_3(i,k,j) = (qzi_3(i,k,j)*qni_3(i,k,j))**0.5
-                     else
-                        qzi_3(i,k,j) = 0.
-                     endif
-
-                     if (n_iceCat.ge.4) then 
-                        if (qni_4(i,k,j).ge.qsmall.and.qzi_4(i,k,j).ge.dum1) then   
-                           qzi_4(i,k,j) = (qzi_4(i,k,j)*qni_4(i,k,j))**0.5          
-                        else                                                              
-                           qzi_4(i,k,j) = 0.                                            
-                        endif
-                     endif  ! >=4
-                  endif  ! >=3
-               endif  !>=2
-
-            enddo
-         enddo
-      enddo
-   endif convert_Z_2
+!    convert_Z_2: if (log_3momIce) then
+!       dum1 = 1.e-30
+!       do j = jts,jte
+!          do k = kts,kte
+!             do i = its,ite
+! 
+!                if (qni_1(i,k,j).ge.qsmall.and.qzi_1(i,k,j).ge.dum1) then
+!                   qzi_1(i,k,j) = (qzi_1(i,k,j)*qni_1(i,k,j))**0.5
+!                else
+!                   qzi_1(i,k,j) = 0.
+!                endif
+! 
+!                if (n_iceCat.ge.2) then
+!                   if (qni_2(i,k,j).ge.qsmall.and.qzi_2(i,k,j).ge.dum1) then  
+!                      qzi_2(i,k,j) = (qzi_2(i,k,j)*qni_2(i,k,j))**0.5         
+!                   else                                                             
+!                      qzi_2(i,k,j) = 0.                                           
+!                   endif
+! 
+!                   if (n_iceCat.ge.3) then
+!                      if (qni_3(i,k,j).ge.qsmall.and.qzi_3(i,k,j).ge.dum1) then
+!                         qzi_3(i,k,j) = (qzi_3(i,k,j)*qni_3(i,k,j))**0.5
+!                      else
+!                         qzi_3(i,k,j) = 0.
+!                      endif
+! 
+!                      if (n_iceCat.ge.4) then 
+!                         if (qni_4(i,k,j).ge.qsmall.and.qzi_4(i,k,j).ge.dum1) then   
+!                            qzi_4(i,k,j) = (qzi_4(i,k,j)*qni_4(i,k,j))**0.5          
+!                         else                                                              
+!                            qzi_4(i,k,j) = 0.                                            
+!                         endif
+!                      endif  ! >=4
+!                   endif  ! >=3
+!                endif  !>=2
+! 
+!             enddo
+!          enddo
+!       enddo
+!    endif convert_Z_2
 
 !CHANGE THE ABOVE TO THE FOLLOWING:   
 !    convert_Z_2: if (log_3momIce) then  
