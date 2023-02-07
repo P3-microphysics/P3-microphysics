@@ -1,5 +1,5 @@
   MODULE mp_driver_module
-
+   
              !------  Microphysics Driver ------!
 
   implicit none
@@ -23,7 +23,7 @@
                          tdiag,qdiag,out2d,out3d,  &
                          dowriteout,dorad,dotdwrite,doazimwrite,dorestart,  &
                          getdbz,getvt,dotbud,doqbud)
-
+   
     use input
     use constants
     use misclibs
@@ -59,7 +59,7 @@
     real, intent(inout), dimension(ibm:iem,jbm:jem,kbm:kem,numq) :: qa,q3d,qten
     real, intent(inout), dimension(ibp3:iep3,kbp3:kep3,np3a) :: p3a
     real, intent(inout), dimension(ibp3:iep3,jbp3:jep3,kbp3:kep3,np3o) :: p3o
-      double precision, intent(inout), dimension(ib:ie,jb:je) :: dum2d1,dum2d2,dum2d3,dum2d4,dum2d5
+    double precision, intent(inout), dimension(ib:ie,jb:je) :: dum2d1,dum2d2,dum2d3,dum2d4,dum2d5
     real, intent(inout), dimension(ibr:ier,jbr:jer,kbr:ker) :: effc,effi,effs,effr,effg,effis
     real, intent(inout) , dimension(ibdt:iedt,jbdt:jedt,kbdt:kedt,ntdiag) :: tdiag
     real, intent(inout) , dimension(ibdq:iedq,jbdq:jedq,kbdq:kedq,nqdiag) :: qdiag
@@ -75,10 +75,10 @@
     integer :: has_reqc,has_reqi,has_reqs,do_radar_ref
     real :: rdt
 
-        if( stopit ) getdbz = .true.
-
-        IF( efall.eq.1 ) getvt = .true.
-        IF( dowriteout .and. output_fallvel.eq.1 ) getvt = .true.
+   if( stopit ) getdbz = .true.
+      
+   IF( efall.eq.1 ) getvt = .true.
+   IF( dowriteout .and. output_fallvel.eq.1 ) getvt = .true.
 
         ! dum1 = T
         ! dum3 = appropriate rho for budget calculations
@@ -86,17 +86,17 @@
 
         !$omp parallel do default(shared)  &
         !$omp private(i,j,k,n)
-        do k=1,nk
-        do j=1,nj
-        do i=1,ni
-          dum1(i,j,k)=(th0(i,j,k)+th3d(i,j,k))*(pi0(i,j,k)+pp3d(i,j,k))
-          thten(i,j,k)=dum1(i,j,k)
-          qten(i,j,k,nqv)=q3d(i,j,k,nqv)
-        enddo
-        enddo
-        enddo
+   do k=1,nk
+   do j=1,nj
+   do i=1,ni
+      dum1(i,j,k)=(th0(i,j,k)+th3d(i,j,k))*(pi0(i,j,k)+pp3d(i,j,k))
+      thten(i,j,k)=dum1(i,j,k)
+      qten(i,j,k,nqv)=q3d(i,j,k,nqv)
+   enddo
+   enddo
+   enddo
 
-          if( getdbz .and. qd_dbz.ge.1 )then
+   if( getdbz .and. qd_dbz.ge.1 )then
             !$omp parallel do default(shared)  &
             !$omp private(i,j,k,n)
             do k=1,nk
@@ -106,9 +106,9 @@
             enddo
             enddo
             enddo
-          endif
+   endif
 
-          IF(axisymm.eq.0)THEN
+   IF(axisymm.eq.0)THEN
             ! for Cartesian grid:
             !$omp parallel do default(shared)  &
             !$omp private(i,j,k,n)
@@ -119,7 +119,7 @@
             enddo
             enddo
             enddo
-          ELSE
+   ELSE
             ! for axisymmetric grid:
             !$omp parallel do default(shared)  &
             !$omp private(i,j,k,n)
@@ -130,9 +130,9 @@
             enddo
             enddo
             enddo
-          ENDIF
+   ENDIF
 
-          if( dotbud .and. td_mp.ge.1 )then
+   if( dotbud .and. td_mp.ge.1 )then
             !$omp parallel do default(shared)  &
             !$omp private(i,j,k,n)
             do k=1,nk
@@ -154,7 +154,7 @@
             enddo
             enddo
             enddo
-          endif
+   endif
 
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
@@ -170,8 +170,9 @@
 !ccc   Kessler scheme   cccccccccccccccccccccccccccccccccccccccccccccccc
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
-        ifptype:  &
-        IF(ptype.eq.1)THEN
+   ifptype:  &
+   
+      IF (ptype.eq.1) THEN
 
           call pdefq(    0.0,asq(1),ruh,rvh,rmh,rho,q3d(ib,jb,kb,1))
           call pdefq( qsmall,asq(2),ruh,rvh,rmh,rho,q3d(ib,jb,kb,2))
@@ -219,7 +220,7 @@
 !ccc   Goddard LFO scheme   cccccccccccccccccccccccccccccccccccccccccccc
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
-        ELSEIF(ptype.eq.2)THEN
+      ELSEIF (ptype.eq.2) THEN
 
           call pdefq(    0.0,asq(1),ruh,rvh,rmh,rho,q3d(ib,jb,kb,1))
           call pdefq( qsmall,asq(2),ruh,rvh,rmh,rho,q3d(ib,jb,kb,2))
@@ -287,7 +288,7 @@
 !ccc   Thompson scheme   ccccccccccccccccccccccccccccccccccccccccccccccc
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
-        ELSEIF(ptype.eq.3)THEN
+      ELSEIF (ptype.eq.3) THEN
 
           call pdefq(    0.0,asq(1),ruh,rvh,rmh,rho,q3d(ib,jb,kb,1))
           call pdefq( qsmall,asq(2),ruh,rvh,rmh,rho,q3d(ib,jb,kb,2))
@@ -467,7 +468,7 @@
 !ccc   GSR LFO scheme   cccccccccccccccccccccccccccccccccccccccccccccccc
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
-        ELSEIF(ptype.eq.4)THEN
+      ELSEIF (ptype.eq.4) THEN
 
           call pdefq(    0.0,asq(1),ruh,rvh,rmh,rho,q3d(ib,jb,kb,1))
           call pdefq( qsmall,asq(2),ruh,rvh,rmh,rho,q3d(ib,jb,kb,2))
@@ -486,7 +487,7 @@
 !ccc   Morrison scheme   cccccccccccccccccccccccccccccccccccccccccccccccc
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
-        ELSEIF(ptype.eq.5)THEN
+      ELSEIF (ptype.eq.5) THEN
 
 !          call pdefq(    0.0,asq(1),ruh,rvh,rmh,rho,q3d(ib,jb,kb,1))
 !          call pdefq( qsmall,asq(2),ruh,rvh,rmh,rho,q3d(ib,jb,kb,2))
@@ -683,7 +684,7 @@
 !ccc   also:  reversible moist thermo. if v_t = 0   cccccccccccccccccccc
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
-        ELSEIF(ptype.eq.6)THEN
+      ELSEIF (ptype.eq.6) THEN
 
           call pdefq(    0.0,asq(1),ruh,rvh,rmh,rho,q3d(ib,jb,kb,1))
           call pdefq( qsmall,asq(2),ruh,rvh,rmh,rho,q3d(ib,jb,kb,2))
@@ -752,7 +753,7 @@
 !  Ziegler/Mansell (NSSL) two-moment scheme
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
-        ELSEIF( ptype.ge.26 .and. ptype.le.28 )THEN
+      ELSEIF (ptype.ge.26 .and. ptype.le.28) THEN
 
           IF ( ptype .eq. 26 ) THEN
             j = 13
@@ -928,48 +929,48 @@
           enddo
         ENDIF
 
-          if(timestats.ge.1) time_microphy=time_microphy+mytime()
+        if(timestats.ge.1) time_microphy=time_microphy+mytime()
 
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !ccc     P3 scheme      cccccccccccccccccccccccccccccccccccccccccccccccc
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
-        ELSEIF( ptype.eq.50 .or. ptype.eq.51 .or. ptype.eq.53 .or.ptype.eq.60)THEN
+      ELSEIF (ptype.eq.50 .or. ptype.eq.51 .or. ptype.eq.53 .or.ptype.eq.60) THEN
 
-          rdt = 1.0/dt
+         rdt = 1.0/dt
 
-          p3jloop:  &
-          DO j=1,nj
+         p3_jloop1: DO j=1,nj
 
             do k=1,nk
             do i=1,ni
-              p3a(i,k, 1) = th0(i,j,k)+th3d(i,j,k)
-              p3a(i,k, 2) = q3d(i,j,k,nqv)
-              thten(i,j,k)    = p3a(i,k, 1)
-              qten(i,j,k,nqv) = p3a(i,k, 2)
-              p3a(i,k, 3) = q3d(i,j,k,nqc)
-              p3a(i,k, 4) = q3d(i,j,k,nqr)
-              p3a(i,k, 5) = q3d(i,j,k,6)
-              p3a(i,k, 6) = th0(i,j,k)+tha(i,j,k)
-              p3a(i,k, 7) = qa(i,j,k,nqv)
-              p3a(i,k, 8) = pi0(i,j,k)+pp3d(i,j,k)
-              p3a(i,k, 9) = prs(i,j,k)
-              p3a(i,k,10) = dz*rmh(i,j,k)
-              p3a(i,k,11) = 0.5*(w3d(i,j,k)+w3d(i,j,k+1))
-              p3a(i,k,18) = q3d(i,j,k,nqi)
-              p3a(i,k,19) = q3d(i,j,k,5)
-              p3a(i,k,20) = q3d(i,j,k,7)
-              p3a(i,k,21) = q3d(i,j,k,8)
+               p3a(i,k, 1) = th0(i,j,k)+th3d(i,j,k)
+               p3a(i,k, 2) = q3d(i,j,k,nqv)
+               thten(i,j,k)    = p3a(i,k, 1)
+               qten(i,j,k,nqv) = p3a(i,k, 2)
+               p3a(i,k, 3) = q3d(i,j,k,nqc)
+               p3a(i,k, 4) = q3d(i,j,k,nqr)
+               p3a(i,k, 5) = q3d(i,j,k,6)
+               p3a(i,k, 6) = th0(i,j,k)+tha(i,j,k)
+               p3a(i,k, 7) = qa(i,j,k,nqv)
+               p3a(i,k, 8) = pi0(i,j,k)+pp3d(i,j,k)
+               p3a(i,k, 9) = prs(i,j,k)
+               p3a(i,k,10) = dz*rmh(i,j,k)
+               p3a(i,k,11) = 0.5*(w3d(i,j,k)+w3d(i,j,k+1))
+               p3a(i,k,18) = q3d(i,j,k,nqi)
+               p3a(i,k,19) = q3d(i,j,k,5)
+               p3a(i,k,20) = q3d(i,j,k,7)
+               p3a(i,k,21) = q3d(i,j,k,8)
             enddo
             enddo
 
             do i=1,ni
-              p3a(i,1,22) = 0.0
+               p3a(i,1,22) = 0.0
             enddo
 
-     if( ptype.eq.50 )then
-       call mp_p3_wrapper_wrf( th_3d=p3a(1,1,1),  &
+            ptype_50_51_53_60: if (ptype.eq.50) then
+            
+               call mp_p3_wrapper_wrf( th_3d=p3a(1,1,1),  &
                                qv_3d=p3a(1,1,2),  &
                                qc_3d=p3a(1,1,3),  &
                                qr_3d=p3a(1,1,4),  &
@@ -1002,13 +1003,15 @@
                               qir1_3d=p3a(1,1,20),  &
                               qib1_3d=p3a(1,1,21))
 
-     elseif( ptype.eq.51 )then
-        do k=1,nk
-        do i=1,ni
-          p3a(i,k,23) = q3d(i,j,k,9)
-        enddo
-        enddo
-       call mp_p3_wrapper_wrf( th_3d=p3a(1,1,1),  &
+            elseif (ptype.eq.51) then
+            
+               do k=1,nk
+               do i=1,ni
+                  p3a(i,k,23) = q3d(i,j,k,9)
+               enddo
+               enddo
+               
+               call mp_p3_wrapper_wrf( th_3d=p3a(1,1,1),  &
                                qv_3d=p3a(1,1,2),  &
                                qc_3d=p3a(1,1,3),  &
                                qr_3d=p3a(1,1,4),  &
@@ -1042,61 +1045,22 @@
                               qib1_3d=p3a(1,1,21), &
                               nc_3d=p3a(1,1,23))
 
-        do k=1,nk
-        do i=1,ni
-          q3d(i,j,k,9) = p3a(i,k,23)
-        enddo
-        enddo
+               do k=1,nk
+               do i=1,ni
+                  q3d(i,j,k,9) = p3a(i,k,23)
+               enddo
+               enddo
 
-     elseif( ptype.eq.53 )then
-        do k=1,nk
-        do i=1,ni
-          p3a(i,k,23) = q3d(i,j,k,9)
-          p3a(i,k,24) = q3d(i,j,k,10)
-        enddo
-        enddo
-!        call mp_p3_wrapper_wrf( th_3d=p3a(1,1,1),  &
-!                                qv_3d=p3a(1,1,2),  &
-!                                qc_3d=p3a(1,1,3),  &
-!                                qr_3d=p3a(1,1,4),  &
-!                                qnr_3d=p3a(1,1,5),                            &
-!                               th_old_3d=p3a(1,1,6),  &
-!                               qv_old_3d=p3a(1,1,7),                                       &
-!                               pii=p3a(1,1,8),  &
-!                               p=p3a(1,1,9),  &
-!                               dz=p3a(1,1,10),  &
-!                               w=p3a(1,1,11),    &
-!                               dt=dt,  &
-!                               itimestep=nstep,                                   &
-!                               rainnc=p3a(1,1,22),    &
-!                               rainncv=dum1(ib,jb,2),  &
-!                               sr=dum1(ib,jb,3),  &
-!                               snownc=dum1(ib,jb,4),  &
-!                               snowncv=dum1(ib,jb,5),  &
-!                               n_iceCat=1,                 &
-!                               ids=1, ide=ni, jds=1, jde=1, kds=1, kde=nk ,                             &
-!                               ims=1, ime=ni, jms=1, jme=1, kms=1, kme=nk ,                             &
-!                               its=1, ite=ni, jts=1, jte=1, kts=1, kte=nk ,                             &
-!                               diag_zdbz_3d=p3a(1,1,12),  &
-!                               diag_effc_3d=p3a(1,1,13),  &
-!                               diag_effi_3d=p3a(1,1,14),                    &
-!                               diag_vmi_3d=p3a(1,1,15),  &
-!                               diag_di_3d=p3a(1,1,16),  &
-!                               diag_rhopo_3d=p3a(1,1,17),                      &
-!                               qi1_3d=p3a(1,1,18),  &
-!                               qni1_3d=p3a(1,1,19),  &
-!                               qir1_3d=p3a(1,1,20),  &
-!                               qib1_3d=p3a(1,1,21), &
-!                               nc_3d=p3a(1,1,23), &
-!                               qzi1_3d=p3a(1,1,24), &
-! ! to add generic 3D output variable
-!                   add_output_arr1=p3a(1,1,25),      & 
-!                   add_output_arr2=p3a(1,1,26),      &
-!                   add_output_arr3=p3a(1,1,27),      &
-!                   add_output_arr1_2d=p3a(1,1,28),   &
-!                   add_output_arr2_2d=p3a(1,1,29))
+            elseif (ptype.eq.53) then 
+     
+               do k=1,nk
+               do i=1,ni
+                  p3a(i,k,23) = q3d(i,j,k,9)
+                  p3a(i,k,24) = q3d(i,j,k,10)
+               enddo
+               enddo
                   
-       call mp_p3_wrapper_cm1( th      = p3a(1,1,1),                         &
+               call mp_p3_wrapper_cm1( th = p3a(1,1,1),                      &
                                qv      = p3a(1,1,2),                         &
                                qc      = p3a(1,1,3),                         &
                                qr      = p3a(1,1,4),                         &
@@ -1140,15 +1104,14 @@
                                add_output_arr2    = p3a(1,1,26),             &
                                add_output_arr3    = p3a(1,1,27),             &
                                add_output_arr1_2d = p3a(1,1,28),             &
-                               add_output_arr2_2d = p3a(1,1,29) )
-                               
+                               add_output_arr2_2d = p3a(1,1,29) )                              
 
-        do k=1,nk
-        do i=1,ni
-          q3d(i,j,k,9) = p3a(i,k,23)
-          q3d(i,j,k,10) = p3a(i,k,24)
-        enddo
-        enddo
+               do k=1,nk
+               do i=1,ni
+                  q3d(i,j,k,9) = p3a(i,k,23)
+                  q3d(i,j,k,10) = p3a(i,k,24)
+               enddo
+               enddo
 
 ! to add generic output,
 ! uncomment lines below, add p3a to p3 wrapper call statement above
@@ -1156,71 +1119,30 @@
 ! note that np3a needs to be changed accordingly in param.F
 ! and nout3d needs to be changed accordingly in cm1.F
 ! to set the number of output variables for out3d
-            do k=1,nk
-            do i=1,ni
-              out3d(i,j,k,1) = p3a(i,k,25)
-              out3d(i,j,k,2) = p3a(i,k,26)
-              out3d(i,j,k,3) = p3a(i,k,27)
-            enddo
-            enddo
+               do k=1,nk
+               do i=1,ni
+                  out3d(i,j,k,1) = p3a(i,k,25)
+                  out3d(i,j,k,2) = p3a(i,k,26)
+                  out3d(i,j,k,3) = p3a(i,k,27)
+               enddo
+               enddo
 
-            do i=1,ni
-              out2d(i,j,1) = p3a(i,1,28)
-              out2d(i,j,2) = p3a(i,1,29)
-            enddo
+               do i=1,ni
+                  out2d(i,j,1) = p3a(i,1,28)
+                  out2d(i,j,2) = p3a(i,1,29)
+               enddo
 
-     elseif( ptype.eq.60 )then
-        do k=1,nk
-        do i=1,ni
-          p3a(i,k,23) = q3d(i,j,k,9)
-          p3a(i,k,24) = q3d(i,j,k,10)
-          p3a(i,k,25) = q3d(i,j,k,11) ! liq on ice mix ratio
-        enddo
-        enddo
-!        call mp_p3_wrapper_wrf( th_3d=p3a(1,1,1),  &
-!                                qv_3d=p3a(1,1,2),  &
-!                                qc_3d=p3a(1,1,3),  &
-!                                qr_3d=p3a(1,1,4),  &
-!                                qnr_3d=p3a(1,1,5),                            &                                                                                                     
-!                               th_old_3d=p3a(1,1,6),  &
-!                               qv_old_3d=p3a(1,1,7),                                       &                                                                                        
-!                               pii=p3a(1,1,8),  &
-!                               p=p3a(1,1,9),  &
-!                               dz=p3a(1,1,10),  &
-!                               w=p3a(1,1,11),    &
-!                               dt=dt,  &
-!                               itimestep=nstep,                                   &                                                                                                 
-!                               rainnc=p3a(1,1,22),    &
-!                               rainncv=dum1(ib,jb,2),  &
-!                               sr=dum1(ib,jb,3),  &
-!                               snownc=dum1(ib,jb,4),  &
-!                               snowncv=dum1(ib,jb,5),  &
-!                               n_iceCat=1,                 &
-!                               ids=1, ide=ni, jds=1, jde=1, kds=1, kde=nk ,                             &                                                                           
-!                               ims=1, ime=ni, jms=1, jme=1, kms=1, kme=nk ,                             &                                                                           
-!                               its=1, ite=ni, jts=1, jte=1, kts=1, kte=nk ,                             &                                                                           
-!                               diag_zdbz_3d=p3a(1,1,12),  &
-!                               diag_effc_3d=p3a(1,1,13),  &
-!                               diag_effi_3d=p3a(1,1,14),                    &                                                                                                       
-!                               diag_vmi_3d=p3a(1,1,15),  &
-!                               diag_di_3d=p3a(1,1,16),  &
-!                               diag_rhopo_3d=p3a(1,1,17),                      &                                                                                                    
-!                               qi1_3d=p3a(1,1,18),  &
-!                               qni1_3d=p3a(1,1,19),  &
-!                               qir1_3d=p3a(1,1,20),  &
-!                               qib1_3d=p3a(1,1,21), &
+            elseif (ptype.eq.60) then
+     
+               do k=1,nk
+               do i=1,ni
+                  p3a(i,k,23) = q3d(i,j,k,9)
+                  p3a(i,k,24) = q3d(i,j,k,10)
+                  p3a(i,k,25) = q3d(i,j,k,11) ! liq on ice mix ratio
+               enddo
+               enddo
 
-!                               nc_3d=p3a(1,1,23), &
-!                               qzi1_3d=p3a(1,1,24), &
-!                               qli1_3d=p3a(1,1,25), &
-! ! to add generic 3D output variable                                         
-!                   add_output_arr1=p3a(1,1,26),      &
-!                   add_output_arr2=p3a(1,1,27),      &
-!                   add_output_arr3=p3a(1,1,28),      &
-!                   add_output_arr1_2d=p3a(1,1,29),   &
-!                   add_output_arr2_2d=p3a(1,1,30))
-
-       call mp_p3_wrapper_cm1( th      = p3a(1,1,1),                         &
+               call mp_p3_wrapper_cm1( th = p3a(1,1,1),                      &
                                qv      = p3a(1,1,2),                         &
                                qc      = p3a(1,1,3),                         &
                                qr      = p3a(1,1,4),                         &
@@ -1267,13 +1189,13 @@
                                add_output_arr2_2d = p3a(1,1,30) )
                   
 
-        do k=1,nk
-        do i=1,ni
-          q3d(i,j,k,9) = p3a(i,k,23)
-          q3d(i,j,k,10) = p3a(i,k,24)
-          q3d(i,j,k,11) = p3a(i,k,25)
-        enddo
-        enddo
+               do k=1,nk
+               do i=1,ni
+                  q3d(i,j,k,9) = p3a(i,k,23)
+                  q3d(i,j,k,10) = p3a(i,k,24)
+                  q3d(i,j,k,11) = p3a(i,k,25)
+               enddo
+               enddo
 
 ! to add generic output,                                                    
 ! uncomment lines below, add p3a to p3 wrapper call statement above         
@@ -1281,31 +1203,32 @@
 ! note that np3a needs to be changed accordingly in param.F                 
 ! and nout3d needs to be changed accordingly in cm1.F                       
 ! to set the number of output variables for out3d                           
-            do k=1,nk
-            do i=1,ni
-              out3d(i,j,k,1) = p3a(i,k,26)
-              out3d(i,j,k,2) = p3a(i,k,27)
-              out3d(i,j,k,3) = p3a(i,k,28)
-            enddo
-            enddo
+               do k=1,nk
+               do i=1,ni
+                  out3d(i,j,k,1) = p3a(i,k,26)
+                  out3d(i,j,k,2) = p3a(i,k,27)
+                  out3d(i,j,k,3) = p3a(i,k,28)
+               enddo
+               enddo
 
-            do i=1,ni
-              out2d(i,j,1) = p3a(i,1,29)
-              out2d(i,j,1) = p3a(i,1,30)
-            enddo
+               do i=1,ni
+                  out2d(i,j,1) = p3a(i,1,29)
+                  out2d(i,j,1) = p3a(i,1,30)
+               enddo
 
-     endif ! P3 ptype
+            endif ptype_50_51_53_60
 
-            if( axisymm.eq.1 )then
-              do i=1,ni
-                prate(i,j) = p3a(i,1,22)*rdt
-                qbudget(6) = qbudget(6) + p3a(i,1,22)*ruh(i)*rvh(j)*dx*dy*dum3(i,j,1)/rho(i,j,1)
-              enddo
+            
+            if (axisymm.eq.1) then
+               do i=1,ni
+                  prate(i,j) = p3a(i,1,22)*rdt
+                  qbudget(6) = qbudget(6) + p3a(i,1,22)*ruh(i)*rvh(j)*dx*dy*dum3(i,j,1)/rho(i,j,1)
+               enddo
             else
-              do i=1,ni
-                prate(i,j) = p3a(i,1,22)*rdt
-                qbudget(6) = qbudget(6) + p3a(i,1,22)*ruh(i)*rvh(j)*dx*dy
-              enddo
+               do i=1,ni
+                  prate(i,j) = p3a(i,1,22)*rdt
+                  qbudget(6) = qbudget(6) + p3a(i,1,22)*ruh(i)*rvh(j)*dx*dy
+               enddo
             endif
 
             do n=1,nrain
@@ -1317,98 +1240,97 @@
 
             do k=1,nk
             do i=1,ni
-              if( abs(p3a(i,k,1)-thten(i,j,k)).ge.tsmall .or.  &
+               if( abs(p3a(i,k,1)-thten(i,j,k)).ge.tsmall .or.  &
                   abs(p3a(i,k,2)-qten(i,j,k,nqv)).ge.qsmall )then
-                pp3d(i,j,k)=(rho(i,j,k)*(rd+rv*p3a(i,k,2))*p3a(i,k,1)*rp00)**rddcv
-                prs(i,j,k)=p00*(pp3d(i,j,k)**cpdrd)
-                pp3d(i,j,k)=pp3d(i,j,k)-pi0(i,j,k)
-                th3d(i,j,k)=th3d(i,j,k)+(p3a(i,k,1)-thten(i,j,k))
-              endif
-              q3d(i,j,k,nqv) = p3a(i,k, 2)
-              q3d(i,j,k,nqc) = p3a(i,k, 3)
-              q3d(i,j,k,nqr) = p3a(i,k, 4)
-              q3d(i,j,k, 6 ) = p3a(i,k, 5)
-              q3d(i,j,k,nqi) = p3a(i,k,18)
-              q3d(i,j,k, 5 ) = p3a(i,k,19)
-              q3d(i,j,k, 7 ) = p3a(i,k,20)
-              q3d(i,j,k, 8 ) = p3a(i,k,21)
+                  pp3d(i,j,k)=(rho(i,j,k)*(rd+rv*p3a(i,k,2))*p3a(i,k,1)*rp00)**rddcv
+                  prs(i,j,k)=p00*(pp3d(i,j,k)**cpdrd)
+                  pp3d(i,j,k)=pp3d(i,j,k)-pi0(i,j,k)
+                  th3d(i,j,k)=th3d(i,j,k)+(p3a(i,k,1)-thten(i,j,k))
+               endif
+               q3d(i,j,k,nqv) = p3a(i,k, 2)
+               q3d(i,j,k,nqc) = p3a(i,k, 3)
+               q3d(i,j,k,nqr) = p3a(i,k, 4)
+               q3d(i,j,k, 6 ) = p3a(i,k, 5)
+               q3d(i,j,k,nqi) = p3a(i,k,18)
+               q3d(i,j,k, 5 ) = p3a(i,k,19)
+               q3d(i,j,k, 7 ) = p3a(i,k,20)
+               q3d(i,j,k, 8 ) = p3a(i,k,21)
             enddo
             enddo
 
             IF( getdbz .and. qd_dbz.ge.1 )THEN
-              do k=1,nk
-              do i=1,ni
-                qdiag(i,j,k,qd_dbz) = p3a(i,k,12)
-              enddo
-              enddo
+               do k=1,nk
+               do i=1,ni
+                  qdiag(i,j,k,qd_dbz) = p3a(i,k,12)
+               enddo
+               enddo
             ENDIF
 
-            IF( dorad )THEN
-              do k=1,nk
-              do i=1,ni
-                effc(i,j,k) = p3a(i,k,13)
-                effi(i,j,k) = p3a(i,k,14)
-              enddo
-              enddo
+            IF (dorad) THEN
+               do k=1,nk
+               do i=1,ni
+                  effc(i,j,k) = p3a(i,k,13)
+                  effi(i,j,k) = p3a(i,k,14)
+               enddo
+               enddo
             ENDIF
 
-            IF( dowriteout .or. getdbz )THEN
-              do k=1,nk
-              do i=1,ni
-                p3o(i,j,k,1) = p3a(i,k,15)
-                p3o(i,j,k,2) = p3a(i,k,16)
-                p3o(i,j,k,3) = p3a(i,k,17)
-              enddo
-              enddo
+            IF (dowriteout .or. getdbz) THEN
+               do k=1,nk
+               do i=1,ni
+                  p3o(i,j,k,1) = p3a(i,k,15)
+                  p3o(i,j,k,2) = p3a(i,k,16)
+                  p3o(i,j,k,3) = p3a(i,k,17)
+               enddo
+               enddo
             ENDIF
 
-          ENDDO  p3jloop
+         ENDDO p3_jloop1
 
-          if(timestats.ge.1) time_microphy=time_microphy+mytime()
+         if(timestats.ge.1) time_microphy=time_microphy+mytime()
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !ccc     P3 scheme, 2 ice     cccccccccccccccccccccccccccccccccccccccccc
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
-        ELSEIF( ptype.eq.52 )THEN
+      ELSEIF (ptype.eq.52) THEN
 
-          rdt = 1.0/dt
+         rdt = 1.0/dt
 
-          p3jloop2:  &
-          DO j=1,nj
+         p3_jloop2: DO j=1,nj
 
             do k=1,nk
             do i=1,ni
-              p3a(i,k, 1) = th0(i,j,k)+th3d(i,j,k)         ! th_3d
-              p3a(i,k, 2) = q3d(i,j,k,nqv)                 ! qv_3d
-              thten(i,j,k)    = p3a(i,k, 1)
-              qten(i,j,k,nqv) = p3a(i,k, 2)
-              p3a(i,k, 3) = q3d(i,j,k,nqc)                 ! qc_3d
-              p3a(i,k, 4) = q3d(i,j,k,nqr)                 ! qr_3d
-              p3a(i,k, 5) = q3d(i,j,k,7)                   ! qnr_3d
-              p3a(i,k, 6) = th0(i,j,k)+tha(i,j,k)          ! th_old
-              p3a(i,k, 7) = qa(i,j,k,nqv)                  ! qv_old
-              p3a(i,k, 8) = pi0(i,j,k)+pp3d(i,j,k)         ! pii
-              p3a(i,k, 9) = prs(i,j,k)                     ! p
-              p3a(i,k,10) = dz*rmh(i,j,k)                  ! dz
-              p3a(i,k,11) = 0.5*(w3d(i,j,k)+w3d(i,j,k+1))  ! w
-              p3a(i,k,18) = q3d(i,j,k,nqi)                 ! qi1_3d
-              p3a(i,k,19) = q3d(i,j,k,8)                   ! qni1_3d
-              p3a(i,k,20) = q3d(i,j,k,9)                   ! qir1_3d
-              p3a(i,k,21) = q3d(i,j,k,10)                  ! qib1_3d
-              p3a(i,k,23) = q3d(i,j,k, 5)                  ! qi2_3d
-              p3a(i,k,24) = q3d(i,j,k,12)                  ! qir2_3d
-              p3a(i,k,25) = q3d(i,j,k,11)                  ! qni2_3d
-              p3a(i,k,26) = q3d(i,j,k,13)                  ! qib2_3d
-              p3a(i,k,27) = q3d(i,j,k, 6)                  ! nc_3d
+               p3a(i,k, 1) = th0(i,j,k)+th3d(i,j,k)         ! th_3d
+               p3a(i,k, 2) = q3d(i,j,k,nqv)                 ! qv_3d
+               thten(i,j,k)    = p3a(i,k, 1)
+               qten(i,j,k,nqv) = p3a(i,k, 2)
+               p3a(i,k, 3) = q3d(i,j,k,nqc)                 ! qc_3d
+               p3a(i,k, 4) = q3d(i,j,k,nqr)                 ! qr_3d
+               p3a(i,k, 5) = q3d(i,j,k,7)                   ! qnr_3d
+               p3a(i,k, 6) = th0(i,j,k)+tha(i,j,k)          ! th_old
+               p3a(i,k, 7) = qa(i,j,k,nqv)                  ! qv_old
+               p3a(i,k, 8) = pi0(i,j,k)+pp3d(i,j,k)         ! pii
+               p3a(i,k, 9) = prs(i,j,k)                     ! p
+               p3a(i,k,10) = dz*rmh(i,j,k)                  ! dz
+               p3a(i,k,11) = 0.5*(w3d(i,j,k)+w3d(i,j,k+1))  ! w
+               p3a(i,k,18) = q3d(i,j,k,nqi)                 ! qi1_3d
+               p3a(i,k,19) = q3d(i,j,k,8)                   ! qni1_3d
+               p3a(i,k,20) = q3d(i,j,k,9)                   ! qir1_3d
+               p3a(i,k,21) = q3d(i,j,k,10)                  ! qib1_3d
+               p3a(i,k,23) = q3d(i,j,k, 5)                  ! qi2_3d
+               p3a(i,k,24) = q3d(i,j,k,12)                  ! qir2_3d
+               p3a(i,k,25) = q3d(i,j,k,11)                  ! qni2_3d
+               p3a(i,k,26) = q3d(i,j,k,13)                  ! qib2_3d
+               p3a(i,k,27) = q3d(i,j,k, 6)                  ! nc_3d
             enddo
             enddo
 
             do i=1,ni
-              p3a(i,1,22) = 0.0
+               p3a(i,1,22) = 0.0
             enddo
 
-       call mp_p3_wrapper_wrf_2cat( th_3d=p3a(1,1,1),  &
+            call mp_p3_wrapper_wrf_2cat( th_3d=p3a(1,1,1),  &
                                qv_3d=p3a(1,1,2),  &
                                qc_3d=p3a(1,1,3),  &
                                qr_3d=p3a(1,1,4),  &
@@ -1450,126 +1372,125 @@
                   diag_rhopo2_3d=p3a(1,1,30) )
 
             if( axisymm.eq.1 )then
-              do i=1,ni
-                prate(i,j) = p3a(i,1,22)*rdt
-                qbudget(6) = qbudget(6) + p3a(i,1,22)*ruh(i)*rvh(j)*dx*dy*dum3(i,j,1)/rho(i,j,1)
-              enddo
+               do i=1,ni
+                  prate(i,j) = p3a(i,1,22)*rdt
+                  qbudget(6) = qbudget(6) + p3a(i,1,22)*ruh(i)*rvh(j)*dx*dy*dum3(i,j,1)/rho(i,j,1)
+               enddo
             else
-              do i=1,ni
-                prate(i,j) = p3a(i,1,22)*rdt
-                qbudget(6) = qbudget(6) + p3a(i,1,22)*ruh(i)*rvh(j)*dx*dy
-              enddo
+               do i=1,ni
+                  prate(i,j) = p3a(i,1,22)*rdt
+                  qbudget(6) = qbudget(6) + p3a(i,1,22)*ruh(i)*rvh(j)*dx*dy
+               enddo
             endif
 
             do n=1,nrain
             do i=1,ni
               ! convert from mm to cm:
-              rain(i,j,n) = rain(i,j,n) + 0.1*p3a(i,1,22)
+               rain(i,j,n) = rain(i,j,n) + 0.1*p3a(i,1,22)
             enddo
             enddo
 
             do k=1,nk
             do i=1,ni
-              if( abs(p3a(i,k,1)-thten(i,j,k)).ge.tsmall .or.  &
-                  abs(p3a(i,k,2)-qten(i,j,k,nqv)).ge.qsmall )then
-                pp3d(i,j,k)=(rho(i,j,k)*(rd+rv*p3a(i,k,2))*p3a(i,k,1)*rp00)**rddcv
-                prs(i,j,k)=p00*(pp3d(i,j,k)**cpdrd)
-                pp3d(i,j,k)=pp3d(i,j,k)-pi0(i,j,k)
-                th3d(i,j,k)=th3d(i,j,k)+(p3a(i,k,1)-thten(i,j,k))
-              endif
-              q3d(i,j,k,nqv) = p3a(i,k, 2)
-              q3d(i,j,k,nqc) = p3a(i,k, 3)    ! qc_3d
-              q3d(i,j,k,nqr) = p3a(i,k, 4)    ! qr_3d
-              q3d(i,j,k, 7 ) = p3a(i,k, 5)    ! qnr_3d
-              q3d(i,j,k,nqi) = p3a(i,k,18)    ! qi1_3d
-              q3d(i,j,k, 8 ) = p3a(i,k,19)    ! qni1_3d
-              q3d(i,j,k, 9 ) = p3a(i,k,20)    ! qir1_3d
-              q3d(i,j,k,10 ) = p3a(i,k,21)    ! qib1_3d
-              q3d(i,j,k, 5 ) = p3a(i,k,23)    ! qi2_3d
-              q3d(i,j,k,12 ) = p3a(i,k,24)    ! qir2_3d
-              q3d(i,j,k,11 ) = p3a(i,k,25)    ! qni2_3d
-              q3d(i,j,k,13 ) = p3a(i,k,26)    ! qib2_3d
-              q3d(i,j,k, 6 ) = p3a(i,k,27)    ! nc_3d
+               if( abs(p3a(i,k,1)-thten(i,j,k)).ge.tsmall .or.  &
+                abs(p3a(i,k,2)-qten(i,j,k,nqv)).ge.qsmall )then
+                   pp3d(i,j,k)=(rho(i,j,k)*(rd+rv*p3a(i,k,2))*p3a(i,k,1)*rp00)**rddcv
+                   prs(i,j,k)=p00*(pp3d(i,j,k)**cpdrd)
+                   pp3d(i,j,k)=pp3d(i,j,k)-pi0(i,j,k)
+                   th3d(i,j,k)=th3d(i,j,k)+(p3a(i,k,1)-thten(i,j,k))
+               endif
+               q3d(i,j,k,nqv) = p3a(i,k, 2)
+               q3d(i,j,k,nqc) = p3a(i,k, 3)    ! qc_3d
+               q3d(i,j,k,nqr) = p3a(i,k, 4)    ! qr_3d
+               q3d(i,j,k, 7 ) = p3a(i,k, 5)    ! qnr_3d
+               q3d(i,j,k,nqi) = p3a(i,k,18)    ! qi1_3d
+               q3d(i,j,k, 8 ) = p3a(i,k,19)    ! qni1_3d
+               q3d(i,j,k, 9 ) = p3a(i,k,20)    ! qir1_3d
+               q3d(i,j,k,10 ) = p3a(i,k,21)    ! qib1_3d
+               q3d(i,j,k, 5 ) = p3a(i,k,23)    ! qi2_3d
+               q3d(i,j,k,12 ) = p3a(i,k,24)    ! qir2_3d
+               q3d(i,j,k,11 ) = p3a(i,k,25)    ! qni2_3d
+               q3d(i,j,k,13 ) = p3a(i,k,26)    ! qib2_3d
+               q3d(i,j,k, 6 ) = p3a(i,k,27)    ! nc_3d
             enddo
             enddo
 
             IF( getdbz .and. qd_dbz.ge.1 )THEN
-              do k=1,nk
-              do i=1,ni
-                qdiag(i,j,k,qd_dbz) = p3a(i,k,12)
-              enddo
-              enddo
+               do k=1,nk
+               do i=1,ni
+                  qdiag(i,j,k,qd_dbz) = p3a(i,k,12)
+               enddo
+               enddo
             ENDIF
 
             IF( dorad )THEN
-              do k=1,nk
-              do i=1,ni
-                effc(i,j,k) = p3a(i,k,13)
-                effi(i,j,k) = p3a(i,k,14)
-              enddo
-              enddo
+               do k=1,nk
+               do i=1,ni
+                  effc(i,j,k) = p3a(i,k,13)
+                  effi(i,j,k) = p3a(i,k,14)
+               enddo
+               enddo
             ENDIF
 
             IF( dowriteout .or. getdbz )THEN
-              do k=1,nk
-              do i=1,ni
-                p3o(i,j,k,1) = p3a(i,k,15)
-                p3o(i,j,k,2) = p3a(i,k,16)
-                p3o(i,j,k,3) = p3a(i,k,17)
-              enddo
-              enddo
-              if( ptype.eq.52 )then
-                do k=1,nk
-                do i=1,ni
-                  p3o(i,j,k,4) = p3a(i,k,28)
-                  p3o(i,j,k,5) = p3a(i,k,29)
-                  p3o(i,j,k,6) = p3a(i,k,30)
-                enddo
-                enddo
-              endif
+               do k=1,nk
+               do i=1,ni
+                  p3o(i,j,k,1) = p3a(i,k,15)
+                  p3o(i,j,k,2) = p3a(i,k,16)
+                  p3o(i,j,k,3) = p3a(i,k,17)
+               enddo
+               enddo
+               if( ptype.eq.52 )then
+                  do k=1,nk
+                  do i=1,ni
+                     p3o(i,j,k,4) = p3a(i,k,28)
+                     p3o(i,j,k,5) = p3a(i,k,29)
+                     p3o(i,j,k,6) = p3a(i,k,30)
+                  enddo
+                  enddo
+               endif
             ENDIF
 
-          ENDDO  p3jloop2
+         ENDDO  p3_jloop2
 
-          if(timestats.ge.1) time_microphy=time_microphy+mytime()
+         if (timestats.ge.1) time_microphy = time_microphy+mytime()
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc    
 !ccc     P3 scheme, 2 ice with 3-moment     cccccccccccccccccccccccccccc
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc    
 
-        ELSEIF( ptype.eq.54 )THEN
+      ELSEIF (ptype.eq.54) THEN
 
-          rdt = 1.0/dt
+         rdt = 1.0/dt
 
-          p3jloop5:  &
-          DO j=1,nj
+         p3_jloop5: DO j=1,nj
 
             do k=1,nk
             do i=1,ni
-              p3a(i,k, 1) = th0(i,j,k)+th3d(i,j,k)         ! th_3d          
-              p3a(i,k, 2) = q3d(i,j,k,nqv)                 ! qv_3d          
-              thten(i,j,k)    = p3a(i,k, 1)
-              qten(i,j,k,nqv) = p3a(i,k, 2)
-              p3a(i,k, 3) = q3d(i,j,k,nqc)                 ! qc_3d          
-              p3a(i,k, 4) = q3d(i,j,k,nqr)                 ! qr_3d          
-              p3a(i,k, 5) = q3d(i,j,k,7)                   ! qnr_3d         
-              p3a(i,k, 6) = th0(i,j,k)+tha(i,j,k)          ! th_old         
-              p3a(i,k, 7) = qa(i,j,k,nqv)                  ! qv_old         
-              p3a(i,k, 8) = pi0(i,j,k)+pp3d(i,j,k)         ! pii            
-              p3a(i,k, 9) = prs(i,j,k)                     ! p              
-              p3a(i,k,10) = dz*rmh(i,j,k)                  ! dz             
-              p3a(i,k,11) = 0.5*(w3d(i,j,k)+w3d(i,j,k+1))  ! w              
-              p3a(i,k,18) = q3d(i,j,k,nqi)                 ! qi1_3d         
-              p3a(i,k,19) = q3d(i,j,k,8)                   ! qni1_3d        
-              p3a(i,k,20) = q3d(i,j,k,9)                   ! qir1_3d        
-              p3a(i,k,21) = q3d(i,j,k,10)                  ! qib1_3d        
-              p3a(i,k,23) = q3d(i,j,k, 5)                  ! qi2_3d         
-              p3a(i,k,24) = q3d(i,j,k,12)                  ! qir2_3d        
-              p3a(i,k,25) = q3d(i,j,k,11)                  ! qni2_3d        
-              p3a(i,k,26) = q3d(i,j,k,13)                  ! qib2_3d        
-              p3a(i,k,27) = q3d(i,j,k, 6)                  ! nc_3d          
-              p3a(i,k,31) = q3d(i,j,k,14)                  ! qzi1_3d
-              p3a(i,k,32) = q3d(i,j,k,15)                  ! qzi2_3d
+               p3a(i,k, 1) = th0(i,j,k)+th3d(i,j,k)         ! th_3d          
+               p3a(i,k, 2) = q3d(i,j,k,nqv)                 ! qv_3d          
+               thten(i,j,k)    = p3a(i,k, 1)
+               qten(i,j,k,nqv) = p3a(i,k, 2)
+               p3a(i,k, 3) = q3d(i,j,k,nqc)                 ! qc_3d          
+               p3a(i,k, 4) = q3d(i,j,k,nqr)                 ! qr_3d          
+               p3a(i,k, 5) = q3d(i,j,k,7)                   ! qnr_3d         
+               p3a(i,k, 6) = th0(i,j,k)+tha(i,j,k)          ! th_old         
+               p3a(i,k, 7) = qa(i,j,k,nqv)                  ! qv_old         
+               p3a(i,k, 8) = pi0(i,j,k)+pp3d(i,j,k)         ! pii            
+               p3a(i,k, 9) = prs(i,j,k)                     ! p              
+               p3a(i,k,10) = dz*rmh(i,j,k)                  ! dz             
+               p3a(i,k,11) = 0.5*(w3d(i,j,k)+w3d(i,j,k+1))  ! w              
+               p3a(i,k,18) = q3d(i,j,k,nqi)                 ! qi1_3d         
+               p3a(i,k,19) = q3d(i,j,k,8)                   ! qni1_3d        
+               p3a(i,k,20) = q3d(i,j,k,9)                   ! qir1_3d        
+               p3a(i,k,21) = q3d(i,j,k,10)                  ! qib1_3d        
+               p3a(i,k,23) = q3d(i,j,k, 5)                  ! qi2_3d         
+               p3a(i,k,24) = q3d(i,j,k,12)                  ! qir2_3d        
+               p3a(i,k,25) = q3d(i,j,k,11)                  ! qni2_3d        
+               p3a(i,k,26) = q3d(i,j,k,13)                  ! qib2_3d        
+               p3a(i,k,27) = q3d(i,j,k, 6)                  ! nc_3d          
+               p3a(i,k,31) = q3d(i,j,k,14)                  ! qzi1_3d
+               p3a(i,k,32) = q3d(i,j,k,15)                  ! qzi2_3d
             enddo
             enddo
 
@@ -1625,7 +1546,7 @@
 !                   add_output_arr3=p3a(1,1,35),      &
 !                   add_output_arr1_2d=p3a(1,1,36))
 
-       call mp_p3_wrapper_cm1( th      = p3a(1,1,1),                         &
+            call mp_p3_wrapper_cm1( th = p3a(1,1,1),                         &
                                qv      = p3a(1,1,2),                         &
                                qc      = p3a(1,1,3),                         &
                                qr      = p3a(1,1,4),                         &
@@ -1679,85 +1600,85 @@
                                add_output_arr1_2d = p3a(1,1,36) )
                   
             if( axisymm.eq.1 )then
-              do i=1,ni
-                prate(i,j) = p3a(i,1,22)*rdt
-                qbudget(6) = qbudget(6) + p3a(i,1,22)*ruh(i)*rvh(j)*dx*dy*dum3(i,j,1)/rho(i,j,1)  
-              enddo
+               do i=1,ni
+                  prate(i,j) = p3a(i,1,22)*rdt
+                  qbudget(6) = qbudget(6) + p3a(i,1,22)*ruh(i)*rvh(j)*dx*dy*dum3(i,j,1)/rho(i,j,1)  
+               enddo
             else
-              do i=1,ni
-                prate(i,j) = p3a(i,1,22)*rdt
-                qbudget(6) = qbudget(6) + p3a(i,1,22)*ruh(i)*rvh(j)*dx*dy                         
-              enddo
+               do i=1,ni
+                  prate(i,j) = p3a(i,1,22)*rdt
+                  qbudget(6) = qbudget(6) + p3a(i,1,22)*ruh(i)*rvh(j)*dx*dy                         
+               enddo
             endif
 
             do n=1,nrain
             do i=1,ni
               ! convert from mm to cm:                                                            
-              rain(i,j,n) = rain(i,j,n) + 0.1*p3a(i,1,22)
+               rain(i,j,n) = rain(i,j,n) + 0.1*p3a(i,1,22)
             enddo
             enddo
 
             do k=1,nk
             do i=1,ni
-              if( abs(p3a(i,k,1)-thten(i,j,k)).ge.tsmall .or.  &
-                  abs(p3a(i,k,2)-qten(i,j,k,nqv)).ge.qsmall )then
-                pp3d(i,j,k)=(rho(i,j,k)*(rd+rv*p3a(i,k,2))*p3a(i,k,1)*rp00)**rddcv                
-                prs(i,j,k)=p00*(pp3d(i,j,k)**cpdrd)
-                pp3d(i,j,k)=pp3d(i,j,k)-pi0(i,j,k)
-                th3d(i,j,k)=th3d(i,j,k)+(p3a(i,k,1)-thten(i,j,k))
-              endif
-              q3d(i,j,k,nqv) = p3a(i,k, 2)
-              q3d(i,j,k,nqc) = p3a(i,k, 3)    ! qc_3d                                             
-              q3d(i,j,k,nqr) = p3a(i,k, 4)    ! qr_3d                                             
-              q3d(i,j,k, 7 ) = p3a(i,k, 5)    ! qnr_3d                                            
-              q3d(i,j,k,nqi) = p3a(i,k,18)    ! qi1_3d                                            
-              q3d(i,j,k, 8 ) = p3a(i,k,19)    ! qni1_3d                                           
-              q3d(i,j,k, 9 ) = p3a(i,k,20)    ! qir1_3d                                           
-              q3d(i,j,k,10 ) = p3a(i,k,21)    ! qib1_3d                                           
-              q3d(i,j,k, 5 ) = p3a(i,k,23)    ! qi2_3d                                            
-              q3d(i,j,k,12 ) = p3a(i,k,24)    ! qir2_3d                                           
-              q3d(i,j,k,11 ) = p3a(i,k,25)    ! qni2_3d                                           
-              q3d(i,j,k,13 ) = p3a(i,k,26)    ! qib2_3d                                           
-              q3d(i,j,k, 6 ) = p3a(i,k,27)    ! nc_3d
-              q3d(i,j,k,14 ) = p3a(i,k,31)    ! qzi1_3d
-              q3d(i,j,k,15 ) = p3a(i,k,32)    ! qzi2_3d                                             
+               if( abs(p3a(i,k,1)-thten(i,j,k)).ge.tsmall .or.  &
+                 abs(p3a(i,k,2)-qten(i,j,k,nqv)).ge.qsmall )then
+                  pp3d(i,j,k)=(rho(i,j,k)*(rd+rv*p3a(i,k,2))*p3a(i,k,1)*rp00)**rddcv                
+                  prs(i,j,k)=p00*(pp3d(i,j,k)**cpdrd)
+                  pp3d(i,j,k)=pp3d(i,j,k)-pi0(i,j,k)
+                  th3d(i,j,k)=th3d(i,j,k)+(p3a(i,k,1)-thten(i,j,k))
+               endif
+               q3d(i,j,k,nqv) = p3a(i,k, 2)
+               q3d(i,j,k,nqc) = p3a(i,k, 3)    ! qc_3d                                             
+               q3d(i,j,k,nqr) = p3a(i,k, 4)    ! qr_3d                                             
+               q3d(i,j,k, 7 ) = p3a(i,k, 5)    ! qnr_3d                                            
+               q3d(i,j,k,nqi) = p3a(i,k,18)    ! qi1_3d                                            
+               q3d(i,j,k, 8 ) = p3a(i,k,19)    ! qni1_3d                                           
+               q3d(i,j,k, 9 ) = p3a(i,k,20)    ! qir1_3d                                           
+               q3d(i,j,k,10 ) = p3a(i,k,21)    ! qib1_3d                                           
+               q3d(i,j,k, 5 ) = p3a(i,k,23)    ! qi2_3d                                            
+               q3d(i,j,k,12 ) = p3a(i,k,24)    ! qir2_3d                                           
+               q3d(i,j,k,11 ) = p3a(i,k,25)    ! qni2_3d                                           
+               q3d(i,j,k,13 ) = p3a(i,k,26)    ! qib2_3d                                           
+               q3d(i,j,k, 6 ) = p3a(i,k,27)    ! nc_3d
+               q3d(i,j,k,14 ) = p3a(i,k,31)    ! qzi1_3d
+               q3d(i,j,k,15 ) = p3a(i,k,32)    ! qzi2_3d                                             
             enddo
             enddo
 
             IF( getdbz .and. qd_dbz.ge.1 )THEN
-              do k=1,nk
-              do i=1,ni
-                qdiag(i,j,k,qd_dbz) = p3a(i,k,12)
-              enddo
-              enddo
+               do k=1,nk
+               do i=1,ni
+                  qdiag(i,j,k,qd_dbz) = p3a(i,k,12)
+               enddo
+               enddo
             ENDIF
 
             IF( dorad )THEN
-              do k=1,nk
-              do i=1,ni
-                effc(i,j,k) = p3a(i,k,13)
-                effi(i,j,k) = p3a(i,k,14)
-              enddo
-              enddo
+               do k=1,nk
+               do i=1,ni
+                  effc(i,j,k) = p3a(i,k,13)
+                  effi(i,j,k) = p3a(i,k,14)
+               enddo
+               enddo
             ENDIF
 
             IF( dowriteout .or. getdbz )THEN
-              do k=1,nk
-              do i=1,ni
-                p3o(i,j,k,1) = p3a(i,k,15)
-                p3o(i,j,k,2) = p3a(i,k,16)
-                p3o(i,j,k,3) = p3a(i,k,17)
-              enddo
-              enddo
-              if( ptype.eq.54 )then
-                do k=1,nk
-                do i=1,ni
-                  p3o(i,j,k,4) = p3a(i,k,28)
-                  p3o(i,j,k,5) = p3a(i,k,29)
-                  p3o(i,j,k,6) = p3a(i,k,30)
-                enddo
-                enddo
-              endif
+               do k=1,nk
+               do i=1,ni
+                  p3o(i,j,k,1) = p3a(i,k,15)
+                  p3o(i,j,k,2) = p3a(i,k,16)
+                  p3o(i,j,k,3) = p3a(i,k,17)
+               enddo
+               enddo
+               if( ptype.eq.54 )then
+                  do k=1,nk
+                  do i=1,ni
+                     p3o(i,j,k,4) = p3a(i,k,28)
+                     p3o(i,j,k,5) = p3a(i,k,29)
+                     p3o(i,j,k,6) = p3a(i,k,30)
+                  enddo
+                  enddo
+               endif
             ENDIF
 
 ! to add generic output,                                                    
@@ -1768,118 +1689,66 @@
 ! to set the number of output variables for out3d                           
             do k=1,nk
             do i=1,ni
-              out3d(i,j,k,1) = p3a(i,k,33)
-              out3d(i,j,k,2) = p3a(i,k,34)
-              out3d(i,j,k,3) = p3a(i,k,35)
+               out3d(i,j,k,1) = p3a(i,k,33)
+               out3d(i,j,k,2) = p3a(i,k,34)
+               out3d(i,j,k,3) = p3a(i,k,35)
             enddo
             enddo
 
             do i=1,ni
-              out2d(i,j,1) = p3a(i,1,36)
+               out2d(i,j,1) = p3a(i,1,36)
             enddo
 
-          ENDDO  p3jloop5
+         ENDDO  p3_jloop5
 
-          if(timestats.ge.1) time_microphy=time_microphy+mytime()
+         if(timestats.ge.1) time_microphy=time_microphy+mytime()
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !ccc     P3 scheme, 2 ice, predict Zi and Fl ccccccccccccccccccccccccccc
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
-        ELSEIF( ptype.eq.61 )THEN
+      ELSEIF (ptype.eq.61) THEN
 
-          rdt = 1.0/dt
+         rdt = 1.0/dt
 
-          p3jloop3:  &
-          DO j=1,nj
+         p3_jloop3: DO j=1,nj
 
             do k=1,nk
             do i=1,ni
-              p3a(i,k, 1) = th0(i,j,k)+th3d(i,j,k)         ! th_3d             
-              p3a(i,k, 2) = q3d(i,j,k,nqv)                 ! qv_3d             
-              thten(i,j,k)    = p3a(i,k, 1)
-              qten(i,j,k,nqv) = p3a(i,k, 2)
-              p3a(i,k, 3) = q3d(i,j,k,nqc)                 ! qc_3d             
-              p3a(i,k, 4) = q3d(i,j,k,nqr)                 ! qr_3d             
-              p3a(i,k, 5) = q3d(i,j,k,7)                   ! qnr_3d            
-              p3a(i,k, 6) = th0(i,j,k)+tha(i,j,k)          ! th_old            
-              p3a(i,k, 7) = qa(i,j,k,nqv)                  ! qv_old            
-              p3a(i,k, 8) = pi0(i,j,k)+pp3d(i,j,k)         ! pii               
-              p3a(i,k, 9) = prs(i,j,k)                     ! p                 
-              p3a(i,k,10) = dz*rmh(i,j,k)                  ! dz                
-              p3a(i,k,11) = 0.5*(w3d(i,j,k)+w3d(i,j,k+1))  ! w                 
-              p3a(i,k,18) = q3d(i,j,k,nqi)                 ! qi1_3d            
-              p3a(i,k,19) = q3d(i,j,k,8)                   ! qni1_3d           
-              p3a(i,k,20) = q3d(i,j,k,9)                   ! qir1_3d           
-              p3a(i,k,21) = q3d(i,j,k,10)                  ! qib1_3d           
-              p3a(i,k,23) = q3d(i,j,k, 5)                  ! qi2_3d            
-              p3a(i,k,24) = q3d(i,j,k,12)                  ! qir2_3d           
-              p3a(i,k,25) = q3d(i,j,k,11)                  ! qni2_3d           
-              p3a(i,k,26) = q3d(i,j,k,13)                  ! qib2_3d           
-              p3a(i,k,27) = q3d(i,j,k, 6)                  ! nc_3d             
-              p3a(i,k,31) = q3d(i,j,k, 14)                  ! qzi1_3d
-              p3a(i,k,32) = q3d(i,j,k, 15)                  ! qli1_3d
-              p3a(i,k,33) = q3d(i,j,k, 16)                  ! qzi2_3d
-              p3a(i,k,34) = q3d(i,j,k, 17)                  ! qli2_3d
+               p3a(i,k, 1) = th0(i,j,k)+th3d(i,j,k)         ! th_3d             
+               p3a(i,k, 2) = q3d(i,j,k,nqv)                 ! qv_3d             
+               thten(i,j,k)    = p3a(i,k, 1)
+               qten(i,j,k,nqv) = p3a(i,k, 2)
+               p3a(i,k, 3) = q3d(i,j,k,nqc)                 ! qc_3d             
+               p3a(i,k, 4) = q3d(i,j,k,nqr)                 ! qr_3d             
+               p3a(i,k, 5) = q3d(i,j,k,7)                   ! qnr_3d            
+               p3a(i,k, 6) = th0(i,j,k)+tha(i,j,k)          ! th_old            
+               p3a(i,k, 7) = qa(i,j,k,nqv)                  ! qv_old            
+               p3a(i,k, 8) = pi0(i,j,k)+pp3d(i,j,k)         ! pii               
+               p3a(i,k, 9) = prs(i,j,k)                     ! p                 
+               p3a(i,k,10) = dz*rmh(i,j,k)                  ! dz                
+               p3a(i,k,11) = 0.5*(w3d(i,j,k)+w3d(i,j,k+1))  ! w                 
+               p3a(i,k,18) = q3d(i,j,k,nqi)                 ! qi1_3d            
+               p3a(i,k,19) = q3d(i,j,k,8)                   ! qni1_3d           
+               p3a(i,k,20) = q3d(i,j,k,9)                   ! qir1_3d           
+               p3a(i,k,21) = q3d(i,j,k,10)                  ! qib1_3d           
+               p3a(i,k,23) = q3d(i,j,k, 5)                  ! qi2_3d            
+               p3a(i,k,24) = q3d(i,j,k,12)                  ! qir2_3d           
+               p3a(i,k,25) = q3d(i,j,k,11)                  ! qni2_3d           
+               p3a(i,k,26) = q3d(i,j,k,13)                  ! qib2_3d           
+               p3a(i,k,27) = q3d(i,j,k, 6)                  ! nc_3d             
+               p3a(i,k,31) = q3d(i,j,k, 14)                  ! qzi1_3d
+               p3a(i,k,32) = q3d(i,j,k, 15)                  ! qli1_3d
+               p3a(i,k,33) = q3d(i,j,k, 16)                  ! qzi2_3d
+               p3a(i,k,34) = q3d(i,j,k, 17)                  ! qli2_3d
             enddo
             enddo
 
             do i=1,ni
-              p3a(i,1,22) = 0.0
+               p3a(i,1,22) = 0.0
             enddo
 
-!        call mp_p3_wrapper_wrf_2cat( th_3d=p3a(1,1,1),  &
-!                                qv_3d=p3a(1,1,2),  &
-!                                qc_3d=p3a(1,1,3),  &
-!                                qr_3d=p3a(1,1,4),  &
-!                                qnr_3d=p3a(1,1,5),                            &                
-!                               th_old_3d=p3a(1,1,6),  &
-!                               qv_old_3d=p3a(1,1,7),                                       &   
-!                               pii=p3a(1,1,8),  &
-!                               p=p3a(1,1,9),  &
-!                               dz=p3a(1,1,10),  &
-!                               w=p3a(1,1,11),    &
-!                               dt=dt,  &
-!                               itimestep=nstep,                                   &            
-!                               rainnc=p3a(1,1,22),    &
-!                               rainncv=dum1(ib,jb,2),  &
-!                               sr=dum1(ib,jb,3),  &
-!                               snownc=dum1(ib,jb,4),  &
-!                               snowncv=dum1(ib,jb,5),  &
-!                               n_iceCat=2,                 &
-!                               ids=1, ide=ni, jds=1, jde=1, kds=1, kde=nk ,             &      
-!                               ims=1, ime=ni, jms=1, jme=1, kms=1, kme=nk ,             &      
-!                               its=1, ite=ni, jts=1, jte=1, kts=1, kte=nk ,             &      
-!                               diag_zdbz_3d=p3a(1,1,12),  &
-!                               diag_effc_3d=p3a(1,1,13),  &
-!                               diag_effi_3d=p3a(1,1,14),                    &                  
-!                               diag_vmi_3d=p3a(1,1,15),  &
-!                               diag_di_3d=p3a(1,1,16),  &
-!                               diag_rhopo_3d=p3a(1,1,17),                      &               
-!                               qi1_3d=p3a(1,1,18),  &
-!                               qni1_3d=p3a(1,1,19),  &
-!                               qir1_3d=p3a(1,1,20),  &
-!                               qib1_3d=p3a(1,1,21),  &
-!                      QI2_3d=p3a(1,1,23),                  &
-!                      QIR2_3d=p3a(1,1,24),                  &
-!                      QNI2_3d=p3a(1,1,25),                 &
-!                      QIB2_3d=p3a(1,1,26),               &
-!                      nc_3d=p3a(1,1,27),                     &
-!                   diag_vmi2_3d=p3a(1,1,28),                                  &                
-!                   diag_di2_3d=p3a(1,1,29),                                   &                
-!                   diag_rhopo2_3d=p3a(1,1,30),            &
-!                   qzi1_3d=p3a(1,1,31),            &
-!                   qli1_3d=p3a(1,1,32),            &
-!                   qzi2_3d=p3a(1,1,33),            &
-!                   qli2_3d=p3a(1,1,34),  &
-! ! to add generic 3D output variable                                         
-!                   add_output_arr1=p3a(1,1,35),      &
-!                   add_output_arr2=p3a(1,1,36),      &
-!                   add_output_arr3=p3a(1,1,37),      &
-!                   add_output_arr1_2d=p3a(1,1,38),   &
-!                   add_output_arr2_2d=p3a(1,1,39))
-
-       call mp_p3_wrapper_cm1( th      = p3a(1,1,1),                         &
+            call mp_p3_wrapper_cm1( th = p3a(1,1,1),                         &
                                qv      = p3a(1,1,2),                         &
                                qc      = p3a(1,1,3),                         &
                                qr      = p3a(1,1,4),                         &
@@ -1937,87 +1806,87 @@
 
                                
             if( axisymm.eq.1 )then
-              do i=1,ni
-                prate(i,j) = p3a(i,1,22)*rdt
-                qbudget(6) = qbudget(6) + p3a(i,1,22)*ruh(i)*rvh(j)*dx*dy*dum3(i,j,1)/rho(i,j,1)      
-              enddo
+               do i=1,ni
+                  prate(i,j) = p3a(i,1,22)*rdt
+                  qbudget(6) = qbudget(6) + p3a(i,1,22)*ruh(i)*rvh(j)*dx*dy*dum3(i,j,1)/rho(i,j,1)      
+               enddo
             else
-              do i=1,ni
-                prate(i,j) = p3a(i,1,22)*rdt
-                qbudget(6) = qbudget(6) + p3a(i,1,22)*ruh(i)*rvh(j)*dx*dy                             
-              enddo
+               do i=1,ni
+                  prate(i,j) = p3a(i,1,22)*rdt
+                  qbudget(6) = qbudget(6) + p3a(i,1,22)*ruh(i)*rvh(j)*dx*dy                             
+               enddo
             endif
 
             do n=1,nrain
             do i=1,ni
               ! convert from mm to cm:                                                                
-              rain(i,j,n) = rain(i,j,n) + 0.1*p3a(i,1,22)
+               rain(i,j,n) = rain(i,j,n) + 0.1*p3a(i,1,22)
             enddo
             enddo
 
             do k=1,nk
             do i=1,ni
-              if( abs(p3a(i,k,1)-thten(i,j,k)).ge.tsmall .or.  &
+               if( abs(p3a(i,k,1)-thten(i,j,k)).ge.tsmall .or.  &
                   abs(p3a(i,k,2)-qten(i,j,k,nqv)).ge.qsmall )then
-                pp3d(i,j,k)=(rho(i,j,k)*(rd+rv*p3a(i,k,2))*p3a(i,k,1)*rp00)**rddcv                    
-                prs(i,j,k)=p00*(pp3d(i,j,k)**cpdrd)
-                pp3d(i,j,k)=pp3d(i,j,k)-pi0(i,j,k)
-                th3d(i,j,k)=th3d(i,j,k)+(p3a(i,k,1)-thten(i,j,k))
-              endif
-              q3d(i,j,k,nqv) = p3a(i,k, 2)
-              q3d(i,j,k,nqc) = p3a(i,k, 3)    ! qc_3d                                                 
-              q3d(i,j,k,nqr) = p3a(i,k, 4)    ! qr_3d                                                 
-              q3d(i,j,k, 7 ) = p3a(i,k, 5)    ! qnr_3d                                                
-              q3d(i,j,k,nqi) = p3a(i,k,18)    ! qi1_3d                                                
-              q3d(i,j,k, 8 ) = p3a(i,k,19)    ! qni1_3d                                               
-              q3d(i,j,k, 9 ) = p3a(i,k,20)    ! qir1_3d                                               
-              q3d(i,j,k,10 ) = p3a(i,k,21)    ! qib1_3d                                               
-              q3d(i,j,k, 5 ) = p3a(i,k,23)    ! qi2_3d                                                
-              q3d(i,j,k,12 ) = p3a(i,k,24)    ! qir2_3d                                               
-              q3d(i,j,k,11 ) = p3a(i,k,25)    ! qni2_3d                                               
-              q3d(i,j,k,13 ) = p3a(i,k,26)    ! qib2_3d                                               
-              q3d(i,j,k, 6 ) = p3a(i,k,27)    ! nc_3d                                                 
-              q3d(i,j,k,14 ) = p3a(i,k,31)    ! qzi1_3d
-              q3d(i,j,k,15 ) = p3a(i,k,32)    ! qli1_3d
-              q3d(i,j,k,16 ) = p3a(i,k,33)    ! qzi2_3d
-              q3d(i,j,k,17 ) = p3a(i,k,34)    ! qli2_3d
+                  pp3d(i,j,k)=(rho(i,j,k)*(rd+rv*p3a(i,k,2))*p3a(i,k,1)*rp00)**rddcv                    
+                  prs(i,j,k)=p00*(pp3d(i,j,k)**cpdrd)
+                  pp3d(i,j,k)=pp3d(i,j,k)-pi0(i,j,k)
+                  th3d(i,j,k)=th3d(i,j,k)+(p3a(i,k,1)-thten(i,j,k))
+               endif
+               q3d(i,j,k,nqv) = p3a(i,k, 2)
+               q3d(i,j,k,nqc) = p3a(i,k, 3)    ! qc_3d                                                 
+               q3d(i,j,k,nqr) = p3a(i,k, 4)    ! qr_3d                                                 
+               q3d(i,j,k, 7 ) = p3a(i,k, 5)    ! qnr_3d                                                
+               q3d(i,j,k,nqi) = p3a(i,k,18)    ! qi1_3d                                                
+               q3d(i,j,k, 8 ) = p3a(i,k,19)    ! qni1_3d                                               
+               q3d(i,j,k, 9 ) = p3a(i,k,20)    ! qir1_3d                                               
+               q3d(i,j,k,10 ) = p3a(i,k,21)    ! qib1_3d                                               
+               q3d(i,j,k, 5 ) = p3a(i,k,23)    ! qi2_3d                                                
+               q3d(i,j,k,12 ) = p3a(i,k,24)    ! qir2_3d                                               
+               q3d(i,j,k,11 ) = p3a(i,k,25)    ! qni2_3d                                               
+               q3d(i,j,k,13 ) = p3a(i,k,26)    ! qib2_3d                                               
+               q3d(i,j,k, 6 ) = p3a(i,k,27)    ! nc_3d                                                 
+               q3d(i,j,k,14 ) = p3a(i,k,31)    ! qzi1_3d
+               q3d(i,j,k,15 ) = p3a(i,k,32)    ! qli1_3d
+               q3d(i,j,k,16 ) = p3a(i,k,33)    ! qzi2_3d
+               q3d(i,j,k,17 ) = p3a(i,k,34)    ! qli2_3d
             enddo
             enddo
 
             IF( getdbz .and. qd_dbz.ge.1 )THEN
-              do k=1,nk
-              do i=1,ni
-                qdiag(i,j,k,qd_dbz) = p3a(i,k,12)
-              enddo
-              enddo
+               do k=1,nk
+               do i=1,ni
+                  qdiag(i,j,k,qd_dbz) = p3a(i,k,12)
+               enddo
+               enddo
             ENDIF
 
             IF( dorad )THEN
-              do k=1,nk
-              do i=1,ni
-                effc(i,j,k) = p3a(i,k,13)
-                effi(i,j,k) = p3a(i,k,14)
-              enddo
-              enddo
+               do k=1,nk
+               do i=1,ni
+                  effc(i,j,k) = p3a(i,k,13)
+                  effi(i,j,k) = p3a(i,k,14)
+               enddo
+               enddo
             ENDIF
 
             IF( dowriteout .or. getdbz )THEN
-              do k=1,nk
-              do i=1,ni
-                p3o(i,j,k,1) = p3a(i,k,15)
-                p3o(i,j,k,2) = p3a(i,k,16)
-                p3o(i,j,k,3) = p3a(i,k,17)
-              enddo
-              enddo
-              if( ptype.eq.61 )then
-                do k=1,nk
-                do i=1,ni
-                  p3o(i,j,k,4) = p3a(i,k,28)
-                  p3o(i,j,k,5) = p3a(i,k,29)
-                  p3o(i,j,k,6) = p3a(i,k,30)
-                enddo
-                enddo
-              endif
+               do k=1,nk
+               do i=1,ni
+                  p3o(i,j,k,1) = p3a(i,k,15)
+                  p3o(i,j,k,2) = p3a(i,k,16)
+                  p3o(i,j,k,3) = p3a(i,k,17)
+               enddo
+               enddo
+               if( ptype.eq.61 )then
+                  do k=1,nk
+                  do i=1,ni
+                     p3o(i,j,k,4) = p3a(i,k,28)
+                     p3o(i,j,k,5) = p3a(i,k,29)
+                     p3o(i,j,k,6) = p3a(i,k,30)
+                  enddo
+                  enddo
+               endif
             ENDIF
 
 ! to add generic output,                                                    
@@ -2028,67 +1897,66 @@
 ! to set the number of output variables for out3d                           
             do k=1,nk
             do i=1,ni
-              out3d(i,j,k,1) = p3a(i,k,35)
-              out3d(i,j,k,2) = p3a(i,k,36)
-              out3d(i,j,k,3) = p3a(i,k,37)
+               out3d(i,j,k,1) = p3a(i,k,35)
+               out3d(i,j,k,2) = p3a(i,k,36)
+               out3d(i,j,k,3) = p3a(i,k,37)
             enddo
             enddo
 
             do i=1,ni
-              out2d(i,j,1) = p3a(i,1,38)
-              out2d(i,j,2) = p3a(i,1,39)
+               out2d(i,j,1) = p3a(i,1,38)
+               out2d(i,j,2) = p3a(i,1,39)
             enddo
 
-          ENDDO  p3jloop3
+         ENDDO  p3_jloop3
 
-          if(timestats.ge.1) time_microphy=time_microphy+mytime()
+         if (timestats.ge.1) time_microphy = time_microphy+mytime()
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc                     
 !ccc     P3 scheme, 3 ice, predict Zi and Fl ccccccccccccccccccccccccccc                     
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc                     
 
-          ELSEIF( ptype.eq.62 )THEN
+      ELSEIF( ptype.eq.62 )THEN
 
-          rdt = 1.0/dt
+         rdt = 1.0/dt
 
-          p3jloop4:  &
-          DO j=1,nj
+         p3_jloop4: DO j=1,nj
 
             do k=1,nk
             do i=1,ni
-              p3a(i,k, 1) = th0(i,j,k)+th3d(i,j,k)         ! th_3d                           
-              p3a(i,k, 2) = q3d(i,j,k,nqv)                 ! qv_3d                           
-              thten(i,j,k)    = p3a(i,k, 1)
-              qten(i,j,k,nqv) = p3a(i,k, 2)
-              p3a(i,k, 3) = q3d(i,j,k,nqc)                 ! qc_3d                           
-              p3a(i,k, 4) = q3d(i,j,k,nqr)                 ! qr_3d                           
-              p3a(i,k, 5) = q3d(i,j,k,8)                   ! qnr_3d                          
-              p3a(i,k, 6) = th0(i,j,k)+tha(i,j,k)          ! th_old                          
-              p3a(i,k, 7) = qa(i,j,k,nqv)                  ! qv_old                          
-              p3a(i,k, 8) = pi0(i,j,k)+pp3d(i,j,k)         ! pii                             
-              p3a(i,k, 9) = prs(i,j,k)                     ! p                               
-              p3a(i,k,10) = dz*rmh(i,j,k)                  ! dz                              
-              p3a(i,k,11) = 0.5*(w3d(i,j,k)+w3d(i,j,k+1))  ! w                               
-              p3a(i,k,18) = q3d(i,j,k,nqi)                 ! qi1_3d                          
-              p3a(i,k,19) = q3d(i,j,k,9)                   ! qni1_3d                         
-              p3a(i,k,20) = q3d(i,j,k,10)                  ! qir1_3d                         
-              p3a(i,k,21) = q3d(i,j,k,11)                  ! qib1_3d                         
-              p3a(i,k,23) = q3d(i,j,k, 5)                  ! qi2_3d                          
-              p3a(i,k,24) = q3d(i,j,k,13)                  ! qir2_3d                         
-              p3a(i,k,25) = q3d(i,j,k,12)                  ! qni2_3d                         
-              p3a(i,k,26) = q3d(i,j,k,14)                  ! qib2_3d                         
-              p3a(i,k,27) = q3d(i,j,k, 7)                  ! nc_3d                           
-              p3a(i,k,31) = q3d(i,j,k,15)                  ! qzi1_3d                        
-              p3a(i,k,32) = q3d(i,j,k,16)                  ! qli1_3d                        
-              p3a(i,k,33) = q3d(i,j,k,17)                  ! qzi2_3d                        
-              p3a(i,k,34) = q3d(i,j,k,18)                  ! qli2_3d                        
+               p3a(i,k, 1) = th0(i,j,k)+th3d(i,j,k)         ! th_3d                           
+               p3a(i,k, 2) = q3d(i,j,k,nqv)                 ! qv_3d                           
+               thten(i,j,k)    = p3a(i,k, 1)
+               qten(i,j,k,nqv) = p3a(i,k, 2)
+               p3a(i,k, 3) = q3d(i,j,k,nqc)                 ! qc_3d                           
+               p3a(i,k, 4) = q3d(i,j,k,nqr)                 ! qr_3d                           
+               p3a(i,k, 5) = q3d(i,j,k,8)                   ! qnr_3d                          
+               p3a(i,k, 6) = th0(i,j,k)+tha(i,j,k)          ! th_old                          
+               p3a(i,k, 7) = qa(i,j,k,nqv)                  ! qv_old                          
+               p3a(i,k, 8) = pi0(i,j,k)+pp3d(i,j,k)         ! pii                             
+               p3a(i,k, 9) = prs(i,j,k)                     ! p                               
+               p3a(i,k,10) = dz*rmh(i,j,k)                  ! dz                              
+               p3a(i,k,11) = 0.5*(w3d(i,j,k)+w3d(i,j,k+1))  ! w                               
+               p3a(i,k,18) = q3d(i,j,k,nqi)                 ! qi1_3d                          
+               p3a(i,k,19) = q3d(i,j,k,9)                   ! qni1_3d                         
+               p3a(i,k,20) = q3d(i,j,k,10)                  ! qir1_3d                         
+               p3a(i,k,21) = q3d(i,j,k,11)                  ! qib1_3d                         
+               p3a(i,k,23) = q3d(i,j,k, 5)                  ! qi2_3d                          
+               p3a(i,k,24) = q3d(i,j,k,13)                  ! qir2_3d                         
+               p3a(i,k,25) = q3d(i,j,k,12)                  ! qni2_3d                         
+               p3a(i,k,26) = q3d(i,j,k,14)                  ! qib2_3d                         
+               p3a(i,k,27) = q3d(i,j,k, 7)                  ! nc_3d                           
+               p3a(i,k,31) = q3d(i,j,k,15)                  ! qzi1_3d                        
+               p3a(i,k,32) = q3d(i,j,k,16)                  ! qli1_3d                        
+               p3a(i,k,33) = q3d(i,j,k,17)                  ! qzi2_3d                        
+               p3a(i,k,34) = q3d(i,j,k,18)                  ! qli2_3d                        
 
-              p3a(i,k,35) = q3d(i,j,k, 6)                  ! qi3_3d
-              p3a(i,k,36) = q3d(i,j,k,20)                  ! qir3_3d
-              p3a(i,k,37) = q3d(i,j,k,19)                  ! qni3_3d
-              p3a(i,k,38) = q3d(i,j,k,21)                  ! qib3_3d
-              p3a(i,k,39) = q3d(i,j,k,22)                  ! qzi3_3d
-              p3a(i,k,40) = q3d(i,j,k,23)                  ! qli3_3d
+               p3a(i,k,35) = q3d(i,j,k, 6)                  ! qi3_3d
+               p3a(i,k,36) = q3d(i,j,k,20)                  ! qir3_3d
+               p3a(i,k,37) = q3d(i,j,k,19)                  ! qni3_3d
+               p3a(i,k,38) = q3d(i,j,k,21)                  ! qib3_3d
+               p3a(i,k,39) = q3d(i,j,k,22)                  ! qzi3_3d
+               p3a(i,k,40) = q3d(i,j,k,23)                  ! qli3_3d
             enddo
             enddo
 
@@ -2096,7 +1964,7 @@
               p3a(i,1,22) = 0.0
             enddo
 
-       call mp_p3_wrapper_cm1( th      = p3a(1,1,1),                         &
+            call mp_p3_wrapper_cm1( th = p3a(1,1,1),                         &
                                qv      = p3a(1,1,2),                         &
                                qc      = p3a(1,1,3),                         &
                                qr      = p3a(1,1,4),                         &
@@ -2164,15 +2032,15 @@
 
                                
             if( axisymm.eq.1 )then
-              do i=1,ni
-                prate(i,j) = p3a(i,1,22)*rdt
-                qbudget(6) = qbudget(6) + p3a(i,1,22)*ruh(i)*rvh(j)*dx*dy*dum3(i,j,1)/rho(i,j,1)        
-              enddo
+               do i=1,ni
+                  prate(i,j) = p3a(i,1,22)*rdt
+                  qbudget(6) = qbudget(6) + p3a(i,1,22)*ruh(i)*rvh(j)*dx*dy*dum3(i,j,1)/rho(i,j,1)        
+               enddo
             else
-              do i=1,ni
-                prate(i,j) = p3a(i,1,22)*rdt
-                qbudget(6) = qbudget(6) + p3a(i,1,22)*ruh(i)*rvh(j)*dx*dy                               
-              enddo
+               do i=1,ni
+                  prate(i,j) = p3a(i,1,22)*rdt
+                  qbudget(6) = qbudget(6) + p3a(i,1,22)*ruh(i)*rvh(j)*dx*dy                               
+               enddo
             endif
 
             do n=1,nrain
@@ -2184,77 +2052,76 @@
 
             do k=1,nk
             do i=1,ni
-              if( abs(p3a(i,k,1)-thten(i,j,k)).ge.tsmall .or.  &
+               if( abs(p3a(i,k,1)-thten(i,j,k)).ge.tsmall .or.  &
                   abs(p3a(i,k,2)-qten(i,j,k,nqv)).ge.qsmall )then
-                pp3d(i,j,k)=(rho(i,j,k)*(rd+rv*p3a(i,k,2))*p3a(i,k,1)*rp00)**rddcv                      
-                prs(i,j,k)=p00*(pp3d(i,j,k)**cpdrd)
-                pp3d(i,j,k)=pp3d(i,j,k)-pi0(i,j,k)
-                th3d(i,j,k)=th3d(i,j,k)+(p3a(i,k,1)-thten(i,j,k))
-              endif
-              q3d(i,j,k,nqv) = p3a(i,k, 2)
-              q3d(i,j,k,nqc) = p3a(i,k, 3)    ! qc_3d                                                   
-              q3d(i,j,k,nqr) = p3a(i,k, 4)    ! qr_3d                                                   
-              q3d(i,j,k, 8 ) = p3a(i,k, 5)    ! qnr_3d                                                  
-              q3d(i,j,k,nqi) = p3a(i,k,18)    ! qi1_3d                                                  
-              q3d(i,j,k, 9 ) = p3a(i,k,19)    ! qni1_3d                                                 
-              q3d(i,j,k,10 ) = p3a(i,k,20)    ! qir1_3d                                                 
-              q3d(i,j,k,11 ) = p3a(i,k,21)    ! qib1_3d                                                 
-              q3d(i,j,k, 5 ) = p3a(i,k,23)    ! qi2_3d                                                  
-              q3d(i,j,k,13 ) = p3a(i,k,24)    ! qir2_3d                                                 
-              q3d(i,j,k,12 ) = p3a(i,k,25)    ! qni2_3d                                                 
-              q3d(i,j,k,14 ) = p3a(i,k,26)    ! qib2_3d                                                 
-              q3d(i,j,k, 7 ) = p3a(i,k,27)    ! nc_3d                                                   
-              q3d(i,j,k,15 ) = p3a(i,k,31)    ! qzi1_3d                                                 
-              q3d(i,j,k,16 ) = p3a(i,k,32)    ! qli1_3d                                                 
-              q3d(i,j,k,17 ) = p3a(i,k,33)    ! qzi2_3d                                                 
-              q3d(i,j,k,18 ) = p3a(i,k,34)    ! qli2_3d                                                 
-
-              q3d(i,j,k, 6 ) = p3a(i,k,35)    ! qi3_3d                                                                
-              q3d(i,j,k,20 ) = p3a(i,k,36)    ! qir3_3d                                                               
-              q3d(i,j,k,19 ) = p3a(i,k,37)    ! qni3_3d                                                               
-              q3d(i,j,k,21 ) = p3a(i,k,38)    ! qib3_3d 
-              q3d(i,j,k,22 ) = p3a(i,k,39)    ! qzi3_3d                                                               
-              q3d(i,j,k,23 ) = p3a(i,k,40)    ! qli3_3d
+                  pp3d(i,j,k)=(rho(i,j,k)*(rd+rv*p3a(i,k,2))*p3a(i,k,1)*rp00)**rddcv                      
+                   prs(i,j,k)=p00*(pp3d(i,j,k)**cpdrd)
+                   pp3d(i,j,k)=pp3d(i,j,k)-pi0(i,j,k)
+                   th3d(i,j,k)=th3d(i,j,k)+(p3a(i,k,1)-thten(i,j,k))
+               endif
+               q3d(i,j,k,nqv) = p3a(i,k, 2)
+               q3d(i,j,k,nqc) = p3a(i,k, 3)    ! qc_3d                                                   
+               q3d(i,j,k,nqr) = p3a(i,k, 4)    ! qr_3d                                                   
+               q3d(i,j,k, 8 ) = p3a(i,k, 5)    ! qnr_3d                                                  
+               q3d(i,j,k,nqi) = p3a(i,k,18)    ! qi1_3d                                                  
+               q3d(i,j,k, 9 ) = p3a(i,k,19)    ! qni1_3d                                                 
+               q3d(i,j,k,10 ) = p3a(i,k,20)    ! qir1_3d                                                 
+               q3d(i,j,k,11 ) = p3a(i,k,21)    ! qib1_3d                                                 
+               q3d(i,j,k, 5 ) = p3a(i,k,23)    ! qi2_3d                                                  
+               q3d(i,j,k,13 ) = p3a(i,k,24)    ! qir2_3d                                                 
+               q3d(i,j,k,12 ) = p3a(i,k,25)    ! qni2_3d                                                 
+               q3d(i,j,k,14 ) = p3a(i,k,26)    ! qib2_3d                                                 
+               q3d(i,j,k, 7 ) = p3a(i,k,27)    ! nc_3d                                                   
+               q3d(i,j,k,15 ) = p3a(i,k,31)    ! qzi1_3d                                                 
+               q3d(i,j,k,16 ) = p3a(i,k,32)    ! qli1_3d                                                 
+               q3d(i,j,k,17 ) = p3a(i,k,33)    ! qzi2_3d                                                 
+               q3d(i,j,k,18 ) = p3a(i,k,34)    ! qli2_3d                                                 
+               q3d(i,j,k, 6 ) = p3a(i,k,35)    ! qi3_3d                                                                
+               q3d(i,j,k,20 ) = p3a(i,k,36)    ! qir3_3d                                                               
+               q3d(i,j,k,19 ) = p3a(i,k,37)    ! qni3_3d                                                               
+               q3d(i,j,k,21 ) = p3a(i,k,38)    ! qib3_3d 
+               q3d(i,j,k,22 ) = p3a(i,k,39)    ! qzi3_3d                                                               
+               q3d(i,j,k,23 ) = p3a(i,k,40)    ! qli3_3d
             enddo
             enddo
 
             IF( getdbz .and. qd_dbz.ge.1 )THEN
-              do k=1,nk
-              do i=1,ni
-                qdiag(i,j,k,qd_dbz) = p3a(i,k,12)
-              enddo
-              enddo
+               do k=1,nk
+               do i=1,ni
+                  qdiag(i,j,k,qd_dbz) = p3a(i,k,12)
+               enddo
+               enddo
             ENDIF
 
             IF( dorad )THEN
-              do k=1,nk
-              do i=1,ni
-                effc(i,j,k) = p3a(i,k,13)
-                effi(i,j,k) = p3a(i,k,14)
-              enddo
-              enddo
+               do k=1,nk
+               do i=1,ni
+                  effc(i,j,k) = p3a(i,k,13)
+                  effi(i,j,k) = p3a(i,k,14)
+               enddo
+               enddo
             ENDIF
 
             IF( dowriteout .or. getdbz )THEN
-              do k=1,nk
-              do i=1,ni
-                p3o(i,j,k,1) = p3a(i,k,15)
-                p3o(i,j,k,2) = p3a(i,k,16)
-                p3o(i,j,k,3) = p3a(i,k,17)
-              enddo
-              enddo
-              if( ptype.eq.62 )then
-                do k=1,nk
-                do i=1,ni
+               do k=1,nk
+               do i=1,ni
+                  p3o(i,j,k,1) = p3a(i,k,15)
+                  p3o(i,j,k,2) = p3a(i,k,16)
+                  p3o(i,j,k,3) = p3a(i,k,17)
+!                enddo
+!                enddo
+!                if( ptype.eq.62 )then
+!                   do k=1,nk
+!                   do i=1,ni
                   p3o(i,j,k,4) = p3a(i,k,28)
                   p3o(i,j,k,5) = p3a(i,k,29)
                   p3o(i,j,k,6) = p3a(i,k,30)
                   p3o(i,j,k,7) = p3a(i,k,41)
                   p3o(i,j,k,8) = p3a(i,k,42)
                   p3o(i,j,k,9) = p3a(i,k,43)
-                enddo
-                enddo
-              endif
+               enddo
+               enddo
+!               endif
             ENDIF
 
 ! to add generic output,                                                    
@@ -2265,9 +2132,9 @@
 ! to set the number of output variables for out3d                           
             do k=1,nk
             do i=1,ni
-              out3d(i,j,k,1) = p3a(i,k,44)
-              out3d(i,j,k,2) = p3a(i,k,45)
-              out3d(i,j,k,3) = p3a(i,k,46)
+               out3d(i,j,k,1) = p3a(i,k,44)
+               out3d(i,j,k,2) = p3a(i,k,45)
+               out3d(i,j,k,3) = p3a(i,k,46)
             enddo
             enddo
 
@@ -2276,62 +2143,60 @@
               out2d(i,j,2) = p3a(i,1,48)
             enddo
 
-          ENDDO  p3jloop4
+         ENDDO  p3_jloop4
 
-          if(timestats.ge.1) time_microphy=time_microphy+mytime()
+         if(timestats.ge.1) time_microphy=time_microphy+mytime()
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc                       
 !ccc     P3 scheme, 4 ice, predict Zi and Fl ccccccccccccccccccccccccccc                       
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc                       
 
-          ELSEIF( ptype.eq.63 )THEN
+      ELSEIF (ptype.eq.63) THEN
 
-          rdt = 1.0/dt
+         rdt = 1.0/dt
 
-          p3jloop6:  &
-          DO j=1,nj
+         p3_jloop6: DO j=1,nj
 
             do k=1,nk
             do i=1,ni
-              p3a(i,k, 1) = th0(i,j,k)+th3d(i,j,k)         ! th                             
-              p3a(i,k, 2) = q3d(i,j,k,nqv)                 ! qv                             
-              thten(i,j,k)    = p3a(i,k, 1)
-              qten(i,j,k,nqv) = p3a(i,k, 2)
-              p3a(i,k, 3) = q3d(i,j,k,nqc)                 ! qc                             
-              p3a(i,k, 4) = q3d(i,j,k,nqr)                 ! qr                             
-              p3a(i,k, 5) = q3d(i,j,k,9)                   ! qnr                            
-              p3a(i,k, 6) = th0(i,j,k)+tha(i,j,k)          ! th_old                            
-              p3a(i,k, 7) = qa(i,j,k,nqv)                  ! qv_old                            
-              p3a(i,k, 8) = pi0(i,j,k)+pp3d(i,j,k)         ! pii                               
-              p3a(i,k, 9) = prs(i,j,k)                     ! p                                 
-              p3a(i,k,10) = dz*rmh(i,j,k)                  ! dz                                
-              p3a(i,k,11) = 0.5*(w3d(i,j,k)+w3d(i,j,k+1))  ! w                                 
-              p3a(i,k,18) = q3d(i,j,k,nqi)                 ! qit_1                            
-              p3a(i,k,19) = q3d(i,j,k,10)                  ! qni_1
-              p3a(i,k,20) = q3d(i,j,k,11)                  ! qir_1                           
-              p3a(i,k,21) = q3d(i,j,k,12)                  ! qib_1                           
-              p3a(i,k,23) = q3d(i,j,k, 5)                  ! qit_2
-              p3a(i,k,24) = q3d(i,j,k,14)                  ! qir_2
-              p3a(i,k,25) = q3d(i,j,k,13)                  ! qni_2                           
-              p3a(i,k,26) = q3d(i,j,k,15)                  ! qib_2                           
-              p3a(i,k,27) = q3d(i,j,k, 8)                  ! nc                             
-              p3a(i,k,31) = q3d(i,j,k,16)                  ! qzi_1                           
-              p3a(i,k,32) = q3d(i,j,k,17)                  ! qli_1                           
-              p3a(i,k,33) = q3d(i,j,k,18)                  ! qzi_2                           
-              p3a(i,k,34) = q3d(i,j,k,19)                  ! qli_2                           
-              p3a(i,k,35) = q3d(i,j,k, 6)                  ! qit_3                            
-              p3a(i,k,36) = q3d(i,j,k,21)                  ! qir_3                           
-              p3a(i,k,37) = q3d(i,j,k,20)                  ! qni_3                           
-              p3a(i,k,38) = q3d(i,j,k,22)                  ! qib_3                           
-              p3a(i,k,39) = q3d(i,j,k,23)                  ! qzi_3                           
-              p3a(i,k,40) = q3d(i,j,k,24)                  ! qli_3                           
-              p3a(i,k,44) = q3d(i,j,k, 7)                  ! qit_4
-              p3a(i,k,45) = q3d(i,j,k,26)                  ! qir_4
-              p3a(i,k,46) = q3d(i,j,k,25)                  ! qni_4
-              p3a(i,k,47) = q3d(i,j,k,27)                  ! qib_4
-              p3a(i,k,48) = q3d(i,j,k,28)                  ! qzi_4
-              p3a(i,k,49) = q3d(i,j,k,29)                  ! qli_4
-
+               p3a(i,k, 1) = th0(i,j,k)+th3d(i,j,k)         ! th                             
+               p3a(i,k, 2) = q3d(i,j,k,nqv)                 ! qv                             
+               thten(i,j,k)    = p3a(i,k, 1)
+               qten(i,j,k,nqv) = p3a(i,k, 2)
+               p3a(i,k, 3) = q3d(i,j,k,nqc)                 ! qc                             
+               p3a(i,k, 4) = q3d(i,j,k,nqr)                 ! qr                             
+               p3a(i,k, 5) = q3d(i,j,k,9)                   ! qnr                            
+               p3a(i,k, 6) = th0(i,j,k)+tha(i,j,k)          ! th_old                            
+               p3a(i,k, 7) = qa(i,j,k,nqv)                  ! qv_old                            
+               p3a(i,k, 8) = pi0(i,j,k)+pp3d(i,j,k)         ! pii                               
+               p3a(i,k, 9) = prs(i,j,k)                     ! p                                 
+               p3a(i,k,10) = dz*rmh(i,j,k)                  ! dz                                
+               p3a(i,k,11) = 0.5*(w3d(i,j,k)+w3d(i,j,k+1))  ! w                                 
+               p3a(i,k,18) = q3d(i,j,k,nqi)                 ! qit_1                            
+               p3a(i,k,19) = q3d(i,j,k,10)                  ! qni_1
+               p3a(i,k,20) = q3d(i,j,k,11)                  ! qir_1                           
+               p3a(i,k,21) = q3d(i,j,k,12)                  ! qib_1                           
+               p3a(i,k,23) = q3d(i,j,k, 5)                  ! qit_2
+               p3a(i,k,24) = q3d(i,j,k,14)                  ! qir_2
+               p3a(i,k,25) = q3d(i,j,k,13)                  ! qni_2                           
+               p3a(i,k,26) = q3d(i,j,k,15)                  ! qib_2                           
+               p3a(i,k,27) = q3d(i,j,k, 8)                  ! nc                             
+               p3a(i,k,31) = q3d(i,j,k,16)                  ! qzi_1                           
+               p3a(i,k,32) = q3d(i,j,k,17)                  ! qli_1                           
+               p3a(i,k,33) = q3d(i,j,k,18)                  ! qzi_2                           
+               p3a(i,k,34) = q3d(i,j,k,19)                  ! qli_2                           
+               p3a(i,k,35) = q3d(i,j,k, 6)                  ! qit_3                            
+               p3a(i,k,36) = q3d(i,j,k,21)                  ! qir_3                           
+               p3a(i,k,37) = q3d(i,j,k,20)                  ! qni_3                           
+               p3a(i,k,38) = q3d(i,j,k,22)                  ! qib_3                           
+               p3a(i,k,39) = q3d(i,j,k,23)                  ! qzi_3                           
+               p3a(i,k,40) = q3d(i,j,k,24)                  ! qli_3                           
+               p3a(i,k,44) = q3d(i,j,k, 7)                  ! qit_4
+               p3a(i,k,45) = q3d(i,j,k,26)                  ! qir_4
+               p3a(i,k,46) = q3d(i,j,k,25)                  ! qni_4
+               p3a(i,k,47) = q3d(i,j,k,27)                  ! qib_4
+               p3a(i,k,48) = q3d(i,j,k,28)                  ! qzi_4
+               p3a(i,k,49) = q3d(i,j,k,29)                  ! qli_4
             enddo
             enddo
 
@@ -2339,7 +2204,7 @@
               p3a(i,1,22) = 0.0
             enddo
 
-       call mp_p3_wrapper_cm1( th      = p3a(1,1,1),                         &
+            call mp_p3_wrapper_cm1( th = p3a(1,1,1),                         &
                                qv      = p3a(1,1,2),                         &
                                qc      = p3a(1,1,3),                         &
                                qr      = p3a(1,1,4),                         &
@@ -2416,96 +2281,95 @@
                                add_output_arr2_2d = p3a(1,1,57) )
 
             if( axisymm.eq.1 )then
-              do i=1,ni
-                prate(i,j) = p3a(i,1,22)*rdt
-                qbudget(6) = qbudget(6) + p3a(i,1,22)*ruh(i)*rvh(j)*dx*dy*dum3(i,j,1)/rho(i,j,1)        
-              enddo
+               do i=1,ni
+                  prate(i,j) = p3a(i,1,22)*rdt
+                  qbudget(6) = qbudget(6) + p3a(i,1,22)*ruh(i)*rvh(j)*dx*dy*dum3(i,j,1)/rho(i,j,1)        
+               enddo
             else
-              do i=1,ni
-                prate(i,j) = p3a(i,1,22)*rdt
-                qbudget(6) = qbudget(6) + p3a(i,1,22)*ruh(i)*rvh(j)*dx*dy                               
-              enddo
+               do i=1,ni
+                  prate(i,j) = p3a(i,1,22)*rdt
+                  qbudget(6) = qbudget(6) + p3a(i,1,22)*ruh(i)*rvh(j)*dx*dy                               
+               enddo
             endif
 
             do n=1,nrain
             do i=1,ni
               ! convert from mm to cm:                                                                  
-              rain(i,j,n) = rain(i,j,n) + 0.1*p3a(i,1,22)
+               rain(i,j,n) = rain(i,j,n) + 0.1*p3a(i,1,22)
             enddo
             enddo
 
             do k=1,nk
             do i=1,ni
-              if( abs(p3a(i,k,1)-thten(i,j,k)).ge.tsmall .or.  &
+               if( abs(p3a(i,k,1)-thten(i,j,k)).ge.tsmall .or.  &
                   abs(p3a(i,k,2)-qten(i,j,k,nqv)).ge.qsmall )then
-                pp3d(i,j,k)=(rho(i,j,k)*(rd+rv*p3a(i,k,2))*p3a(i,k,1)*rp00)**rddcv                      
-                prs(i,j,k)=p00*(pp3d(i,j,k)**cpdrd)
-                pp3d(i,j,k)=pp3d(i,j,k)-pi0(i,j,k)
-                th3d(i,j,k)=th3d(i,j,k)+(p3a(i,k,1)-thten(i,j,k))
-              endif
-              q3d(i,j,k,nqv) = p3a(i,k, 2)
-              q3d(i,j,k,nqc) = p3a(i,k, 3)    ! qc                                                                  
-              q3d(i,j,k,nqr) = p3a(i,k, 4)    ! qr                                                                  
-              q3d(i,j,k, 9 ) = p3a(i,k, 5)    ! qnr_1                                                                 
-              q3d(i,j,k,nqi) = p3a(i,k,18)    ! qit_1                                                                 
-              q3d(i,j,k,10 ) = p3a(i,k,19)    ! qni_1                                                                
-              q3d(i,j,k,11 ) = p3a(i,k,20)    ! qir_1                                                                
-              q3d(i,j,k,12 ) = p3a(i,k,21)    ! qib_1                                                                
-              q3d(i,j,k, 5 ) = p3a(i,k,23)    ! qit_2                                                                 
-              q3d(i,j,k,14 ) = p3a(i,k,24)    ! qir_2                                                                
-              q3d(i,j,k,13 ) = p3a(i,k,25)    ! qni_2                                                                
-              q3d(i,j,k,15 ) = p3a(i,k,26)    ! qib_2                                                                
-              q3d(i,j,k, 8 ) = p3a(i,k,27)    ! nc                                                                 
-              q3d(i,j,k,16 ) = p3a(i,k,31)    ! qzi_1                                                                
-              q3d(i,j,k,17 ) = p3a(i,k,32)    ! qli_1                                                                
-              q3d(i,j,k,18 ) = p3a(i,k,33)    ! qzi_2                                                                
-              q3d(i,j,k,19 ) = p3a(i,k,34)    ! qli_2                                                                
+                  pp3d(i,j,k)=(rho(i,j,k)*(rd+rv*p3a(i,k,2))*p3a(i,k,1)*rp00)**rddcv                      
+                  prs(i,j,k)=p00*(pp3d(i,j,k)**cpdrd)
+                  pp3d(i,j,k)=pp3d(i,j,k)-pi0(i,j,k)
+                  th3d(i,j,k)=th3d(i,j,k)+(p3a(i,k,1)-thten(i,j,k))
+               endif
+               q3d(i,j,k,nqv) = p3a(i,k, 2)
+               q3d(i,j,k,nqc) = p3a(i,k, 3)    ! qc                                                                  
+               q3d(i,j,k,nqr) = p3a(i,k, 4)    ! qr                                                                  
+               q3d(i,j,k, 9 ) = p3a(i,k, 5)    ! qnr_1                                                                 
+               q3d(i,j,k,nqi) = p3a(i,k,18)    ! qit_1                                                                 
+               q3d(i,j,k,10 ) = p3a(i,k,19)    ! qni_1                                                                
+               q3d(i,j,k,11 ) = p3a(i,k,20)    ! qir_1                                                                
+               q3d(i,j,k,12 ) = p3a(i,k,21)    ! qib_1                                                                
+               q3d(i,j,k, 5 ) = p3a(i,k,23)    ! qit_2                                                                 
+               q3d(i,j,k,14 ) = p3a(i,k,24)    ! qir_2                                                                
+               q3d(i,j,k,13 ) = p3a(i,k,25)    ! qni_2                                                                
+               q3d(i,j,k,15 ) = p3a(i,k,26)    ! qib_2                                                                
+               q3d(i,j,k, 8 ) = p3a(i,k,27)    ! nc                                                                 
+               q3d(i,j,k,16 ) = p3a(i,k,31)    ! qzi_1                                                                
+               q3d(i,j,k,17 ) = p3a(i,k,32)    ! qli_1                                                                
+               q3d(i,j,k,18 ) = p3a(i,k,33)    ! qzi_2                                                                
+               q3d(i,j,k,19 ) = p3a(i,k,34)    ! qli_2                                                                
 
-              q3d(i,j,k, 6 ) = p3a(i,k,35)    ! qit_3                                                                
-              q3d(i,j,k,21 ) = p3a(i,k,36)    ! qir_3                                                               
-              q3d(i,j,k,20 ) = p3a(i,k,37)    ! qni_3                                                               
-              q3d(i,j,k,22 ) = p3a(i,k,38)    ! qib_3                                                                
-              q3d(i,j,k,23 ) = p3a(i,k,39)    ! qzi_3                                                               
-              q3d(i,j,k,24 ) = p3a(i,k,40)    ! qli_3                                                                
+               q3d(i,j,k, 6 ) = p3a(i,k,35)    ! qit_3                                                                
+               q3d(i,j,k,21 ) = p3a(i,k,36)    ! qir_3                                                               
+               q3d(i,j,k,20 ) = p3a(i,k,37)    ! qni_3                                                               
+               q3d(i,j,k,22 ) = p3a(i,k,38)    ! qib_3                                                                
+               q3d(i,j,k,23 ) = p3a(i,k,39)    ! qzi_3                                                               
+               q3d(i,j,k,24 ) = p3a(i,k,40)    ! qli_3                                                                
 
-              q3d(i,j,k, 7 ) = p3a(i,k,44)    ! qit_4                                                                   
-              q3d(i,j,k,26 ) = p3a(i,k,45)    ! qir_4                                                                  
-              q3d(i,j,k,25 ) = p3a(i,k,46)    ! qni_4                                                                  
-              q3d(i,j,k,27 ) = p3a(i,k,47)    ! qib_4                                                                  
-              q3d(i,j,k,28 ) = p3a(i,k,48)    ! qzi_4                                                                  
-              q3d(i,j,k,29 ) = p3a(i,k,49)    ! qli_4                                                                  
-
+               q3d(i,j,k, 7 ) = p3a(i,k,44)    ! qit_4                                                                   
+               q3d(i,j,k,26 ) = p3a(i,k,45)    ! qir_4                                                                  
+               q3d(i,j,k,25 ) = p3a(i,k,46)    ! qni_4                                                                  
+               q3d(i,j,k,27 ) = p3a(i,k,47)    ! qib_4                                                                  
+               q3d(i,j,k,28 ) = p3a(i,k,48)    ! qzi_4                                                                  
+               q3d(i,j,k,29 ) = p3a(i,k,49)    ! qli_4                                                                  
             enddo
             enddo
 
             IF( getdbz .and. qd_dbz.ge.1 )THEN
-              do k=1,nk
-              do i=1,ni
-                qdiag(i,j,k,qd_dbz) = p3a(i,k,12)
-              enddo
-              enddo
+               do k=1,nk
+               do i=1,ni
+                  qdiag(i,j,k,qd_dbz) = p3a(i,k,12)
+               enddo
+               enddo
             ENDIF
 
             IF( dorad )THEN
-              do k=1,nk
-              do i=1,ni
-                effc(i,j,k) = p3a(i,k,13)
-                effi(i,j,k) = p3a(i,k,14)
-              enddo
-              enddo
+               do k=1,nk
+               do i=1,ni
+                  effc(i,j,k) = p3a(i,k,13)
+                  effi(i,j,k) = p3a(i,k,14)
+               enddo
+               enddo
             ENDIF
 
             IF( dowriteout .or. getdbz )THEN
-              do k=1,nk
-              do i=1,ni
-                p3o(i,j,k,1) = p3a(i,k,15)
-                p3o(i,j,k,2) = p3a(i,k,16)
-                p3o(i,j,k,3) = p3a(i,k,17)
-              enddo
-              enddo
-              if( ptype.eq.63 )then
-                do k=1,nk
-                do i=1,ni
+               do k=1,nk
+               do i=1,ni
+                  p3o(i,j,k,1) = p3a(i,k,15)
+                  p3o(i,j,k,2) = p3a(i,k,16)
+                  p3o(i,j,k,3) = p3a(i,k,17)
+!                enddo
+!                enddo
+!                if( ptype.eq.63 )then
+!                 do k=1,nk
+!                 do i=1,ni
                   p3o(i,j,k,4) = p3a(i,k,28)
                   p3o(i,j,k,5) = p3a(i,k,29)
                   p3o(i,j,k,6) = p3a(i,k,30)
@@ -2515,9 +2379,9 @@
                   p3o(i,j,k,10) = p3a(i,k,50)
                   p3o(i,j,k,11) = p3a(i,k,51)
                   p3o(i,j,k,12) = p3a(i,k,52)
-                enddo
-                enddo
-              endif
+               enddo
+               enddo
+!               endif
             ENDIF
 
 ! to add generic output,                                                      
@@ -2528,20 +2392,23 @@
 ! to set the number of output variables for out3d                             
             do k=1,nk
             do i=1,ni
-              out3d(i,j,k,1) = p3a(i,k,53)
-              out3d(i,j,k,2) = p3a(i,k,54)
-              out3d(i,j,k,3) = p3a(i,k,55)
+               out3d(i,j,k,1) = p3a(i,k,53)
+               out3d(i,j,k,2) = p3a(i,k,54)
+               out3d(i,j,k,3) = p3a(i,k,55)
             enddo
             enddo
 
             do i=1,ni
-              out2d(i,j,1) = p3a(i,1,56)
-              out2d(i,j,2) = p3a(i,1,57)
+               out2d(i,j,1) = p3a(i,1,56)
+               out2d(i,j,2) = p3a(i,1,57)
             enddo
 
-          ENDDO  p3jloop6
+         ENDDO  p3_jloop6
 
-          if(timestats.ge.1) time_microphy=time_microphy+mytime() 
+         if (timestats.ge.1) time_microphy = time_microphy+mytime() 
+
+          
+!                  --- END OF CODE FOR P3 SCHEME ---
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !ccc   Jensen scheme   ccccccccccccccccccccccccccccccccccccccccccccccccc
@@ -2649,12 +2516,12 @@
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 ! otherwise, stop for undefined ptype
 
-        ELSE
+   ELSE
 
           print *,'  Undefined ptype!'
           call stopcm1
 
-        ENDIF  ifptype
+   ENDIF  ifptype
 
 !CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 !CC   END microphysics   CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
