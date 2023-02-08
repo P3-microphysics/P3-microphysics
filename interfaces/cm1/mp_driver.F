@@ -1104,7 +1104,8 @@
                                add_output_arr2    = p3a(1,1,26),             &
                                add_output_arr3    = p3a(1,1,27),             &
                                add_output_arr1_2d = p3a(1,1,28),             &
-                               add_output_arr2_2d = p3a(1,1,29) )                              
+                               add_output_arr2_2d = p3a(1,1,29),             &
+                               diag_dhmax_1       = p3a(1,1,30) )
 
                do k=1,nk
                do i=1,ni
@@ -1281,6 +1282,7 @@
                   p3o(i,j,k,1) = p3a(i,k,15)
                   p3o(i,j,k,2) = p3a(i,k,16)
                   p3o(i,j,k,3) = p3a(i,k,17)
+                  p3o(i,j,k,4) = p3a(i,k,30)  ! diag_dhmax_1
                enddo
                enddo
             ENDIF

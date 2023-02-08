@@ -3642,6 +3642,22 @@
         enddo
         call   writes(dum1,fnum,srec,nwrite,nloop,dat1,dat2,dat3,reqt,myi1p,myi2p,myj1p,myj2p,ncid,time_index,name_output(n_out),sigma,zs,zh,dum9)
         
+        n_out = n_out + 1
+        name_output(n_out) = 'p3_dhmax1'
+        desc_output(n_out) = 'P3: max. hail size, ice category 1'
+        unit_output(n_out) = 'm'
+        grid_output(n_out) = 's'     ! s=scalar pts (3d) ; u=u pts (3d) ; v=v pts (3d) ; w=w pts (3d) ; 2=2d scalar pts
+          !$omp parallel do default(shared)  &
+          !$omp private(i,j,k)
+        do k=1,maxk
+        do j=1,nj
+        do i=1,ni
+           dum1(i,j,k) = p3o(i,j,k,4)
+        enddo
+        enddo
+        enddo
+        call writes(dum1,fnum,srec,nwrite,nloop,dat1,dat2,dat3,reqt,myi1p,myi2p,myj1p,myj2p,ncid,time_index,name_output(n_out),sigma,zs,zh,dum9)
+        
       endif
     endif
     ENDIF

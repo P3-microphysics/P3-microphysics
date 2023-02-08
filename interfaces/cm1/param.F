@@ -4413,9 +4413,12 @@
           qmag(10) = 1.0e-3
 
           ! for p3 arrays:
-!         np3a = 24
+!         np3a = 24 [original]
           np3a = 29  ! for  3 + 2 (nout3d = 3, nout2d = 2) additional output variables
           np3o =  3
+
+          np3a = 30  ! for  3 + 2 (nout3d = 3, nout2d = 2) additional output variables
+          np3o =  4
 
       !cccccccccccccccccccccccccccccccccccccccccccccccccccc!
 
