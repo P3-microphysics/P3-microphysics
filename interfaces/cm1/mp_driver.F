@@ -2171,7 +2171,7 @@
                p3a(i,k, 8) = pi0(i,j,k)+pp3d(i,j,k)         ! pii                               
                p3a(i,k, 9) = prs(i,j,k)                     ! p                                 
                p3a(i,k,10) = dz*rmh(i,j,k)                  ! dz                                
-               p3a(i,k,11) = 0.5*(w3d(i,j,k)+w3d(i,j,k+1))  ! w                                 
+               p3a(i,k,11) = 0.5*(w3d(i,j,k)+w3d(i,j,k+1))  ! w        <-- BUG - out of range for k (can go to nk+1)                                 
                p3a(i,k,18) = q3d(i,j,k,nqi)                 ! qit_1                            
                p3a(i,k,19) = q3d(i,j,k,10)                  ! qni_1
                p3a(i,k,20) = q3d(i,j,k,11)                  ! qir_1                           
@@ -2199,7 +2199,8 @@
                p3a(i,k,49) = q3d(i,j,k,29)                  ! qli_4
             enddo
             enddo
-
+            
+            
             do i=1,ni
               p3a(i,1,22) = 0.0
             enddo
@@ -2362,20 +2363,15 @@
             IF( dowriteout .or. getdbz )THEN
                do k=1,nk
                do i=1,ni
-                  p3o(i,j,k,1) = p3a(i,k,15)
-                  p3o(i,j,k,2) = p3a(i,k,16)
-                  p3o(i,j,k,3) = p3a(i,k,17)
-!                enddo
-!                enddo
-!                if( ptype.eq.63 )then
-!                 do k=1,nk
-!                 do i=1,ni
-                  p3o(i,j,k,4) = p3a(i,k,28)
-                  p3o(i,j,k,5) = p3a(i,k,29)
-                  p3o(i,j,k,6) = p3a(i,k,30)
-                  p3o(i,j,k,7) = p3a(i,k,41)
-                  p3o(i,j,k,8) = p3a(i,k,42)
-                  p3o(i,j,k,9) = p3a(i,k,43)
+                  p3o(i,j,k, 1) = p3a(i,k,15)
+                  p3o(i,j,k, 2) = p3a(i,k,16)
+                  p3o(i,j,k, 3) = p3a(i,k,17)
+                  p3o(i,j,k, 4) = p3a(i,k,28)
+                  p3o(i,j,k, 5) = p3a(i,k,29)
+                  p3o(i,j,k, 6) = p3a(i,k,30)
+                  p3o(i,j,k, 7) = p3a(i,k,41)
+                  p3o(i,j,k, 8) = p3a(i,k,42)
+                  p3o(i,j,k, 9) = p3a(i,k,43)
                   p3o(i,j,k,10) = p3a(i,k,50)
                   p3o(i,j,k,11) = p3a(i,k,51)
                   p3o(i,j,k,12) = p3a(i,k,52)
