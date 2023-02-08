@@ -21,7 +21,7 @@
 !    Melissa Cholette (melissa.cholette@ec.gc.ca)                                          !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.2.0 + dev-dhmax                                                         !
+! Version:       5.2.0 + dev-dhmax + GEM                                                   !
 ! Last updated:  2023-JAN                                                                  !
 !__________________________________________________________________________________________!
 
@@ -140,7 +140,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.2.0+dev-dhmax'
+ character(len=1024), parameter :: version_p3                    = '5.2.0+dev-dhmax-gem'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.3-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '6.3-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.0'
@@ -158,7 +158,8 @@
 
 !------------------------------------------------------------------------------------------!
 
- read_path = lookup_file_dir           ! path for lookup tables from official model library
+!read_path = lookup_file_dir           ! path for lookup tables from official model library
+ read_path = '/fs/homeu2/eccc/mrd/ords/rpnatm/mec000/p3_lookup_tables/p3v510'
 !read_path = '/MY/LOOKUP_TABLE/PATH'   ! path for lookup tables from specified location
 
  if (trplMomI) then
@@ -1562,7 +1563,7 @@ END subroutine p3_init
                               qc,nc,qr,nr,n_diag_2d,diag_2d,n_diag_3d,diag_3d,                    &
                               clbfact_dep,clbfact_sub,debug_on,diag_hcb,diag_hsn,diag_vis,        &
                               diag_vis1,diag_vis2,diag_vis3,diag_slw,                             &
-                              scpf_on,scpf_pfrac,scpf_resfact,cldfrac,                            &
+                              scpf_on,scpf_pfrac,scpf_resfact,cldfrac,maxD_hail,                  &
                               qi_type_1,qi_type_2,qi_type_3,qi_type_4,qi_type_5,qi_type_6,        &
                               qitot_1,qirim_1,nitot_1,birim_1,diag_effi_1,zitot_1,qiliq_1,        &
                               qitot_2,qirim_2,nitot_2,birim_2,diag_effi_2,zitot_2,qiliq_2,        &
@@ -1670,6 +1671,7 @@ END subroutine p3_init
  real, intent(out),   dimension(ni,nk)  :: qi_type_4             ! graupel mass                        kg kg-1
  real, intent(out),   dimension(ni,nk)  :: qi_type_5             ! hail mass                           kg kg-1
  real, intent(out),   dimension(ni,nk)  :: qi_type_6             ! ice pellet mass                     kg kg-1
+ real, intent(out),   dimension(ni,nk)  :: maxD_hail            ! ice, maximum hail size (all cat)    m
 
  real, intent(out),   dimension(ni)     :: diag_hcb              ! height of cloud base                m
  real, intent(out),   dimension(ni)     :: diag_hsn              ! height of snow level                m
@@ -1902,7 +1904,8 @@ END subroutine p3_init
                    diag_vis  = diag_vis,                                                        &
                    diag_vis1 = diag_vis1,                                                       &
                    diag_vis2 = diag_vis2,                                                       &
-                   diag_vis3 = diag_vis3)
+                   diag_vis3 = diag_vis3,                                                       &
+                   diag_dhmax = maxD_hail)
           else
             call p3_main(qc,nc,qr,nr,theta_m,theta,qvapm,qvap,dt_mp,qitot,qirim,nitot,birim,    &
                    ssat,ww,pres,DZ,kount,prt_liq,prt_sol,i_strt,ni,k_strt,nk,n_iceCat,          &
@@ -1914,7 +1917,8 @@ END subroutine p3_init
                    diag_vis  = diag_vis,                                                        &
                    diag_vis1 = diag_vis1,                                                       &
                    diag_vis2 = diag_vis2,                                                       &
-                   diag_vis3 = diag_vis3)
+                   diag_vis3 = diag_vis3,                                                       &
+                   diag_dhmax = maxD_hail)
           endif
          else
           if (log_LiquidFraction) then
@@ -1928,7 +1932,8 @@ END subroutine p3_init
                    diag_vis  = diag_vis,                                                        &
                    diag_vis1 = diag_vis1,                                                       &
                    diag_vis2 = diag_vis2,                                                       &
-                   diag_vis3 = diag_vis3)
+                   diag_vis3 = diag_vis3,                                                       &
+                   diag_dhmax = maxD_hail)
           else
             call p3_main(qc,nc,qr,nr,theta_m,theta,qvapm,qvap,dt_mp,qitot,qirim,nitot,birim,    &
                    ssat,ww,pres,DZ,kount,prt_liq,prt_sol,i_strt,ni,k_strt,nk,n_iceCat,          &
@@ -1939,7 +1944,8 @@ END subroutine p3_init
                    diag_vis  = diag_vis,                                                        &
                    diag_vis1 = diag_vis1,                                                       &
                    diag_vis2 = diag_vis2,                                                       &
-                   diag_vis3 = diag_vis3)
+                   diag_vis3 = diag_vis3,                                                       &
+                   diag_dhmax = maxD_hail)
           endif
          endif
 
@@ -2407,7 +2413,7 @@ END subroutine p3_init
  real, intent(out), dimension(its:ite), optional      :: prt_pell      ! precip rate, ice pellets      m s-1
  real, intent(out), dimension(its:ite), optional      :: prt_hail      ! precip rate, hail             m s-1
  real, intent(out), dimension(its:ite), optional      :: prt_sndp      ! precip rate, unmelted snow    m s-1
- real, intent(out),   dimension(its:ite,kts:kte,nCat),     optional :: diag_dhmax ! maximum hail size                      m
+ real, intent(out), dimension(its:ite,kts:kte), optional :: diag_dhmax ! maximum hail size (all cat)   m
  real, intent(out),   dimension(its:ite,kts:kte,n_qiType), optional :: qi_type    ! mass mixing ratio, diagnosed ice type  kg kg-1
  
  logical, intent(in)                                  :: scpf_on       ! Switch to activate SCPF
@@ -2422,6 +2428,7 @@ END subroutine p3_init
  real, dimension(its:ite,kts:kte) :: t_old ! temperature at the beginning of the model time step [K]
 
  real, dimension(its:ite,kts:kte,nCat) :: qiliq ! local variable for qiliq_in
+ real, dimension(its:ite,kts:kte,nCat) :: dhmax ! local variable for max hail size (category dependent)
 
  logical, parameter      :: log_liqsatadj = .false.       ! temporary; to be put as GEM namelist
 
@@ -2581,6 +2588,7 @@ END subroutine p3_init
  real,    dimension(its:ite,kts:kte)      :: Q_drizzle,Q_rain
  real,    dimension(its:ite,kts:kte,nCat) :: Q_crystals,Q_ursnow,Q_lrsnow,Q_grpl,Q_pellets,Q_hail
  integer                                  :: ktop_typeDiag_r,ktop_typeDiag_i
+ integer                                  :: ktop_typeDiag
  logical                                  :: log_typeDiag_column
  
 ! to be added as namelist parameters (future)
@@ -2727,7 +2735,7 @@ END subroutine p3_init
  diag_vmi  = 0.
  diag_di   = 0.
  diag_rhoi = 0.
- if (log_typeDiags) diag_dhmax = 0.
+ if (log_typeDiags) dhmax = 0.
  diag_2d   = 0.
  diag_3d   = 0.
  rhorime_c = 400.
@@ -4455,6 +4463,10 @@ END subroutine p3_init
                                           nislf(iice)+nimul(iice)-        &
                                           nlevp(iice))*dt
 
+       enddo iice_loop_z1
+       !====
+       iice_loop_z2: do iice = 1,nCat
+
          !update further due to category interactions:
           do catcoll = 1,nCat
              !Note: qicol = 0 if iice=catcoll, optimised to not insert an if (catcoll.ne.iice)
@@ -4462,10 +4474,6 @@ END subroutine p3_init
              dumm3(iice)    = dumm3(iice)    + qicol(catcoll,iice)*dt
              dumm0(catcoll) = dumm0(catcoll) - nicol(catcoll,iice)*dt
           enddo ! catcoll loop
-
-       enddo iice_loop_z1
-       !====
-       iice_loop_z2: do iice = 1,nCat
 
           if (dumm3(iice).ge.qsmall) then
 
@@ -6194,37 +6202,24 @@ END subroutine p3_init
     prt_sndp(:) = 0.
     if (present(qi_type)) qi_type(:,:,:) = 0.
 
+    if (freq3DtypeDiag>0. .and. mod(it*dt,freq3DtypeDiag*60.)==0.) then
+      !diagnose hydrometeor types for full columns
+       ktop_typeDiag = ktop
+    else
+      !diagnose hydrometeor types at bottom level only (for specific precip rates)
+       ktop_typeDiag = kbot
+    endif
+
     i_loop_typediag: do i = its,ite
 
-       if (freq3DtypeDiag>0. .and. mod(it*dt,freq3DtypeDiag*60.)==0.) then
-       !diagnose hydrometeor types for full columns
-          log_typeDiag_column = .true.
-       else
-       !diagnose hydrometeor types at bottom level only (for specific precip rates and max. hail size)
-          log_typeDiag_column = .false.
-       endif
-      
       !-- rain vs. drizzle:
-      !find top (rain):
-       if (log_typeDiag_column) then  
-          do k = ktop,kbot,-kdir
-             if (qr(i,k).ge.qsmall) then
-                ktop_typeDiag_r = k
-                exit
-             endif
-          enddo
-       else
-          ktop_typeDiag_r = kbot
-       endif
-
-       k_loop_typdiag_1: do k = kbot,ktop_typeDiag_r,kdir
+       k_loop_typdiag_1: do k = kbot,ktop_typeDiag,kdir
 
           Q_drizzle(i,k) = 0.
           Q_rain(i,k)    = 0.
-          
           !note:  These can be broken down further (outside of microphysics) into
           !       liquid rain (drizzle) vs. freezing rain (drizzle) based on sfc temp.
-          if (qr(i,k)>qsmall .and. nr(i,k)>nsmall) then
+          if (qr(i,k).ge.qsmall .and. nr(i,k).ge.nsmall) then
              tmp1 = (6.*qr(i,k)/(pi*rhow*nr(i,k)))**thrd   !mean-mass diameter
              if (tmp1 < thres_raindrop) then
                 Q_drizzle(i,k) = qr(i,k)
@@ -6245,19 +6240,7 @@ END subroutine p3_init
        iice_loop_diag: do iice = 1,nCat
 
          !-- ice-phase:
-          if (log_typeDiag_column) then  
-            !find top (ice):
-             do k = ktop,kbot,-kdir
-                if (qitot(i,k,iice).ge.qsmall) then
-                   ktop_typeDiag_i = k
-                   exit
-                endif
-             enddo       
-          else
-             ktop_typeDiag_i = kbot
-          endif
-
-          k_loop_typdiag_2: do k = kbot,ktop_typeDiag_i,kdir
+          k_loop_typdiag_2: do k = kbot,ktop_typeDiag,kdir
 
              Q_crystals(i,k,iice) = 0.
              Q_ursnow(i,k,iice)   = 0.
@@ -6290,8 +6273,8 @@ END subroutine p3_init
                          Q_pellets(i,k,iice) = qitot(i,k,iice)
                       else
                          Q_hail(i,k,iice) = qitot(i,k,iice)
-                         if (log_typeDiags) diag_dhmax(i,k,iice) = maxHailSize(rho(i,k),       &
-                           nitot(i,k,iice),rhofaci(i,k),arr_lami(i,k,iice),arr_mui(i,k,iice))
+                         dhmax(i,k,iice)  = maxHailSize(rho(i,k),nitot(i,k,iice),             &
+                                            rhofaci(i,k),arr_lami(i,k,iice),arr_mui(i,k,iice))
                       endif
                    endif
                 else
@@ -6344,6 +6327,8 @@ END subroutine p3_init
        enddo iice_loop_diag
 
     enddo i_loop_typediag
+
+   diag_dhmax = maxval(dhmax,3)
 
    !- for output of 3D fields of diagnostic ice-phase hydrometeor type
     if (log_typeDiag_column .and. present(qi_type)) then
