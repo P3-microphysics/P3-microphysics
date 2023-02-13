@@ -4194,11 +4194,11 @@
           qname(1) = 'qv '
           qname(2) = 'qc '
           qname(3) = 'qr '
-          qname(4) = 'qi '
-          qname(5) = 'qni'
+          qname(4) = 'qi1'
+          qname(5) = 'ni1'
           qname(6) = 'qnr'
-          qname(7) = 'qir'
-          qname(8) = 'qib'
+          qname(7) = 'ri1'
+          qname(8) = 'bi1'
 
           qunit(1) = 'kg/kg'
           qunit(2) = 'kg/kg'
@@ -4222,6 +4222,7 @@
 
           ! for p3 arrays:
           np3a = 22
+          np3a = np3a + nout2d + nout2d
           np3o =  3
 
       !cccccccccccccccccccccccccccccccccccccccccccccccccccc!
@@ -4248,11 +4249,11 @@
           qname(1) = 'qv '
           qname(2) = 'qc '
           qname(3) = 'qr '
-          qname(4) = 'qi '
-          qname(5) = 'qni'
+          qname(4) = 'qi1'
+          qname(5) = 'ni1'
           qname(6) = 'qnr'
-          qname(7) = 'qir'
-          qname(8) = 'qib'
+          qname(7) = 'ri1'
+          qname(8) = 'bi1'
           qname(9) = 'qnc'
 
           qunit(1) = 'kg/kg'
@@ -4279,8 +4280,8 @@
 
           ! for p3 arrays:
           np3a = 23            ! 1-mom, no_liqfrac, 1-cat (no extra output)
+          np3a = np3a + nout2d + nout2d
           np3o =  4            ! 1 x nCat; for vmi_(x), dmi_(x), rhoi_(x), dhmax_(x)
-          np3a = np3a + 2 + 3  ! for extra user-specified output variables (nout2d = 2 nout2d = 3)
 
       !cccccccccccccccccccccccccccccccccccccccccccccccccccc!
         ELSEIF( ptype.eq.52 )THEN
@@ -4310,13 +4311,13 @@
           qname( 1) = 'qv '
           qname( 2) = 'qc '
           qname( 3) = 'qr '
-          qname( 4) = 'qi '
+          qname( 4) = 'qi1'
           qname( 5) = 'qi2'
           qname( 6) = 'nc '
           qname( 7) = 'nr '
-          qname( 8) = 'ni '
-          qname( 9) = 'ri '
-          qname(10) = 'bi '
+          qname( 8) = 'ni1'
+          qname( 9) = 'ri1'
+          qname(10) = 'bi1'
           qname(11) = 'ni2'
           qname(12) = 'ri2'
           qname(13) = 'bi2'
@@ -4353,8 +4354,8 @@
 
           ! for p3 arrays:
           np3a = 30            ! 2-mom, no_liqfrac, 2-cat (no extra output)
+          np3a = np3a + nout2d + nout2d
           np3o =  8            ! 2 x nCat; for vmi_(x), dmi_(x), rhoi_(x), dhmax_(x)
-          np3a = np3a + 2 + 3  ! for extra user-specified output variables (nout2d = 2 nout2d = 3)
 
       !cccccccccccccccccccccccccccccccccccccccccccccccccccc!
 
@@ -4379,16 +4380,16 @@
           cloudvar(9) = .false.
           cloudvar(10) = .false.
 
-          qname(1) = 'qv '
-          qname(2) = 'qc '
-          qname(3) = 'qr '
-          qname(4) = 'qi '
-          qname(5) = 'qni'
-          qname(6) = 'qnr'
-          qname(7) = 'qir'
-          qname(8) = 'qib'
-          qname(9) = 'qnc'
-          qname(10) = 'qzi'
+          qname(1)  = 'qv '
+          qname(2)  = 'qc '
+          qname(3)  = 'qr '
+          qname(4)  = 'qi1'
+          qname(5)  = 'ni1'
+          qname(6)  = 'qnr'
+          qname(7)  = 'ri1'
+          qname(8)  = 'bi1'
+          qname(9)  = 'qnc'
+          qname(10) = 'zi1'
 
           qunit(1) = 'kg/kg'
           qunit(2) = 'kg/kg'
@@ -4421,8 +4422,8 @@
 !          np3o =  3
 !--
           np3a = 24            ! 3-mom, no_liqfrac, 1-cat (incl. vmi_1, dmi_1, rhoi_1)
+          np3a = np3a + nout2d + nout2d
           np3o =  4            ! 1 x nCat; for vmi_(x), dmi_(x), rhoi_(x), dhmax_(x)
-          np3a = np3a + 2 + 3  ! for extra user-specified output variables (nout2d = 2 nout2d = 3)
 
       !cccccccccccccccccccccccccccccccccccccccccccccccccccc!
 
@@ -4459,13 +4460,13 @@
           qname( 5) = 'qi2'
           qname( 6) = 'nc '
           qname( 7) = 'nr '
-          qname( 8) = 'ni '
-          qname( 9) = 'ri '
-          qname(10) = 'bi '
+          qname( 8) = 'ni1'
+          qname( 9) = 'ri1'
+          qname(10) = 'bi1'
           qname(11) = 'ni2'
           qname(12) = 'ri2'
           qname(13) = 'bi2'
-          qname(14) = 'zi'
+          qname(14) = 'zi1'
           qname(15) = 'zi2'
 
           qunit( 1) = 'kg/kg'
@@ -4509,8 +4510,8 @@
 !          np3o =  6
 !--
           np3a = 32            ! 2-mom, no_liqfrac, 2-cat (no extra output)
+          np3a = np3a + nout2d + nout2d
           np3o =  8            ! 2 x nCat; for vmi_(x), dmi_(x), rhoi_(x), dhmax_(x)
-          np3a = np3a + 2 + 3  ! for extra user-specified output variables (nout2d = 2 nout2d = 3)
 
 
       !cccccccccccccccccccccccccccccccccccccccccccccccccccc!
@@ -4537,17 +4538,17 @@
           cloudvar(10) = .false.
           cloudvar(11) = .false.
 
-          qname(1) = 'qv '
-          qname(2) = 'qc '
-          qname(3) = 'qr '
-          qname(4) = 'qi '
-          qname(5) = 'qni'
-          qname(6) = 'qnr'
-          qname(7) = 'qir'
-          qname(8) = 'qib'
-          qname(9) = 'qnc'
-          qname(10) = 'qzi'
-          qname(11) = 'qil'
+          qname(1)  = 'qv '
+          qname(2)  = 'qc '
+          qname(3)  = 'qr '
+          qname(4)  = 'qi1'
+          qname(5)  = 'ni1'
+          qname(6)  = 'qnr'
+          qname(7)  = 'ri1'
+          qname(8)  = 'bi1'
+          qname(9)  = 'qnc'
+          qname(10) = 'zi1'
+          qname(11) = 'li1'
 
           qunit(1) = 'kg/kg'
           qunit(2) = 'kg/kg'
@@ -4582,8 +4583,8 @@
 !          np3o =  3
 !--
           np3a = 25            ! 3-mom, liqfrac, 1-cat (incl. vmi_1, dmi_1, rhoi_1)
+          np3a = np3a + nout2d + nout2d
           np3o =  4            ! 1 x nCat; for vmi_(x), dmi_(x), rhoi_(x), dhmax_(x)
-          np3a = np3a + 2 + 3  ! for extra user-specified output variables (nout2d = 2 nout2d = 3)
 
       !cccccccccccccccccccccccccccccccccccccccccccccccccccc!
         ELSEIF( ptype.eq.61 )THEN
@@ -4617,18 +4618,18 @@
           qname( 1) = 'qv '
           qname( 2) = 'qc '
           qname( 3) = 'qr '
-          qname( 4) = 'qi '
+          qname( 4) = 'qi1'
           qname( 5) = 'qi2'
           qname( 6) = 'nc '
           qname( 7) = 'nr '
-          qname( 8) = 'ni '
-          qname( 9) = 'ri '
-          qname(10) = 'bi '
+          qname( 8) = 'ni1'
+          qname( 9) = 'ri1'
+          qname(10) = 'bi1'
           qname(11) = 'ni2'
           qname(12) = 'ri2'
           qname(13) = 'bi2'
-          qname(14) = 'zi'
-          qname(15) = 'li'
+          qname(14) = 'zi1'
+          qname(15) = 'li1'
           qname(16) = 'zi2'
           qname(17) = 'li2'
 
@@ -4677,8 +4678,8 @@
 !          np3o =  6
 !--
           np3a = 34            ! 3-mom, liqfrac, 2-cat  (no extra output)
+          np3a = np3a + nout2d + nout2d
           np3o =  8            ! 2 x nCat; for vmi_(x), dmi_(x), rhoi_(x), dhmax_(x)
-          np3a = np3a + 2 + 3  ! for extra user-specified output variables (nout2d = 2 nout2d = 3)
 
       !cccccccccccccccccccccccccccccccccccccccccccccccccccc!
 
@@ -4719,19 +4720,19 @@
           qname( 1) = 'qv '
           qname( 2) = 'qc '
           qname( 3) = 'qr '
-          qname( 4) = 'qi '
+          qname( 4) = 'qi1'
           qname( 5) = 'qi2'
           qname( 6) = 'qi3'
           qname( 7) = 'nc '
           qname( 8) = 'nr '
-          qname( 9) = 'ni '
-          qname(10) = 'ri '
-          qname(11) = 'bi '
+          qname( 9) = 'ni1'
+          qname(10) = 'ri1'
+          qname(11) = 'bi1'
           qname(12) = 'ni2'
           qname(13) = 'ri2'
           qname(14) = 'bi2'
-          qname(15) = 'zi'
-          qname(16) = 'li'
+          qname(15) = 'zi1'
+          qname(16) = 'li1'
           qname(17) = 'zi2'
           qname(18) = 'li2'
           qname(19) = 'ni3'
@@ -4797,8 +4798,8 @@
 !          np3o =  9
 !--
           np3a = 43            ! 3-mom, liqfrac, 3-cat (no extra output)
+          np3a = np3a + nout2d + nout2d
           np3o = 12            ! 3 x nCat; for vmi_(x), dmi_(x), rhoi_(x), dhmax_(x)
-          np3a = np3a + 2 + 3  ! for extra user-specified output variables (nout2d = 2 nout2d = 3)
 
       !cccccccccccccccccccccccccccccccccccccccccccccccccccc!
 
@@ -4845,20 +4846,20 @@
           qname( 1) = 'qv '
           qname( 2) = 'qc '
           qname( 3) = 'qr '
-          qname( 4) = 'qi '
+          qname( 4) = 'qi1'
           qname( 5) = 'qi2'
           qname( 6) = 'qi3'
           qname( 7) = 'qi4'
           qname( 8) = 'nc '
           qname( 9) = 'nr '
-          qname(10) = 'ni '
-          qname(11) = 'ri '
-          qname(12) = 'bi '
+          qname(10) = 'ni1'
+          qname(11) = 'ri1'
+          qname(12) = 'bi1'
           qname(13) = 'ni2'
           qname(14) = 'ri2'
           qname(15) = 'bi2'
-          qname(16) = 'zi'
-          qname(17) = 'li'
+          qname(16) = 'zi1'
+          qname(17) = 'li1'
           qname(18) = 'zi2'
           qname(19) = 'li2'
           qname(20) = 'ni3'
@@ -4942,8 +4943,8 @@
 !          np3o = 12
 !--
           np3a = 52            ! 3-mom, liqfrac, 4-cat  (no extra output)
+          np3a = np3a + nout2d + nout2d
           np3o = 16            ! 4 x nCat for vmi_(x), dmi_(x), rhoi_(x), dhmax_(x)
-          np3a = np3a + 2 + 3  ! for extra user-specified output variables (nout2d = 2 nout2d = 3)
 
 
         ENDIF
