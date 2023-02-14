@@ -2951,7 +2951,7 @@ END subroutine p3_init
  real    :: f1pr28   ! shedding of mixed-phase ice
 
 ! quantities related to diagnostic hydrometeor/precipitation types
- real,    parameter                       :: freq3DtypeDiag     = 1.      !frequency (min) for full-column diagnostics
+ real,    parameter                       :: freq3DtypeDiag     = 10.      !frequency (min) for full-column diagnostics
  real,    parameter                       :: thres_raindrop     = 100.e-6 !size threshold for drizzle vs. rain
  real,    dimension(its:ite,kts:kte)      :: Q_drizzle,Q_rain
  real,    dimension(its:ite,kts:kte,nCat) :: Q_crystals,Q_ursnow,Q_lrsnow,Q_grpl,Q_pellets,Q_hail
@@ -6542,22 +6542,31 @@ END subroutine p3_init
 !   maximum hail size, dhmax).
 
 
-!test (for CM1)
- do i = its,ite
-  do k = ktop,kbot,-kdir
-    do iice = 1,nCat
-      diag_dhmax(i,k,iice) = maxHailSize(rho(i,k),nitot(i,k,iice),rhofaci(i,k),arr_lami(i,k,iice),arr_mui(i,k,iice))
-      enddo
-  enddo
- enddo
-
-!-- test
+!-- test of generic diagnostic output:
 diag_2d(:,1) = qitot(:,20,1)
 diag_2d(:,2) = nitot(:,20,1)
 diag_3d(:,:,1) = qitot(:,:,1)
 diag_3d(:,:,2) = nitot(:,:,1)
-diag_3d(:,:,3) = qitot(:,:,1)
+diag_3d(:,:,3) = qirim(:,:,1)
 !--
+
+!--- test (for CM1)
+if (freq3DtypeDiag>0. .and. mod(it*dt,freq3DtypeDiag*60.)==0.) then
+
+ do i = its,ite
+  do k = ktop,kbot,-kdir
+    do iice = 1,nCat
+      diag_dhmax(i,k,iice) = maxHailSize(rho(i,k),nitot(i,k,iice),rhofaci(i,k),arr_lami(i,k,iice),arr_mui(i,k,iice))
+    enddo
+  enddo
+ enddo
+
+else
+
+   diag_dhmax(i,k,iice) = -99.
+
+endif
+!---
 
 ! !  compute_type_diags: if (log_typeDiags) then
 ! !
