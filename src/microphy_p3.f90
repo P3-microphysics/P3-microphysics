@@ -20,7 +20,7 @@
 !    Melissa Cholette (melissa.cholette@ec.gc.ca)                                          !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       4.5.1 + BUGFIXES                                                          !
+! Version:       4.5.2                                                                     !
 ! Last updated:  2023-FEB                                                                  !
 !__________________________________________________________________________________________!
 
@@ -134,7 +134,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '4.5.1+bugfixes'
+ character(len=1024), parameter :: version_p3                    = '4.5.2'
  character(len=1024), parameter :: version_intended_table_1_2mom = '5.4_2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '5.4_3momI'
  character(len=1024), parameter :: version_intended_table_2      = '5.3'
@@ -3664,16 +3664,16 @@ END subroutine p3_init
         ! NOTE: must add nicol in line below for combining 3-moment with multi-cat P3
           dumm0(iice) = nitot(i,k,iice) + (-nimlt(iice)-nisub(iice)+nimul(iice)-nislf(iice) )*dt
 
+       enddo iice_loop_z1
+       !====
+       iice_loop_z2: do iice = 1,nCat
+
          !update further due to category interactions:
           do catcoll = 1,nCat
              dumm3(catcoll) = dumm3(catcoll) - qicol(catcoll,iice)*dt
              dumm3(iice)    = dumm3(iice)    + qicol(catcoll,iice)*dt
              dumm0(catcoll) = dumm0(catcoll) - nicol(catcoll,iice)*dt
           enddo ! catcoll loop
-
-       enddo iice_loop_z1
-       !====
-       iice_loop_z2: do iice = 1,nCat
 
           if (dumm3(iice).ge.qsmall) then
 
