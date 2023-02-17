@@ -3593,8 +3593,8 @@
            ptype.eq.60 .or. ptype.eq.61 .or. ptype.eq.62 .or. ptype.eq.63) then
 
         n_out = n_out + 1
-        name_output(n_out) = 'p3_vmi'
-        desc_output(n_out) = 'P3: mean mass weighted ice fallspeed'
+        name_output(n_out) = 'p3_vmi1'
+        desc_output(n_out) = 'P3: mass-weighted mean fallspeed, ice category 1'
         unit_output(n_out) = 'm/s'
         grid_output(n_out) = 's'     ! s=scalar pts (3d) ; u=u pts (3d) ; v=v pts (3d) ; w=w pts (3d) ; 2=2d scalar pts
           !$omp parallel do default(shared)  &
@@ -3610,8 +3610,8 @@
 
 
         n_out = n_out + 1
-        name_output(n_out) = 'p3_di'
-        desc_output(n_out) = 'P3: mean mass weighted ice size'
+        name_output(n_out) = 'p3_di1'
+        desc_output(n_out) = 'P3: mass-weighted mean diameter, ice category 1'
         unit_output(n_out) = 'm'
         grid_output(n_out) = 's'     ! s=scalar pts (3d) ; u=u pts (3d) ; v=v pts (3d) ; w=w pts (3d) ; 2=2d scalar pts
           !$omp parallel do default(shared)  &
@@ -3627,8 +3627,8 @@
 
 
         n_out = n_out + 1
-        name_output(n_out) = 'p3_rhopo'
-        desc_output(n_out) = 'P3: mean mass weighted ice density'
+        name_output(n_out) = 'p3_rhoi1'
+        desc_output(n_out) = 'P3: mean ice density, ice category 1'
         unit_output(n_out) = 'kg/m3'
         grid_output(n_out) = 's'     ! s=scalar pts (3d) ; u=u pts (3d) ; v=v pts (3d) ; w=w pts (3d) ; 2=2d scalar pts
           !$omp parallel do default(shared)  &
@@ -3670,7 +3670,7 @@
 
         n_out = n_out + 1
         name_output(n_out) = 'p3_vmi2'
-        desc_output(n_out) = 'P3: mean mass weighted ice fallspeed, 2nd ice cat.'
+        desc_output(n_out) = 'P3: mass-weighted mean fallspeed, ice category 2'
         unit_output(n_out) = 'm/s'
         grid_output(n_out) = 's'     ! s=scalar pts (3d) ; u=u pts (3d) ; v=v pts (3d) ; w=w pts (3d) ; 2=2d scalar pts
           !$omp parallel do default(shared)  &
@@ -3687,7 +3687,7 @@
 
         n_out = n_out + 1
         name_output(n_out) = 'p3_di2'
-        desc_output(n_out) = 'P3: mean mass weighted ice size, 2nd ice cat.'
+        desc_output(n_out) = 'P3: mass-weighted mean diameter, ice category 2'
         unit_output(n_out) = 'm'
         grid_output(n_out) = 's'     ! s=scalar pts (3d) ; u=u pts (3d) ; v=v pts (3d) ; w=w pts (3d) ; 2=2d scalar pts
           !$omp parallel do default(shared)  &
@@ -3703,8 +3703,8 @@
 
 
         n_out = n_out + 1
-        name_output(n_out) = 'p3_rhopo2'
-        desc_output(n_out) = 'P3: mean mass weighted ice density, 2nd ice cat.'
+        name_output(n_out) = 'p3_rhoi2'
+        desc_output(n_out) = 'P3: mean ice density, ice category 2'
         unit_output(n_out) = 'kg/m3'
         grid_output(n_out) = 's'     ! s=scalar pts (3d) ; u=u pts (3d) ; v=v pts (3d) ; w=w pts (3d) ; 2=2d scalar pts
           !$omp parallel do default(shared)  &
@@ -3748,7 +3748,7 @@
 
         n_out = n_out + 1
         name_output(n_out) = 'p3_vmi3'
-        desc_output(n_out) = 'P3: mean mass weighted ice fallspeed, 3rd ice cat.'
+        desc_output(n_out) = 'P3: mass-weighted mean fallspeed, ice category 3'
         unit_output(n_out) = 'm/s'
         grid_output(n_out) = 's'     ! s=scalar pts (3d) ; u=u pts (3d) ; v=v pts (3d) ; w=w pts (3d) ; 2=2d scalar pts
           !$omp parallel do default(shared)  &
@@ -3765,7 +3765,7 @@
 
         n_out = n_out + 1
         name_output(n_out) = 'p3_di3'
-        desc_output(n_out) = 'P3: mean mass weighted ice size, 3rd ice cat.'
+        desc_output(n_out) = 'P3: mass-weighted mean diameter, ice category 3'
         unit_output(n_out) = 'm'
         grid_output(n_out) = 's'     ! s=scalar pts (3d) ; u=u pts (3d) ; v=v pts (3d) ; w=w pts (3d) ; 2=2d scalar pts
           !$omp parallel do default(shared)  &
@@ -3781,8 +3781,8 @@
 
 
         n_out = n_out + 1
-        name_output(n_out) = 'p3_rhopo3'
-        desc_output(n_out) = 'P3: mean mass weighted ice density, 3rd ice cat.'
+        name_output(n_out) = 'p3_rhoi3'
+        desc_output(n_out) = 'P3: mean ice density, ice category 3'
         unit_output(n_out) = 'kg/m3'
         grid_output(n_out) = 's'     ! s=scalar pts (3d) ; u=u pts (3d) ; v=v pts (3d) ; w=w pts (3d) ; 2=2d scalar pts
           !$omp parallel do default(shared)  &
@@ -3825,7 +3825,7 @@
 
         n_out = n_out + 1
         name_output(n_out) = 'p3_vmi4'
-        desc_output(n_out) = 'P3: mean mass weighted ice fallspeed, 4th ice cat.'
+        desc_output(n_out) = 'P3: mass-weighted mean fallspeed, ice category 4'
         unit_output(n_out) = 'm/s'
         grid_output(n_out) = 's'     ! s=scalar pts (3d) ; u=u pts (3d) ; v=v pts (3d) ; w=w pts (3d) ; 2=2d scalar pts
 
@@ -3843,7 +3843,7 @@
 
         n_out = n_out + 1
         name_output(n_out) = 'p3_di4'
-        desc_output(n_out) = 'P3: mean mass weighted ice size, 4th ice cat.'
+        desc_output(n_out) = 'P3: mass-weighted mean diameter, ice category 4'
         unit_output(n_out) = 'm'
         grid_output(n_out) = 's'     ! s=scalar pts (3d) ; u=u pts (3d) ; v=v pts (3d) ; w=w pts (3d) ; 2=2d scalar pts
 
@@ -3860,8 +3860,8 @@
 
 
         n_out = n_out + 1
-        name_output(n_out) = 'p3_rhopo4'
-        desc_output(n_out) = 'P3: mean mass weighted ice density, 4th ice cat.'
+        name_output(n_out) = 'p3_rhoi4'
+        desc_output(n_out) = 'P3: mean density, ice category 4'
         unit_output(n_out) = 'kg/m3'
         grid_output(n_out) = 's'     ! s=scalar pts (3d) ; u=u pts (3d) ; v=v pts (3d) ; w=w pts (3d) ; 2=2d scalar pts
 
