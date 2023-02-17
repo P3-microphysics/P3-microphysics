@@ -33,7 +33,8 @@
     use lfoice_module, only : lfo_ice_drive,lfoice_init
     use module_mp_graupel , only : mp_graupel
     use module_mp_nssl_2mom, only : nssl_2mom_driver
-    use microphy_p3, only : mp_p3_wrapper_wrf,mp_p3_wrapper_wrf_2cat, mp_p3_wrapper_cm1
+!   use microphy_p3, only : mp_p3_wrapper_wrf,mp_p3_wrapper_wrf_2cat, mp_p3_wrapper_cm1
+    use microphy_p3, only : mp_p3_wrapper_cm1
     use module_mp_jensen_ishmael , only : mp_jensen_ishmael
 
     implicit none
@@ -936,6 +937,14 @@
 !ccc     P3 scheme      cccccccccccccccccccccccccccccccccccccccccccccccc
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
+!-----------------------------------------------------------
+!   To add user-specified diagnostic output fields from P3:
+!      - initialize 'diag3d_04 = ', etc. in mp_p3_wrapper_cm1
+!      - add 'diag3d_04 = p3a(1,1,31)', etc. to argument list of 'call_mp_p3_wrapper_cm1'
+!      - add 'out3d(i,j,k,4) = p3a(i,k,31)' etc. under call to wrapper
+!      - increase value of 'nout3d' (and/or 'nout2d') in 'cm1.F'
+!-----------------------------------------------------------
+
       ELSEIF (ptype.eq.50 .or. ptype.eq.51 .or. ptype.eq.53 .or.ptype.eq.60) THEN
 
          rdt = 1.0/dt
@@ -949,7 +958,7 @@
                thten(i,j,k)    = p3a(i,k, 1)
                qten(i,j,k,nqv) = p3a(i,k, 2)
                p3a(i,k, 3) = q3d(i,j,k,nqc)
-               p3a(i,k, 4) = q3d(i,j,k,nqr)
+               p3a(i,k, 4) = q3d(i,j,k,nqr)   ! qr
                p3a(i,k, 5) = q3d(i,j,k,6)
                p3a(i,k, 6) = th0(i,j,k)+tha(i,j,k)
                p3a(i,k, 7) = qa(i,j,k,nqv)
@@ -957,10 +966,10 @@
                p3a(i,k, 9) = prs(i,j,k)
                p3a(i,k,10) = dz*rmh(i,j,k)
                p3a(i,k,11) = 0.5*(w3d(i,j,k)+w3d(i,j,k+1))
-               p3a(i,k,18) = q3d(i,j,k,nqi)
-               p3a(i,k,19) = q3d(i,j,k,5)
-               p3a(i,k,20) = q3d(i,j,k,7)
-               p3a(i,k,21) = q3d(i,j,k,8)
+               p3a(i,k,18) = q3d(i,j,k,nqi)   ! qi1_3d
+               p3a(i,k,19) = q3d(i,j,k,5)     ! qni1_3d
+               p3a(i,k,20) = q3d(i,j,k,7)     ! qir1_3d
+               p3a(i,k,21) = q3d(i,j,k,8)     ! qib1_3d
             enddo
             enddo
 
@@ -970,38 +979,58 @@
 
             ptype_50_51_53_60: if (ptype.eq.50) then
 
-               call mp_p3_wrapper_wrf( th_3d=p3a(1,1,1),  &
-                               qv_3d=p3a(1,1,2),  &
-                               qc_3d=p3a(1,1,3),  &
-                               qr_3d=p3a(1,1,4),  &
-                               qnr_3d=p3a(1,1,5),                            &
-                              th_old_3d=p3a(1,1,6),  &
-                              qv_old_3d=p3a(1,1,7),                                       &
-                              pii=p3a(1,1,8),  &
-                              p=p3a(1,1,9),  &
-                              dz=p3a(1,1,10),  &
-                              w=p3a(1,1,11),    &
-                              dt=dt,  &
-                              itimestep=nstep,                                   &
-                              rainnc=p3a(1,1,22),    &
-                              rainncv=dum1(ib,jb,2),  &
-                              sr=dum1(ib,jb,3),  &
-                              snownc=dum1(ib,jb,4),  &
-                              snowncv=dum1(ib,jb,5),  &
-                              n_iceCat=1,                 &
-                              ids=1, ide=ni, jds=1, jde=1, kds=1, kde=nk ,                             &
-                              ims=1, ime=ni, jms=1, jme=1, kms=1, kme=nk ,                             &
-                              its=1, ite=ni, jts=1, jte=1, kts=1, kte=nk ,                             &
-                              diag_zdbz_3d=p3a(1,1,12),  &
-                              diag_effc_3d=p3a(1,1,13),  &
-                              diag_effi_3d=p3a(1,1,14),                    &
-                              diag_vmi_3d=p3a(1,1,15),  &
-                              diag_di_3d=p3a(1,1,16),  &
-                              diag_rhopo_3d=p3a(1,1,17),                      &
-                              qi1_3d=p3a(1,1,18),  &
-                              qni1_3d=p3a(1,1,19),  &
-                              qir1_3d=p3a(1,1,20),  &
-                              qib1_3d=p3a(1,1,21))
+               call mp_p3_wrapper_cm1( th    = p3a(1,1,1),                   &
+                               qv            = p3a(1,1,2),                   &
+                               qc            = p3a(1,1,3),                   &
+                               qr            = p3a(1,1,4),                   &
+                               qnr           = p3a(1,1,5),                   &
+                               th_old        = p3a(1,1,6),                   &
+                               qv_old        = p3a(1,1,7),                   &
+                               pii           = p3a(1,1,8),                   &
+                               p             = p3a(1,1,9),                   &
+                               dz            = p3a(1,1,10),                  &
+                               w             = p3a(1,1,11),                  &
+                               dt            = dt,                           &
+                               itimestep     = nstep,                        &
+                               rainnc        = p3a(1,1,22),                  &
+                               rainncv       = dum1(ib,jb,2),                &
+                               sr            = dum1(ib,jb,3),                &
+                               snownc        = dum1(ib,jb,4),                &
+                               snowncv       = dum1(ib,jb,5),                &
+                               ids=1, ide=ni, jds=1, jde=1, kds=1, kde=nk ,  &
+                               ims=1, ime=ni, jms=1, jme=1, kms=1, kme=nk ,  &
+                               its=1, ite=ni, jts=1, jte=1, kts=1, kte=nk ,  &
+                               diag_zdbz     = p3a(1,1,12),                  &
+                               diag_effc     = p3a(1,1,13),                  &
+                               diag_effi_ave = p3a(1,1,14),                  &
+                               n_iceCat      = 1,                            &
+                               diag_vmi_1    = p3a(1,1,15),                  &
+                               diag_dmi_1    = p3a(1,1,16),                  &
+                               diag_rhoi_1   = p3a(1,1,17),                  &
+                               qit_1         = p3a(1,1,18),                  &
+                               qni_1         = p3a(1,1,19),                  &
+                               qir_1         = p3a(1,1,20),                  &
+                               qib_1         = p3a(1,1,21),                  &
+                               diag_dhmax_1  = p3a(1,1,23),                  &
+                               diag2d_01     = p3a(1,1,24),                  &
+                               diag2d_02     = p3a(1,1,25),                  &
+                               diag3d_01     = p3a(1,1,26),                  &
+                               diag3d_02     = p3a(1,1,27),                  &
+                               diag3d_03     = p3a(1,1,28) )
+
+             ! user-specified diagnostic output
+               do i=1,ni
+                  out2d(i,j,1) = p3a(i,1,24)
+                  out2d(i,j,2) = p3a(i,1,25)
+               enddo
+               do k=1,nk
+               do i=1,ni
+                  out3d(i,j,k,1) = p3a(i,k,26)
+                  out3d(i,j,k,2) = p3a(i,k,27)
+                  out3d(i,j,k,3) = p3a(i,k,28)
+               enddo
+               enddo
+
 
             elseif (ptype.eq.51) then
 
@@ -1011,43 +1040,62 @@
                enddo
                enddo
 
-               call mp_p3_wrapper_wrf( th_3d=p3a(1,1,1),  &
-                               qv_3d=p3a(1,1,2),  &
-                               qc_3d=p3a(1,1,3),  &
-                               qr_3d=p3a(1,1,4),  &
-                               qnr_3d=p3a(1,1,5),                            &
-                              th_old_3d=p3a(1,1,6),  &
-                              qv_old_3d=p3a(1,1,7),                                       &
-                              pii=p3a(1,1,8),  &
-                              p=p3a(1,1,9),  &
-                              dz=p3a(1,1,10),  &
-                              w=p3a(1,1,11),    &
-                              dt=dt,  &
-                              itimestep=nstep,                                   &
-                              rainnc=p3a(1,1,22),    &
-                              rainncv=dum1(ib,jb,2),  &
-                              sr=dum1(ib,jb,3),  &
-                              snownc=dum1(ib,jb,4),  &
-                              snowncv=dum1(ib,jb,5),  &
-                              n_iceCat=1,                 &
-                              ids=1, ide=ni, jds=1, jde=1, kds=1, kde=nk ,                             &
-                              ims=1, ime=ni, jms=1, jme=1, kms=1, kme=nk ,                             &
-                              its=1, ite=ni, jts=1, jte=1, kts=1, kte=nk ,                             &
-                              diag_zdbz_3d=p3a(1,1,12),  &
-                              diag_effc_3d=p3a(1,1,13),  &
-                              diag_effi_3d=p3a(1,1,14),                    &
-                              diag_vmi_3d=p3a(1,1,15),  &
-                              diag_di_3d=p3a(1,1,16),  &
-                              diag_rhopo_3d=p3a(1,1,17),                      &
-                              qi1_3d=p3a(1,1,18),  &
-                              qni1_3d=p3a(1,1,19),  &
-                              qir1_3d=p3a(1,1,20),  &
-                              qib1_3d=p3a(1,1,21), &
-                              nc_3d=p3a(1,1,23))
+               call mp_p3_wrapper_cm1( th    = p3a(1,1,1),                   &
+                               qv            = p3a(1,1,2),                   &
+                               qc            = p3a(1,1,3),                   &
+                               qr            = p3a(1,1,4),                   &
+                               qnr           = p3a(1,1,5),                   &
+                               th_old        = p3a(1,1,6),                   &
+                               qv_old        = p3a(1,1,7),                   &
+                               pii           = p3a(1,1,8),                   &
+                               p             = p3a(1,1,9),                   &
+                               dz            = p3a(1,1,10),                  &
+                               w             = p3a(1,1,11),                  &
+                               dt            = dt,                           &
+                               itimestep     = nstep,                        &
+                               rainnc        = p3a(1,1,22),                  &
+                               rainncv       = dum1(ib,jb,2),                &
+                               sr            = dum1(ib,jb,3),                &
+                               snownc        = dum1(ib,jb,4),                &
+                               snowncv       = dum1(ib,jb,5),                &
+                               ids=1, ide=ni, jds=1, jde=1, kds=1, kde=nk ,  &
+                               ims=1, ime=ni, jms=1, jme=1, kms=1, kme=nk ,  &
+                               its=1, ite=ni, jts=1, jte=1, kts=1, kte=nk ,  &
+                               diag_zdbz     = p3a(1,1,12),                  &
+                               diag_effc     = p3a(1,1,13),                  &
+                               diag_effi_ave = p3a(1,1,14),                  &
+                               n_iceCat      = 1,                            &
+                               diag_vmi_1    = p3a(1,1,15),                  &
+                               diag_dmi_1    = p3a(1,1,16),                  &
+                               diag_rhoi_1   = p3a(1,1,17),                  &
+                               qit_1         = p3a(1,1,18),                  &
+                               qni_1         = p3a(1,1,19),                  &
+                               qir_1         = p3a(1,1,20),                  &
+                               qib_1         = p3a(1,1,21),                  &
+                               nc            = p3a(1,1,23),                  &
+                               diag_dhmax_1  = p3a(1,1,24),                  &
+                               diag2d_01     = p3a(1,1,25),                  &
+                               diag2d_02     = p3a(1,1,26),                  &
+                               diag3d_01     = p3a(1,1,27),                  &
+                               diag3d_02     = p3a(1,1,28),                  &
+                               diag3d_03     = p3a(1,1,29) )
 
                do k=1,nk
                do i=1,ni
                   q3d(i,j,k,9) = p3a(i,k,23)
+               enddo
+               enddo
+
+             ! user-specified diagnostic output
+               do i=1,ni
+                  out2d(i,j,1) = p3a(i,1,25)
+                  out2d(i,j,2) = p3a(i,1,26)
+               enddo
+               do k=1,nk
+               do i=1,ni
+                  out3d(i,j,k,1) = p3a(i,k,27)
+                  out3d(i,j,k,2) = p3a(i,k,28)
+                  out3d(i,j,k,3) = p3a(i,k,29)
                enddo
                enddo
 
@@ -1060,34 +1108,31 @@
                enddo
                enddo
 
-               call mp_p3_wrapper_cm1( th = p3a(1,1,1),                      &
-                               qv      = p3a(1,1,2),                         &
-                               qc      = p3a(1,1,3),                         &
-                               qr      = p3a(1,1,4),                         &
-                               qnr     = p3a(1,1,5),                         &
-                               th_old  = p3a(1,1,6),                         &
-                               qv_old  = p3a(1,1,7),                         &
-                               pii     = p3a(1,1,8),                         &
-                               p       = p3a(1,1,9),                         &
-                               dz      = p3a(1,1,10),                        &
-                               w       = p3a(1,1,11),                        &
-                               dt      = dt,                                 &
-                               itimestep = nstep,                            &
-                               rainnc  = p3a(1,1,22),                        &
-                               rainncv = dum1(ib,jb,2),                      &
-                               sr      = dum1(ib,jb,3),                      &
-                               snownc  = dum1(ib,jb,4),                      &
-
-                               snowncv = dum1(ib,jb,5),                      &
+               call mp_p3_wrapper_cm1( th    = p3a(1,1,1),                   &
+                               qv            = p3a(1,1,2),                   &
+                               qc            = p3a(1,1,3),                   &
+                               qr            = p3a(1,1,4),                   &
+                               qnr           = p3a(1,1,5),                   &
+                               th_old        = p3a(1,1,6),                   &
+                               qv_old        = p3a(1,1,7),                   &
+                               pii           = p3a(1,1,8),                   &
+                               p             = p3a(1,1,9),                   &
+                               dz            = p3a(1,1,10),                  &
+                               w             = p3a(1,1,11),                  &
+                               dt            = dt,                           &
+                               itimestep     = nstep,                        &
+                               rainnc        = p3a(1,1,22),                  &
+                               rainncv       = dum1(ib,jb,2),                &
+                               sr            = dum1(ib,jb,3),                &
+                               snownc        = dum1(ib,jb,4),                &
+                               snowncv       = dum1(ib,jb,5),                &
                                ids=1, ide=ni, jds=1, jde=1, kds=1, kde=nk ,  &
                                ims=1, ime=ni, jms=1, jme=1, kms=1, kme=nk ,  &
                                its=1, ite=ni, jts=1, jte=1, kts=1, kte=nk ,  &
-
                                diag_zdbz     = p3a(1,1,12),                  &
                                diag_effc     = p3a(1,1,13),                  &
                                diag_effi_ave = p3a(1,1,14),                  &
-                               n_iceCat      = 1 ,                           &
-
+                               n_iceCat      = 1,                            &
                                diag_vmi_1    = p3a(1,1,15),                  &
                                diag_dmi_1    = p3a(1,1,16),                  &
                                diag_rhoi_1   = p3a(1,1,17),                  &
@@ -1095,10 +1140,8 @@
                                qni_1         = p3a(1,1,19),                  &
                                qir_1         = p3a(1,1,20),                  &
                                qib_1         = p3a(1,1,21),                  &
-
                                nc            = p3a(1,1,23),                  &
                                qzi_1         = p3a(1,1,24),                  &
-
                                diag_dhmax_1  = p3a(1,1,25),                  &
                                diag2d_01     = p3a(1,1,26),                  &
                                diag2d_02     = p3a(1,1,27),                  &
@@ -1108,17 +1151,12 @@
 
                do k=1,nk
                do i=1,ni
-                  q3d(i,j,k, 9) = p3a(i,k,23)
-                  q3d(i,j,k,10) = p3a(i,k,24)
+                  q3d(i,j,k, 9) = p3a(i,k,23)   ! nc
+                  q3d(i,j,k,10) = p3a(i,k,24)   ! qzi_1
                enddo
                enddo
 
-! to add generic output,
-! uncomment lines below, add p3a to p3 wrapper call statement above
-! that links to array of the desired output quantity
-! note that np3a needs to be changed accordingly in param.F
-! and nout3d needs to be changed accordingly in cm1.F
-! to set the number of output variables for out3d
+            ! user-specified diagnostic output
                do i=1,ni
                   out2d(i,j,1) = p3a(i,1,26)
                   out2d(i,j,2) = p3a(i,1,27)
@@ -1142,34 +1180,31 @@
                enddo
                enddo
 
-               call mp_p3_wrapper_cm1( th = p3a(1,1,1),                      &
-                               qv      = p3a(1,1,2),                         &
-                               qc      = p3a(1,1,3),                         &
-                               qr      = p3a(1,1,4),                         &
-                               qnr     = p3a(1,1,5),                         &
-                               th_old  = p3a(1,1,6),                         &
-                               qv_old  = p3a(1,1,7),                         &
-                               pii     = p3a(1,1,8),                         &
-                               p       = p3a(1,1,9),                         &
-                               dz      = p3a(1,1,10),                        &
-                               w       = p3a(1,1,11),                        &
-                               dt      = dt,                                 &
-                               itimestep = nstep,                            &
-                               rainnc  = p3a(1,1,22),                        &
-                               rainncv = dum1(ib,jb,2),                      &
-                               sr      = dum1(ib,jb,3),                      &
-                               snownc  = dum1(ib,jb,4),                      &
-
-                               snowncv = dum1(ib,jb,5),                      &
+               call mp_p3_wrapper_cm1( th    = p3a(1,1,1),                   &
+                               qv            = p3a(1,1,2),                   &
+                               qc            = p3a(1,1,3),                   &
+                               qr            = p3a(1,1,4),                   &
+                               qnr           = p3a(1,1,5),                   &
+                               th_old        = p3a(1,1,6),                   &
+                               qv_old        = p3a(1,1,7),                   &
+                               pii           = p3a(1,1,8),                   &
+                               p             = p3a(1,1,9),                   &
+                               dz            = p3a(1,1,10),                  &
+                               w             = p3a(1,1,11),                  &
+                               dt            = dt,                           &
+                               itimestep     = nstep,                        &
+                               rainnc        = p3a(1,1,22),                  &
+                               rainncv       = dum1(ib,jb,2),                &
+                               sr            = dum1(ib,jb,3),                &
+                               snownc        = dum1(ib,jb,4),                &
+                               snowncv       = dum1(ib,jb,5),                &
                                ids=1, ide=ni, jds=1, jde=1, kds=1, kde=nk ,  &
                                ims=1, ime=ni, jms=1, jme=1, kms=1, kme=nk ,  &
                                its=1, ite=ni, jts=1, jte=1, kts=1, kte=nk ,  &
-
                                diag_zdbz     = p3a(1,1,12),                  &
                                diag_effc     = p3a(1,1,13),                  &
                                diag_effi_ave = p3a(1,1,14),                  &
-                               n_iceCat      = 1 ,                           &
-
+                               n_iceCat      = 1,                            &
                                diag_vmi_1    = p3a(1,1,15),                  &
                                diag_dmi_1    = p3a(1,1,16),                  &
                                diag_rhoi_1   = p3a(1,1,17),                  &
@@ -1177,34 +1212,25 @@
                                qni_1         = p3a(1,1,19),                  &
                                qir_1         = p3a(1,1,20),                  &
                                qib_1         = p3a(1,1,21),                  &
-
                                nc            = p3a(1,1,23),                  &
                                qzi_1         = p3a(1,1,24),                  &
                                qli_1         = p3a(1,1,25),                  &
-
                                diag_dhmax_1  = p3a(1,1,26),                  &
-
                                diag2d_01     = p3a(1,1,27),                  &
                                diag2d_02     = p3a(1,1,28),                  &
                                diag3d_01     = p3a(1,1,29),                  &
                                diag3d_02     = p3a(1,1,30),                  &
                                diag3d_03     = p3a(1,1,31) )
 
-
                do k=1,nk
                do i=1,ni
-                  q3d(i,j,k, 9) = p3a(i,k,23)
-                  q3d(i,j,k,10) = p3a(i,k,24)
-                  q3d(i,j,k,11) = p3a(i,k,25)
+                  q3d(i,j,k, 9) = p3a(i,k,23)   ! nc
+                  q3d(i,j,k,10) = p3a(i,k,24)   ! qzi_1
+                  q3d(i,j,k,11) = p3a(i,k,25)   ! qli_1
                enddo
                enddo
 
-! to add generic output,
-! uncomment lines below, add p3a to p3 wrapper call statement above
-! that links to array of the desired output quantity
-! note that np3a needs to be changed accordingly in param.F
-! and nout3d needs to be changed accordingly in cm1.F
-! to set the number of output variables for out3d
+            ! user-specified diagnostic output
                do i=1,ni
                   out2d(i,j,1) = p3a(i,1,27)
                   out2d(i,j,1) = p3a(i,1,28)
@@ -1249,14 +1275,14 @@
                   pp3d(i,j,k)=pp3d(i,j,k)-pi0(i,j,k)
                   th3d(i,j,k)=th3d(i,j,k)+(p3a(i,k,1)-thten(i,j,k))
                endif
-               q3d(i,j,k,nqv) = p3a(i,k, 2)
-               q3d(i,j,k,nqc) = p3a(i,k, 3)
-               q3d(i,j,k,nqr) = p3a(i,k, 4)
-               q3d(i,j,k, 6 ) = p3a(i,k, 5)
-               q3d(i,j,k,nqi) = p3a(i,k,18)
-               q3d(i,j,k, 5 ) = p3a(i,k,19)
-               q3d(i,j,k, 7 ) = p3a(i,k,20)
-               q3d(i,j,k, 8 ) = p3a(i,k,21)
+               q3d(i,j,k,nqv) = p3a(i,k, 2)   ! qv
+               q3d(i,j,k,nqc) = p3a(i,k, 3)   ! qc
+               q3d(i,j,k,nqr) = p3a(i,k, 4)   ! qr
+               q3d(i,j,k, 6 ) = p3a(i,k, 5)   ! qnr
+               q3d(i,j,k,nqi) = p3a(i,k,18)   ! qit_1
+               q3d(i,j,k, 5 ) = p3a(i,k,19)   ! qni_1
+               q3d(i,j,k, 7 ) = p3a(i,k,20)   ! qir_1
+               q3d(i,j,k, 8 ) = p3a(i,k,21)   ! qib_1
             enddo
             enddo
 
@@ -1278,7 +1304,9 @@
             ENDIF
 
             IF (dowriteout .or. getdbz) THEN
-               ind_dhmax = 25  !placeholder for ptype 50,51
+               ind_dhmax = -99
+               if (ptype.eq.50) ind_dhmax = 23
+               if (ptype.eq.51) ind_dhmax = 24
                if (ptype.eq.53) ind_dhmax = 25
                if (ptype.eq.60) ind_dhmax = 26
                do k=1,nk
@@ -1336,46 +1364,53 @@
                p3a(i,1,22) = 0.0
             enddo
 
-            call mp_p3_wrapper_wrf_2cat( th_3d=p3a(1,1,1),  &
-                               qv_3d=p3a(1,1,2),  &
-                               qc_3d=p3a(1,1,3),  &
-                               qr_3d=p3a(1,1,4),  &
-                               qnr_3d=p3a(1,1,5),                            &
-                              th_old_3d=p3a(1,1,6),  &
-                              qv_old_3d=p3a(1,1,7),                                       &
-                              pii=p3a(1,1,8),  &
-                              p=p3a(1,1,9),  &
-                              dz=p3a(1,1,10),  &
-                              w=p3a(1,1,11),    &
-                              dt=dt,  &
-                              itimestep=nstep,                                   &
-                              rainnc=p3a(1,1,22),    &
-                              rainncv=dum1(ib,jb,2),  &
-                              sr=dum1(ib,jb,3),  &
-                              snownc=dum1(ib,jb,4),  &
-                              snowncv=dum1(ib,jb,5),  &
-                              n_iceCat=2,                 &
-                              ids=1, ide=ni, jds=1, jde=1, kds=1, kde=nk ,             &
-                              ims=1, ime=ni, jms=1, jme=1, kms=1, kme=nk ,             &
-                              its=1, ite=ni, jts=1, jte=1, kts=1, kte=nk ,             &
-                              diag_zdbz_3d=p3a(1,1,12),  &
-                              diag_effc_3d=p3a(1,1,13),  &
-                              diag_effi_3d=p3a(1,1,14),                    &
-                              diag_vmi_3d=p3a(1,1,15),  &
-                              diag_di_3d=p3a(1,1,16),  &
-                              diag_rhopo_3d=p3a(1,1,17),                      &
-                              qi1_3d=p3a(1,1,18),  &
-                              qni1_3d=p3a(1,1,19),  &
-                              qir1_3d=p3a(1,1,20),  &
-                              qib1_3d=p3a(1,1,21),  &
-                     QI2_3d=p3a(1,1,23),                  &
-                     QIR2_3d=p3a(1,1,24),                  &
-                     QNI2_3d=p3a(1,1,25),                 &
-                     QIB2_3d=p3a(1,1,26),               &
-                     nc_3d=p3a(1,1,27),                     &
-                  diag_vmi2_3d=p3a(1,1,28),                                  &
-                  diag_di2_3d=p3a(1,1,29),                                   &
-                  diag_rhopo2_3d=p3a(1,1,30) )
+            call mp_p3_wrapper_cm1( th       = p3a(1,1,1),                   &
+                               qv            = p3a(1,1,2),                   &
+                               qc            = p3a(1,1,3),                   &
+                               qr            = p3a(1,1,4),                   &
+                               qnr           = p3a(1,1,5),                   &
+                               th_old        = p3a(1,1,6),                   &
+                               qv_old        = p3a(1,1,7),                   &
+                               pii           = p3a(1,1,8),                   &
+                               p             = p3a(1,1,9),                   &
+                               dz            = p3a(1,1,10),                  &
+                               w             = p3a(1,1,11),                  &
+                               dt            = dt,                           &
+                               itimestep     = nstep,                        &
+                               rainnc        = p3a(1,1,22),                  &
+                               rainncv       = dum1(ib,jb,2),                &
+                               sr            = dum1(ib,jb,3),                &
+                               snownc        = dum1(ib,jb,4),                &
+                               snowncv       = dum1(ib,jb,5),                &
+                               ids=1, ide=ni, jds=1, jde=1, kds=1, kde=nk ,  &
+                               ims=1, ime=ni, jms=1, jme=1, kms=1, kme=nk ,  &
+                               its=1, ite=ni, jts=1, jte=1, kts=1, kte=nk ,  &
+                               diag_zdbz     = p3a(1,1,12),                  &
+                               diag_effc     = p3a(1,1,13),                  &
+                               diag_effi_ave = p3a(1,1,14),                  &
+                               n_iceCat      = 2,                            &
+                               qit_1         = p3a(1,1,18),                  &
+                               qni_1         = p3a(1,1,19),                  &
+                               qir_1         = p3a(1,1,20),                  &
+                               qib_1         = p3a(1,1,21),                  &
+                               diag_vmi_1    = p3a(1,1,15),                  &
+                               diag_dmi_1    = p3a(1,1,16),                  &
+                               diag_rhoi_1   = p3a(1,1,17),                  &
+                               nc            = p3a(1,1,27),                  &
+                               qit_2         = p3a(1,1,23),                  &
+                               qir_2         = p3a(1,1,24),                  &
+                               qni_2         = p3a(1,1,25),                  &
+                               qib_2         = p3a(1,1,26),                  &
+                               diag_vmi_2    = p3a(1,1,28),                  &
+                               diag_dmi_2    = p3a(1,1,29),                  &
+                               diag_rhoi_2   = p3a(1,1,30),                  &
+                               diag_dhmax_1  = p3a(1,1,31),                  &
+                               diag_dhmax_2  = p3a(1,1,32),                  &
+                               diag2d_01     = p3a(1,1,33),                  &
+                               diag2d_02     = p3a(1,1,34),                  &
+                               diag3d_01     = p3a(1,1,35),                  &
+                               diag3d_02     = p3a(1,1,36),                  &
+                               diag3d_03     = p3a(1,1,37) )
 
             if( axisymm.eq.1 )then
                do i=1,ni
@@ -1441,21 +1476,30 @@
             IF( dowriteout .or. getdbz )THEN
                do k=1,nk
                do i=1,ni
-                  p3o(i,j,k,1) = p3a(i,k,15)
-                  p3o(i,j,k,2) = p3a(i,k,16)
-                  p3o(i,j,k,3) = p3a(i,k,17)
+                  p3o(i,j,k,1) = p3a(i,k,15)   ! vmi_1
+                  p3o(i,j,k,2) = p3a(i,k,16)   ! dmi_1
+                  p3o(i,j,k,3) = p3a(i,k,17)   ! rhoi_1
+                  p3o(i,j,k,4) = p3a(i,k,31)   ! dhmax_1
+                  p3o(i,j,k,5) = p3a(i,k,28)   !  _2
+                  p3o(i,j,k,6) = p3a(i,k,29)   !  _2
+                  p3o(i,j,k,7) = p3a(i,k,30)   !  _2
+                  p3o(i,j,k,8) = p3a(i,k,32)   !  _2
                enddo
                enddo
-               if( ptype.eq.52 )then
-                  do k=1,nk
-                  do i=1,ni
-                     p3o(i,j,k,4) = p3a(i,k,28)
-                     p3o(i,j,k,5) = p3a(i,k,29)
-                     p3o(i,j,k,6) = p3a(i,k,30)
-                  enddo
-                  enddo
-               endif
             ENDIF
+
+          ! user-specified diagnostic output
+            do i=1,ni
+               out2d(i,j,1) = p3a(i,1,33)
+               out2d(i,j,2) = p3a(i,1,34)
+            enddo
+            do k=1,nk
+            do i=1,ni
+               out3d(i,j,k,1) = p3a(i,k,35)
+               out3d(i,j,k,2) = p3a(i,k,36)
+               out3d(i,j,k,3) = p3a(i,k,37)
+            enddo
+            enddo
 
          ENDDO  p3_jloop2
 
@@ -1504,82 +1548,31 @@
               p3a(i,1,22) = 0.0
             enddo
 
-!        call mp_p3_wrapper_wrf_2cat( th_3d=p3a(1,1,1),  &
-!                                qv_3d=p3a(1,1,2),  &
-!                                qc_3d=p3a(1,1,3),  &
-!                                qr_3d=p3a(1,1,4),  &
-!                                qnr_3d=p3a(1,1,5),                            &
-!                               th_old_3d=p3a(1,1,6),  &
-!                               qv_old_3d=p3a(1,1,7),                                       &
-!                               pii=p3a(1,1,8),  &
-!                               p=p3a(1,1,9),  &
-!                               dz=p3a(1,1,10),  &
-!                               w=p3a(1,1,11),    &
-!                               dt=dt,  &
-!                               itimestep=nstep,                                   &
-!                               rainnc=p3a(1,1,22),    &
-!                               rainncv=dum1(ib,jb,2),  &
-!                               sr=dum1(ib,jb,3),  &
-!                               snownc=dum1(ib,jb,4),  &
-!                               snowncv=dum1(ib,jb,5),  &
-!                               n_iceCat=2,                 &
-!                               ids=1, ide=ni, jds=1, jde=1, kds=1, kde=nk ,             &
-!                               ims=1, ime=ni, jms=1, jme=1, kms=1, kme=nk ,             &
-!                               its=1, ite=ni, jts=1, jte=1, kts=1, kte=nk ,             &
-!                               diag_zdbz_3d=p3a(1,1,12),  &
-!                               diag_effc_3d=p3a(1,1,13),  &
-!                               diag_effi_3d=p3a(1,1,14),                    &
-!                               diag_vmi_3d=p3a(1,1,15),  &
-!                               diag_di_3d=p3a(1,1,16),  &
-!                               diag_rhopo_3d=p3a(1,1,17),                      &
-!                               qi1_3d=p3a(1,1,18),  &
-!                               qni1_3d=p3a(1,1,19),  &
-!                               qir1_3d=p3a(1,1,20),  &
-!                               qib1_3d=p3a(1,1,21),  &
-!                      QI2_3d=p3a(1,1,23),                  &
-!                      QIR2_3d=p3a(1,1,24),                  &
-!                      QNI2_3d=p3a(1,1,25),                 &
-!                      QIB2_3d=p3a(1,1,26),               &
-!                      nc_3d=p3a(1,1,27),                     &
-!                   diag_vmi2_3d=p3a(1,1,28),                                  &
-!                   diag_di2_3d=p3a(1,1,29),                                   &
-!                   diag_rhopo2_3d=p3a(1,1,30),          &
-!                   qzi1_3d=p3a(1,1,31),                 &
-!                   qzi2_3d=p3a(1,1,32),  &
-! ! to add generic 3D output variable
-!                   diag3d_01=p3a(1,1,33),      &
-!                   diag3d_02=p3a(1,1,34),      &
-!                   diag3d_03=p3a(1,1,35),      &
-!                   diag2d_01=p3a(1,1,36))
-
-            call mp_p3_wrapper_cm1( th = p3a(1,1,1),                         &
-                               qv      = p3a(1,1,2),                         &
-                               qc      = p3a(1,1,3),                         &
-                               qr      = p3a(1,1,4),                         &
-                               qnr     = p3a(1,1,5),                         &
-                               th_old  = p3a(1,1,6),                         &
-                               qv_old  = p3a(1,1,7),                         &
-                               pii     = p3a(1,1,8),                         &
-                               p       = p3a(1,1,9),                         &
-                               dz      = p3a(1,1,10),                        &
-                               w       = p3a(1,1,11),                        &
-                               dt      = dt,                                 &
-                               itimestep = nstep,                            &
-                               rainnc  = p3a(1,1,22),                        &
-                               rainncv = dum1(ib,jb,2),                      &
-                               sr      = dum1(ib,jb,3),                      &
-                               snownc  = dum1(ib,jb,4),                      &
-
-                               snowncv = dum1(ib,jb,5),                      &
+            call mp_p3_wrapper_cm1( th       = p3a(1,1,1),                   &
+                               qv            = p3a(1,1,2),                   &
+                               qc            = p3a(1,1,3),                   &
+                               qr            = p3a(1,1,4),                   &
+                               qnr           = p3a(1,1,5),                   &
+                               th_old        = p3a(1,1,6),                   &
+                               qv_old        = p3a(1,1,7),                   &
+                               pii           = p3a(1,1,8),                   &
+                               p             = p3a(1,1,9),                   &
+                               dz            = p3a(1,1,10),                  &
+                               w             = p3a(1,1,11),                  &
+                               dt            = dt,                           &
+                               itimestep     = nstep,                        &
+                               rainnc        = p3a(1,1,22),                  &
+                               rainncv       = dum1(ib,jb,2),                &
+                               sr            = dum1(ib,jb,3),                &
+                               snownc        = dum1(ib,jb,4),                &
+                               snowncv       = dum1(ib,jb,5),                &
                                ids=1, ide=ni, jds=1, jde=1, kds=1, kde=nk ,  &
                                ims=1, ime=ni, jms=1, jme=1, kms=1, kme=nk ,  &
                                its=1, ite=ni, jts=1, jte=1, kts=1, kte=nk ,  &
-
                                diag_zdbz     = p3a(1,1,12),                  &
                                diag_effc     = p3a(1,1,13),                  &
                                diag_effi_ave = p3a(1,1,14),                  &
-                               n_iceCat      = 2 ,                           &
-
+                               n_iceCat      = 2,                            &
                                qit_1         = p3a(1,1,18),                  &
                                qni_1         = p3a(1,1,19),                  &
                                qir_1         = p3a(1,1,20),                  &
@@ -1587,8 +1580,8 @@
                                diag_vmi_1    = p3a(1,1,15),                  &
                                diag_dmi_1    = p3a(1,1,16),                  &
                                diag_rhoi_1   = p3a(1,1,17),                  &
-                               qzi_1         = p3a(1,1,31),                  &  !optional arguments start here
-
+                               qzi_1         = p3a(1,1,31),                  &
+                               nc            = p3a(1,1,27),                  &
                                qit_2         = p3a(1,1,23),                  &
                                qir_2         = p3a(1,1,24),                  &
                                qni_2         = p3a(1,1,25),                  &
@@ -1597,14 +1590,13 @@
                                diag_vmi_2    = p3a(1,1,28),                  &
                                diag_dmi_2    = p3a(1,1,29),                  &
                                diag_rhoi_2   = p3a(1,1,30),                  &
-
-                               nc            = p3a(1,1,27),                  &
-! to add generic 3D output variable
-                               diag2d_01     = p3a(1,1,33),                  &
-                               diag2d_02     = p3a(1,1,34),                  &
-                               diag3d_01     = p3a(1,1,35),                  &
-                               diag3d_02     = p3a(1,1,36),                  &
-                               diag3d_03     = p3a(1,1,37) )
+                               diag_dhmax_1  = p3a(1,1,33),                  &
+                               diag_dhmax_2  = p3a(1,1,34),                  &
+                               diag2d_01     = p3a(1,1,35),                  &
+                               diag2d_02     = p3a(1,1,36),                  &
+                               diag3d_01     = p3a(1,1,37),                  &
+                               diag3d_02     = p3a(1,1,38),                  &
+                               diag3d_03     = p3a(1,1,39) )
 
             if( axisymm.eq.1 )then
                do i=1,ni
@@ -1672,40 +1664,30 @@
             IF( dowriteout .or. getdbz )THEN
                do k=1,nk
                do i=1,ni
-                  p3o(i,j,k,1) = p3a(i,k,15)
-                  p3o(i,j,k,2) = p3a(i,k,16)
-                  p3o(i,j,k,3) = p3a(i,k,17)
+                  p3o(i,j,k,1) = p3a(i,k,15)   ! vmi_1
+                  p3o(i,j,k,2) = p3a(i,k,16)   ! dmi_1
+                  p3o(i,j,k,3) = p3a(i,k,17)   ! rhoi_1
+                  p3o(i,j,k,4) = p3a(i,k,33)   ! dhmax_1
+                  p3o(i,j,k,5) = p3a(i,k,28)   !   _2
+                  p3o(i,j,k,6) = p3a(i,k,29)   !   _2
+                  p3o(i,j,k,7) = p3a(i,k,30)   !   _2
+                  p3o(i,j,k,8) = p3a(i,k,34)   !   _2
                enddo
                enddo
-               if( ptype.eq.54 )then
-                  do k=1,nk
-                  do i=1,ni
-                     p3o(i,j,k,4) = p3a(i,k,28)
-                     p3o(i,j,k,5) = p3a(i,k,29)
-                     p3o(i,j,k,6) = p3a(i,k,30)
-                  enddo
-                  enddo
-               endif
             ENDIF
 
-! to add generic output,
-! uncomment lines below, add p3a to p3 wrapper call statement above
-! that links to array of the desired output quantity
-! note that np3a needs to be changed accordingly in param.F
-! and nout3d needs to be changed accordingly in cm1.F
-! to set the number of output variables for out3d
+          ! user-specified diagnostic output
             do i=1,ni
-               out2d(i,j,1) = p3a(i,1,33)
-               out2d(i,j,1) = p3a(i,1,34)
+               out2d(i,j,1) = p3a(i,1,35)
+               out2d(i,j,1) = p3a(i,1,36)
             enddo
             do k=1,nk
             do i=1,ni
-               out3d(i,j,k,1) = p3a(i,k,35)
-               out3d(i,j,k,2) = p3a(i,k,36)
-               out3d(i,j,k,3) = p3a(i,k,37)
+               out3d(i,j,k,1) = p3a(i,k,37)
+               out3d(i,j,k,2) = p3a(i,k,38)
+               out3d(i,j,k,3) = p3a(i,k,39)
             enddo
             enddo
-
 
          ENDDO  p3_jloop5
 
@@ -1756,34 +1738,31 @@
                p3a(i,1,22) = 0.0
             enddo
 
-            call mp_p3_wrapper_cm1( th = p3a(1,1,1),                         &
-                               qv      = p3a(1,1,2),                         &
-                               qc      = p3a(1,1,3),                         &
-                               qr      = p3a(1,1,4),                         &
-                               qnr     = p3a(1,1,5),                         &
-                               th_old  = p3a(1,1,6),                         &
-                               qv_old  = p3a(1,1,7),                         &
-                               pii     = p3a(1,1,8),                         &
-                               p       = p3a(1,1,9),                         &
-                               dz      = p3a(1,1,10),                        &
-                               w       = p3a(1,1,11),                        &
-                               dt      = dt,                                 &
-                               itimestep = nstep,                            &
-                               rainnc  = p3a(1,1,22),                        &
-                               rainncv = dum1(ib,jb,2),                      &
-                               sr      = dum1(ib,jb,3),                      &
-                               snownc  = dum1(ib,jb,4),                      &
-
-                               snowncv = dum1(ib,jb,5),                      &
+            call mp_p3_wrapper_cm1( th       = p3a(1,1,1),                   &
+                               qv            = p3a(1,1,2),                   &
+                               qc            = p3a(1,1,3),                   &
+                               qr            = p3a(1,1,4),                   &
+                               qnr           = p3a(1,1,5),                   &
+                               th_old        = p3a(1,1,6),                   &
+                               qv_old        = p3a(1,1,7),                   &
+                               pii           = p3a(1,1,8),                   &
+                               p             = p3a(1,1,9),                   &
+                               dz            = p3a(1,1,10),                  &
+                               w             = p3a(1,1,11),                  &
+                               dt            = dt,                           &
+                               itimestep     = nstep,                        &
+                               rainnc        = p3a(1,1,22),                  &
+                               rainncv       = dum1(ib,jb,2),                &
+                               sr            = dum1(ib,jb,3),                &
+                               snownc        = dum1(ib,jb,4),                &
+                               snowncv       = dum1(ib,jb,5),                &
                                ids=1, ide=ni, jds=1, jde=1, kds=1, kde=nk ,  &
                                ims=1, ime=ni, jms=1, jme=1, kms=1, kme=nk ,  &
                                its=1, ite=ni, jts=1, jte=1, kts=1, kte=nk ,  &
-
                                diag_zdbz     = p3a(1,1,12),                  &
                                diag_effc     = p3a(1,1,13),                  &
                                diag_effi_ave = p3a(1,1,14),                  &
-                               n_iceCat      = 2 ,                           &
-
+                               n_iceCat      = 2,                            &
                                qit_1         = p3a(1,1,18),                  &
                                qni_1         = p3a(1,1,19),                  &
                                qir_1         = p3a(1,1,20),                  &
@@ -1791,9 +1770,9 @@
                                diag_vmi_1    = p3a(1,1,15),                  &
                                diag_dmi_1    = p3a(1,1,16),                  &
                                diag_rhoi_1   = p3a(1,1,17),                  &
-                               qzi_1         = p3a(1,1,31),                  &  !optional arguments start here
+                               qzi_1         = p3a(1,1,31),                  &
                                qli_1         = p3a(1,1,32),                  &
-
+                               nc            = p3a(1,1,27),                  &
                                qit_2         = p3a(1,1,23),                  &
                                qir_2         = p3a(1,1,24),                  &
                                qni_2         = p3a(1,1,25),                  &
@@ -1803,16 +1782,16 @@
                                diag_vmi_2    = p3a(1,1,28),                  &
                                diag_dmi_2    = p3a(1,1,29),                  &
                                diag_rhoi_2   = p3a(1,1,30),                  &
-
-                               nc = p3a(1,1,27),                             &
                                diag_dhmax_1  = p3a(1,1,35),                  &
                                diag_dhmax_2  = p3a(1,1,36),                  &
-
                                diag2d_01     = p3a(1,1,37),                  &
                                diag2d_02     = p3a(1,1,38),                  &
                                diag3d_01     = p3a(1,1,39),                  &
                                diag3d_02     = p3a(1,1,40),                  &
                                diag3d_03     = p3a(1,1,41) )
+!                                diag3d_01     = p3a(1,1,37),                  &
+!                                diag3d_02     = p3a(1,1,38),                  &
+!                                diag3d_03     = p3a(1,1,39) )
 
 
             if( axisymm.eq.1 )then
@@ -1895,12 +1874,7 @@
                   enddo
             ENDIF
 
-! to add generic output,
-! uncomment lines below, add p3a to p3 wrapper call statement above
-! that links to array of the desired output quantity
-! note that np3a needs to be changed accordingly in param.F
-! and nout3d needs to be changed accordingly in cm1.F
-! to set the number of output variables for out3d
+          ! user-specified diagnostic output
             do i=1,ni
                out2d(i,j,1) = p3a(i,1,37)
                out2d(i,j,2) = p3a(i,1,38)
@@ -1912,6 +1886,13 @@
                out3d(i,j,k,3) = p3a(i,k,41)
             enddo
             enddo
+!             do k=1,nk
+!             do i=1,ni
+!                out3d(i,j,k,1) = p3a(i,k,37)
+!                out3d(i,j,k,2) = p3a(i,k,38)
+!                out3d(i,j,k,3) = p3a(i,k,39)
+!             enddo
+!             enddo
 
 
          ENDDO  p3_jloop3
@@ -1970,34 +1951,31 @@
               p3a(i,1,22) = 0.0
             enddo
 
-            call mp_p3_wrapper_cm1( th = p3a(1,1,1),                         &
-                               qv      = p3a(1,1,2),                         &
-                               qc      = p3a(1,1,3),                         &
-                               qr      = p3a(1,1,4),                         &
-                               qnr     = p3a(1,1,5),                         &
-                               th_old  = p3a(1,1,6),                         &
-                               qv_old  = p3a(1,1,7),                         &
-                               pii     = p3a(1,1,8),                         &
-                               p       = p3a(1,1,9),                         &
-                               dz      = p3a(1,1,10),                        &
-                               w       = p3a(1,1,11),                        &
-                               dt      = dt,                                 &
-                               itimestep = nstep,                            &
-                               rainnc  = p3a(1,1,22),                        &
-                               rainncv = dum1(ib,jb,2),                      &
-                               sr      = dum1(ib,jb,3),                      &
-                               snownc  = dum1(ib,jb,4),                      &
-
-                               snowncv = dum1(ib,jb,5),                      &
+            call mp_p3_wrapper_cm1( th       = p3a(1,1,1),                   &
+                               qv            = p3a(1,1,2),                   &
+                               qc            = p3a(1,1,3),                   &
+                               qr            = p3a(1,1,4),                   &
+                               qnr           = p3a(1,1,5),                   &
+                               th_old        = p3a(1,1,6),                   &
+                               qv_old        = p3a(1,1,7),                   &
+                               pii           = p3a(1,1,8),                   &
+                               p             = p3a(1,1,9),                   &
+                               dz            = p3a(1,1,10),                  &
+                               w             = p3a(1,1,11),                  &
+                               dt            = dt,                           &
+                               itimestep     = nstep,                        &
+                               rainnc        = p3a(1,1,22),                  &
+                               rainncv       = dum1(ib,jb,2),                &
+                               sr            = dum1(ib,jb,3),                &
+                               snownc        = dum1(ib,jb,4),                &
+                               snowncv       = dum1(ib,jb,5),                &
                                ids=1, ide=ni, jds=1, jde=1, kds=1, kde=nk ,  &
                                ims=1, ime=ni, jms=1, jme=1, kms=1, kme=nk ,  &
                                its=1, ite=ni, jts=1, jte=1, kts=1, kte=nk ,  &
-
                                diag_zdbz     = p3a(1,1,12),                  &
                                diag_effc     = p3a(1,1,13),                  &
                                diag_effi_ave = p3a(1,1,14),                  &
-                               n_iceCat      = 3 ,                           &
-
+                               n_iceCat      = 3,                            &
                                qit_1         = p3a(1,1,18),                  &
                                qni_1         = p3a(1,1,19),                  &
                                qir_1         = p3a(1,1,20),                  &
@@ -2005,9 +1983,9 @@
                                diag_vmi_1    = p3a(1,1,15),                  &
                                diag_dmi_1    = p3a(1,1,16),                  &
                                diag_rhoi_1   = p3a(1,1,17),                  &
-                               qzi_1         = p3a(1,1,31),                  &  !optional arguments start here
+                               qzi_1         = p3a(1,1,31),                  &
                                qli_1         = p3a(1,1,32),                  &
-
+                               nc            = p3a(1,1,27),                  &
                                qit_2         = p3a(1,1,23),                  &
                                qir_2         = p3a(1,1,24),                  &
                                qni_2         = p3a(1,1,25),                  &
@@ -2017,7 +1995,6 @@
                                diag_vmi_2    = p3a(1,1,28),                  &
                                diag_dmi_2    = p3a(1,1,29),                  &
                                diag_rhoi_2   = p3a(1,1,30),                  &
-
                                qit_3         = p3a(1,1,35),                  &
                                qir_3         = p3a(1,1,36),                  &
                                qni_3         = p3a(1,1,37),                  &
@@ -2027,13 +2004,9 @@
                                diag_vmi_3    = p3a(1,1,41),                  &
                                diag_dmi_3    = p3a(1,1,42),                  &
                                diag_rhoi_3   = p3a(1,1,43),                  &
-
-                               nc = p3a(1,1,27),                             &
-
                                diag_dhmax_1  = p3a(1,1,44),                  &
                                diag_dhmax_2  = p3a(1,1,45),                  &
                                diag_dhmax_3  = p3a(1,1,46),                  &
-
                                diag2d_01     = p3a(1,1,47),                  &
                                diag2d_02     = p3a(1,1,48),                  &
                                diag3d_01     = p3a(1,1,49),                  &
@@ -2133,12 +2106,7 @@
                enddo
             ENDIF
 
-! to add generic output,
-! uncomment lines below, add p3a to p3 wrapper call statement above
-! that links to array of the desired output quantity
-! note that np3a needs to be changed accordingly in param.F
-! and nout3d needs to be changed accordingly in cm1.F
-! to set the number of output variables for out3d
+          ! user-specified diagnostic output
             do i=1,ni
               out2d(i,j,1) = p3a(i,1,47)
               out2d(i,j,2) = p3a(i,1,48)
@@ -2214,34 +2182,31 @@
               p3a(i,1,22) = 0.0
             enddo
 
-            call mp_p3_wrapper_cm1( th = p3a(1,1,1),                         &
-                               qv      = p3a(1,1,2),                         &
-                               qc      = p3a(1,1,3),                         &
-                               qr      = p3a(1,1,4),                         &
-                               qnr     = p3a(1,1,5),                         &
-                               th_old  = p3a(1,1,6),                         &
-                               qv_old  = p3a(1,1,7),                         &
-                               pii     = p3a(1,1,8),                         &
-                               p       = p3a(1,1,9),                         &
-                               dz      = p3a(1,1,10),                        &
-                               w       = p3a(1,1,11),                        &
-                               dt      = dt,                                 &
-                               itimestep = nstep,                            &
-                               rainnc  = p3a(1,1,22),                        &
-                               rainncv = dum1(ib,jb,2),                      &
-                               sr      = dum1(ib,jb,3),                      &
-                               snownc  = dum1(ib,jb,4),                      &
-                               snowncv = dum1(ib,jb,5),                      &
-
+            call mp_p3_wrapper_cm1( th       = p3a(1,1,1),                   &
+                               qv            = p3a(1,1,2),                   &
+                               qc            = p3a(1,1,3),                   &
+                               qr            = p3a(1,1,4),                   &
+                               qnr           = p3a(1,1,5),                   &
+                               th_old        = p3a(1,1,6),                   &
+                               qv_old        = p3a(1,1,7),                   &
+                               pii           = p3a(1,1,8),                   &
+                               p             = p3a(1,1,9),                   &
+                               dz            = p3a(1,1,10),                  &
+                               w             = p3a(1,1,11),                  &
+                               dt            = dt,                           &
+                               itimestep     = nstep,                        &
+                               rainnc        = p3a(1,1,22),                  &
+                               rainncv       = dum1(ib,jb,2),                &
+                               sr            = dum1(ib,jb,3),                &
+                               snownc        = dum1(ib,jb,4),                &
+                               snowncv       = dum1(ib,jb,5),                &
                                ids=1, ide=ni, jds=1, jde=1, kds=1, kde=nk ,  &
                                ims=1, ime=ni, jms=1, jme=1, kms=1, kme=nk ,  &
                                its=1, ite=ni, jts=1, jte=1, kts=1, kte=nk ,  &
-
                                diag_zdbz     = p3a(1,1,12),                  &
                                diag_effc     = p3a(1,1,13),                  &
                                diag_effi_ave = p3a(1,1,14),                  &
                                n_iceCat      = 4,                            &
-
                                qit_1         = p3a(1,1,18),                  &
                                qni_1         = p3a(1,1,19),                  &
                                qir_1         = p3a(1,1,20),                  &
@@ -2249,9 +2214,9 @@
                                diag_vmi_1    = p3a(1,1,15),                  &
                                diag_dmi_1    = p3a(1,1,16),                  &
                                diag_rhoi_1   = p3a(1,1,17),                  &
-                               qzi_1         = p3a(1,1,31),                  &  !optional arguments start here
+                               qzi_1         = p3a(1,1,31),                  &
                                qli_1         = p3a(1,1,32),                  &
-
+                               nc            = p3a(1,1,27),                  &
                                qit_2         = p3a(1,1,23),                  &
                                qir_2         = p3a(1,1,24),                  &
                                qni_2         = p3a(1,1,25),                  &
@@ -2261,7 +2226,6 @@
                                diag_vmi_2    = p3a(1,1,28),                  &
                                diag_dmi_2    = p3a(1,1,29),                  &
                                diag_rhoi_2   = p3a(1,1,30),                  &
-
                                qit_3         = p3a(1,1,35),                  &
                                qir_3         = p3a(1,1,36),                  &
                                qni_3         = p3a(1,1,37),                  &
@@ -2271,7 +2235,6 @@
                                diag_vmi_3    = p3a(1,1,41),                  &
                                diag_dmi_3    = p3a(1,1,42),                  &
                                diag_rhoi_3   = p3a(1,1,43),                  &
-
                                qit_4         = p3a(1,1,44),                  &
                                qir_4         = p3a(1,1,45),                  &
                                qni_4         = p3a(1,1,46),                  &
@@ -2281,14 +2244,10 @@
                                diag_vmi_4    = p3a(1,1,50),                  &
                                diag_dmi_4    = p3a(1,1,51),                  &
                                diag_rhoi_4   = p3a(1,1,52),                  &
-
-                               nc = p3a(1,1,27),                             &
-
                                diag_dhmax_1  = p3a(1,1,53),                  &
                                diag_dhmax_2  = p3a(1,1,54),                  &
                                diag_dhmax_3  = p3a(1,1,55),                  &
                                diag_dhmax_4  = p3a(1,1,56),                  &
-
                                diag2d_01     = p3a(1,1,57),                  &
                                diag2d_02     = p3a(1,1,58),                  &
                                diag3d_01     = p3a(1,1,59),                  &
@@ -2400,12 +2359,7 @@
                enddo
             ENDIF
 
-! to add generic output,
-! uncomment lines below, add p3a to p3 wrapper call statement above
-! that links to array of the desired output quantity
-! note that np3a needs to be changed accordingly in param.F
-! and nout3d needs to be changed accordingly in cm1.F
-! to set the number of output variables for out3d
+          ! user-specified diagnostic output
             do i=1,ni
                out2d(i,j,1) = p3a(i,1,57)
                out2d(i,j,2) = p3a(i,1,58)

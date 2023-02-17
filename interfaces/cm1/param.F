@@ -4222,8 +4222,8 @@
 
           ! for p3 arrays:
           np3a = 22
-          np3a = np3a + nout2d + nout2d
-          np3o =  3
+          np3a = np3a + nout2d + nout3d
+          np3o =  4
 
       !cccccccccccccccccccccccccccccccccccccccccccccccccccc!
         ELSEIF( ptype.eq.51 )THEN
@@ -4280,7 +4280,7 @@
 
           ! for p3 arrays:
           np3a = 23            ! 1-mom, no_liqfrac, 1-cat (no extra output)
-          np3a = np3a + nout2d + nout2d
+          np3a = np3a + nout2d + nout3d + 1  !(1 for dhmax_x)
           np3o =  4            ! 1 x nCat; for vmi_(x), dmi_(x), rhoi_(x), dhmax_(x)
 
       !cccccccccccccccccccccccccccccccccccccccccccccccccccc!
@@ -4354,7 +4354,7 @@
 
           ! for p3 arrays:
           np3a = 30            ! 2-mom, no_liqfrac, 2-cat (no extra output)
-          np3a = np3a + nout2d + nout2d
+          np3a = np3a + nout2d + nout3d + 2  !(2 for dhmax_x)
           np3o =  8            ! 2 x nCat; for vmi_(x), dmi_(x), rhoi_(x), dhmax_(x)
 
       !cccccccccccccccccccccccccccccccccccccccccccccccccccc!
@@ -4422,7 +4422,7 @@
 !          np3o =  3
 !--
           np3a = 24            ! 3-mom, no_liqfrac, 1-cat (incl. vmi_1, dmi_1, rhoi_1)
-          np3a = np3a + nout2d + nout2d
+          np3a = np3a + nout2d + nout3d + 1  !(1 for dhmax_x)
           np3o =  4            ! 1 x nCat; for vmi_(x), dmi_(x), rhoi_(x), dhmax_(x)
 
       !cccccccccccccccccccccccccccccccccccccccccccccccccccc!
@@ -4510,7 +4510,7 @@
 !          np3o =  6
 !--
           np3a = 32            ! 2-mom, no_liqfrac, 2-cat (no extra output)
-          np3a = np3a + nout2d + nout2d
+          np3a = np3a + nout2d + nout3d + 2  !(2 for dhmax_x)
           np3o =  8            ! 2 x nCat; for vmi_(x), dmi_(x), rhoi_(x), dhmax_(x)
 
 
@@ -4583,7 +4583,7 @@
 !          np3o =  3
 !--
           np3a = 25            ! 3-mom, liqfrac, 1-cat (incl. vmi_1, dmi_1, rhoi_1)
-          np3a = np3a + nout2d + nout2d
+          np3a = np3a + nout2d + nout3d + 1  !(1 for dhmax_x)
           np3o =  4            ! 1 x nCat; for vmi_(x), dmi_(x), rhoi_(x), dhmax_(x)
 
       !cccccccccccccccccccccccccccccccccccccccccccccccccccc!
@@ -4678,7 +4678,7 @@
 !          np3o =  6
 !--
           np3a = 34            ! 3-mom, liqfrac, 2-cat  (no extra output)
-          np3a = np3a + nout2d + nout2d
+          np3a = np3a + nout2d + nout3d + 2  !(2 for dhmax_x)
           np3o =  8            ! 2 x nCat; for vmi_(x), dmi_(x), rhoi_(x), dhmax_(x)
 
       !cccccccccccccccccccccccccccccccccccccccccccccccccccc!
@@ -4798,7 +4798,7 @@
 !          np3o =  9
 !--
           np3a = 43            ! 3-mom, liqfrac, 3-cat (no extra output)
-          np3a = np3a + nout2d + nout2d
+          np3a = np3a + nout2d + nout3d + 3  !(3 for dhmax_x)
           np3o = 12            ! 3 x nCat; for vmi_(x), dmi_(x), rhoi_(x), dhmax_(x)
 
       !cccccccccccccccccccccccccccccccccccccccccccccccccccc!
@@ -4943,7 +4943,7 @@
 !          np3o = 12
 !--
           np3a = 52            ! 3-mom, liqfrac, 4-cat  (no extra output)
-          np3a = np3a + nout2d + nout2d
+          np3a = np3a + nout2d + nout3d + 4  !(4 for dhmax_x)
           np3o = 16            ! 4 x nCat for vmi_(x), dmi_(x), rhoi_(x), dhmax_(x)
 
 
