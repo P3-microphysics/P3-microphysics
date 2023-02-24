@@ -934,18 +934,34 @@
 
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!ccc     P3 scheme      cccccccccccccccccccccccccccccccccccccccccccccccc
+!ccc    P3 scheme    ccccccccccccccccccccccccccccccccccccccccccccccccccc
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
-!-----------------------------------------------------------
-!   To add user-specified diagnostic output fields from P3:
-!      - initialize 'diag3d_04 = ', etc. in mp_p3_wrapper_cm1
-!      - add 'diag3d_04 = p3a(1,1,31)', etc. to argument list of 'call_mp_p3_wrapper_cm1'
-!      - add 'out3d(i,j,k,4) = p3a(i,k,31)' etc. under call to wrapper
-!      - increase value of 'nout3d' (and/or 'nout2d') in 'cm1.F'
-!-----------------------------------------------------------
+!-----------------------------------------------------------------------------------
+!  ptype  configuration
+!  -----  ----------------------------------------------
+!   50    1-mom-cld,  2-mom-rain,  2-mom-ice,  1-ice-category
+!   51    2-mom-cld,  2-mom-rain,  2-mom-ice,  1-ice-category
+!   52    2-mom-cld,  2-mom-rain,  2-mom-ice,  2-ice-category
+!   53    2-mom-cld,  2-mom-rain,  3-mom-ice,  1-ice-category
+!   54    2-mom-cld,  2-mom-rain,  3-mom-ice,  2-ice-category
+!   60    2-mom-cld,  2-mom-rain,  3-mom-ice,  1-ice-category,  liq-frac
+!   61    2-mom-cld,  2-mom-rain,  3-mom-ice,  2-ice-category,  liq-frac
+!   62    2-mom-cld,  2-mom-rain,  3-mom-ice,  3-ice-category,  liq-frac
+!   63    2-mom-cld,  2-mom-rain,  3-mom-ice,  4-ice-category,  liq-frac
+!-----------------------------------------------------------------------------------
+
+  !-----------------------------------------------------------------------------------
+  !   To add user-specified diagnostic output fields from P3:
+  !      - initialize 'diag3d_04 = ', etc. in mp_p3_wrapper_cm1
+  !      - add 'diag3d_04 = p3a(1,1,31)', etc. to arg. list of 'call_mp_p3_wrapper_cm1'
+  !      - add 'out3d(i,j,k,4) = p3a(i,k,31)' etc. under call to wrapper
+  !      - increase value of 'nout3d' (and/or 'nout2d') in 'cm1.F'
+  !-----------------------------------------------------------------------------------
 
       ELSEIF (ptype.eq.50 .or. ptype.eq.51 .or. ptype.eq.53 .or.ptype.eq.60) THEN
+
+      ! for 1-ice-category configurations
 
          rdt = 1.0/dt
 
@@ -978,6 +994,10 @@
             enddo
 
             ptype_50_51_53_60: if (ptype.eq.50) then
+
+!---------------------------------------------------------------------------!
+!   P3 scheme -- config:  1-mom-cld, 2-mom-rain, 2-mom-ice, 1-ice-category  !
+!---------------------------------------------------------------------------!
 
                call mp_p3_wrapper_cm1( th    = p3a(1,1,1),                   &
                                qv            = p3a(1,1,2),                   &
@@ -1033,6 +1053,10 @@
 
 
             elseif (ptype.eq.51) then
+
+!---------------------------------------------------------------------------!
+!   P3 scheme -- config:  2-mom-cld, 2-mom-rain, 2-mom-ice, 2-ice-category  !
+!---------------------------------------------------------------------------!
 
                do k=1,nk
                do i=1,ni
@@ -1100,6 +1124,10 @@
                enddo
 
             elseif (ptype.eq.53) then
+
+!---------------------------------------------------------------------------!
+!   P3 scheme -- config:  2-mom-cld, 2-mom-rain, 3-mom-ice, 1-ice-category  !
+!---------------------------------------------------------------------------!
 
                do k=1,nk
                do i=1,ni
@@ -1171,6 +1199,10 @@
 
 
             elseif (ptype.eq.60) then
+
+!-------------------------------------------------------------------------------------!
+!   P3 scheme -- config:  2-mom-cld, 2-mom-rain, 3-mom-ice, 1-ice-category, liq-frac  !
+!-------------------------------------------------------------------------------------!
 
                do k=1,nk
                do i=1,ni
@@ -1323,11 +1355,12 @@
 
          if(timestats.ge.1) time_microphy=time_microphy+mytime()
 
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!ccc     P3 scheme, 2 ice     cccccccccccccccccccccccccccccccccccccccccc
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
       ELSEIF (ptype.eq.52) THEN
+
+!---------------------------------------------------------------------------!
+!   P3 scheme -- config:  2-mom-cld, 2-mom-rain, 2-mom-ice, 2-ice-category  !
+!---------------------------------------------------------------------------!
 
          rdt = 1.0/dt
 
@@ -1505,11 +1538,12 @@
 
          if (timestats.ge.1) time_microphy = time_microphy+mytime()
 
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!ccc     P3 scheme, 2 ice with 3-moment     cccccccccccccccccccccccccccc
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
       ELSEIF (ptype.eq.54) THEN
+
+!---------------------------------------------------------------------------!
+!   P3 scheme -- config:  2-mom-cld, 2-mom-rain, 3-mom-ice, 2-ice-category  !
+!---------------------------------------------------------------------------!
 
          rdt = 1.0/dt
 
@@ -1693,11 +1727,12 @@
 
          if(timestats.ge.1) time_microphy=time_microphy+mytime()
 
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!ccc     P3 scheme, 2 ice, predict Zi and Fl ccccccccccccccccccccccccccc
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
       ELSEIF (ptype.eq.61) THEN
+
+!-------------------------------------------------------------------------------------!
+!   P3 scheme -- config:  2-mom-cld, 2-mom-rain, 3-mom-ice, 2-ice-category, liq-frac  !
+!-------------------------------------------------------------------------------------!
 
          rdt = 1.0/dt
 
@@ -1789,10 +1824,6 @@
                                diag3d_01     = p3a(1,1,39),                  &
                                diag3d_02     = p3a(1,1,40),                  &
                                diag3d_03     = p3a(1,1,41) )
-!                                diag3d_01     = p3a(1,1,37),                  &
-!                                diag3d_02     = p3a(1,1,38),                  &
-!                                diag3d_03     = p3a(1,1,39) )
-
 
             if( axisymm.eq.1 )then
                do i=1,ni
@@ -1886,24 +1917,16 @@
                out3d(i,j,k,3) = p3a(i,k,41)
             enddo
             enddo
-!             do k=1,nk
-!             do i=1,ni
-!                out3d(i,j,k,1) = p3a(i,k,37)
-!                out3d(i,j,k,2) = p3a(i,k,38)
-!                out3d(i,j,k,3) = p3a(i,k,39)
-!             enddo
-!             enddo
-
 
          ENDDO  p3_jloop3
 
          if (timestats.ge.1) time_microphy = time_microphy+mytime()
 
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!ccc     P3 scheme, 3 ice, predict Zi and Fl ccccccccccccccccccccccccccc
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-
       ELSEIF( ptype.eq.62 )THEN
+
+!-------------------------------------------------------------------------------------!
+!   P3 scheme -- config:  2-mom-cld, 2-mom-rain, 3-mom-ice, 3-ice-category, liq-frac  !
+!-------------------------------------------------------------------------------------!
 
          rdt = 1.0/dt
 
@@ -2124,11 +2147,12 @@
 
          if(timestats.ge.1) time_microphy=time_microphy+mytime()
 
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!ccc     P3 scheme, 4 ice, predict Zi and Fl ccccccccccccccccccccccccccc
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
       ELSEIF (ptype.eq.63) THEN
+
+!-------------------------------------------------------------------------------------!
+!   P3 scheme -- config:  2-mom-cld, 2-mom-rain, 3-mom-ice, 4-ice-category, liq-frac  !
+!-------------------------------------------------------------------------------------!
 
          rdt = 1.0/dt
 
@@ -2148,7 +2172,7 @@
                p3a(i,k, 8) = pi0(i,j,k)+pp3d(i,j,k)         ! pii
                p3a(i,k, 9) = prs(i,j,k)                     ! p
                p3a(i,k,10) = dz*rmh(i,j,k)                  ! dz
-               p3a(i,k,11) = 0.5*(w3d(i,j,k)+w3d(i,j,k+1))  ! w        <-- BUG - out of range for k (can go to nk+1)
+               p3a(i,k,11) = 0.5*(w3d(i,j,k)+w3d(i,j,k+1))  ! w
                p3a(i,k,18) = q3d(i,j,k,nqi)                 ! qit_1
                p3a(i,k,19) = q3d(i,j,k,10)                  ! qni_1
                p3a(i,k,20) = q3d(i,j,k,11)                  ! qir_1
