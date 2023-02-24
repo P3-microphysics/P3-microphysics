@@ -21,7 +21,7 @@
 !    Melissa Cholette (melissa.cholette@ec.gc.ca)                                          !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.2.1                                                                     !
+! Version:       5.2.2                                                                     !
 ! Last updated:  2023-FEB                                                                  !
 !__________________________________________________________________________________________!
 
@@ -140,9 +140,9 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.2.1'
- character(len=1024), parameter :: version_intended_table_1_2mom = '6.3-2momI'
- character(len=1024), parameter :: version_intended_table_1_3mom = '6.3-3momI'
+ character(len=1024), parameter :: version_p3                    = '5.2.2'
+ character(len=1024), parameter :: version_intended_table_1_2mom = '6.4-2momI'
+ character(len=1024), parameter :: version_intended_table_1_3mom = '6.4-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.0'
 
  character(len=1024)            :: version_header_table_1_2mom
