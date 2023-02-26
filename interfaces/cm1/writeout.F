@@ -3610,7 +3610,7 @@
 
 
         n_out = n_out + 1
-        name_output(n_out) = 'p3_di1'
+        name_output(n_out) = 'p3_dmi1'
         desc_output(n_out) = 'P3: mass-weighted mean diameter, ice category 1'
         unit_output(n_out) = 'm'
         grid_output(n_out) = 's'     ! s=scalar pts (3d) ; u=u pts (3d) ; v=v pts (3d) ; w=w pts (3d) ; 2=2d scalar pts
@@ -3686,7 +3686,7 @@
 
 
         n_out = n_out + 1
-        name_output(n_out) = 'p3_di2'
+        name_output(n_out) = 'p3_dmi2'
         desc_output(n_out) = 'P3: mass-weighted mean diameter, ice category 2'
         unit_output(n_out) = 'm'
         grid_output(n_out) = 's'     ! s=scalar pts (3d) ; u=u pts (3d) ; v=v pts (3d) ; w=w pts (3d) ; 2=2d scalar pts
@@ -3764,7 +3764,7 @@
 
 
         n_out = n_out + 1
-        name_output(n_out) = 'p3_di3'
+        name_output(n_out) = 'p3_dmi3'
         desc_output(n_out) = 'P3: mass-weighted mean diameter, ice category 3'
         unit_output(n_out) = 'm'
         grid_output(n_out) = 's'     ! s=scalar pts (3d) ; u=u pts (3d) ; v=v pts (3d) ; w=w pts (3d) ; 2=2d scalar pts
@@ -3842,7 +3842,7 @@
 
 
         n_out = n_out + 1
-        name_output(n_out) = 'p3_di4'
+        name_output(n_out) = 'p3_dmi4'
         desc_output(n_out) = 'P3: mass-weighted mean diameter, ice category 4'
         unit_output(n_out) = 'm'
         grid_output(n_out) = 's'     ! s=scalar pts (3d) ; u=u pts (3d) ; v=v pts (3d) ; w=w pts (3d) ; 2=2d scalar pts

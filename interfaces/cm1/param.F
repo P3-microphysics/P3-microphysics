@@ -4456,7 +4456,7 @@
           qname( 1) = 'qv '
           qname( 2) = 'qc '
           qname( 3) = 'qr '
-          qname( 4) = 'qi '
+          qname( 4) = 'qi1'
           qname( 5) = 'qi2'
           qname( 6) = 'nc '
           qname( 7) = 'nr '
