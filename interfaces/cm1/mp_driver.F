@@ -1265,7 +1265,7 @@
             ! user-specified diagnostic output
                do i=1,ni
                   out2d(i,j,1) = p3a(i,1,27)
-                  out2d(i,j,1) = p3a(i,1,28)
+                  out2d(i,j,2) = p3a(i,1,28)
                enddo
                do k=1,nk
                do i=1,ni
@@ -1713,7 +1713,7 @@
           ! user-specified diagnostic output
             do i=1,ni
                out2d(i,j,1) = p3a(i,1,35)
-               out2d(i,j,1) = p3a(i,1,36)
+               out2d(i,j,2) = p3a(i,1,36)
             enddo
             do k=1,nk
             do i=1,ni

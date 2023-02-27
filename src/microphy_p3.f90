@@ -1109,7 +1109,7 @@ END subroutine p3_init
 
     ! copy generic output arrays (from p3_main) to local arrays (passed back to wrapper)
       diag2d_01(:,j)    = diag2d(:,1)
-!       diag2d_02(:,j)    = diag2d(:,2)
+      diag2d_02(:,j)    = diag2d(:,2)
       diag3d_01(:,:,j)  = diag3d(:,:,1)
       diag3d_02(:,:,j)  = diag3d(:,:,2)
       diag3d_03(:,:,j)  = diag3d(:,:,3)
@@ -5749,14 +5749,15 @@ END subroutine p3_init
           enddo
           diag_3d(i,k,1) = sum(qitot(i,k,:))
        enddo
+!        diag_2d(i,1) = prt_liq(i)  !outputs zeros
     enddo
 
 !-- test of generic diagnostic output:
-    diag_2d(:,1) = prt_liq(:)
-    diag_2d(:,2) = prt_sol(:)
-!   diag_3d(:,:,1) = qitot(:,:,1)
-!   diag_3d(:,:,2) = diag_dhmax(:,:,1)
-!   diag_3d(:,:,3) = qirim(:,:,1)
+  diag_2d(:,1) = prt_liq(:) + prt_sol(:)
+  diag_2d(:,2) = prt_liq(:) + prt_sol(:)
+  diag_3d(:,:,1) = qitot(:,:,1)
+  diag_3d(:,:,2) = nitot(:,:,1)
+  diag_3d(:,:,3) = qirim(:,:,1)
 !--
 
  else
