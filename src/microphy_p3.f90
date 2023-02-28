@@ -2288,6 +2288,7 @@ END subroutine p3_init
  diag_vmi  = 0.
  diag_di   = 0.
  diag_rhoi = 0.
+ if (present(diag_dhmax)) diag_dhmax = 0.
  diag_2d   = 0.
  diag_3d   = 0.
  rhorime_c = 400.
@@ -5738,7 +5739,6 @@ END subroutine p3_init
 !   partition surface precipitation rates into types (and aslo for the
 !   maximum hail size, dhmax).
 
-
  if (freq3DtypeDiag>0. .and. mod(it*dt,freq3DtypeDiag*60.)==0. .and. trim(model)=='WRF') then
 
     do i = its,ite
@@ -5748,21 +5748,17 @@ END subroutine p3_init
                                                 arr_lami(i,k,iice),arr_mui(i,k,iice))
           enddo
           diag_3d(i,k,1) = sum(qitot(i,k,:))
+          diag_3d(i,k,2) = maxval(diag_dhmax(i,k,:))
        enddo
-!        diag_2d(i,1) = prt_liq(i)  !outputs zeros
     enddo
 
-!-- test of generic diagnostic output:
-  diag_2d(:,1) = prt_liq(:) + prt_sol(:)
-  diag_2d(:,2) = prt_liq(:) + prt_sol(:)
-  diag_3d(:,:,1) = qitot(:,:,1)
-  diag_3d(:,:,2) = nitot(:,:,1)
-  diag_3d(:,:,3) = qirim(:,:,1)
+!-- diagnostic output (for hail study):
+    diag_2d(:,1) = prt_liq(:) + prt_sol(:)
+    diag_2d(:,2) = prt_liq(:) + prt_sol(:)
+!   diag_3d(:,:,1) = qitot(:,:,1)
+!   diag_3d(:,:,2) = nitot(:,:,1)
+!   diag_3d(:,:,3) = qirim(:,:,1)
 !--
-
- else
-
-    diag_dhmax(:,:,:) = -99.
 
  endif
 !---
