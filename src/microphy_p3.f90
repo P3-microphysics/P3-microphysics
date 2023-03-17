@@ -21,8 +21,8 @@
 !    Melissa Cholette (melissa.cholette@ec.gc.ca)                                          !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.2.2                                                                     !
-! Last updated:  2023-FEB                                                                  !
+! Version:       5.2.3                                                                     !
+! Last updated:  2023-MAR                                                                  !
 !__________________________________________________________________________________________!
 
  MODULE microphy_p3
@@ -140,7 +140,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.2.2'
+ character(len=1024), parameter :: version_p3                    = '5.2.3'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.4-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '6.4-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.0'
@@ -2431,7 +2431,8 @@ END subroutine p3_init
  real, dimension(its:ite,kts:kte) :: t     ! temperature at the beginning of the microhpysics step [K]
  real, dimension(its:ite,kts:kte) :: t_old ! temperature at the beginning of the model time step [K]
 
- real, dimension(its:ite,kts:kte,nCat) :: qiliq ! local variable for qiliq_in
+ real, dimension(its:ite,kts:kte,nCat) :: qiliq    ! local variable for qiliq_in
+ real, dimension(its:ite,nCat)         :: prt_soli ! precipitation rate, solid iice-dep  m s-1
 
  logical, parameter      :: log_liqsatadj = .false.       ! temporary; to be put as GEM namelist
 
@@ -2718,6 +2719,7 @@ END subroutine p3_init
 
  prt_liq   = 0.
  prt_sol   = 0.
+ prt_soli  = 0.
  mflux_r   = 0.
  mflux_i   = 0.
  prec      = 0.
@@ -5554,6 +5556,7 @@ END subroutine p3_init
           endif three_moment_ice_1
 
           prt_sol(i) = prt_sol(i) + prt_accum*inv_rhow*odt
+          prt_soli(i,iice) = prt_soli(i,iice) + prt_accum*inv_rhow*odt
 
        endif qi_present
 
@@ -6210,7 +6213,7 @@ END subroutine p3_init
           Q_rain(i,k)    = 0.
           !note:  these can be broken down further (outside of microphysics) into
           !       liquid rain (drizzle) vs. freezing rain (drizzle) based on sfc temp.
-          if (qr(i,k)>qsmall .and. nr(i,k)>nsmall) then
+          if (qr(i,k).ge.qsmall .and. nr(i,k).ge.nsmall) then
              tmp1 = (6.*qr(i,k)/(pi*rhow*nr(i,k)))**thrd   !mean-mass diameter
              if (tmp1 < thres_raindrop) then
                 Q_drizzle(i,k) = qr(i,k)
@@ -6242,7 +6245,7 @@ END subroutine p3_init
             !Note: The following partitioning of ice into types is subjective.  However,
             !      this is a diagnostic only; it does not affect the model solution.
 
-             if ((qitot(i,k,iice)-qiliq(i,k,iice))>qsmall) then
+             if ((qitot(i,k,iice)-qiliq(i,k,iice)).ge.qsmall) then
                  tmp1 = qirim(i,k,iice)/(qitot(i,k,iice)-qiliq(i,k,iice))   !rime mass fraction
                 if (tmp1<0.1) then
                 !zero or trace rime:
@@ -6277,17 +6280,17 @@ END subroutine p3_init
          !diagnostics for sfc precipitation rates: (liquid-equivalent volume flux, m s-1)
          !  note: these are summed for all ice categories
           if (Q_crystals(i,kbot,iice) > 0.)    then
-             prt_crys(i) = prt_crys(i) + prt_sol(i)    !precip rate of small crystals
+             prt_crys(i) = prt_crys(i) + prt_soli(i,iice)    !precip rate of small crystals
           elseif (Q_ursnow(i,kbot,iice) > 0.)  then
-             prt_snow(i) = prt_snow(i) + prt_sol(i)    !precip rate of unrimed + lightly rimed snow
+             prt_snow(i) = prt_snow(i) + prt_soli(i,iice)    !precip rate of unrimed + lightly rimed snow
           elseif (Q_lrsnow(i,kbot,iice) > 0.)  then
-             prt_snow(i) = prt_snow(i) + prt_sol(i)    !precip rate of unrimed + lightly rimed snow
+             prt_snow(i) = prt_snow(i) + prt_soli(i,iice)    !precip rate of unrimed + lightly rimed snow
           elseif (Q_grpl(i,kbot,iice) > 0.)    then
-             prt_grpl(i) = prt_grpl(i) + prt_sol(i)    !precip rate of graupel
+             prt_grpl(i) = prt_grpl(i) + prt_soli(i,iice)    !precip rate of graupel
           elseif (Q_pellets(i,kbot,iice) > 0.) then
-             prt_pell(i) = prt_pell(i) + prt_sol(i)    !precip rate of ice pellets
+             prt_pell(i) = prt_pell(i) + prt_soli(i,iice)    !precip rate of ice pellets
           elseif (Q_hail(i,kbot,iice) > 0.)    then
-             prt_hail(i) = prt_hail(i) + prt_sol(i)    !precip rate of hail
+             prt_hail(i) = prt_hail(i) + prt_soli(i,iice)    !precip rate of hail
           endif
          !--- optimized version above above IF block (does not work on all FORTRAN compilers)
 !           tmp3 = -(Q_crystals(i,kbot,iice) > 0.)
@@ -6296,11 +6299,11 @@ END subroutine p3_init
 !           tmp6 = -(Q_grpl(i,kbot,iice)     > 0.)
 !           tmp7 = -(Q_pellets(i,kbot,iice)  > 0.)
 !           tmp8 = -(Q_hail(i,kbot,iice)     > 0.)
-!           prt_crys(i) = prt_crys(i) + prt_sol(i)*tmp3                   !precip rate of small crystals
-!           prt_snow(i) = prt_snow(i) + prt_sol(i)*tmp4 + prt_sol(i)*tmp5 !precip rate of unrimed + lightly rimed snow
-!           prt_grpl(i) = prt_grpl(i) + prt_sol(i)*tmp6                   !precip rate of graupel
-!           prt_pell(i) = prt_pell(i) + prt_sol(i)*tmp7                   !precip rate of ice pellets
-!           prt_hail(i) = prt_hail(i) + prt_sol(i)*tmp8                   !precip rate of hail
+!           prt_crys(i) = prt_crys(i) + prt_soli(i,iice)*tmp3                   !precip rate of small crystals
+!           prt_snow(i) = prt_snow(i) + prt_soli(i,iice)*tmp4 + prt_sol(i)*tmp5 !precip rate of unrimed + lightly rimed snow
+!           prt_grpl(i) = prt_grpl(i) + prt_soli(i,iice)*tmp6                   !precip rate of graupel
+!           prt_pell(i) = prt_pell(i) + prt_soli(i,iice)*tmp7                   !precip rate of ice pellets
+!           prt_hail(i) = prt_hail(i) + prt_soli(i,iice)*tmp8                   !precip rate of hail
          !===
 
           !precip rate of unmelted total "snow":
