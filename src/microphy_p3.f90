@@ -21,8 +21,8 @@
 !    Melissa Cholette (melissa.cholette@ec.gc.ca)                                          !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.3.0                                                                     !
-! Last updated:  2023-FEB                                                                  !
+! Version:       5.2.0+                                                                    !
+! Last updated:  2023-MAR                                                                  !
 !__________________________________________________________________________________________!
 
  MODULE microphy_p3
@@ -140,7 +140,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.2.0+dhmax+wrapperCM1'
+ character(len=1024), parameter :: version_p3                    = '5.2.0+dhmax'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.3-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '6.3-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.0'
@@ -2612,10 +2612,6 @@ END subroutine p3_init
             !impose lower limits to prevent taking log of # < 0
              nitot(i,k,iice) = max(nitot(i,k,iice),nsmall)
              nr(i,k)         = max(nr(i,k),nsmall)
-
-            !compute mean-mass ice diameters (estimated; rigorous approach to be implemented later)
-            !dum2 = 500. !ice density
-            !diam_ice(i,k,iice) = ((qitot(i,k,iice)*6.)/(nitot(i,k,iice)*dum2*pi))**thrd
 
             !Note: with scpf_on, no need to compute in-cloud values to access lookup tables since all
             !indices are ratios of mixing ratios, therefore *iSCF is both on num and denom.
@@ -5185,10 +5181,9 @@ END subroutine p3_init
                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,11,dum1,dum4,dum5,dum6,dum7,f1pr15)
                endif
              endif
+
              diam_ice(i,k,iice) = f1pr15
-             !dum1 = max(nitot(i,k,iice),nsmall)
-             !dum2 = 500. !ice density
-             !diam_ice(i,k,iice) = ((qitot(i,k,iice)*6.)/(dum1*dum2*pi))**thrd
+
           endif
        enddo  !iice loop
 
@@ -5358,9 +5353,8 @@ END subroutine p3_init
        do k = kbot,ktop,kdir
           do iice = nCat,2,-1
              tmp1 = abs(diag_di(i,k,iice)-diag_di(i,k,iice-1))
-             if (tmp1.le.deltaD_init .and. qitot(i,k,iice)>0. .and. qitot(i,k,iice-1)>0.) then
-! Jason, I think we should use the following line instead of the above
-!            if (tmp1.le.deltaD_init .and. qitot(i,k,iice).ge.qsmall .and. qitot(i,k,iice-1).ge.qsmall) then
+             if (tmp1.le.deltaD_init .and. qitot(i,k,iice).ge.qsmall .and.               &
+                 qitot(i,k,iice-1).ge.qsmall) then
                 qitot(i,k,iice-1) = qitot(i,k,iice-1) + qitot(i,k,iice)
                 nitot(i,k,iice-1) = nitot(i,k,iice-1) + nitot(i,k,iice)
                 qirim(i,k,iice-1) = qirim(i,k,iice-1) + qirim(i,k,iice)
@@ -5789,8 +5783,8 @@ END subroutine p3_init
     enddo
 
 !-- diagnostic output (for hail study):
-    diag_2d(:,1) = prt_liq(:) + prt_sol(:)
-    diag_2d(:,2) = prt_liq(:) + prt_sol(:)
+    diag_2d(:,1) = prt_liq(:)
+    diag_2d(:,2) = prt_sol(:)
 !   diag_3d(:,:,1) = qitot(:,:,1)
 !   diag_3d(:,:,2) = nitot(:,:,1)
 !   diag_3d(:,:,3) = qirim(:,:,1)
