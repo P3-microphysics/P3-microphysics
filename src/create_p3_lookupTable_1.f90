@@ -13,8 +13,13 @@ PROGRAM create_p3_lookuptable_1
 ! All other parameter settings are linked uniquely to the version number.
 !
 !--------------------------------------------------------------------------------------
+<<<<<<< HEAD
 ! Version:       6.1
 ! Last modified: 2021-July
+=======
+! Version:       6.4
+! Last modified: 2023-Feb
+>>>>>>> master
 ! Version: including the liquid fraction (inner-loop i_Fl)
 !______________________________________________________________________________________
 
@@ -144,7 +149,7 @@ PROGRAM create_p3_lookuptable_1
  implicit none
 
  !-----
- character(len=20), parameter :: version   = '6.3'
+ character(len=20), parameter :: version   = '6.4'
  logical, parameter           :: log_3momI = .true.    !switch to create table for 2momI (.false.) or 3momI (.true.)
  !-----
 
@@ -180,7 +185,7 @@ PROGRAM create_p3_lookuptable_1
          cap,lamr,dia,amg,dv,n0dum,sum5,sum6,sum7,sum8,dg,cg,bag,aag,dcritg,dcrits,      &
          dcritr,Fr,csr,dsr,duml,dum3,rhodep,cgpold,m1,m2,m3,dt,mu_r,initlamr,lamv,       &
          rdumii,lammin,lammax,pi,g,p,t,rho,mu,mu_i,ds,cs,bas,aas,dcrit,mu_dum,gdum,      &
-         Z_value,sum9,mom3,mom6,intgrR1,intgrR2,intgrR3,intgrR4,dum4,cs2,ds2
+         Z_value,sum9,mom3,mom6,intgrR1,intgrR2,intgrR3,intgrR4,dum4,cs2,ds2,mur_constant
 
 ! New parameters with liquid fraction
  real :: area,area1,area2,mass,fac1,fac2,dumfac1,dumfac2,dumfac12,dumfac22,capm,gg,      &
@@ -435,6 +440,7 @@ hostinclusionstring_m = 'spheroidal'
 
  !Precribe a constant mu_r:
   mu_r_table(:) = 0.
+  mur_constant  = 0.
 
  !Compute radar_init
   pi5 = pi**5.
@@ -1467,21 +1473,22 @@ hostinclusionstring_m = 'spheroidal'
              lamrs(i_Drscale) = lamv
 
            ! get mu_r from lamr:
-             dum = 1./lamv
+           !  dum = 1./lamv
 
-             if (dum.lt.282.e-6) then
-                mu_r = 8.282
-             elseif (dum.ge.282.e-6 .and. dum.lt.502.e-6) then
-              ! interpolate:
-                rdumii = (dum-250.e-6)*1.e6*0.5
-                rdumii = max(rdumii,1.)
-                rdumii = min(rdumii,150.)
-                dumii  = int(rdumii)
-                dumii  = min(149,dumii)
-                mu_r   = mu_r_table(dumii)+(mu_r_table(dumii+1)-mu_r_table(dumii))*(rdumii-real(dumii))
-             elseif (dum.ge.502.e-6) then
-                mu_r   = 0.
-             endif
+           !  if (dum.lt.282.e-6) then
+           !     mu_r = 8.282
+           !  elseif (dum.ge.282.e-6 .and. dum.lt.502.e-6) then
+           !   ! interpolate:
+           !     rdumii = (dum-250.e-6)*1.e6*0.5
+           !     rdumii = max(rdumii,1.)
+           !     rdumii = min(rdumii,150.)
+           !     dumii  = int(rdumii)
+           !     dumii  = min(149,dumii)
+           !     mu_r   = mu_r_table(dumii)+(mu_r_table(dumii+1)-mu_r_table(dumii))*(rdumii-real(dumii))
+           !  elseif (dum.ge.502.e-6) then
+           !     mu_r   = 0.
+           !  endif
+             mu_r = mur_constant
            ! recalculate slope based on mu_r
             !LAMR = (pi*sxth*rhow*nr(i_Qnorm,k)*gamma(mu_r+4.)/(qr(i_Qnorm,k)*gamma(mu_r+1.)))**thrd
 

@@ -21,7 +21,8 @@
 !    Melissa Cholette (melissa.cholette@ec.gc.ca)                                          !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.2.0+                                                                    !
+! Version:       5.3.0+                                                                    !
+! Version:       5.2.3                                                                     !
 ! Last updated:  2023-MAR                                                                  !
 !__________________________________________________________________________________________!
 
@@ -140,9 +141,9 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.2.0+dhmax'
- character(len=1024), parameter :: version_intended_table_1_2mom = '6.3-2momI'
- character(len=1024), parameter :: version_intended_table_1_3mom = '6.3-3momI'
+ character(len=1024), parameter :: version_p3                    = '5.2.3+dhmax'
+ character(len=1024), parameter :: version_intended_table_1_2mom = '6.4-2momI'
+ character(len=1024), parameter :: version_intended_table_1_3mom = '6.4-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.0'
 
  character(len=1024)            :: version_header_table_1_2mom
@@ -1993,7 +1994,8 @@ END subroutine p3_init
  real, dimension(its:ite,kts:kte) :: t     ! temperature at the beginning of the microhpysics step [K]
  real, dimension(its:ite,kts:kte) :: t_old ! temperature at the beginning of the model time step [K]
 
- real, dimension(its:ite,kts:kte,nCat) :: qiliq ! local variable for qiliq_in
+ real, dimension(its:ite,kts:kte,nCat) :: qiliq    ! local variable for qiliq_in
+ real, dimension(its:ite,nCat)         :: prt_soli ! precipitation rate, solid iice-dep  m s-1
 
  logical, parameter      :: log_liqsatadj = .false.       ! temporary; to be put as GEM namelist
 
@@ -2271,6 +2273,7 @@ END subroutine p3_init
 
  prt_liq   = 0.
  prt_sol   = 0.
+ prt_soli  = 0.
  mflux_r   = 0.
  mflux_i   = 0.
  prec      = 0.
@@ -4019,6 +4022,10 @@ END subroutine p3_init
                                           nislf(iice)+nimul(iice)-        &
                                           nlevp(iice))*dt
 
+       enddo iice_loop_z1
+       !====
+       iice_loop_z2: do iice = 1,nCat
+
          !update further due to category interactions:
           do catcoll = 1,nCat
              !Note: qicol = 0 if iice=catcoll, optimised to not insert an if (catcoll.ne.iice)
@@ -4026,10 +4033,6 @@ END subroutine p3_init
              dumm3(iice)    = dumm3(iice)    + qicol(catcoll,iice)*dt
              dumm0(catcoll) = dumm0(catcoll) - nicol(catcoll,iice)*dt
           enddo ! catcoll loop
-
-       enddo iice_loop_z1
-       !====
-       iice_loop_z2: do iice = 1,nCat
 
           if (dumm3(iice).ge.qsmall) then
 
@@ -5111,6 +5114,7 @@ END subroutine p3_init
           endif three_moment_ice_1
 
           prt_sol(i) = prt_sol(i) + prt_accum*inv_rhow*odt
+          prt_soli(i,iice) = prt_soli(i,iice) + prt_accum*inv_rhow*odt
 
        endif qi_present
 
@@ -5901,11 +5905,25 @@ END subroutine p3_init
                !      this is a diagnostic only; it does not affect the model solution.
                 if ((qitot(i,k,iice)-qiliq(i,k,iice))>=qsmall) then
 
-                   tmp1 = qirim(i,k,iice)/(qitot(i,k,iice)-qiliq(i,k,iice))   !rime mass fraction
-                   if (tmp1<0.1) then
-                   !zero or trace rime:
-                      if (diag_di(i,k,iice)<150.e-6) then
-                         Q_crystals(i,k,iice) = qitot(i,k,iice)
+             if ((qitot(i,k,iice)-qiliq(i,k,iice)).ge.qsmall) then
+                 tmp1 = qirim(i,k,iice)/(qitot(i,k,iice)-qiliq(i,k,iice))   !rime mass fraction
+                if (tmp1<0.1) then
+                !zero or trace rime:
+                   if (diag_di(i,k,iice)<150.e-6) then
+                      Q_crystals(i,k,iice) = qitot(i,k,iice)
+                   else
+                      Q_ursnow(i,k,iice) = qitot(i,k,iice)
+                   endif
+                elseif (tmp1>=0.1 .and. tmp1<0.6) then
+                !lightly rimed:
+                   Q_lrsnow(i,k,iice) = qitot(i,k,iice)
+                elseif (tmp1>=0.6 .and. tmp1<=1.) then
+                !moderate-to-heavily rimed:
+                   if (diag_rhoi(i,k,iice)<700.) then
+                      Q_grpl(i,k,iice) = qitot(i,k,iice)
+                   else
+                      if (diag_di(i,k,iice)<1.e-3) then
+                         Q_pellets(i,k,iice) = qitot(i,k,iice)
                       else
                          Q_ursnow(i,k,iice) = qitot(i,k,iice)
                       endif
@@ -5930,36 +5948,52 @@ END subroutine p3_init
                       global_status = STATUS_ERROR
                       return
                    endif
-                endif !qitot>0
+                else
+                   print*, 'STOP -- unrealistic rime fraction: ',tmp1
+                   global_status = STATUS_ERROR
+                   return
+                endif
+             endif !qitot>0
 
-             enddo k_loop_typdiag_2
+          enddo k_loop_typdiag_2
 
-            !diagnostics for sfc precipitation rates: (liquid-equivalent volume flux, m s-1)
-            !  note: these are summed for all ice categories
-             if (Q_crystals(i,kbot,iice) > 0.)    then
-                prt_crys(i) = prt_crys(i) + prt_sol(i)    !precip rate of small crystals
-             elseif (Q_ursnow(i,kbot,iice) > 0.)  then
-                prt_snow(i) = prt_snow(i) + prt_sol(i)    !precip rate of unrimed + lightly rimed snow
-             elseif (Q_lrsnow(i,kbot,iice) > 0.)  then
-                prt_snow(i) = prt_snow(i) + prt_sol(i)    !precip rate of unrimed + lightly rimed snow
-             elseif (Q_grpl(i,kbot,iice) > 0.)    then
-                prt_grpl(i) = prt_grpl(i) + prt_sol(i)    !precip rate of graupel
-             elseif (Q_pellets(i,kbot,iice) > 0.) then
-                prt_pell(i) = prt_pell(i) + prt_sol(i)    !precip rate of ice pellets
-             elseif (Q_hail(i,kbot,iice) > 0.)    then
-                prt_hail(i) = prt_hail(i) + prt_sol(i)    !precip rate of hail
-             endif
+         !diagnostics for sfc precipitation rates: (liquid-equivalent volume flux, m s-1)
+         !  note: these are summed for all ice categories
+          if (Q_crystals(i,kbot,iice) > 0.)    then
+             prt_crys(i) = prt_crys(i) + prt_soli(i,iice)    !precip rate of small crystals
+          elseif (Q_ursnow(i,kbot,iice) > 0.)  then
+             prt_snow(i) = prt_snow(i) + prt_soli(i,iice)    !precip rate of unrimed + lightly rimed snow
+          elseif (Q_lrsnow(i,kbot,iice) > 0.)  then
+             prt_snow(i) = prt_snow(i) + prt_soli(i,iice)    !precip rate of unrimed + lightly rimed snow
+          elseif (Q_grpl(i,kbot,iice) > 0.)    then
+             prt_grpl(i) = prt_grpl(i) + prt_soli(i,iice)    !precip rate of graupel
+          elseif (Q_pellets(i,kbot,iice) > 0.) then
+             prt_pell(i) = prt_pell(i) + prt_soli(i,iice)    !precip rate of ice pellets
+          elseif (Q_hail(i,kbot,iice) > 0.)    then
+             prt_hail(i) = prt_hail(i) + prt_soli(i,iice)    !precip rate of hail
+          endif
+         !--- optimized version above above IF block (does not work on all FORTRAN compilers)
+!           tmp3 = -(Q_crystals(i,kbot,iice) > 0.)
+!           tmp4 = -(Q_ursnow(i,kbot,iice)   > 0.)
+!           tmp5 = -(Q_lrsnow(i,kbot,iice)   > 0.)
+!           tmp6 = -(Q_grpl(i,kbot,iice)     > 0.)
+!           tmp7 = -(Q_pellets(i,kbot,iice)  > 0.)
+!           tmp8 = -(Q_hail(i,kbot,iice)     > 0.)
+!           prt_crys(i) = prt_crys(i) + prt_soli(i,iice)*tmp3                   !precip rate of small crystals
+!           prt_snow(i) = prt_snow(i) + prt_soli(i,iice)*tmp4 + prt_sol(i)*tmp5 !precip rate of unrimed + lightly rimed snow
+!           prt_grpl(i) = prt_grpl(i) + prt_soli(i,iice)*tmp6                   !precip rate of graupel
+!           prt_pell(i) = prt_pell(i) + prt_soli(i,iice)*tmp7                   !precip rate of ice pellets
+!           prt_hail(i) = prt_hail(i) + prt_soli(i,iice)*tmp8                   !precip rate of hail
+         !===
 
-             !precip rate of unmelted total "snow":
-             !  For now, an instantaneous solid-to-liquid ratio (tmp1) is assumed and is multiplied
-             !  by the total liquid-equivalent precip rates of snow (small crystals + lightly-rime + ..)
-             !  Later, this can be computed explicitly as the volume flux of unmelted ice.
-             !tmp1 = 10.  !assumes 10:1 ratio
-             !tmp1 = 1000./max(1., diag_rhoi(i,kbot,iice))
-             tmp1 = 1000./max(1., 5.*diag_rhoi(i,kbot,iice))
-             prt_sndp(i) = prt_sndp(i) + tmp1*(prt_crys(i) + prt_snow(i) + prt_grpl(i))
-
-          endif ice_present
+          !precip rate of unmelted total "snow":
+          !  For now, an instananeous solid-to-liquid ratio (tmp1) is assumed and is multiplied
+          !  by the total liquid-equivalent precip rates of snow (small crystals + lightly-rime + ..)
+          !  Later, this can be computed explicitly as the volume flux of unmelted ice.
+         !tmp1 = 10.  !assumes 10:1 ratio
+         !tmp1 = 1000./max(1., diag_rhoi(i,kbot,iice))
+          tmp1 = 1000./max(1., 5.*diag_rhoi(i,kbot,iice))
+          prt_sndp(i) = prt_sndp(i) + tmp1*(prt_crys(i) + prt_snow(i) + prt_grpl(i))
 
        enddo iice_loop_diag
 
