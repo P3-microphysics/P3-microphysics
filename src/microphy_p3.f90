@@ -21,8 +21,7 @@
 !    Melissa Cholette (melissa.cholette@ec.gc.ca)                                          !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.3.0+                                                                    !
-! Version:       5.2.3                                                                     !
+! Version:       5.2.3 + dev-dhmax                                                         !
 ! Last updated:  2023-MAR                                                                  !
 !__________________________________________________________________________________________!
 
@@ -2154,7 +2153,7 @@ END subroutine p3_init
  real,    parameter                       :: thres_raindrop     = 100.e-6 !size threshold for drizzle vs. rain
  real,    dimension(its:ite,kts:kte)      :: Q_drizzle,Q_rain
  real,    dimension(its:ite,kts:kte,nCat) :: Q_crystals,Q_ursnow,Q_lrsnow,Q_grpl,Q_pellets,Q_hail
- integer                                  :: ktop_typeDiag_r,ktop_typeDiag_i
+ integer                                  :: ktop_typeDiag    !ktop_typeDiag_r,ktop_typeDiag_i
  logical                                  :: log_typeDiags,log_typeDiag_column
 
 ! to be added as namelist parameters (future)
@@ -5333,8 +5332,7 @@ END subroutine p3_init
                 endif
                 if (qiliq(i,k,iice).lt.qsmall) qiliq(i,k,iice) = 0.
 
-     ! Get di for merging
-                diag_di(i,k,iice)   = f1pr15
+                diag_di(i,k,iice)   = f1pr15   ! used for merging
 
              else
 
@@ -5557,8 +5555,6 @@ END subroutine p3_init
                 tmp2 = G_of_mu(20.)
                 zitot(i,k,iice) = min(zitot(i,k,iice),tmp1*dum1**2/nitot(i,k,iice))
                 zitot(i,k,iice) = max(zitot(i,k,iice),tmp2*dum1**2/nitot(i,k,iice))
-!                zitot(i,k,iice) = min(zitot(i,k,iice),f1pr20*qitot(i,k,iice))           *** LEGACY (REMOVE) ***
-!                zitot(i,k,iice) = max(zitot(i,k,iice),f1pr21*qitot(i,k,iice))           *** LEGACY (REMOVE) ***
              endif
 
   !--this should already be done in s/r 'calc_bulkRhoRime'
@@ -5790,8 +5786,6 @@ END subroutine p3_init
     diag_2d(:,1) = prt_liq(:)
     diag_2d(:,2) = prt_sol(:)
 !   diag_3d(:,:,1) = qitot(:,:,1)
-!   diag_3d(:,:,2) = nitot(:,:,1)
-!   diag_3d(:,:,3) = qirim(:,:,1)
 !--
 
  endif
@@ -5803,8 +5797,7 @@ END subroutine p3_init
               present(prt_snow).and.present(prt_grpl).and.present(prt_pell).and. &
               present(prt_hail).and.present(prt_sndp))) then
        print*,'***  ABORT IN P3_MAIN ***'
-       print*,'*  log_typeDiags = .true. but prt_drzl, etc.'
-       print*,'*  are not passed into P3_MAIN'
+       print*,'*  typeDiags_ON = .true. but prt_drzl, etc. are not passed into P3_MAIN'
        print*,'*************************'
        global_status = STATUS_ERROR
        return
@@ -5818,92 +5811,56 @@ END subroutine p3_init
     prt_pell(:) = 0.
     prt_hail(:) = 0.
     prt_sndp(:) = 0.
+    if (present(qi_type)) qi_type(:,:,:) = 0.
 
-    diag_dhmax(:,:,:) = 0.
-    qi_type(:,:,:)    = 0.
-    Q_drizzle(:,:)    = 0.
-    Q_rain(:,:)       = 0.
-    Q_crystals(:,:,:) = 0.
-    Q_ursnow(:,:,:)   = 0.
-    Q_lrsnow(:,:,:)   = 0.
-    Q_grpl(:,:,:)     = 0.
-    Q_pellets(:,:,:)  = 0.
-    Q_hail(:,:,:)     = 0.
+    if (freq3DtypeDiag>0. .and. mod(it*dt,freq3DtypeDiag*60.)==0.) then
+      !diagnose hydrometeor types for full columns
+       ktop_typeDiag = ktop
+    else
+      !diagnose hydrometeor types at bottom level only (for specific precip rates)
+       ktop_typeDiag = kbot
+    endif
 
     i_loop_typediag: do i = its,ite
 
-       if (freq3DtypeDiag>0. .and. mod(it*dt,freq3DtypeDiag*60.)==0.) then
-       !diagnose hydrometeor types for full columns
-          log_typeDiag_column = .true.
-       else
-       !diagnose hydrometeor types at bottom level only (for specific precip rates and max. hail size)
-          log_typeDiag_column = .false.
-       endif
-
       !-- rain vs. drizzle:
+       k_loop_typdiag_1: do k = kbot,ktop_typeDiag,kdir
 
-      !find top (highest level with rain):
-       ktop_typeDiag_r = kbot
-       log_qxpresent = .false.
-       if (log_typeDiag_column) then
-          do k = ktop,kbot,-kdir
-             if (qr(i,k).ge.qsmall) then
-                ktop_typeDiag_r = k
-                log_qxpresent = .true.
-                exit
+          Q_drizzle(i,k) = 0.
+          Q_rain(i,k)    = 0.
+          !note:  these can be broken down further (outside of microphysics) into
+          !       liquid rain (drizzle) vs. freezing rain (drizzle) based on sfc temp.
+          if (qr(i,k).ge.qsmall .and. nr(i,k).ge.nsmall) then
+             tmp1 = (6.*qr(i,k)/(pi*rhow*nr(i,k)))**thrd   !mean-mass diameter
+             if (tmp1 < thres_raindrop) then
+                Q_drizzle(i,k) = qr(i,k)
+             else
+                Q_rain(i,k)    = qr(i,k)
              endif
-          enddo
+          endif
+
+       enddo k_loop_typdiag_1
+
+       if (Q_drizzle(i,kbot) > 0.) then
+          prt_drzl(i) = prt_liq(i)
+       elseif (Q_rain(i,kbot) > 0.) then
+          prt_rain(i) = prt_liq(i)
        endif
 
-       rain_present: if (log_qxpresent) then
+      !-- ice-phase:
+      iice_loop_diag: do iice = 1,nCat
 
-          k_loop_typdiag_1: do k = kbot,ktop_typeDiag_r,kdir
+          k_loop_typdiag_2: do k = kbot,ktop_typeDiag,kdir
 
-             !note:  These can be broken down further (outside of microphysics) into
-             !       liquid rain (drizzle) vs. freezing rain (drizzle) based on sfc temp.
-             if (qr(i,k)>qsmall .and. nr(i,k)>nsmall) then
-                tmp1 = (6.*qr(i,k)/(pi*rhow*nr(i,k)))**thrd   !mean-mass diameter
-                if (tmp1 < thres_raindrop) then
-                   Q_drizzle(i,k) = qr(i,k)
-                else
-                   Q_rain(i,k) = qr(i,k)
-                endif
-             endif
+             Q_crystals(i,k,iice) = 0.
+             Q_ursnow(i,k,iice)   = 0.
+             Q_lrsnow(i,k,iice)   = 0.
+             Q_grpl(i,k,iice)     = 0.
+             Q_pellets(i,k,iice)  = 0.
+             Q_hail(i,k,iice)     = 0.
 
-          enddo k_loop_typdiag_1
-
-          if (Q_drizzle(i,kbot) > 0.) then
-             prt_drzl(i) = prt_liq(i)
-          elseif (Q_rain(i,kbot) > 0.) then
-             prt_rain(i) = prt_liq(i)
-          endif
-
-       endif rain_present
-
-      !-- ice-phase types:
-
-       iice_loop_diag: do iice = 1,nCat
-
-         !find top (highest level with ice):
-          ktop_typeDiag_i = kbot
-          log_qxpresent = .false.
-          if (log_typeDiag_column) then
-             do k = ktop,kbot,-kdir
-                if (qitot(i,k,iice).ge.qsmall) then
-                   ktop_typeDiag_i = k
-                   log_qxpresent = .true.
-                   exit
-                endif
-             enddo
-          endif
-
-          ice_present: if (log_qxpresent) then
-
-             k_loop_typdiag_2: do k = kbot,ktop_typeDiag_i,kdir
-
-               !note: The following partitioning of ice into types is subjective.  However,
-               !      this is a diagnostic only; it does not affect the model solution.
-                if ((qitot(i,k,iice)-qiliq(i,k,iice))>=qsmall) then
+            !Note: The following partitioning of ice into types is subjective.  However,
+            !      this is a diagnostic only; it does not affect the model solution.
 
              if ((qitot(i,k,iice)-qiliq(i,k,iice)).ge.qsmall) then
                  tmp1 = qirim(i,k,iice)/(qitot(i,k,iice)-qiliq(i,k,iice))   !rime mass fraction
@@ -5925,28 +5882,8 @@ END subroutine p3_init
                       if (diag_di(i,k,iice)<1.e-3) then
                          Q_pellets(i,k,iice) = qitot(i,k,iice)
                       else
-                         Q_ursnow(i,k,iice) = qitot(i,k,iice)
+                         Q_hail(i,k,iice) = qitot(i,k,iice)
                       endif
-                   elseif (tmp1>=0.1 .and. tmp1<0.6) then
-                   !lightly rimed:
-                      Q_lrsnow(i,k,iice) = qitot(i,k,iice)
-                   elseif (tmp1>=0.6 .and. tmp1<=1.) then
-                   !moderate-to-heavily rimed:
-                      if (diag_rhoi(i,k,iice)<700.) then
-                         Q_grpl(i,k,iice) = qitot(i,k,iice)
-                      else
-                         if (diag_di(i,k,iice)<1.e-3) then
-                            Q_pellets(i,k,iice) = qitot(i,k,iice)
-                         else
-                            Q_hail(i,k,iice) = qitot(i,k,iice)
-                            diag_dhmax(i,k,iice) = maxHailSize(rho(i,k),nitot(i,k,iice),  &
-                                 rhofaci(i,k),arr_lami(i,k,iice),arr_mui(i,k,iice))
-                         endif
-                      endif
-                   else
-                      print*, 'STOP -- unrealistic rime fraction: ',tmp1
-                      global_status = STATUS_ERROR
-                      return
                    endif
                 else
                    print*, 'STOP -- unrealistic rime fraction: ',tmp1
@@ -5972,24 +5909,11 @@ END subroutine p3_init
           elseif (Q_hail(i,kbot,iice) > 0.)    then
              prt_hail(i) = prt_hail(i) + prt_soli(i,iice)    !precip rate of hail
           endif
-         !--- optimized version above above IF block (does not work on all FORTRAN compilers)
-!           tmp3 = -(Q_crystals(i,kbot,iice) > 0.)
-!           tmp4 = -(Q_ursnow(i,kbot,iice)   > 0.)
-!           tmp5 = -(Q_lrsnow(i,kbot,iice)   > 0.)
-!           tmp6 = -(Q_grpl(i,kbot,iice)     > 0.)
-!           tmp7 = -(Q_pellets(i,kbot,iice)  > 0.)
-!           tmp8 = -(Q_hail(i,kbot,iice)     > 0.)
-!           prt_crys(i) = prt_crys(i) + prt_soli(i,iice)*tmp3                   !precip rate of small crystals
-!           prt_snow(i) = prt_snow(i) + prt_soli(i,iice)*tmp4 + prt_sol(i)*tmp5 !precip rate of unrimed + lightly rimed snow
-!           prt_grpl(i) = prt_grpl(i) + prt_soli(i,iice)*tmp6                   !precip rate of graupel
-!           prt_pell(i) = prt_pell(i) + prt_soli(i,iice)*tmp7                   !precip rate of ice pellets
-!           prt_hail(i) = prt_hail(i) + prt_soli(i,iice)*tmp8                   !precip rate of hail
-         !===
 
-          !precip rate of unmelted total "snow":
-          !  For now, an instananeous solid-to-liquid ratio (tmp1) is assumed and is multiplied
-          !  by the total liquid-equivalent precip rates of snow (small crystals + lightly-rime + ..)
-          !  Later, this can be computed explicitly as the volume flux of unmelted ice.
+         !precip rate of unmelted total "snow":
+         !  For now, an instananeous solid-to-liquid ratio (tmp1) is assumed and is multiplied
+         !  by the total liquid-equivalent precip rates of snow (small crystals + lightly-rime + ..)
+         !  Later, this can be computed explicitly as the volume flux of unmelted ice.
          !tmp1 = 10.  !assumes 10:1 ratio
          !tmp1 = 1000./max(1., diag_rhoi(i,kbot,iice))
           tmp1 = 1000./max(1., 5.*diag_rhoi(i,kbot,iice))
@@ -6000,7 +5924,7 @@ END subroutine p3_init
     enddo i_loop_typediag
 
    !- for output of 3D fields of diagnostic ice-phase hydrometeor type
-    if (log_typeDiag_column) then
+    if (ktop_typeDiag==ktop .and. present(qi_type)) then
        do ii = 1,nCat
           qi_type(:,:,1) = qi_type(:,:,1) + Q_crystals(:,:,ii)
           qi_type(:,:,2) = qi_type(:,:,2) + Q_ursnow(:,:,ii)
@@ -6012,7 +5936,6 @@ END subroutine p3_init
     endif
 
  endif compute_type_diags
-
 
 !=== (end of section for diagnostic hydrometeor/precip types)
 
