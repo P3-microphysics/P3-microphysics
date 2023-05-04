@@ -11,9 +11,9 @@ This directory contains the main P3 module and the codes necessary to geneate th
 - microphy_p3.f90
 
 ### ./interfaces
-This subdirectory contains code for interefaces with the GEM and WRF models, for specific model versions, that have been modified to include necessary changes for latest P3 code.
+This subdirectory contains code for interefaces with the GEM and CM1 models, for specific model versions, that have been modified to include necessary changes for latest P3 code.  All code related to the interface of the WRF model can be found in the GitHub respository for WRF.
 - ./interfaces/gem
-- ./interfaces/wrf
+- ./interfaces/cm1
 
 ### ./kin1d
 This subdirectory contains a simple kinematic 1D driving model to perform unit testing of P3.  The README file in that subdirectory describes how to set up and run the model.  A Python plotting script to generate time-height plots from the output is provided.
