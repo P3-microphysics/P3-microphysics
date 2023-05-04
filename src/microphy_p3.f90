@@ -21,8 +21,8 @@
 !    Melissa Cholette (melissa.cholette@ec.gc.ca)                                          !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.2.3                                                                     !
-! Last updated:  2023-MAR                                                                  !
+! Version:       5.2.4                                                                     !
+! Last updated:  2023-MAY                                                                  !
 !__________________________________________________________________________________________!
 
  MODULE microphy_p3
@@ -113,7 +113,7 @@
 
 !==================================================================================================!
 
- subroutine p3_init(lookup_file_dir,nCat,trplMomI,liqFrac,model,stat,abort_on_err,dowr)
+ subroutine p3_init(lookup_file_dir,nCat,trplMomI,liqfrac,model,stat,abort_on_err,dowr)
 
 !------------------------------------------------------------------------------------------!
 ! This subroutine initializes all physical constants and parameters needed by the P3       !
@@ -132,7 +132,7 @@
  character(len=*), intent(in)             :: lookup_file_dir    ! directory of the lookup tables (model library)
  integer,          intent(in)             :: nCat               ! number of free ice categories
  logical,          intent(in)             :: trplMomI           ! .T.=3-moment / .F.=2-moment (ice)
- logical,          intent(in)             :: liqFrac            ! .T.=Fi,liq / .F.=no Fi,liq (ice)
+ logical,          intent(in)             :: liqfrac            ! .T.=Fi,liq / .F.=no Fi,liq (ice)
  integer,          intent(out), optional  :: stat               ! return status of subprogram
  logical,          intent(in),  optional  :: abort_on_err       ! abort when an error is encountered [.false.]
  character(len=*), intent(in),  optional  :: model              ! driving model
@@ -140,7 +140,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.2.3'
+ character(len=1024), parameter :: version_p3                    = '5.2.4'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.4-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '6.4-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.0'
@@ -337,7 +337,7 @@
     itabcoll = 0.
  endif
  if (nCat>1) then
-  if (liqFrac) then
+  if (liqfrac) then
     itabcolli001 = 0.
     itabcolli002 = 0.
     itabcolli011 = 0.
@@ -517,7 +517,7 @@
        IF_OKB: if (global_status /= STATUS_ERROR) then
        read(10,*)
 
-       if (liqFrac) then
+       if (liqfrac) then
          do i = 1,iisize
             do jjj = 1,rimsize
                do jjjj = 1,densize
@@ -555,7 +555,7 @@
                enddo
             enddo
          enddo
-       endif ! liqFrac
+       endif ! liqfrac
 
        endif IF_OKB
 
@@ -587,7 +587,7 @@
     call rpn_comm_bcast(itabcoll,size(itabcoll),RPN_COMM_REAL,0,RPN_COMM_GRID,istat)
  endif
  if (nCat>1) then
-  if (liqFrac) then
+  if (liqfrac) then
     call rpn_comm_bcast(itabcolli001,size(itabcolli001),RPN_COMM_REAL,0,RPN_COMM_GRID,istat)
     call rpn_comm_bcast(itabcolli002,size(itabcolli002),RPN_COMM_REAL,0,RPN_COMM_GRID,istat)
     call rpn_comm_bcast(itabcolli011,size(itabcolli011),RPN_COMM_REAL,0,RPN_COMM_GRID,istat)
@@ -3062,8 +3062,8 @@ END subroutine p3_init
              nr(i,k)         = max(nr(i,k),nsmall)
 
             !compute mean-mass ice diameters (estimated; rigorous approach to be implemented later)
-             dum2 = 500. !ice density
-             diam_ice(i,k,iice) = ((qitot(i,k,iice)*6.)/(nitot(i,k,iice)*dum2*pi))**thrd
+            !dum2 = 500. !ice density
+            !diam_ice(i,k,iice) = ((qitot(i,k,iice)*6.)/(nitot(i,k,iice)*dum2*pi))**thrd
 
             !Note: with scpf_on, no need to compute in-cloud values to access lookup tables since all  
             !indices are ratios of mixing ratios, therefore *iSCF is both on num and denom.
@@ -3089,6 +3089,7 @@ END subroutine p3_init
                   call access_lookup_table(dumjj,dumii,dumi, 7,dum1,dum4,dum5,f1pr09)
                   call access_lookup_table(dumjj,dumii,dumi, 8,dum1,dum4,dum5,f1pr10)
                   call access_lookup_table(dumjj,dumii,dumi,10,dum1,dum4,dum5,f1pr14)
+                  call access_lookup_table(dumjj,dumii,dumi,11,dum1,dum4,dum5,f1pr15)
                else
                   call access_lookup_table_LF(dumjj,dumii,dumll,dumi, 2,dum1,dum4,dum5,dum7,f1pr02)
                   call access_lookup_table_LF(dumjj,dumii,dumll,dumi, 3,dum1,dum4,dum5,dum7,f1pr03)
@@ -3097,6 +3098,7 @@ END subroutine p3_init
                   call access_lookup_table_LF(dumjj,dumii,dumll,dumi, 7,dum1,dum4,dum5,dum7,f1pr09)
                   call access_lookup_table_LF(dumjj,dumii,dumll,dumi, 8,dum1,dum4,dum5,dum7,f1pr10)
                   call access_lookup_table_LF(dumjj,dumii,dumll,dumi,10,dum1,dum4,dum5,dum7,f1pr14)
+                  call access_lookup_table_LF(dumjj,dumii,dumll,dumi,11,dum1,dum4,dum5,dum7,f1pr15)
                   call access_lookup_table_LF(dumjj,dumii,dumll,dumi,15,dum1,dum4,dum5,dum7,f1pr24)
                   call access_lookup_table_LF(dumjj,dumii,dumll,dumi,16,dum1,dum4,dum5,dum7,f1pr25)
                   call access_lookup_table_LF(dumjj,dumii,dumll,dumi,17,dum1,dum4,dum5,dum7,f1pr26)
@@ -3146,6 +3148,7 @@ END subroutine p3_init
                   call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 7,dum1,dum4,dum5,dum6,f1pr09)
                   call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 8,dum1,dum4,dum5,dum6,f1pr10)
                   call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,10,dum1,dum4,dum5,dum6,f1pr14)
+                  call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,11,dum1,dum4,dum5,dum6,f1pr15)
                 else
                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi, 2,dum1,dum4,dum5,dum6,dum7,f1pr02)
                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi, 3,dum1,dum4,dum5,dum6,dum7,f1pr03)
@@ -3154,6 +3157,7 @@ END subroutine p3_init
                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi, 7,dum1,dum4,dum5,dum6,dum7,f1pr09)
                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi, 8,dum1,dum4,dum5,dum6,dum7,f1pr10)
                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,10,dum1,dum4,dum5,dum6,dum7,f1pr14)
+                  call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,11,dum1,dum4,dum5,dum6,dum7,f1pr15)
                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,16,dum1,dum4,dum5,dum6,dum7,f1pr24)
                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,17,dum1,dum4,dum5,dum6,dum7,f1pr25)
                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,18,dum1,dum4,dum5,dum6,dum7,f1pr26)
@@ -3178,6 +3182,9 @@ END subroutine p3_init
                 endif
 
              endif  !if log_3momentIce
+
+          ! Compute mean mass-weithed diameter of ice
+            diam_ice(i,k,iice) = f1pr15
 
           ! adjust Ni if needed to make sure mean size is in bounds (i.e. apply lambda limiters)
           !  note: the inv_Qmin (f1pr09) and inv_Qmax (f1pr10) are normalized, thus the
@@ -4251,8 +4258,6 @@ END subroutine p3_init
     !Limit total condensation (incl. activation) and evaporation to saturation adjustment
        dumqvs = qv_sat(t(i,k),pres(i,k),0)
        qcon_satadj  = (Qv_cld(k)-dumqvs)/(1.+xxlv(i,k)**2*dumqvs/(cp*rv*t(i,k)**2))*odt*SCF(k)
-!Note (BUG) Cholette (Jul 2022) qv instead of qv_cld, remove *SCF(k)
-       !qcon_satadj  = (qv(i,k)-dumqvs)/(1.+xxlv(i,k)**2*dumqvs/(cp*rv*t(i,k)**2))*odt
 
        tmp1 = qccon+qrcon+qcnuc+sum(qlcon)
        if (tmp1>0. .and. qcon_satadj<0.) then
@@ -4282,13 +4287,10 @@ END subroutine p3_init
        endif
 
     !Limit total deposition (incl. nucleation) and sublimation to saturation adjustment
-!Note (BUG) Cholette (Jul 2022) qv instead of qv_cld, remove *SCF(k)
-       !qv_tmp = qv(i,k) + (-qcnuc-qccon-qrcon-sum(qlcon)+qcevp+qrevp+sum(qlevp))*dt   
        qv_tmp = Qv_cld(k) + (-qcnuc-qccon-qrcon-sum(qlcon)+qcevp+qrevp+sum(qlevp))*dt                  !qv after cond/evap
        t_tmp  = t(i,k) + (qcnuc+qccon+qrcon+sum(qlcon)-qcevp-qrevp-sum(qlevp))*xxlv(i,k)*inv_cp*dt     !T after cond/evap
        dumqvi = qv_sat(t_tmp,pres(i,k),1)
        qdep_satadj = (qv_tmp-dumqvi)/(1.+xxls(i,k)**2*dumqvi/(cp*rv*t_tmp**2))*odt*SCF(k)
-       !qdep_satadj = (qv_tmp-dumqvi)/(1.+xxls(i,k)**2*dumqvi/(cp*rv*t_tmp**2))*odt
 
        tmp1 = sum(qidep)+sum(qinuc)
        if (tmp1>0. .and. qdep_satadj<0.) then
@@ -4487,6 +4489,7 @@ END subroutine p3_init
                 dumm3(iice) = 6./(900.*pi)*dumm3(iice)
              endif
 
+            zitot(i,k,iice) = max(zitot(i,k,iice),zsmall)
             !solve or assign for mu_i (to be used to compute updated zitot)
             if (qitot(i,k,iice).ge.qsmall) then
                !solve for mu_i from values of mom0,mom3,mom6 at beginning of time step
@@ -5597,15 +5600,49 @@ END subroutine p3_init
 
     k_loop_fz:  do k = kbot,ktop,kdir
 
-    ! compute mean-mass ice diameters (estimated; rigorous approach to be implemented later)
+    ! compute mean-mass ice diameters
        diam_ice(i,k,:) = 0.
        do iice = 1,nCat
           if (qitot(i,k,iice).ge.qsmall) then
-             dum1 = max(nitot(i,k,iice),nsmall)
-             dum2 = 500. !ice density
-             diam_ice(i,k,iice) = ((qitot(i,k,iice)*6.)/(dum1*dum2*pi))**thrd
+             nitot(i,k,iice) = max(nitot(i,k,iice),nsmall)
+
+             call calc_bulkRhoRime(qitot(i,k,iice),qirim(i,k,iice),qiliq(i,k,iice),birim(i,k,iice),rhop)
+             call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,dum7,isize,         &
+                        rimsize,liqsize,densize,qitot(i,k,iice),nitot(i,k,iice),qirim(i,k,iice),        &
+                        qiliq(i,k,iice),rhop)
+
+             if (.not. log_3momentIce) then
+               if (.not. log_LiquidFrac) then
+                  call access_lookup_table(dumjj,dumii,dumi,11,dum1,dum4,dum5,f1pr15)
+               else
+                  call access_lookup_table_LF(dumjj,dumii,dumll,dumi,10,dum1,dum4,dum5,dum7,f1pr14)
+               endif
+             else
+               zitot(i,k,iice) = max(zitot(i,k,iice),zsmall)
+               do imu=1,niter_mui
+                  mu_i = compute_mu_3moment(nitot(i,k,iice),dum1z,zitot(i,k,iice),mu_i_max)
+                  call find_lookupTable_indices_1c(dumzz,dum6,zsize,mu_i)
+                  call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,f1pr16)
+                  dum1z =  6./(f1pr16*pi)*qitot(i,k,iice)  !estimate of moment3
+               enddo
+               if (.not. log_LiquidFrac) then
+                  call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,11,dum1,dum4,dum5,dum6,f1pr15)
+               else
+                  call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,11,dum1,dum4,dum5,dum6,dum7,f1pr15)
+               endif
+             endif
+             diam_ice(i,k,iice) = f1pr15
           endif
        enddo  !iice loop
+
+       !diam_ice(i,k,:) = 0.
+       !do iice = 1,nCat
+       !   if (qitot(i,k,iice).ge.qsmall) then
+       !      dum1 = max(nitot(i,k,iice),nsmall)
+       !      dum2 = 500. !ice density
+       !      diam_ice(i,k,iice) = ((qitot(i,k,iice)*6.)/(dum1*dum2*pi))**thrd
+       !   endif
+       !enddo  !iice loop
 
        qc_not_small_2: if (qc(i,k).ge.qsmall .and. t(i,k).lt.233.15) then
 
@@ -5692,12 +5729,11 @@ END subroutine p3_init
 
                 nitot(i,k,iice) = max(nitot(i,k,iice),nsmall)
                 call calc_bulkRhoRime(qitot(i,k,iice),qirim(i,k,iice),qiliq(i,k,iice),birim(i,k,iice),rhop)
+                call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,dum7,isize,   &
+                       rimsize,liqsize,densize,qitot(i,k,iice),nitot(i,k,iice),qirim(i,k,iice),      &
+                       qiliq(i,k,iice),rhop)
 
                 if (.not. log_3momentIce) then
-
-                   call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,dum7,isize,   &
-                          rimsize,liqsize,densize,qitot(i,k,iice),nitot(i,k,iice),qirim(i,k,iice),      &
-                          qiliq(i,k,iice),rhop)
 
                    if (log_LiquidFrac) then
                      call access_lookup_table_LF(dumjj,dumii,dumll,dumi,11,dum1,dum4,dum5,dum7,f1pr15)
@@ -5706,10 +5742,6 @@ END subroutine p3_init
                    endif
 
                 else ! triple moment ice
-
-                   call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,dum7,isize,                &
-                          rimsize,liqsize,densize,qitot(i,k,iice),nitot(i,k,iice),qirim(i,k,iice),qiliq(i,k,iice),   &
-                          rhop)
 
                 ! get Znorm indices
 
@@ -9850,7 +9882,7 @@ END subroutine p3_init
 ! final interpolation between llc and llc+1
 
    proc = (1.-dum7c)*procll1 + dum7c*procll2
- 
+
  endif ! index =1 or 2
 
  END SUBROUTINE access_lookup_table_colli_LF
@@ -11872,8 +11904,8 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
 
 ! Local variables:
  real             :: mu   ! shape parameter in gamma distribution
- real             :: G    ! function of mu (see comments above)
- real             :: g2
+ double precision :: G    ! function of mu (see comments above)
+ double precision :: g2,x1,x2,x3
 !real             :: a1,g1
 !real, parameter  :: eps_m0 = 1.e-20
  real, parameter  :: eps_m3 = 1.e-20
@@ -11882,8 +11914,12 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
  if (mom3>eps_m3) then
 
     !G = (mom0*mom6)/(mom3**2)
-    !To avoid very small values of mom3**2
-     G = (mom0/mom3)*(mom6/mom3)
+    !To avoid very small values of mom3**2 (not enough)
+    !G = (mom0/mom3)*(mom6/mom3)
+     x1 = 1./mom3
+     x2 = mom0*x1
+     x3 = mom6*x1
+     G  = x2*x3
 
 !----------------------------------------------------------!
 ! !Solve alpha numerically: (brute-force)
@@ -12075,7 +12111,7 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
   function p3_phybusinit() result(F_istat)
     use phy_status, only: PHY_OK, PHY_ERROR
     use bus_builder, only: bb_request
-    use phy_options, only: p3_liqFrac, p3_trplmomi
+    use phy_options, only: p3_liqfrac, p3_trplmomi
 
     implicit none
     integer :: F_istat                          !Function return status
@@ -12110,7 +12146,7 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
     if (p3_trplmomi .and. .not. buserr) then
        if (bb_request('ICE_CAT_1_TM') /= PHY_OK) buserr = .true.
     endif
-    if (p3_liqFrac .and. .not. buserr) then
+    if (p3_liqfrac .and. .not. buserr) then
        if (bb_request('ICE_CAT_1_LF') /= PHY_OK) buserr = .true.
     endif
     if (n_iceCat > 1 .and. .not. buserr) then
@@ -12119,7 +12155,7 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
     if (n_iceCat > 1 .and. p3_trplmomi .and. .not. buserr) then
        if (bb_request('ICE_CAT_2_TM') /= PHY_OK) buserr = .true.
     endif
-    if (n_iceCat > 1 .and. p3_liqFrac .and. .not. buserr) then
+    if (n_iceCat > 1 .and. p3_liqfrac .and. .not. buserr) then
        if (bb_request('ICE_CAT_2_LF') /= PHY_OK) buserr = .true.
     endif
     if (n_iceCat > 2 .and. .not. buserr) then
@@ -12128,7 +12164,7 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
     if (n_iceCat > 2 .and. p3_trplmomi .and. .not. buserr) then
        if (bb_request('ICE_CAT_3_TM') /= PHY_OK) buserr = .true.
     endif
-    if (n_iceCat > 2 .and. p3_liqFrac .and. .not. buserr) then
+    if (n_iceCat > 2 .and. p3_liqfrac .and. .not. buserr) then
        if (bb_request('ICE_CAT_3_LF') /= PHY_OK) buserr = .true.
     endif
     if (n_iceCat > 3 .and. .not. buserr) then
@@ -12137,7 +12173,7 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
     if (n_iceCat > 3 .and. p3_trplmomi .and. .not. buserr) then
        if (bb_request('ICE_CAT_4_TM') /= PHY_OK) buserr = .true.
     endif
-    if (n_iceCat > 3 .and. p3_liqFrac .and. .not. buserr) then
+    if (n_iceCat > 3 .and. p3_liqfrac .and. .not. buserr) then
        if (bb_request('ICE_CAT_4_LF') /= PHY_OK) buserr = .true.
     endif
 
