@@ -11,9 +11,9 @@ This directory contains the main P3 module and the codes necessary to geneate th
 - microphy_p3.f90
 
 ### ./interfaces
-This subdirectory contains code for interefaces with the GEM and WRF models, for specific model versions, that have been modified to include necessary changes for latest P3 code.
+This subdirectory contains code for interefaces with the GEM and CM1 models, for specific model versions, that have been modified to include necessary changes for latest P3 code.  All code related to the interface of the WRF model can be found in the GitHub respository for WRF.
 - ./interfaces/gem
-- ./interfaces/wrf
+- ./interfaces/cm1
 
 ### ./kin1d
 This subdirectory contains a simple kinematic 1D driving model to perform unit testing of P3.  The README file in that subdirectory describes how to set up and run the model.  A Python plotting script to generate time-height plots from the output is provided.
@@ -27,9 +27,9 @@ This subdirectory contains a simple kinematic 1D driving model to perform unit t
 
 ### ./lookup_tables
 This directory contains the lookup tables (text files), generated from the codes in ./code_p3, necessary to run P3.  During integration, they are read once at the beginning of the time step by s/r P3_INIT and stored in memory.  There are two versions of the main lookup table (1), one for 2-moment-ice and one for 3-moment-ice, and one version of lookup table 2.  Note, the version numbers of the tables are for the tables themselves, and are different than the version number of P3.
-- p3_lookupTable_1.dat-v5.4_2momI
-- p3_lookupTable_1.dat-v5.4_2momI
-- p3_lookupTable_2.dat-v5.3
+- p3_lookupTable_1.dat-v[LATEST VERSION]_2momI
+- p3_lookupTable_1.dat-v[LATEST VERSION]_2momI
+- p3_lookupTable_2.dat-v[LATEST VERSION]
 
 ### ./publications
 This subdirectory contains PDF versions of the published scientific artiticles that describe the major developments of the P3 scheme.
