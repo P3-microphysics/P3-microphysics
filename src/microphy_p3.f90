@@ -21,7 +21,7 @@
 !    Melissa Cholette (melissa.cholette@ec.gc.ca)                                          !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.2.4 + dev-dhmax                                                         !
+! Version:       5.2.5                                                                     !
 ! Last updated:  2023-MAY                                                                  !
 !__________________________________________________________________________________________!
 
@@ -140,7 +140,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.2.4+dhmax'
+ character(len=1024), parameter :: version_p3                    = '5.2.5'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.4-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '6.4-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.0'
@@ -1136,7 +1136,7 @@ END subroutine p3_init
                               qc,nc,qr,nr,n_diag_2d,diag_2d,n_diag_3d,diag_3d,                    &
                               clbfact_dep,clbfact_sub,debug_on,diag_hcb,diag_hsn,diag_vis,        &
                               diag_vis1,diag_vis2,diag_vis3,diag_slw,                             &
-                              scpf_on,scpf_pfrac,scpf_resfact,cldfrac,                            &
+                              scpf_on,scpf_pfrac,scpf_resfact,cldfrac,maxD_hail,                  &
                               qi_type_1,qi_type_2,qi_type_3,qi_type_4,qi_type_5,qi_type_6,        &
                               qitot_1,qirim_1,nitot_1,birim_1,diag_effi_1,zitot_1,qiliq_1,        &
                               qitot_2,qirim_2,nitot_2,birim_2,diag_effi_2,zitot_2,qiliq_2,        &
@@ -1245,6 +1245,8 @@ END subroutine p3_init
  real, intent(out),   dimension(ni,nk)  :: qi_type_5             ! hail mass                           kg kg-1
  real, intent(out),   dimension(ni,nk)  :: qi_type_6             ! ice pellet mass                     kg kg-1
 
+ real, intent(out),   dimension(ni,nk)  :: maxD_hail             ! ice, maximum hail size (all cat)    m
+
  real, intent(out),   dimension(ni)     :: diag_hcb              ! height of cloud base                m
  real, intent(out),   dimension(ni)     :: diag_hsn              ! height of snow level                m
  real, intent(out),   dimension(ni,nk)  :: diag_vis              ! visibility (total)                  m
@@ -1272,6 +1274,7 @@ END subroutine p3_init
  real, dimension(ni,nk,n_iceCat)  :: diag_vmi   ! mass-weighted fall speed, ice           m s-1  (returned but not used)
  real, dimension(ni,nk,n_iceCat)  :: diag_di    ! mean diameter, ice                      m      (returned but not used)
  real, dimension(ni,nk,n_iceCat)  :: diag_rhoi  ! bulk density, ice                       kg m-3 (returned but not used)
+ real, dimension(ni,nk,n_iceCat)  :: diag_dhmax ! maximum hail size, ice                  m
 
  real, dimension(ni,nk)  :: theta_m             ! potential temperature (previous step)   K
  real, dimension(ni,nk)  :: qvapm               ! qv (previous step)                      kg kg-1
@@ -1475,7 +1478,8 @@ END subroutine p3_init
                    diag_vis  = diag_vis,                                                        &
                    diag_vis1 = diag_vis1,                                                       &
                    diag_vis2 = diag_vis2,                                                       &
-                   diag_vis3 = diag_vis3)
+                   diag_vis3 = diag_vis3,                                                       &
+                   diag_dhmax = diag_dhmax)
           else
             call p3_main(qc,nc,qr,nr,theta_m,theta,qvapm,qvap,dt_mp,qitot,qirim,nitot,birim,    &
                    ssat,ww,pres,DZ,kount,prt_liq,prt_sol,i_strt,ni,k_strt,nk,n_iceCat,          &
@@ -1487,7 +1491,8 @@ END subroutine p3_init
                    diag_vis  = diag_vis,                                                        &
                    diag_vis1 = diag_vis1,                                                       &
                    diag_vis2 = diag_vis2,                                                       &
-                   diag_vis3 = diag_vis3)
+                   diag_vis3 = diag_vis3,                                                       &
+                   diag_dhmax = diag_dhmax)
           endif
          else
           if (log_LiquidFraction) then
@@ -1501,7 +1506,8 @@ END subroutine p3_init
                    diag_vis  = diag_vis,                                                        &
                    diag_vis1 = diag_vis1,                                                       &
                    diag_vis2 = diag_vis2,                                                       &
-                   diag_vis3 = diag_vis3)
+                   diag_vis3 = diag_vis3,                                                       &
+                   diag_dhmax = diag_dhmax)
           else
             call p3_main(qc,nc,qr,nr,theta_m,theta,qvapm,qvap,dt_mp,qitot,qirim,nitot,birim,    &
                    ssat,ww,pres,DZ,kount,prt_liq,prt_sol,i_strt,ni,k_strt,nk,n_iceCat,          &
@@ -1512,7 +1518,8 @@ END subroutine p3_init
                    diag_vis  = diag_vis,                                                        &
                    diag_vis1 = diag_vis1,                                                       &
                    diag_vis2 = diag_vis2,                                                       &
-                   diag_vis3 = diag_vis3)
+                   diag_vis3 = diag_vis3,                                                       &
+                   diag_dhmax = diag_dhmax)
           endif
          endif
 
@@ -1538,6 +1545,9 @@ END subroutine p3_init
 
    ! retransferring mixing ratio to specific humidity (only t* is needed)
    qvap = qvap/(1+qvap)
+
+   ! Take maximum hail size for all category included
+   maxD_hail = maxval(diag_dhmax,3)
 
    if (n_substep > 1) then
       tmp1 = 1./float(n_substep)
