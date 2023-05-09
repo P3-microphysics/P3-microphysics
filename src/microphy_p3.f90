@@ -1132,8 +1132,8 @@ END subroutine p3_init
  function mp_p3_wrapper_gem(ttend,qtend,qctend,qrtend,qitend,                                     &
                               qvap_m,qvap,temp_m,temp,dt,dt_max,ww,psfc,gztherm,gzmom,sigma,kount,&
                               trnch,ni,nk,prt_liq,prt_sol,prt_drzl,prt_rain,prt_crys,prt_snow,    &
-                              prt_grpl,prt_pell,prt_hail,prt_wlsnow,prt_wcrys,prt_wsnow,prt_wgrpl,&
-                              prt_wpell,prt_whail,prt_sndp,diag_Zet,diag_Zec,diag_effc,           &
+                              prt_grpl,prt_pell,prt_hail,prt_sndp,prt_wlsnow,prt_wcrys,prt_wsnow, &
+                              prt_wgrpl,prt_wpell,prt_whail,diag_Zet,diag_Zec,diag_effc,          &
                               qc,nc,qr,nr,n_diag_2d,diag_2d,n_diag_3d,diag_3d,                    &
                               clbfact_dep,clbfact_sub,debug_on,diag_hcb,diag_hsn,diag_vis,        &
                               diag_vis1,diag_vis2,diag_vis3,diag_slw,                             &
