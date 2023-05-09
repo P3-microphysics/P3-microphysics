@@ -2199,7 +2199,7 @@ END subroutine p3_init
 
 ! quantities related to diagnostic hydrometeor/precipitation types
  real,    parameter                       :: freq3DtypeDiag     =  5.      !frequency (min) for full-column diagnostics
- real,    parameter                       :: thres_raindrop     = 100.e-6 !size threshold for drizzle vs. rain
+ real,    parameter                       :: thres_raindrop     = 150.e-6 !size threshold for drizzle vs. rain
  real,    dimension(its:ite,kts:kte)      :: Q_drizzle,Q_rain
  real,    dimension(its:ite,kts:kte,nCat) :: Q_crystals,Q_snow,Q_wlsnow,Q_grpl,Q_pellets,Q_hail
  integer                                  :: ktop_typeDiag    !ktop_typeDiag_r,ktop_typeDiag_i
@@ -5407,8 +5407,8 @@ END subroutine p3_init
        do k = kbot,ktop,kdir
           do iice = nCat,2,-1
              tmp1 = abs(diag_di(i,k,iice)-diag_di(i,k,iice-1))
-             if (tmp1.le.deltaD_init .and. qitot(i,k,iice).ge.qsmall .and.               &
-                 qitot(i,k,iice-1).ge.qsmall) then
+             if (tmp1.le.deltaD_init .and. qitot(i,k,iice).gt.0. .and.               &
+                 qitot(i,k,iice-1).gt.0.) then
                 qitot(i,k,iice-1) = qitot(i,k,iice-1) + qitot(i,k,iice)
                 nitot(i,k,iice-1) = nitot(i,k,iice-1) + nitot(i,k,iice)
                 qirim(i,k,iice-1) = qirim(i,k,iice-1) + qirim(i,k,iice)
@@ -5863,6 +5863,12 @@ END subroutine p3_init
     prt_pell(:) = 0.
     prt_hail(:) = 0.
     prt_sndp(:) = 0.
+    prt_wlsnow(:) = 0.
+    prt_wcrys(:) = 0.
+    prt_wsnow(:) = 0.
+    prt_wgrpl(:) = 0.
+    prt_wpell(:) = 0.
+    prt_whail(:) = 0.
     if (present(qi_type)) qi_type(:,:,:) = 0.
 
     if (freq3DtypeDiag>0. .and. mod(it*dt,freq3DtypeDiag*60.)==0.) then
