@@ -9,11 +9,12 @@
 !   this module (mp_p3_wrapper_wrf, mp_p3_wrapper_gem).                                    !
 !                                                                                          !
 ! For details see:                                                                         !
-!   Morrison and Milbrandt (2015) [J. Atmos. Sci., 72, 287-311]   - original scheme desc.  !
-!   Milbrandt and Morrison (2016) [J. Atmos. Sci., 73, 975-995]   - multi-ice-category     !
-!   Jouan et al. (2020)           [W. Forecasting, 35, 2541-2565] - cloud fraction         !
-!   Milbrandt et al. (2021)       [J. Atmos. Sci., 78, 439-458]   - triple-moment ice      !
-!   Cholette et al. (2019)        [J. Atmos. Sci., 76, 561-582]   - liquid fraction ice    !
+!   Morrison and Milbrandt (2015) [J. Atmos. Sci., 72, 287-311]    - original scheme desc. !
+!   Milbrandt and Morrison (2016) [J. Atmos. Sci., 73, 975-995]    - multi-ice-category    !
+!   Cholette et al. (2019)        [J. Atmos. Sci., 76, 561-582]    - liquid fraction ice   !
+!   Jouan et al. (2020)           [W. Forecasting, 35, 2541-2565]  - cloud fraction        !
+!   Milbrandt et al. (2021)       [J. Atmos. Sci., 78, 439-458]    - triple-moment ice     !
+!   Cholette et al. (2023)        [J.A.M.E.S, 15(4), e2022MS003328 - trplMomIce + liqFrac  !
 !                                                                                          !
 ! For questions or bug reports, please contact:                                            !
 !    Hugh Morrison   (morrison@ucar.edu), or                                               !
@@ -21,8 +22,8 @@
 !    Melissa Cholette (melissa.cholette@ec.gc.ca)                                          !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.2.6 + dev-pcptype                                                       !
-! Last updated:  2023-MAY                                                                  !
+! Version:       5.3.0                                                                     !
+! Last updated:  2023 MAY                                                                  !
 !__________________________________________________________________________________________!
 
  MODULE microphy_p3
@@ -140,7 +141,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.2.6+pcptype'
+ character(len=1024), parameter :: version_p3                    = '5.3.0'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.4-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '6.4-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.0'
