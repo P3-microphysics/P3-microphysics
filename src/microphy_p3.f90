@@ -2693,7 +2693,7 @@ END subroutine p3_init
                   call access_lookup_table(dumjj,dumii,dumi, 7,dum1,dum4,dum5,f1pr09)
                   call access_lookup_table(dumjj,dumii,dumi, 8,dum1,dum4,dum5,f1pr10)
                   call access_lookup_table(dumjj,dumii,dumi,10,dum1,dum4,dum5,f1pr14)
-                  call access_lookup_table(dumjj,dumii,dumi,11,dum1,dum4,dum5,f1pr15)
+                  call access_lookup_table(dumjj,dumii,dumi,12,dum1,dum4,dum5,f1pr16)
                else
                   call access_lookup_table_LF(dumjj,dumii,dumll,dumi, 2,dum1,dum4,dum5,dum7,f1pr02)
                   call access_lookup_table_LF(dumjj,dumii,dumll,dumi, 3,dum1,dum4,dum5,dum7,f1pr03)
@@ -2702,7 +2702,7 @@ END subroutine p3_init
                   call access_lookup_table_LF(dumjj,dumii,dumll,dumi, 7,dum1,dum4,dum5,dum7,f1pr09)
                   call access_lookup_table_LF(dumjj,dumii,dumll,dumi, 8,dum1,dum4,dum5,dum7,f1pr10)
                   call access_lookup_table_LF(dumjj,dumii,dumll,dumi,10,dum1,dum4,dum5,dum7,f1pr14)
-                  call access_lookup_table_LF(dumjj,dumii,dumll,dumi,11,dum1,dum4,dum5,dum7,f1pr15)
+                  call access_lookup_table_LF(dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum7,f1pr16)
                   call access_lookup_table_LF(dumjj,dumii,dumll,dumi,15,dum1,dum4,dum5,dum7,f1pr24)
                   call access_lookup_table_LF(dumjj,dumii,dumll,dumi,16,dum1,dum4,dum5,dum7,f1pr25)
                   call access_lookup_table_LF(dumjj,dumii,dumll,dumi,17,dum1,dum4,dum5,dum7,f1pr26)
@@ -2752,7 +2752,7 @@ END subroutine p3_init
                   call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 7,dum1,dum4,dum5,dum6,f1pr09)
                   call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 8,dum1,dum4,dum5,dum6,f1pr10)
                   call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,10,dum1,dum4,dum5,dum6,f1pr14)
-                  call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,11,dum1,dum4,dum5,dum6,f1pr15)
+                  call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,12,dum1,dum4,dum5,dum6,f1pr16)
                 else
                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi, 2,dum1,dum4,dum5,dum6,dum7,f1pr02)
                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi, 3,dum1,dum4,dum5,dum6,dum7,f1pr03)
@@ -2761,7 +2761,7 @@ END subroutine p3_init
                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi, 7,dum1,dum4,dum5,dum6,dum7,f1pr09)
                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi, 8,dum1,dum4,dum5,dum6,dum7,f1pr10)
                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,10,dum1,dum4,dum5,dum6,dum7,f1pr14)
-                  call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,11,dum1,dum4,dum5,dum6,dum7,f1pr15)
+                  call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,f1pr16)
                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,16,dum1,dum4,dum5,dum6,dum7,f1pr24)
                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,17,dum1,dum4,dum5,dum6,dum7,f1pr25)
                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,18,dum1,dum4,dum5,dum6,dum7,f1pr26)
@@ -2787,8 +2787,8 @@ END subroutine p3_init
 
              endif  !if log_3momentIce
 
-          ! Compute mean-mass ice diameter
-             diam_ice(i,k,iice) = f1pr15
+          ! Compute ice diameter (volume equivalent -- for multi-cat)
+             diam_ice(i,k,iice) = ((qitot(i,k,iice)*6.)/(nitot(i,k,iice)*f1pr16*pi))**thrd
 
           ! adjust Ni if needed to make sure mean size is in bounds (i.e. apply lambda limiters)
           !  note: the inv_Qmin (f1pr09) and inv_Qmax (f1pr10) are normalized, thus the
@@ -5216,12 +5216,13 @@ END subroutine p3_init
 
              if (.not. log_3momentIce) then
                if (.not. log_LiquidFrac) then
-                  call access_lookup_table(dumjj,dumii,dumi,11,dum1,dum4,dum5,f1pr15)
+                  call access_lookup_table(dumjj,dumii,dumi,12,dum1,dum4,dum5,f1pr16)
                else
-                  call access_lookup_table_LF(dumjj,dumii,dumll,dumi,10,dum1,dum4,dum5,dum7,f1pr14)
+                  call access_lookup_table_LF(dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum7,f1pr16)
                endif
              else
                zitot(i,k,iice) = max(zitot(i,k,iice),zsmall)
+               dum1z = 6./(200.*pi)*qitot(i,k,iice)
                do imu=1,niter_mui
                   mu_i = compute_mu_3moment(nitot(i,k,iice),dum1z,zitot(i,k,iice),mu_i_max)
                   call find_lookupTable_indices_1c(dumzz,dum6,zsize,mu_i)
@@ -5229,23 +5230,14 @@ END subroutine p3_init
                   dum1z =  6./(f1pr16*pi)*qitot(i,k,iice)  !estimate of moment3
                enddo
                if (.not. log_LiquidFrac) then
-                  call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,11,dum1,dum4,dum5,dum6,f1pr15)
+                  call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,12,dum1,dum4,dum5,dum6,f1pr16)
                else
-                  call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,11,dum1,dum4,dum5,dum6,dum7,f1pr15)
+                  call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,f1pr16)
                endif
              endif
-             diam_ice(i,k,iice) = f1pr15
+             diam_ice(i,k,iice) = ((qitot(i,k,iice)*6.)/(nitot(i,k,iice)*f1pr16*pi))**thrd
           endif
        enddo  !iice loop
-
-       !diam_ice(i,k,:) = 0.
-       !do iice = 1,nCat
-       !   if (qitot(i,k,iice).ge.qsmall) then
-       !      dum1 = max(nitot(i,k,iice),nsmall)
-       !      dum2 = 500. !ice density
-       !      diam_ice(i,k,iice) = ((qitot(i,k,iice)*6.)/(dum1*dum2*pi))**thrd
-       !   endif
-       !enddo  !iice loop
 
        qc_not_small_2: if (qc(i,k).ge.qsmall .and. t(i,k).lt.233.15) then
 
