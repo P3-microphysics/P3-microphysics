@@ -21,7 +21,7 @@
 !    Melissa Cholette (melissa.cholette@ec.gc.ca)                                          !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.2.5 + dev-pcptype                                                       !
+! Version:       5.2.6 + dev-pcptype                                                       !
 ! Last updated:  2023-MAY                                                                  !
 !__________________________________________________________________________________________!
 
@@ -140,7 +140,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.2.5+pcptype'
+ character(len=1024), parameter :: version_p3                    = '5.2.6+pcptype'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.4-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '6.4-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.0'
@@ -273,15 +273,15 @@
  cons8 = 1./(cons2*(40.e-6)**3)
 
 ! aerosol/droplet activation parameters
- mw     = 0.018
- osm    = 1.
- vi     = 3.
- epsm   = 0.9
- rhoa   = 1777.
- map    = 0.132
- ma     = 0.0284
- rr     = 8.3187
- bact   = vi*osm*epsm*mw*rhoa/(map*rhow)
+ mw     = 0.018   ! molecular weight of water [kg/mol]
+ osm    = 1.      ! osmotic potential phi_s [ ]
+ vi     = 3.      ! number of ions in solution nu
+ epsm   = 0.9     ! mass fraction of soluble material [ ]
+ rhoa   = 1777.   ! density of (dry) aerosol [kg/m3]
+ map    = 0.132   ! molecular weight of aerosol M_s [kg/mol]
+ ma     = 0.0284  ! not used
+ rr     = 8.3145  ! ! ideal gas constant [J/mol/K]
+ bact   = vi*osm*epsm*mw*rhoa/(map*rhow) ! eq 9a of MG07, assumes beta is 0.5
 ! inv_bact = (map*rhow)/(vi*osm*epsm*mw*rhoa)    *** to replace /bact **
 
 ! mode 1
