@@ -152,9 +152,26 @@ subroutine columnmodel
       real, dimension(ni,nk)           :: diag_reffc
 
     ! Precipitation rates:
-      real, dimension(ni)      :: prt_liq,prt_sol,prt_drzl,prt_rain,prt_crys,prt_snow, &
-                                  prt_grpl,prt_pell,prt_hail,prt_sndp
+!       real, dimension(ni)      :: prt_liq,prt_sol,prt_drzl,prt_rain,prt_crys,prt_snow, &
+!                                   prt_grpl,prt_pell,prt_hail,prt_sndp
 
+      real, dimension(ni)      :: prt_liq       ! precip rate, total liquid     m s-1
+      real, dimension(ni)      :: prt_sol       ! precip rate, total solid      m s-1
+      real, dimension(ni)      :: prt_drzl      ! precip rate, drizzle          m s-1
+      real, dimension(ni)      :: prt_rain      ! precip rate, rain             m s-1
+      real, dimension(ni)      :: prt_crys      ! precip rate, ice cystals      m s-1
+      real, dimension(ni)      :: prt_snow      ! precip rate, snow             m s-1
+      real, dimension(ni)      :: prt_grpl      ! precip rate, graupel          m s-1
+      real, dimension(ni)      :: prt_pell      ! precip rate, ice pellets      m s-1
+      real, dimension(ni)      :: prt_hail      ! precip rate, hail             m s-1
+      real, dimension(ni)      :: prt_sndp      ! precip rate, unmelted snow    m s-1
+      real, dimension(ni)      :: prt_wlsnow    ! precip rate, very wet snow    m s-1
+      real, dimension(ni)      :: prt_wcrys     ! precip rate, wet ice cystals  m s-1
+      real, dimension(ni)      :: prt_wsnow     ! precip rate, wet snow         m s-1
+      real, dimension(ni)      :: prt_wgrpl     ! precip rate, wet graupel      m s-1
+      real, dimension(ni)      :: prt_wpell     ! precip rate, wet ice pellets  m s-1
+      real, dimension(ni)      :: prt_whail     ! precip rate, wet hail         m s-1
+                                  
     ! Diagnostics, etc.
       real, dimension(ni,nk)   :: diag_ZET,Qvinit,GZ,scpf_cldfrac
       real, dimension(nk)      :: COMP
@@ -528,6 +545,7 @@ subroutine columnmodel
                               n_diag_2d,diag_2d,n_diag_3d,diag_3d,log_predictNc,                &
                               trim(model),clbfact_dep,clbfact_sub,debug_on,                     &
                               scpf_on,scpf_pfrac,scpf_resfact,scpf_cldfrac,                     &
+                              
                               prt_drzl = prt_drzl,  &
                               prt_rain = prt_rain,  &
                               prt_crys = prt_crys,  &
@@ -536,7 +554,13 @@ subroutine columnmodel
                               prt_pell = prt_pell,  &
                               prt_hail = prt_hail,  &
                               prt_sndp = prt_sndp,  &
-                              qi_type  = qi_type,   &
+                              prt_wlsnow = prt_wlsnow, &
+                              prt_wcrys = prt_wcrys, &
+                              prt_wsnow = prt_wsnow, &
+                              prt_wgrpl = prt_wgrpl, &
+                              prt_wpell = prt_wpell, &
+                              prt_whail = prt_whail, &
+                              qi_type  = qi_type,    &
                               diag_dhmax = diag_dhmax)
                               
             else
@@ -555,8 +579,14 @@ subroutine columnmodel
                               prt_pell = prt_pell,  &
                               prt_hail = prt_hail,  &
                               prt_sndp = prt_sndp,  &
-                              qi_type  = qi_type,   &
-                              qiliq_in = Ql1,       &
+                              prt_wlsnow = prt_wlsnow, &
+                              prt_wcrys = prt_wcrys, &
+                              prt_wsnow = prt_wsnow, &
+                              prt_wgrpl = prt_wgrpl, &
+                              prt_wpell = prt_wpell, &
+                              prt_whail = prt_whail, &
+                              qi_type  = qi_type,    &
+                              qiliq_in = Ql1,        &
                               diag_dhmax = diag_dhmax)
                           
             endif
@@ -590,8 +620,14 @@ subroutine columnmodel
                              prt_pell = prt_pell,  &
                              prt_hail = prt_hail,  &
                              prt_sndp = prt_sndp,  &
-                             qi_type  = qi_type,   &
-                             zitot    = Zi1,       &
+                             prt_wlsnow = prt_wlsnow, &
+                             prt_wcrys = prt_wcrys, &
+                             prt_wsnow = prt_wsnow, &
+                             prt_wgrpl = prt_wgrpl, &
+                             prt_wpell = prt_wpell, &
+                             prt_whail = prt_whail, &
+                             qi_type  = qi_type,    &
+                             zitot    = Zi1,        &
                              diag_dhmax = diag_dhmax)
 
               else
@@ -610,9 +646,15 @@ subroutine columnmodel
                              prt_pell = prt_pell,  &
                              prt_hail = prt_hail,  &
                              prt_sndp = prt_sndp,  &
-                             qi_type  = qi_type,   &
-                             zitot    = Zi1,       &
-                             qiliq_in = Ql1,       &
+                             prt_wlsnow = prt_wlsnow, &
+                             prt_wcrys = prt_wcrys, &
+                             prt_wsnow = prt_wsnow, &
+                             prt_wgrpl = prt_wgrpl, &
+                             prt_wpell = prt_wpell, &
+                             prt_whail = prt_whail, &
+                             qi_type  = qi_type,    &
+                             zitot    = Zi1,        &
+                             qiliq_in = Ql1,        &
                              diag_dhmax = diag_dhmax)
               endif
 
