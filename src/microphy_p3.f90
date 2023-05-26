@@ -40,7 +40,7 @@
 #ifdef ECCCGEM
  public :: mp_p3_wrapper_gem, p3_phybusinit, p3_lwc, p3_iwc
 #else
- public :: mp_p3_wrapper_cm1
+ public :: mp_p3_wrapper_wrf
 #endif
 
  integer, parameter, public :: STATUS_ERROR  = -1
@@ -746,7 +746,7 @@ END subroutine p3_init
 !==================================================================================================!
 #ifndef ECCCGEM
 
-   SUBROUTINE mp_p3_wrapper_cm1( th,qv,qc,qr,qnr,th_old,qv_old,pii,p,dz,w,dt,itimestep,         &
+   SUBROUTINE mp_p3_wrapper_wrf( th,qv,qc,qr,qnr,th_old,qv_old,pii,p,dz,w,dt,itimestep,         &
                 rainnc,rainncv,sr,snownc,snowncv,                                               &
                 ids, ide, jds, jde, kds, kde ,                                                  &
                 ims, ime, jms, jme, kms, kme ,                                                  &
@@ -760,7 +760,9 @@ END subroutine p3_init
                 diag_dhmax_1, diag_dhmax_2, diag_dhmax_3, diag_dhmax_4 )
 
   !------------------------------------------------------------------------------------------!
-  ! This is the main CM1 interface with the P3 microphysics scheme.                          !
+  ! This is the main WRF interface with the P3 microphysics scheme.                          !
+  ! It is also the interface for other models, e.g. CM1, whose interface with P3 is          !
+  ! based on that of WRF.                                                                    !
   !                                                                                          !
   ! It takes 3D arrays (i,j,k) from the driving model and passes 2D slabs (i,k) to the main  !
   ! subroutine ('p3_main') over a j-loop.  For each slab, 'p3_main' updates the prognostic   !
@@ -1122,8 +1124,7 @@ END subroutine p3_init
       stop
    endif
 
-   END SUBROUTINE mp_p3_wrapper_cm1
-
+   END SUBROUTINE mp_p3_wrapper_wrf
 
 #endif
 

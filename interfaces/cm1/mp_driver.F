@@ -33,8 +33,7 @@
     use lfoice_module, only : lfo_ice_drive,lfoice_init
     use module_mp_graupel , only : mp_graupel
     use module_mp_nssl_2mom, only : nssl_2mom_driver
-!   use microphy_p3, only : mp_p3_wrapper_wrf,mp_p3_wrapper_wrf_2cat, mp_p3_wrapper_cm1
-    use microphy_p3, only : mp_p3_wrapper_cm1
+    use microphy_p3, only : mp_p3_wrapper_wrf
     use module_mp_jensen_ishmael , only : mp_jensen_ishmael
 
     implicit none
@@ -953,8 +952,8 @@
 
   !-----------------------------------------------------------------------------------
   !   To add user-specified diagnostic output fields from P3:
-  !      - initialize 'diag3d_04 = ', etc. in mp_p3_wrapper_cm1
-  !      - add 'diag3d_04 = p3a(1,1,31)', etc. to arg. list of 'call_mp_p3_wrapper_cm1'
+  !      - initialize 'diag3d_04 = ', etc. in mp_p3_wrapper_wrf
+  !      - add 'diag3d_04 = p3a(1,1,31)', etc. to arg. list of 'call_mp_p3_wrapper_wrf'
   !      - add 'out3d(i,j,k,4) = p3a(i,k,31)' etc. under call to wrapper
   !      - increase value of 'nout3d' (and/or 'nout2d') in 'cm1.F'
   !-----------------------------------------------------------------------------------
@@ -999,7 +998,7 @@
 !   P3 scheme -- config:  1-mom-cld, 2-mom-rain, 2-mom-ice, 1-ice-category  !
 !---------------------------------------------------------------------------!
 
-               call mp_p3_wrapper_cm1( th    = p3a(1,1,1),                   &
+               call mp_p3_wrapper_wrf( th    = p3a(1,1,1),                   &
                                qv            = p3a(1,1,2),                   &
                                qc            = p3a(1,1,3),                   &
                                qr            = p3a(1,1,4),                   &
@@ -1064,7 +1063,7 @@
                enddo
                enddo
 
-               call mp_p3_wrapper_cm1( th    = p3a(1,1,1),                   &
+               call mp_p3_wrapper_wrf( th    = p3a(1,1,1),                   &
                                qv            = p3a(1,1,2),                   &
                                qc            = p3a(1,1,3),                   &
                                qr            = p3a(1,1,4),                   &
@@ -1136,7 +1135,7 @@
                enddo
                enddo
 
-               call mp_p3_wrapper_cm1( th    = p3a(1,1,1),                   &
+               call mp_p3_wrapper_wrf( th    = p3a(1,1,1),                   &
                                qv            = p3a(1,1,2),                   &
                                qc            = p3a(1,1,3),                   &
                                qr            = p3a(1,1,4),                   &
@@ -1212,7 +1211,7 @@
                enddo
                enddo
 
-               call mp_p3_wrapper_cm1( th    = p3a(1,1,1),                   &
+               call mp_p3_wrapper_wrf( th    = p3a(1,1,1),                   &
                                qv            = p3a(1,1,2),                   &
                                qc            = p3a(1,1,3),                   &
                                qr            = p3a(1,1,4),                   &
@@ -1397,7 +1396,7 @@
                p3a(i,1,22) = 0.0
             enddo
 
-            call mp_p3_wrapper_cm1( th       = p3a(1,1,1),                   &
+            call mp_p3_wrapper_wrf( th       = p3a(1,1,1),                   &
                                qv            = p3a(1,1,2),                   &
                                qc            = p3a(1,1,3),                   &
                                qr            = p3a(1,1,4),                   &
@@ -1582,7 +1581,7 @@
               p3a(i,1,22) = 0.0
             enddo
 
-            call mp_p3_wrapper_cm1( th       = p3a(1,1,1),                   &
+            call mp_p3_wrapper_wrf( th       = p3a(1,1,1),                   &
                                qv            = p3a(1,1,2),                   &
                                qc            = p3a(1,1,3),                   &
                                qr            = p3a(1,1,4),                   &
@@ -1773,7 +1772,7 @@
                p3a(i,1,22) = 0.0
             enddo
 
-            call mp_p3_wrapper_cm1( th       = p3a(1,1,1),                   &
+            call mp_p3_wrapper_wrf( th       = p3a(1,1,1),                   &
                                qv            = p3a(1,1,2),                   &
                                qc            = p3a(1,1,3),                   &
                                qr            = p3a(1,1,4),                   &
@@ -1974,7 +1973,7 @@
               p3a(i,1,22) = 0.0
             enddo
 
-            call mp_p3_wrapper_cm1( th       = p3a(1,1,1),                   &
+            call mp_p3_wrapper_wrf( th       = p3a(1,1,1),                   &
                                qv            = p3a(1,1,2),                   &
                                qc            = p3a(1,1,3),                   &
                                qr            = p3a(1,1,4),                   &
@@ -2206,7 +2205,7 @@
               p3a(i,1,22) = 0.0
             enddo
 
-            call mp_p3_wrapper_cm1( th       = p3a(1,1,1),                   &
+            call mp_p3_wrapper_wrf( th       = p3a(1,1,1),                   &
                                qv            = p3a(1,1,2),                   &
                                qc            = p3a(1,1,3),                   &
                                qr            = p3a(1,1,4),                   &
