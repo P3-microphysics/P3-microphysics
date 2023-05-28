@@ -990,7 +990,7 @@ END subroutine p3_init
 !                       diag_effi,diag_vmi,diag_dmi,diag_rhoi,n_diag2d,diag2d,             &
 !                       n_diag3d,diag3d,log_predictNc,trim(model),clbfact_dep,             &
 !                       clbfact_sub,log_debug,log_scpf,scpf_pfrac,scpf_resfact,cldfrac,    &
-!                       qiliq_in = qiliq, diag_dhmax = diag_dhmax )
+!                       qiliq = qiliq, diag_dhmax = diag_dhmax )
 
       elseif (log_3momIce .and. log_LiqFrac) then                    ! ptype = 60,61,62,63
 
@@ -1002,7 +1002,7 @@ END subroutine p3_init
                       n_diag3d,diag3d,log_predictNc,trim(model),clbfact_dep,             &
                       clbfact_sub,log_debug,log_scpf,scpf_pfrac,scpf_resfact,cldfrac,    &
                       zitot = zitot,                                                     &
-                      qiliq_in = qiliq, diag_dhmax = diag_dhmax )
+                      qiliq = qiliq, diag_dhmax = diag_dhmax )
 
       endif
 
@@ -1276,7 +1276,7 @@ END subroutine p3_init
 !----- local variables and parameters:
  real, dimension(ni,nk,n_iceCat)  :: qitot      ! ice mixing ratio, mass (total)          kg kg-1
  real, dimension(ni,nk,n_iceCat)  :: qirim      ! ice mixing ratio, mass (rime)           kg kg-1
- real, dimension(ni,nk,n_iceCat)  :: qiliq_in   ! ice mixing ratio, mass (liquid)         kg kg-1
+ real, dimension(ni,nk,n_iceCat)  :: qiliq      ! ice mixing ratio, mass (liquid)         kg kg-1
  real, dimension(ni,nk,n_iceCat)  :: nitot      ! ice mixing ratio, number                #  kg-1
  real, dimension(ni,nk,n_iceCat)  :: birim      ! ice mixing ratio, volume                m3 kg-1
  real, dimension(ni,nk,n_iceCat)  :: zitot      ! ice mixing ratio, reflectivity          m6 kg-1
@@ -1419,7 +1419,7 @@ END subroutine p3_init
    birim(:,:,1) = birim_1(:,:)
    diag_effi(:,:,1) = diag_effi_1(:,:)
    if (present(zitot_1)) zitot(:,:,1) = zitot_1(:,:)
-   if (present(qiliq_1)) qiliq_in(:,:,1) = qiliq_1(:,:)
+   if (present(qiliq_1)) qiliq(:,:,1) = qiliq_1(:,:)
 
    if (n_iceCat >= 2) then
       qitot(:,:,2) = qitot_2(:,:)
@@ -1428,7 +1428,7 @@ END subroutine p3_init
       birim(:,:,2) = birim_2(:,:)
       diag_effi(:,:,2) = diag_effi_2(:,:)
       if (present(zitot_2)) zitot(:,:,2) = zitot_2(:,:)
-      if (present(qiliq_2)) qiliq_in(:,:,2) = qiliq_2(:,:)
+      if (present(qiliq_2)) qiliq(:,:,2) = qiliq_2(:,:)
 
       if (n_iceCat >= 3) then
          qitot(:,:,3) = qitot_3(:,:)
@@ -1437,7 +1437,7 @@ END subroutine p3_init
          birim(:,:,3) = birim_3(:,:)
          diag_effi(:,:,3) = diag_effi_3(:,:)
          if (present(zitot_3)) zitot(:,:,3) = zitot_3(:,:)
-         if (present(qiliq_3)) qiliq_in(:,:,3) = qiliq_3(:,:)
+         if (present(qiliq_3)) qiliq(:,:,3) = qiliq_3(:,:)
 
          if (n_iceCat == 4) then
             qitot(:,:,4) = qitot_4(:,:)
@@ -1446,7 +1446,7 @@ END subroutine p3_init
             birim(:,:,4) = birim_4(:,:)
             diag_effi(:,:,4) = diag_effi_4(:,:)
             if (present(zitot_4)) zitot(:,:,4) = zitot_4(:,:)
-            if (present(qiliq_4)) qiliq_in(:,:,4) = qiliq_4(:,:)
+            if (present(qiliq_4)) qiliq(:,:,4) = qiliq_4(:,:)
          endif
       endif
    endif
@@ -1492,7 +1492,7 @@ END subroutine p3_init
                    prt_rain,prt_crys,prt_snow,prt_grpl,prt_pell,prt_hail,prt_sndp,              &
                    prt_wlsnow,prt_wcrys,prt_wsnow,prt_wgrpl,prt_wpell,prt_whail,qi_type,        &
                    zitot     = zitot,                                                           &
-                   qiliq_in  = qiliq_in,                                                        &
+                   qiliq  = qiliq,                                                        &
                    diag_vis  = diag_vis,                                                        &
                    diag_vis1 = diag_vis1,                                                       &
                    diag_vis2 = diag_vis2,                                                       &
@@ -1522,7 +1522,7 @@ END subroutine p3_init
                    clbfact_sub,debug_on,scpf_on,scpf_pfrac,scpf_resfact,cldfrac,prt_drzl,       &
                    prt_rain,prt_crys,prt_snow,prt_grpl,prt_pell,prt_hail,prt_sndp,              &
                    prt_wlsnow,prt_wcrys,prt_wsnow,prt_wgrpl,prt_wpell,prt_whail,qi_type,        &
-                   qiliq_in  = qiliq_in,                                                        &
+                   qiliq  = qiliq,                                                        &
                    diag_vis  = diag_vis,                                                        &
                    diag_vis1 = diag_vis1,                                                       &
                    diag_vis2 = diag_vis2,                                                       &
@@ -1606,7 +1606,7 @@ END subroutine p3_init
    nitot_1(:,:) = nitot(:,:,1)
    birim_1(:,:) = birim(:,:,1)
    if (present(zitot_1)) zitot_1(:,:) = zitot(:,:,1)
-   if (present(qiliq_1)) qiliq_1(:,:) = qiliq_in(:,:,1)
+   if (present(qiliq_1)) qiliq_1(:,:) = qiliq(:,:,1)
    where (qitot_1(:,:) >= SMALL_ICE_MASS)
       diag_effi_1(:,:) = diag_effi(:,:,1)
    elsewhere
@@ -1619,7 +1619,7 @@ END subroutine p3_init
       nitot_2(:,:) = nitot(:,:,2)
       birim_2(:,:) = birim(:,:,2)
       if (present(zitot_2)) zitot_2(:,:) = zitot(:,:,2)
-      if (present(qiliq_2)) qiliq_2(:,:) = qiliq_in(:,:,2)
+      if (present(qiliq_2)) qiliq_2(:,:) = qiliq(:,:,2)
       where (qitot_2(:,:) >= SMALL_ICE_MASS)
          diag_effi_2(:,:) = diag_effi(:,:,2)
       elsewhere
@@ -1632,7 +1632,7 @@ END subroutine p3_init
          nitot_3(:,:) = nitot(:,:,3)
          birim_3(:,:) = birim(:,:,3)
          if (present(zitot_3)) zitot_3(:,:) = zitot(:,:,3)
-         if (present(qiliq_3)) qiliq_3(:,:) = qiliq_in(:,:,3)
+         if (present(qiliq_3)) qiliq_3(:,:) = qiliq(:,:,3)
          where (qitot_3(:,:) >= SMALL_ICE_MASS)
             diag_effi_3(:,:) = diag_effi(:,:,3)
          elsewhere
@@ -1645,7 +1645,7 @@ END subroutine p3_init
             nitot_4(:,:) = nitot(:,:,4)
             birim_4(:,:) = birim(:,:,4)
             if (present(zitot_4)) zitot_4(:,:) = zitot(:,:,4)
-            if (present(qiliq_4)) qiliq_4(:,:) = qiliq_in(:,:,4)
+            if (present(qiliq_4)) qiliq_4(:,:) = qiliq(:,:,4)
             where (qitot_4(:,:) >= SMALL_ICE_MASS)
                diag_effi_4(:,:) = diag_effi(:,:,4)
             elsewhere
@@ -1936,7 +1936,7 @@ END subroutine p3_init
 
 !==========================================================================================!
 
- SUBROUTINE p3_main(qc,nc,qr,nr,th_old,th,qv_old,qv,dt,qitot,qirim,qiliq_in,nitot,birim,  &
+ SUBROUTINE p3_main(qc,nc,qr,nr,th_old,th,qv_old,qv,dt,qitot,qirim,qiliq,nitot,birim,     &
                     zitot,ssat,uzpl,pres,dzq,it,prt_liq,prt_sol,its,ite,kts,kte,nCat,     &
                     diag_ze,diag_effc,diag_effi,diag_vmi,diag_di,diag_rhoi,n_diag_2d,     &
                     diag_2d,n_diag_3d,diag_3d,log_predictNc,model,clbfact_dep,            &
@@ -1977,10 +1977,10 @@ END subroutine p3_init
  real, intent(inout), dimension(its:ite,kts:kte)      :: nr         ! rain, number mixing ratio        #  kg-1
  real, intent(inout), dimension(its:ite,kts:kte,nCat) :: qitot      ! ice, total mass mixing ratio     kg kg-1
  real, intent(inout), dimension(its:ite,kts:kte,nCat) :: qirim      ! ice, rime mass mixing ratio      kg kg-1
+ real, intent(inout), dimension(its:ite,kts:kte,nCat) :: qiliq      ! ice, liquid mass mixing ratio    kg kg-1
  real, intent(inout), dimension(its:ite,kts:kte,nCat) :: nitot      ! ice, total number mixing ratio   #  kg-1
  real, intent(inout), dimension(its:ite,kts:kte,nCat) :: birim      ! ice, rime volume mixing ratio    m3 kg-1
- real, intent(inout), dimension(its:ite,kts:kte,nCat) :: zitot      ! ice, 6th-moment mixing ratio    kg2 kg-1
- real, intent(inout), dimension(its:ite,kts:kte,nCat) :: qiliq_in   ! ice, liquid mass mixing ratio   kg kg-1
+ real, intent(inout), dimension(its:ite,kts:kte,nCat) :: zitot      ! ice, 6th-moment mixing ratio     m6 kg-1
 
  real, intent(inout), dimension(its:ite,kts:kte)      :: ssat       ! supersaturation (i.e., qv-qvs)   kg kg-1
  real, intent(inout), dimension(its:ite,kts:kte)      :: qv         ! water vapor mixing ratio         kg kg-1
@@ -2047,9 +2047,7 @@ END subroutine p3_init
  real, dimension(its:ite,kts:kte) :: mu_r  ! shape parameter of rain
  real, dimension(its:ite,kts:kte) :: t     ! temperature at the beginning of the microhpysics step [K]
  real, dimension(its:ite,kts:kte) :: t_old ! temperature at the beginning of the model time step [K]
-
- real, dimension(its:ite,kts:kte,nCat) :: qiliq    ! local variable for qiliq_in
- real, dimension(its:ite,nCat)         :: prt_soli ! precipitation rate, solid iice-dep  m s-1
+ real, dimension(its:ite,nCat)    :: prt_soli ! precipitation rate, solid iice-dep  m s-1
 
  logical, parameter      :: log_liqsatadj = .false.       ! temporary; to be put as GEM namelist
 
@@ -2361,14 +2359,8 @@ END subroutine p3_init
 
 ! Note (BUG), I think SCF, SPF,... should be initialize here with scpf_on=.false.
 
-! Initialize the local variable qiliq
-!  (this allows the generlized use of qiliq [e.g. to compute F_rime] even if liqFrac is not used)
-! if (present(qiliq_in)) then
- if (log_LiquidFrac) then
-   qiliq = qiliq_in
- else
-   qiliq = 0.
- endif
+! initialize the qiliq to 0. to allow gereralized use even if liqFrac is not used
+ if (.not.log_LiquidFrac) qiliq = 0.
 
 !-----------------------------------------------------------------------------------!
  i_loop_main: do i = its,ite  ! main i-loop (around the entire scheme)
@@ -5794,11 +5786,6 @@ END subroutine p3_init
 !.....................................................
 
  enddo i_loop_main
-
-! if (present(qiliq_in)) then
- if (log_LiquidFrac) then
-   qiliq_in = qiliq
- endif
 
 ! Save final microphysics values of theta and qv as old values for next time step
 !  note: This is not necessary for GEM, which already has these values available
