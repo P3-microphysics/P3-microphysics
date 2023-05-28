@@ -40,7 +40,7 @@
 #ifdef ECCCGEM
  public :: mp_p3_wrapper_gem, p3_phybusinit, p3_lwc, p3_iwc
 #else
- public :: mp_p3_wrapper_wrf
+! public :: mp_p3_wrapper_wrf
 #endif
 
  integer, parameter, public :: STATUS_ERROR  = -1
@@ -744,7 +744,8 @@
 END subroutine p3_init
 
 !==================================================================================================!
-#ifndef ECCCGEM
+!!#ifndef ECCCGEM
+#ifdef ECCCGEM
 
    SUBROUTINE mp_p3_wrapper_wrf( th,qv,qc,qr,qnr,th_old,qv_old,pii,p,dz,w,dt,itimestep,         &
                 rainnc,rainncv,sr,snownc,snowncv,                                               &
@@ -1466,7 +1467,7 @@ END subroutine p3_init
       wsn2_ave(:) = 0.
       wsn3_ave(:) = 0.
       wpe1_ave(:) = 0.
-      wpe2_ave(:) = 0.     
+      wpe2_ave(:) = 0.
       snd_ave(:)  = 0.
    endif
 
@@ -1935,19 +1936,20 @@ END subroutine p3_init
 
 !==========================================================================================!
 
- SUBROUTINE p3_main(qc,nc,qr,nr,th_old,th,qv_old,qv,dt,qitot,qirim,nitot,birim,ssat,uzpl, &
-                    pres,dzq,it,prt_liq,prt_sol,its,ite,kts,kte,nCat,diag_ze,diag_effc,   &
-                    diag_effi,diag_vmi,diag_di,diag_rhoi,n_diag_2d,diag_2d,n_diag_3d,     &
-                    diag_3d,log_predictNc,model,clbfact_dep,clbfact_sub,                  &
-                    debug_on,scpf_on,scpf_pfrac,scpf_resfact,SCF_out,prt_drzl,prt_rain,   &
-                    prt_crys,prt_snow,prt_grpl,prt_pell,prt_hail,prt_sndp,prt_wlsnow,     &
-                    prt_wcrys,prt_wsnow,prt_wgrpl,prt_wpell,prt_whail,qi_type,            &
-                    zitot,qiliq_in,diag_vis,diag_vis1,diag_vis2,diag_vis3,diag_dhmax)
+ SUBROUTINE p3_main(qc,nc,qr,nr,th_old,th,qv_old,qv,dt,qitot,qirim,qiliq_in,nitot,birim,  &
+                    zitot,ssat,uzpl,pres,dzq,it,prt_liq,prt_sol,its,ite,kts,kte,nCat,     &
+                    diag_ze,diag_effc,diag_effi,diag_vmi,diag_di,diag_rhoi,n_diag_2d,     &
+                    diag_2d,n_diag_3d,diag_3d,log_predictNc,model,clbfact_dep,            &
+                    clbfact_sub,debug_on,scpf_on,scpf_pfrac,scpf_resfact,SCF_out,         &
+                    log_3momentIce,log_LiquidFrac,prt_drzl,prt_rain,prt_crys,prt_snow,    &
+                    prt_grpl,prt_pell,prt_hail,prt_sndp,prt_wlsnow,prt_wcrys,prt_wsnow,   &
+                    prt_wgrpl,prt_wpell,prt_whail,qi_type,diag_vis,diag_vis1,diag_vis2,   &
+                    diag_vis3,diag_dhmax)
 
 !----------------------------------------------------------------------------------------!
 !                                                                                        !
 ! This is the main subroutine for the P3 microphysics scheme.  It is called from the     !
-! wrapper subroutine ('MP_P3_WRAPPER') and is passed i,k slabs of all prognostic         !
+! wrapper subroutine ('MP_P3_WRAPPER_{model}') and is passed i,k slabs of all prognostic !
 ! variables -- hydrometeor fields, potential temperature, and water vapor mixing ratio.  !
 ! Microphysical process rates are computed first.  These tendencies are then used to     !
 ! computed updated values of the prognostic variables.  The hydrometeor variables are    !
@@ -1977,8 +1979,8 @@ END subroutine p3_init
  real, intent(inout), dimension(its:ite,kts:kte,nCat) :: qirim      ! ice, rime mass mixing ratio      kg kg-1
  real, intent(inout), dimension(its:ite,kts:kte,nCat) :: nitot      ! ice, total number mixing ratio   #  kg-1
  real, intent(inout), dimension(its:ite,kts:kte,nCat) :: birim      ! ice, rime volume mixing ratio    m3 kg-1
- real, intent(inout), dimension(its:ite,kts:kte,nCat), optional :: zitot    ! ice, 6th-moment mixing ratio    kg2 kg-1
- real, intent(inout), dimension(its:ite,kts:kte,nCat), optional :: qiliq_in ! ice, liquid mass mixing ratio   kg kg-1
+ real, intent(inout), dimension(its:ite,kts:kte,nCat) :: zitot      ! ice, 6th-moment mixing ratio    kg2 kg-1
+ real, intent(inout), dimension(its:ite,kts:kte,nCat) :: qiliq_in   ! ice, liquid mass mixing ratio   kg kg-1
 
  real, intent(inout), dimension(its:ite,kts:kte)      :: ssat       ! supersaturation (i.e., qv-qvs)   kg kg-1
  real, intent(inout), dimension(its:ite,kts:kte)      :: qv         ! water vapor mixing ratio         kg kg-1
@@ -2011,6 +2013,8 @@ END subroutine p3_init
 
  integer, intent(in)                                  :: it         ! time step counter NOTE: starts at 1 for first time step
 
+ logical, intent(in)                                  :: log_3momentIce ! .T. for triple-moment ice
+ logical, intent(in)                                  :: log_LiquidFrac ! .T. for prognostic liquid-fraction
  logical, intent(in)                                  :: log_predictNc ! .T. (.F.) for prediction (specification) of Nc
  logical, intent(in)                                  :: debug_on      !switch for internal debug checks
  character(len=*), intent(in)                         :: model         !driving model
@@ -2164,7 +2168,7 @@ END subroutine p3_init
             dumic,dumiic,dumjjc,catcoll,k_qxbot,k_qxtop,k_temp,dumll,dumllc
 
  logical :: log_nucleationPossible,log_hydrometeorsPresent,log_predictSsat,              &
-            log_exitlevel,log_hmossopOn,log_qxpresent,log_3momentIce,log_LiquidFrac
+            log_exitlevel,log_hmossopOn,log_qxpresent
 
 ! quantities related to process rates/parameters, interpolated from lookup tables:
 
@@ -2306,8 +2310,6 @@ END subroutine p3_init
 !        In the future 'log_predictSsat' will be a user-defined namelist key.
  log_predictSsat = .false.
 
- log_3momentIce = present(zitot)
- log_LiquidFrac = present(qiliq_in)
  log_typeDiags  = .true.
 
  log_hmossopOn  = (nCat.gt.1)      !default: off for nCat=1, off for nCat>1
@@ -2361,7 +2363,8 @@ END subroutine p3_init
 
 ! Initialize the local variable qiliq
 !  (this allows the generlized use of qiliq [e.g. to compute F_rime] even if liqFrac is not used)
- if (present(qiliq_in)) then
+! if (present(qiliq_in)) then
+ if (log_LiquidFrac) then
    qiliq = qiliq_in
  else
    qiliq = 0.
@@ -5792,7 +5795,8 @@ END subroutine p3_init
 
  enddo i_loop_main
 
- if (present(qiliq_in)) then
+! if (present(qiliq_in)) then
+ if (log_LiquidFrac) then
    qiliq_in = qiliq
  endif
 
@@ -5919,7 +5923,7 @@ END subroutine p3_init
                 rimefraction(i,k,iice) = qirim(i,k,iice)/(qitot(i,k,iice)-qiliq(i,k,iice)) !rime mass fraction
                 t_tmp   = th(i,kbot)*(pres(i,kbot)*1.e-5)**(rd*inv_cp)                     !1st level temperature
                 if (birim(i,k,iice).ge.bsmall) then
-                   rimedensity(i,k,iice) = qirim(i,k,iice)/birim(i,k,iice)                 !rime density 
+                   rimedensity(i,k,iice) = qirim(i,k,iice)/birim(i,k,iice)                 !rime density
                 endif
                 liquidfraction(i,k,iice) = qiliq(i,k,iice)/qitot(i,k,iice)                 !liquid fraction
 
@@ -5935,7 +5939,7 @@ END subroutine p3_init
                    endif
                 else
                    if (rimedensity(i,k,iice).lt.750) then
-                     Q_grpl(i,k,iice) = qitot(i,k,iice)  
+                     Q_grpl(i,k,iice) = qitot(i,k,iice)
                    else
                      if (t_tmp.lt.283.15) then
                         Q_pellets(i,k,iice) = qitot(i,k,iice)
@@ -5945,7 +5949,7 @@ END subroutine p3_init
                            nitot(i,k,iice),rhofaci(i,k),arr_lami(i,k,iice),arr_mui(i,k,iice))
                      endif
                    endif
-                endif              
+                endif
 
              endif !qitot-qiliq>0
 

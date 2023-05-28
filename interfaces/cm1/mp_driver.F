@@ -1054,7 +1054,7 @@
             elseif (ptype.eq.51) then
 
 !---------------------------------------------------------------------------!
-!   P3 scheme -- config:  2-mom-cld, 2-mom-rain, 2-mom-ice, 2-ice-category  !
+!   P3 scheme -- config:  2-mom-cld, 2-mom-rain, 2-mom-ice, 1-ice-category  !
 !---------------------------------------------------------------------------!
 
                do k=1,nk

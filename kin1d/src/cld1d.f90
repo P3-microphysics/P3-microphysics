@@ -39,10 +39,10 @@ subroutine columnmodel
 
       implicit none
 
-      integer, parameter :: n_iceCat     =  2
+      integer, parameter :: n_iceCat     =  1
       logical, parameter :: liqFrac      = .true.
       logical, parameter :: trplMomIce   = .true.
-      
+
       logical, parameter :: scpf_on      = .false.  ! switch for cloud fraction parameterization (SCPF)
       real,    parameter :: scpf_pfrac   = 1.        ! precipitation fraction factor (SCPF)
       real,    parameter :: scpf_resfact = 1.        ! model resolution factor (SCPF)
@@ -171,7 +171,7 @@ subroutine columnmodel
       real, dimension(ni)      :: prt_wgrpl     ! precip rate, wet graupel      m s-1
       real, dimension(ni)      :: prt_wpell     ! precip rate, wet ice pellets  m s-1
       real, dimension(ni)      :: prt_whail     ! precip rate, wet hail         m s-1
-                                  
+
     ! Diagnostics, etc.
       real, dimension(ni,nk)   :: diag_ZET,Qvinit,GZ,scpf_cldfrac
       real, dimension(nk)      :: COMP
@@ -535,66 +535,9 @@ subroutine columnmodel
 
           call cpu_time(time1)
 
-          if (.not. trplMomIce) then
-
-            if (.not. liqFrac) then
-
-                 CALL P3_MAIN(Qc1,Nc1,Qr1,Nr1,th2d0,th2d1,Qv0,Qv1,dt,Qi1,Qg1,Ni1,Bg1,ssat1,     &
-                              w,p2d,dz2d,step,prt_liq,prt_sol,its,ite,kts,kte,n_iceCat,         &
-                              diag_ZET,diag_reffc,diag_reffi,diag_vmi,diag_di,diag_rhoi,        &
-                              n_diag_2d,diag_2d,n_diag_3d,diag_3d,log_predictNc,                &
-                              trim(model),clbfact_dep,clbfact_sub,debug_on,                     &
-                              scpf_on,scpf_pfrac,scpf_resfact,scpf_cldfrac,                     &
-                              
-                              prt_drzl = prt_drzl,  &
-                              prt_rain = prt_rain,  &
-                              prt_crys = prt_crys,  &
-                              prt_snow = prt_snow,  &
-                              prt_grpl = prt_grpl,  &
-                              prt_pell = prt_pell,  &
-                              prt_hail = prt_hail,  &
-                              prt_sndp = prt_sndp,  &
-                              prt_wlsnow = prt_wlsnow, &
-                              prt_wcrys = prt_wcrys, &
-                              prt_wsnow = prt_wsnow, &
-                              prt_wgrpl = prt_wgrpl, &
-                              prt_wpell = prt_wpell, &
-                              prt_whail = prt_whail, &
-                              qi_type  = qi_type,    &
-                              diag_dhmax = diag_dhmax)
-                              
-            else
-
-                 CALL P3_MAIN(Qc1,Nc1,Qr1,Nr1,th2d0,th2d1,Qv0,Qv1,dt,Qi1,Qg1,Ni1,Bg1,ssat1,     &
-                              w,p2d,dz2d,step,prt_liq,prt_sol,its,ite,kts,kte,n_iceCat,         &
-                              diag_ZET,diag_reffc,diag_reffi,diag_vmi,diag_di,diag_rhoi,        &
-                              n_diag_2d,diag_2d,n_diag_3d,diag_3d,log_predictNc,                &
-                              trim(model),clbfact_dep,clbfact_sub,debug_on,                     &
-                              scpf_on,scpf_pfrac,scpf_resfact,scpf_cldfrac,                     &
-                              prt_drzl = prt_drzl,  &
-                              prt_rain = prt_rain,  &
-                              prt_crys = prt_crys,  &
-                              prt_snow = prt_snow,  &
-                              prt_grpl = prt_grpl,  &
-                              prt_pell = prt_pell,  &
-                              prt_hail = prt_hail,  &
-                              prt_sndp = prt_sndp,  &
-                              prt_wlsnow = prt_wlsnow, &
-                              prt_wcrys = prt_wcrys, &
-                              prt_wsnow = prt_wsnow, &
-                              prt_wgrpl = prt_wgrpl, &
-                              prt_wpell = prt_wpell, &
-                              prt_whail = prt_whail, &
-                              qi_type  = qi_type,    &
-                              qiliq_in = Ql1,        &
-                              diag_dhmax = diag_dhmax)
-                          
-            endif
-
-          else
-
-            !revert prog var to Z:  (for wrapper)
-            ![the advected 3-moment variable should be (N*Z)**0.5, not Z, in order to preserve mu during advection]
+          !revert prog var to Z:  (for wrapper)
+          ![the advected 3-moment variable should be (N*Z)**0.5, not Z, in order to preserve mu during advection]
+          if (trplMomIce) then
              do k = 1,nk
                if (Ni1(1,k,1)>0.) then
                   Zi1(1,k,1) = Zi1(1,k,1)**2/Ni1(1,k,1)
@@ -602,16 +545,18 @@ subroutine columnmodel
                   Zi1(1,k,1) = 0.
                endif
              enddo
+          else
+             Zi1 = 0.  !not used, but initialized to avoid passing garbage values
+          endif
 
+          if (.not. liqFrac) Ql1(:,:,:) = 0.
 
-             if (.not. liqFrac) then
-
-                CALL P3_MAIN(Qc1,Nc1,Qr1,Nr1,th2d0,th2d1,Qv0,Qv1,dt,Qi1,Qg1,Ni1,Bg1,ssat1,     &
-                             w,p2d,dz2d,step,prt_liq,prt_sol,its,ite,kts,kte,n_iceCat,         &
+          CALL P3_MAIN(Qc1,Nc1,Qr1,Nr1,th2d0,th2d1,Qv0,Qv1,dt,Qi1,Qg1,Ql1,Ni1,Bg1,Zi1,         &
+                             ssat1,w,p2d,dz2d,step,prt_liq,prt_sol,its,ite,kts,kte,n_iceCat,   &
                              diag_ZET,diag_reffc,diag_reffi,diag_vmi,diag_di,diag_rhoi,        &
                              n_diag_2d,diag_2d,n_diag_3d,diag_3d,log_predictNc,                &
                              trim(model),clbfact_dep,clbfact_sub,debug_on,                     &
-                             scpf_on,scpf_pfrac,scpf_resfact,scpf_cldfrac,                     &
+                             scpf_on,scpf_pfrac,scpf_resfact,scpf_cldfrac,trplMomIce,liqFrac,  &
                              prt_drzl = prt_drzl,  &
                              prt_rain = prt_rain,  &
                              prt_crys = prt_crys,  &
@@ -627,41 +572,11 @@ subroutine columnmodel
                              prt_wpell = prt_wpell, &
                              prt_whail = prt_whail, &
                              qi_type  = qi_type,    &
-                             zitot    = Zi1,        &
                              diag_dhmax = diag_dhmax)
 
-              else
-
-                CALL P3_MAIN(Qc1,Nc1,Qr1,Nr1,th2d0,th2d1,Qv0,Qv1,dt,Qi1,Qg1,Ni1,Bg1,ssat1,     &
-                             w,p2d,dz2d,step,prt_liq,prt_sol,its,ite,kts,kte,n_iceCat,         &
-                             diag_ZET,diag_reffc,diag_reffi,diag_vmi,diag_di,diag_rhoi,        &
-                             n_diag_2d,diag_2d,n_diag_3d,diag_3d,log_predictNc,                &
-                             trim(model),clbfact_dep,clbfact_sub,debug_on,                     &
-                             scpf_on,scpf_pfrac,scpf_resfact,scpf_cldfrac,                     &
-                             prt_drzl = prt_drzl,  &
-                             prt_rain = prt_rain,  &
-                             prt_crys = prt_crys,  &
-                             prt_snow = prt_snow,  &
-                             prt_grpl = prt_grpl,  &
-                             prt_pell = prt_pell,  &
-                             prt_hail = prt_hail,  &
-                             prt_sndp = prt_sndp,  &
-                             prt_wlsnow = prt_wlsnow, &
-                             prt_wcrys = prt_wcrys, &
-                             prt_wsnow = prt_wsnow, &
-                             prt_wgrpl = prt_wgrpl, &
-                             prt_wpell = prt_wpell, &
-                             prt_whail = prt_whail, &
-                             qi_type  = qi_type,    &
-                             zitot    = Zi1,        &
-                             qiliq_in = Ql1,        &
-                             diag_dhmax = diag_dhmax)
-              endif
-
+          if (trplMomIce) then
             !compute prog var from Z:    (for wrapper)
              Zi1(1,:,:) = (Ni1(1,:,:)*Zi1(1,:,:))**0.5
-
-
           endif
 
           call cpu_time(time2)
@@ -751,7 +666,7 @@ subroutine columnmodel
 !	endif
 !	enddo
 
-	
+
 !	do k=2,50
 !	if (tminr.eq.60) then
 !		write(28,*) max(0.,Qg1(1,2,1)/(Qi1(1,2,1))), k,  &
@@ -769,7 +684,7 @@ subroutine columnmodel
 
 
          IF (mod(tminr,float(outfreq)) < 1.e-5) THEN  !output only every OUTFREQ min   !for TESING
- 
+
 
 	!	write(27,*), tminr, Qg1(1,2,1)/(Qi1(1,2,1)), 	&
 	!			Qr1(1,50)*100/(Qi1(1,50,1)+Qr1(1,50)), 		&
@@ -921,12 +836,12 @@ subroutine columnmodel
 !                      diag_mui(1,k,1),   &  ! mu_i     (table)
 !                      diag_lami(1,k,1),  &  ! lambda_i (table)
 !                      tt1(1,k)-T0,       &  ! temperature (C)
-!                      Nc1(1,k),Nr1(1,k), & 
+!                      Nc1(1,k),Nr1(1,k), &
 !                      Ni1(1,k,1),Bg1(1,k,1)*10**8, &
 !                      Zi1(1,k,1),dum3,   &
 !                      Qv1(1,k)
 !             endif
-      
+
               dum1 = 0.
               dum2 = 0.
               dum3 = 0.
@@ -974,11 +889,11 @@ subroutine columnmodel
 !                      diag_rhoi(1,k,1),  &
 !                      diag_di(1,k,1),    &  ! Di
 !                      diag_dhmax(1,k,1), &  ! Dh_max
-!                      Qg1(1,k,1) ,   &  ! 
+!                      Qg1(1,k,1) ,   &  !
 !                      diag_mui(1,k,1),   &  ! mu_i     (table)
 !                      diag_lami(1,k,1),  &  ! lambda_i (table)
 !                      tt1(1,k)-T0,       &  ! temperature (C)
-!                      Nc1(1,k),Nr1(1,k), & 
+!                      Nc1(1,k),Nr1(1,k), &
 !                      Ni1(1,k,1),(Bg1(1,k,1))*10**8, &
 !                      Zi1(1,k,1),dum3,   &
 !                      Qv1(1,k),Ql1(1,k,1),dum2, &
@@ -1015,7 +930,7 @@ subroutine columnmodel
 !                      diag_mui(1,k,1),   &  ! mu_i     (table)
 !                      diag_lami(1,k,1),  &  ! lambda_i (table)
 !                      tt1(1,k)-T0,       &  ! temperature (C)
-!                      Nc1(1,k),Nr1(1,k), & 
+!                      Nc1(1,k),Nr1(1,k), &
 !                      Ni1(1,k,1),Bg1(1,k,1)*10**8, &
 !                      Zi1(1,k,1),dum3,   &
 !                      Qv1(1,k),diag_3d(1,k,4), &
