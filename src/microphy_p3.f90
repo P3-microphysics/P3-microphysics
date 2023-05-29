@@ -948,15 +948,6 @@ END subroutine p3_init
          endif  ! >=3
       endif  ! >=2
 
-   ! convert advected variable 'qzi' (from dynamics) to 6th-moment 'zitot' (for microphysics)
-      if (log_3momIce) then
-         where (nitot.ge.qsmall)
-            zitot = zitot**2/nitot
-         elsewhere
-            zitot = 0.
-         endwhere
-      endif
-
       if (.not. log_3momIce) zitot = 0.  !not used, but avoids passing uninialized values
       if (.not. log_liqFrac) qiliq = 0.  !not used, but avoids passing uninialized values
 
@@ -968,9 +959,6 @@ END subroutine p3_init
                       n_diag3d,diag3d,log_predictNc,trim(model),clbfact_dep,             &
                       clbfact_sub,log_debug,log_scpf,scpf_pfrac,scpf_resfact,cldfrac,    &
                       log_3momIce,log_liqFrac, diag_dhmax = diag_dhmax )
-
-      ! convert 6th moment to advected variabe for dynamics
-      if (log_3momIce) zitot = sqrt(zitot*nitot)
 
      !surface precipitation output:
       dum1 = 1000.*dt
@@ -1290,7 +1278,7 @@ END subroutine p3_init
    kdir  = -1  ! direction of vertical leveling for 1=bottom, nk=top
 
    log_trplMomI = present(zitot_1)
-   log_LiquidFraction = present(qiliq_1)
+   log_liqFrac  = present(qiliq_1)
 
    !compute time step and number of steps for substepping
    idt = 1./dt
@@ -1344,36 +1332,6 @@ END subroutine p3_init
       DZ(:,k) = gzmom(:,k) - gzmom(:,k-kdir)
    enddo
    DZ(:,kbot) = gzmom(:,kbot)
-
-  !compute zitot from advected 'Z' variable (for triple-moment ice):
-   if (present(zitot_1)) then
-      where (nitot_1>0.)
-         zitot_1 = zitot_1**2/nitot_1
-      elsewhere
-         zitot_1 = 0.
-      endwhere
-   endif
-   if (present(zitot_2)) then
-      where (nitot_2>0.)
-         zitot_2 = zitot_2**2/nitot_2
-      elsewhere
-         zitot_2 = 0.
-      endwhere
-   endif
-   if (present(zitot_3)) then
-      where (nitot_3>0.)
-         zitot_3 = zitot_3**2/nitot_3
-      elsewhere
-         zitot_3 = 0.
-      endwhere
-   endif
-   if (present(zitot_4)) then
-      where (nitot_4>0.)
-         zitot_4 = zitot_4**2/nitot_4
-      elsewhere
-         zitot_4 = 0.
-      endwhere
-   endif
 
   !contruct full ice arrays from individual category arrays:
    qitot(:,:,1) = qitot_1(:,:)
@@ -1445,67 +1403,21 @@ END subroutine p3_init
      temp    = temp+ttdelta
      theta   = temp*tmparr_ik
 
-      if (log_trplMomI) then
-          if (log_LiquidFraction) then
-            call p3_main(qc,nc,qr,nr,theta_m,theta,qvapm,qvap,dt_mp,qitot,qirim,nitot,birim,    &
-                   ssat,ww,pres,DZ,kount,prt_liq,prt_sol,i_strt,ni,k_strt,nk,n_iceCat,          &
+     if (.not. log_trplMomI)  zitot = 0.  !not used, but avoids passing uninialized values
+     if (.not. log_liqFrac)   qiliq = 0.  !not used, but avoids passing uninialized values
+
+     call p3_main(qc,nc,qr,nr,theta_m,theta,qvapm,qvap,dt_mp,qitot,qirim,qiliq,nitot,birim,     &
+                   zitot,ssat,ww,pres,DZ,kount,prt_liq,prt_sol,i_strt,ni,k_strt,nk,n_iceCat,    &
                    diag_Zet,diag_effc,diag_effi,diag_vmi,diag_di,diag_rhoi,n_diag_2d,diag_2d,   &
-                   n_diag_3d,diag_3d,log_predictNc,trim(model),clbfact_dep,                     &
-                   clbfact_sub,debug_on,scpf_on,scpf_pfrac,scpf_resfact,cldfrac,prt_drzl,       &
-                   prt_rain,prt_crys,prt_snow,prt_grpl,prt_pell,prt_hail,prt_sndp,              &
-                   prt_wlsnow,prt_wcrys,prt_wsnow,prt_wgrpl,prt_wpell,prt_whail,qi_type,        &
-                   zitot     = zitot,                                                           &
-                   qiliq  = qiliq,                                                        &
-                   diag_vis  = diag_vis,                                                        &
-                   diag_vis1 = diag_vis1,                                                       &
-                   diag_vis2 = diag_vis2,                                                       &
-                   diag_vis3 = diag_vis3,                                                       &
-                   diag_dhmax = diag_dhmax)
-          else
-            call p3_main(qc,nc,qr,nr,theta_m,theta,qvapm,qvap,dt_mp,qitot,qirim,nitot,birim,    &
-                   ssat,ww,pres,DZ,kount,prt_liq,prt_sol,i_strt,ni,k_strt,nk,n_iceCat,          &
-                   diag_Zet,diag_effc,diag_effi,diag_vmi,diag_di,diag_rhoi,n_diag_2d,diag_2d,   &
-                   n_diag_3d,diag_3d,log_predictNc,trim(model),clbfact_dep,                     &
-                   clbfact_sub,debug_on,scpf_on,scpf_pfrac,scpf_resfact,cldfrac,prt_drzl,       &
-                   prt_rain,prt_crys,prt_snow,prt_grpl,prt_pell,prt_hail,prt_sndp,              &
-                   prt_wlsnow,prt_wcrys,prt_wsnow,prt_wgrpl,prt_wpell,prt_whail,qi_type,        &
-                   zitot     = zitot,                                                           &
-                   diag_vis  = diag_vis,                                                        &
-                   diag_vis1 = diag_vis1,                                                       &
-                   diag_vis2 = diag_vis2,                                                       &
-                   diag_vis3 = diag_vis3,                                                       &
-                   diag_dhmax = diag_dhmax)
-          endif
-         else
-          if (log_LiquidFraction) then
-            call p3_main(qc,nc,qr,nr,theta_m,theta,qvapm,qvap,dt_mp,qitot,qirim,nitot,birim,    &
-                   ssat,ww,pres,DZ,kount,prt_liq,prt_sol,i_strt,ni,k_strt,nk,n_iceCat,          &
-                   diag_Zet,diag_effc,diag_effi,diag_vmi,diag_di,diag_rhoi,n_diag_2d,diag_2d,   &
-                   n_diag_3d,diag_3d,log_predictNc,trim(model),clbfact_dep,                     &
-                   clbfact_sub,debug_on,scpf_on,scpf_pfrac,scpf_resfact,cldfrac,prt_drzl,       &
-                   prt_rain,prt_crys,prt_snow,prt_grpl,prt_pell,prt_hail,prt_sndp,              &
-                   prt_wlsnow,prt_wcrys,prt_wsnow,prt_wgrpl,prt_wpell,prt_whail,qi_type,        &
-                   qiliq  = qiliq,                                                        &
-                   diag_vis  = diag_vis,                                                        &
-                   diag_vis1 = diag_vis1,                                                       &
-                   diag_vis2 = diag_vis2,                                                       &
-                   diag_vis3 = diag_vis3,                                                       &
-                   diag_dhmax = diag_dhmax)
-          else
-            call p3_main(qc,nc,qr,nr,theta_m,theta,qvapm,qvap,dt_mp,qitot,qirim,nitot,birim,    &
-                   ssat,ww,pres,DZ,kount,prt_liq,prt_sol,i_strt,ni,k_strt,nk,n_iceCat,          &
-                   diag_Zet,diag_effc,diag_effi,diag_vmi,diag_di,diag_rhoi,n_diag_2d,diag_2d,   &
-                   n_diag_3d,diag_3d,log_predictNc,trim(model),clbfact_dep,                     &
-                   clbfact_sub,debug_on,scpf_on,scpf_pfrac,scpf_resfact,cldfrac,prt_drzl,       &
-                   prt_rain,prt_crys,prt_snow,prt_grpl,prt_pell,prt_hail,prt_sndp,              &
+                   n_diag_3d,diag_3d,log_predictNc,trim(model),clbfact_dep,clbfact_sub,         &
+                   debug_on,scpf_on,scpf_pfrac,scpf_resfact,cldfrac,log_trplMomI,log_liqFrac,   &
+                   prt_drzl,prt_rain,prt_crys,prt_snow,prt_grpl,prt_pell,prt_hail,prt_sndp,     &
                    prt_wlsnow,prt_wcrys,prt_wsnow,prt_wgrpl,prt_wpell,prt_whail,qi_type,        &
                    diag_vis  = diag_vis,                                                        &
                    diag_vis1 = diag_vis1,                                                       &
                    diag_vis2 = diag_vis2,                                                       &
                    diag_vis3 = diag_vis3,                                                       &
                    diag_dhmax = diag_dhmax)
-          endif
-         endif
 
 
       if (global_status /= STATUS_OK) return
@@ -1617,13 +1529,6 @@ END subroutine p3_init
          endif
       endif
    endif
-
-  !convert zitot to advected 'Z' variable:
-   if (present(zitot_1)) zitot_1 = sqrt(nitot_1*zitot_1)
-   if (present(zitot_2)) zitot_2 = sqrt(nitot_2*zitot_2)
-   if (present(zitot_3)) zitot_3 = sqrt(nitot_3*zitot_3)
-   if (present(zitot_4)) zitot_4 = sqrt(nitot_4*zitot_4)
-
 
   !convert precip rates from volume flux (m s-1) to mass flux (kg m-2 s-1):
   ! (since they are computed back to liq-eqv volume flux in s/r 'ccdiagnostics.F90')
@@ -2244,6 +2149,17 @@ END subroutine p3_init
     ktop = kte        !k of top level
     kbot = kts        !k of bottom level
     kdir = 1          !(k: 1=bottom, nk=top)
+ endif
+
+  ! convert advected (dynamics) variable to zitot (6th moment):
+ !   This is done to preserve appropriate ratios between prognostic
+ !   moments; for details, see Morrison et al. (2016), MWR
+ if (log_3momentIce) then
+    where (nitot>0.)
+       zitot = zitot**2/nitot
+    elsewhere
+       zitot = 0.
+    endwhere
  endif
 
 ! Determine threshold size difference [m] as a function of nCat
@@ -3099,11 +3015,11 @@ END subroutine p3_init
 
 !............................................................
 ! refreezing of mixed-phase ice particles
-! only with predicted liquid fraction (log_LiquidFraction)
+! only with predicted liquid fraction (log_liqFrac)
 !............................................................
 ! shedding
-! only with predicted liquid fraction (log_LiquidFraction)
-! without log_LiquidFraction, shedding is included in the wet growth process
+! only with predicted liquid fraction (log_liqFrac)
+! without log_liqFrac, shedding is included in the wet growth process
 !............................................................
 
        if (log_LiquidFrac) then
@@ -5961,6 +5877,9 @@ END subroutine p3_init
 
  endif compute_type_diags
 !=== (end of section for diagnostic hydrometeor/precip types)
+
+ ! convert zitot to advected (dynamics) variable
+ if (log_3momentIce) zitot = sqrt(zitot*nitot)
 
 
 ! end of main microphysics routine

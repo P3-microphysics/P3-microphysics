@@ -31,7 +31,7 @@ subroutine columnmodel
 !
 !--------------------------------------------------------------------------!
 !  Author:         Jason Milbrandt
-!  Last modified:  2023-01-23
+!  Last modified:  2023-05-28
 !--------------------------------------------------------------------------!
 
       use subs_cld1d
@@ -40,7 +40,7 @@ subroutine columnmodel
       implicit none
 
       integer, parameter :: n_iceCat     =  1
-      logical, parameter :: liqFrac      = .true.
+      logical, parameter :: liqFrac      = .false.
       logical, parameter :: trplMomIce   = .true.
 
       logical, parameter :: scpf_on      = .false.  ! switch for cloud fraction parameterization (SCPF)
@@ -535,21 +535,8 @@ subroutine columnmodel
 
           call cpu_time(time1)
 
-          !revert prog var to Z:  (for wrapper)
-          ![the advected 3-moment variable should be (N*Z)**0.5, not Z, in order to preserve mu during advection]
-          if (trplMomIce) then
-             do k = 1,nk
-               if (Ni1(1,k,1)>0.) then
-                  Zi1(1,k,1) = Zi1(1,k,1)**2/Ni1(1,k,1)
-               else
-                  Zi1(1,k,1) = 0.
-               endif
-             enddo
-          else
-             Zi1 = 0.  !not used, but initialized to avoid passing garbage values
-          endif
-
-          if (.not. liqFrac) Ql1(:,:,:) = 0.
+          if (.not. trplMomIce) Zi1(:,:,:) = 0.
+          if (.not. liqFrac)    Ql1(:,:,:) = 0.
 
           CALL P3_MAIN(Qc1,Nc1,Qr1,Nr1,th2d0,th2d1,Qv0,Qv1,dt,Qi1,Qg1,Ql1,Ni1,Bg1,Zi1,         &
                              ssat1,w,p2d,dz2d,step,prt_liq,prt_sol,its,ite,kts,kte,n_iceCat,   &
@@ -573,11 +560,6 @@ subroutine columnmodel
                              prt_whail = prt_whail, &
                              qi_type  = qi_type,    &
                              diag_dhmax = diag_dhmax)
-
-          if (trplMomIce) then
-            !compute prog var from Z:    (for wrapper)
-             Zi1(1,:,:) = (Ni1(1,:,:)*Zi1(1,:,:))**0.5
-          endif
 
           call cpu_time(time2)
 
