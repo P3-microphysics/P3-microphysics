@@ -22,7 +22,7 @@
 !    Melissa Cholette (melissa.cholette@ec.gc.ca)                                          !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.3.0                                                                     !
+! Version:       5.3.0 + dev-onecall                                                       !
 ! Last updated:  2023 MAY                                                                  !
 !__________________________________________________________________________________________!
 
@@ -40,7 +40,7 @@
 #ifdef ECCCGEM
  public :: mp_p3_wrapper_gem, p3_phybusinit, p3_lwc, p3_iwc
 #else
-! public :: mp_p3_wrapper_wrf
+ public :: mp_p3_wrapper_wrf
 #endif
 
  integer, parameter, public :: STATUS_ERROR  = -1
@@ -141,7 +141,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.3.0'
+ character(len=1024), parameter :: version_p3                    = '5.3.0+onecall'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.4-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '6.4-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.0'
@@ -744,8 +744,7 @@
 END subroutine p3_init
 
 !==================================================================================================!
-!!#ifndef ECCCGEM
-#ifdef ECCCGEM
+#ifndef ECCCGEM
 
    SUBROUTINE mp_p3_wrapper_wrf( th,qv,qc,qr,qnr,th_old,qv_old,pii,p,dz,w,dt,itimestep,         &
                 rainnc,rainncv,sr,snownc,snowncv,                                               &
@@ -958,53 +957,17 @@ END subroutine p3_init
          endwhere
       endif
 
-      if (.not. log_3momIce .and. .not. log_LiqFrac) then                     ! ptype = 52
+      if (.not. log_3momIce) zitot = 0.  !not used, but avoids passing uninialized values
+      if (.not. log_liqFrac) qiliq = 0.  !not used, but avoids passing uninialized values
 
-        call p3_main( qc(:,:,j),nc_loc,qr(:,:,j),qnr(:,:,j),th_old(:,:,j),th(:,:,j),     &
-                      qv_old(:,:,j),qv(:,:,j),dt,qitot,qirim,nitot,birim,ssat,           &
-                      w(:,:,j),p(:,:,j),dz(:,:,j),itimestep,pcprt_liq,pcprt_sol,         &
+      call p3_main( qc(:,:,j),nc_loc,qr(:,:,j),qnr(:,:,j),th_old(:,:,j),th(:,:,j),       &
+                      qv_old(:,:,j),qv(:,:,j),dt,qitot,qirim,qiliq,nitot,birim,zitot,    &
+                      ssat,w(:,:,j),p(:,:,j),dz(:,:,j),itimestep,pcprt_liq,pcprt_sol,    &
                       its,ite,kts,kte,n_iceCat,diag_zdbz(:,:,j),diag_effc(:,:,j),        &
                       diag_effi,diag_vmi,diag_dmi,diag_rhoi,n_diag2d,diag2d,             &
                       n_diag3d,diag3d,log_predictNc,trim(model),clbfact_dep,             &
                       clbfact_sub,log_debug,log_scpf,scpf_pfrac,scpf_resfact,cldfrac,    &
-                      diag_dhmax = diag_dhmax )
-
-      elseif (log_3momIce .and. .not. log_LiqFrac) then                    ! ptype = 53,54
-
-        call p3_main( qc(:,:,j),nc_loc,qr(:,:,j),qnr(:,:,j),th_old(:,:,j),th(:,:,j),     &
-                      qv_old(:,:,j),qv(:,:,j),dt,qitot,qirim,nitot,birim,ssat,           &
-                      w(:,:,j),p(:,:,j),dz(:,:,j),itimestep,pcprt_liq,pcprt_sol,         &
-                      its,ite,kts,kte,n_iceCat,diag_zdbz(:,:,j),diag_effc(:,:,j),        &
-                      diag_effi,diag_vmi,diag_dmi,diag_rhoi,n_diag2d,diag2d,             &
-                      n_diag3d,diag3d,log_predictNc,trim(model),clbfact_dep,             &
-                      clbfact_sub,log_debug,log_scpf,scpf_pfrac,scpf_resfact,cldfrac,    &
-                      zitot = zitot, diag_dhmax = diag_dhmax )
-
-   !-- NOTE:  not yet implemented (WRF, CM1)
-!       else if (log_LiqFrac .and. .not. log_3momIce) then                      ! ptype = 5x
-!
-!         call p3_main( qc(:,:,j),nc_loc,qr(:,:,j),qnr(:,:,j),th_old(:,:,j),th(:,:,j),     &
-!                       qv_old(:,:,j),qv(:,:,j),dt,qitot,qirim,nitot,birim,ssat,           &
-!                       w(:,:,j),p(:,:,j),dz(:,:,j),itimestep,pcprt_liq,pcprt_sol,         &
-!                       its,ite,kts,kte,n_iceCat,diag_zdbz(:,:,j),diag_effc(:,:,j),        &
-!                       diag_effi,diag_vmi,diag_dmi,diag_rhoi,n_diag2d,diag2d,             &
-!                       n_diag3d,diag3d,log_predictNc,trim(model),clbfact_dep,             &
-!                       clbfact_sub,log_debug,log_scpf,scpf_pfrac,scpf_resfact,cldfrac,    &
-!                       qiliq = qiliq, diag_dhmax = diag_dhmax )
-
-      elseif (log_3momIce .and. log_LiqFrac) then                    ! ptype = 60,61,62,63
-
-        call p3_main( qc(:,:,j),nc_loc,qr(:,:,j),qnr(:,:,j),th_old(:,:,j),th(:,:,j),     &
-                      qv_old(:,:,j),qv(:,:,j),dt,qitot,qirim,nitot,birim,ssat,           &
-                      w(:,:,j),p(:,:,j),dz(:,:,j),itimestep,pcprt_liq,pcprt_sol,         &
-                      its,ite,kts,kte,n_iceCat,diag_zdbz(:,:,j),diag_effc(:,:,j),        &
-                      diag_effi,diag_vmi,diag_dmi,diag_rhoi,n_diag2d,diag2d,             &
-                      n_diag3d,diag3d,log_predictNc,trim(model),clbfact_dep,             &
-                      clbfact_sub,log_debug,log_scpf,scpf_pfrac,scpf_resfact,cldfrac,    &
-                      zitot = zitot,                                                     &
-                      qiliq = qiliq, diag_dhmax = diag_dhmax )
-
-      endif
+                      log_3momIce,log_liqFrac, diag_dhmax = diag_dhmax )
 
       ! convert 6th moment to advected variabe for dynamics
       if (log_3momIce) zitot = sqrt(zitot*nitot)
