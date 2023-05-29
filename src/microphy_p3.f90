@@ -1258,7 +1258,7 @@ END subroutine p3_init
 
  integer                 :: i,k,ktop,kbot,kdir,i_strt,k_strt,i_substep,n_substep,end_status,tmpint1
 
- logical                 :: log_tmp1,log_tmp2,log_trplMomI,log_liquidFraction
+ logical                 :: log_tmp1,log_tmp2,log_trplMomI,log_liqFrac
  logical, parameter      :: log_predictNc = .true.      ! temporary; to be put as GEM namelist
  real, parameter         :: SMALL_ICE_MASS = 1e-14      ! threshold for very small specific ice content
 
