@@ -22,8 +22,8 @@
 !    Melissa Cholette (melissa.cholette@ec.gc.ca)                                          !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.3.1                                                                     !
-! Last updated:  2023 June                                                                 !
+! Version:       5.3.2                                                                     !
+! Last updated:  2023 July                                                                 !
 !__________________________________________________________________________________________!
 
  MODULE microphy_p3
@@ -141,7 +141,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.3.1'
+ character(len=1024), parameter :: version_p3                    = '5.3.2'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.4-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '6.4-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.0'
@@ -2071,7 +2071,7 @@ END subroutine p3_init
 
 ! quantities related to diagnostic hydrometeor/precipitation types
  real,    parameter                       :: freq3DtypeDiag     =  5.      !frequency (min) for full-column diagnostics
- real,    parameter                       :: thres_raindrop     = 150.e-6 !size threshold for drizzle vs. rain
+ real,    parameter                       :: thres_raindrop     = 100.e-6 !size threshold for drizzle vs. rain
  real,    dimension(its:ite,kts:kte)      :: Q_drizzle,Q_rain
  real,    dimension(its:ite,kts:kte,nCat) :: Q_crystals,Q_snow,Q_wlsnow,Q_grpl,Q_pellets,Q_hail
  integer                                  :: ktop_typeDiag    !ktop_typeDiag_r,ktop_typeDiag_i
