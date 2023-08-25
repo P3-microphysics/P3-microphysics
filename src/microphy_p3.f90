@@ -20,6 +20,9 @@
 !    Hugh Morrison   (morrison@ucar.edu), or                                               !
 !    Jason Milbrandt (jason.milbrandt@ec.gc.ca), or                                        !
 !    Melissa Cholette (melissa.cholette@ec.gc.ca)                                          !
+!                                                                                          !
+! For all code updates, including bug-fixes and new developments, see:                     !
+!    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
 ! Version:       5.3.2                                                                     !
