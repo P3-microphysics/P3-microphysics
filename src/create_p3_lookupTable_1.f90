@@ -13,13 +13,8 @@ PROGRAM create_p3_lookuptable_1
 ! All other parameter settings are linked uniquely to the version number.
 !
 !--------------------------------------------------------------------------------------
-<<<<<<< HEAD
-! Version:       6.1
-! Last modified: 2021-July
-=======
 ! Version:       6.4
 ! Last modified: 2023-Feb
->>>>>>> master
 ! Version: including the liquid fraction (inner-loop i_Fl)
 !______________________________________________________________________________________
 
@@ -196,7 +191,7 @@ PROGRAM create_p3_lookuptable_1
 
 ! function to return diagnostic value of shape paramter, mu_i (mu_id with i_Fl)
  real :: diagnostic_mui
- 
+
 ! function to return diagnostic value of shape paramter, mu_i
  real :: diagnostic_mui_Fl
 
@@ -852,7 +847,7 @@ hostinclusionstring_m = 'spheroidal'
               ! intgrR2 is integral from dcrit to dcrits  (unrimed large ice)
               ! intgrR3 is integral from dcrits to dcritr (fully rimed ice)
               ! intgrR4 is integral from dcritr to inf    (partially rimed)
-                
+
               ! sum of the integrals from the 4 regions of the size distribution:
                 qdum = n0d*(cs1*intgrR1 + cs*intgrR2 + cgp(i_rhor)*intgrR3 + csr*intgrR4)
 
@@ -985,7 +980,7 @@ hostinclusionstring_m = 'spheroidal'
            ! intgrR2 is integral from dcrit to dcrits  (unrimed large ice)
            ! intgrR3 is integral from dcrits to dcritr (fully rimed ice)
            ! intgrR4 is integral from dcritr to inf    (partially rimed)
-      
+
            ! sum of the integrals from the 4 regions of the size distribution:
              qdum = n0*((1.-Fl)*(cs1*intgrR1 + cs*intgrR2 + cgp(i_rhor)*intgrR3 + csr*intgrR4)+Fl*cs5*intgrR5)
 
@@ -1058,7 +1053,7 @@ hostinclusionstring_m = 'spheroidal'
           duml = (mu_i+1.)/Dm_min
           call intgrl_section_Fl(duml,mu_i, ds1,ds,dg,dsr, dcrit,dcrits,dcritr,intgrR1,intgrR2,intgrR3,intgrR4,intgrR5)
           n0dum = q/((1.-Fl)*(cs1*intgrR1 + cs*intgrR2 + cgp(i_rhor)*intgrR3 + csr*intgrR4)+Fl*cs5*intgrR5)
-          
+
          !find maximum N applying the lambda limiter (lower size limit)
           dum =	n0dum/(duml**(mu_i+1.)/(gamma(mu_i+1.)))
 
@@ -1076,7 +1071,7 @@ hostinclusionstring_m = 'spheroidal'
 
         ! find minium N applying the lambda limiter (lower size limit)
           dum = n0dum/(duml**(mu_i+1.)/(gamma(mu_i+1.)))
-          
+
         ! calculate the upper limit of normalized Q to use in P3 main
         ! (this is based on the upper limit of mean size so we call this 'qlarge')
          !qlarge(i_Qnorm,i_Fr) = q/dum
@@ -1878,7 +1873,7 @@ hostinclusionstring_m = 'spheroidal'
 522  continue
 
        enddo i_Qnorm_loop
-       
+
 
     !-- ice table
        i_Qnorm_loop_2:  do i_Qnorm = 1,n_Qnorm
@@ -1981,9 +1976,9 @@ hostinclusionstring_m = 'spheroidal'
                          nrrain(i_Qnorm,i_Drscale,i_Fr,i_Fl),     &
                          qrrain(i_Qnorm,i_Drscale,i_Fr,i_Fl)
 
-          enddo !i_Drscale-loop          
+          enddo !i_Drscale-loop
        enddo !i_Qnorm-loop
-       
+
 !--
 ! The values of i_Znorm (3-momI) and i_rhor/i_Fr (2-momI) are "passed in" for parallelized
 ! version of code, thus the loops are commented out.
@@ -2150,7 +2145,7 @@ END PROGRAM create_p3_lookuptable_1
 !----------------------------------------------------------!
 
  implicit none
- 
+
 !Arguments:
  real    :: mu_i_min,mu_i_max,lam,q,cgp,Fr,pi
 
@@ -2164,7 +2159,7 @@ END PROGRAM create_p3_lookuptable_1
 !  mu_i = 0.076*(lam/100.)**0.8-2.   ! /100 is to convert m-1 to cm-1
 !  mu_i = max(mu_i,0.)
 !  mu_i = min(mu_i,6.)
-    
+
 !-- diagnostic mu_i, 3-moment-based formulation:
 !  dum1 = (q/cgp)**(1./3)*1000.              ! estimated Dmvd [mm], assuming spherical
 !  if (dum1<=Di_thres) then
@@ -2178,7 +2173,7 @@ END PROGRAM create_p3_lookuptable_1
 !  endif
 !  mu_i = max(mu_i,mu_i_min)  ! make sure mu_i >= 0, otherwise size dist is infinity at D = 0
 !  mu_i = min(mu_i,mu_i_max)
-    
+
  dum1 = (q/cgp)**(1./3)*1000.              ! estimated Dmvd [mm], assuming spherical
  if (dum1<=Di_thres) then
     !diagnostic mu_i, original formulation: (from Heymsfield, 2003)
@@ -2192,11 +2187,11 @@ END PROGRAM create_p3_lookuptable_1
  endif
  mu_i = max(mu_i,mu_i_min)  ! make sure mu_i >= 0, otherwise size dist is infinity at D = 0
  mu_i = min(mu_i,mu_i_max)
-    
+
  diagnostic_mui = mu_i
- 
+
  end function diagnostic_mui
- 
+
 !______________________________________________________________________________________
 
  real function diagnostic_mui_Fl(mu_i_min,mu_i_max,mu_id,lam,q,cgp,Fr,Fl,rhom,pi)
@@ -2206,7 +2201,7 @@ END PROGRAM create_p3_lookuptable_1
 !----------------------------------------------------------!
 
  implicit none
- 
+
 !Arguments:
  real    :: mu_i_min,mu_i_max,lam,q,cgp,Fr,pi,mu_id,Fl,rhom
 
@@ -2214,7 +2209,7 @@ END PROGRAM create_p3_lookuptable_1
  real, parameter :: Di_thres = 0.2 !diameter threshold [mm]
 !real, parameter :: Di_thres = 0.6 !diameter threshold [mm]
  real            :: mu_i,dum1,dum2,dum3
- 
+
  dum1 = (q/rhom)**(1./3)*1000.              ! estimated Dmvd [mm], assuming spherical
  if (dum1<=Di_thres) then
     !diagnostic mu_i, original formulation: (from Heymsfield, 2003)
@@ -2228,9 +2223,9 @@ END PROGRAM create_p3_lookuptable_1
  endif
     mu_i = max(mu_i,mu_i_min)  ! make sure mu_i >= 0, otherwise size dist is infinity at D = 0
     mu_i = min(mu_i,mu_i_max)
-    
+
  diagnostic_mui_Fl = mu_i
- 
+
  end function diagnostic_mui_Fl
 
 !______________________________________________________________________________________
@@ -2238,39 +2233,39 @@ END PROGRAM create_p3_lookuptable_1
 
  subroutine intgrl_section(lam,mu, d1,d2,d3,d4, Dcrit1,Dcrit2,Dcrit3,    &
                            intsec_1,intsec_2,intsec_3,intsec_4)
- !-----------------  
+ !-----------------
  ! Computes and returns partial integrals (partial moments) of ice PSD.
- !----------------- 
+ !-----------------
 
  implicit none
- 
+
 !Arguments:
  real, intent(in)  :: lam,mu, d1,d2,d3,d4, Dcrit1,Dcrit2,Dcrit3
  real, intent(out) :: intsec_1,intsec_2,intsec_3,intsec_4
- 
+
 !Local:
  real :: dum,gammq
-!----------------- 
- 
+!-----------------
+
  !Region I -- integral from 0 to Dcrit1  (small spherical ice)
  intsec_1 = lam**(-d1-mu-1.)*gamma(mu+d1+1.)*(1.-gammq(mu+d1+1.,Dcrit1*lam))
-          
+
  !Region II -- integral from Dcrit1 to Dcrit2  (non-spherical unrimed ice)
  intsec_2 = lam**(-d2-mu-1.)*gamma(mu+d2+1.)*(gammq(mu+d2+1.,Dcrit1*lam))
  dum      = lam**(-d2-mu-1.)*gamma(mu+d2+1.)*(gammq(mu+d2+1.,Dcrit2*lam))
  intsec_2 = intsec_2-dum
-          
+
  !Region III -- integral from Dcrit2 to Dcrit3  (fully rimed spherical ice)
  intsec_3 = lam**(-d3-mu-1.)*gamma(mu+d3+1.)*(gammq(mu+d3+1.,Dcrit2*lam))
  dum      = lam**(-d3-mu-1.)*gamma(mu+d3+1.)*(gammq(mu+d3+1.,Dcrit3*lam))
  intsec_3 = intsec_3-dum
-          
+
  !Region IV -- integral from Dcrit3 to infinity  (partially rimed ice)
  intsec_4 = lam**(-d4-mu-1.)*gamma(mu+d4+1.)*(gammq(mu+d4+1.,Dcrit3*lam))
 
  return
- 
- end subroutine intgrl_section               
+
+ end subroutine intgrl_section
 !______________________________________________________________________________________
 
 
@@ -2292,17 +2287,17 @@ real :: dum,gammq
 
 !Region I -- integral from 0 to Dcrit1  (small spherical ice)
 intsec_1 = lam**(-d1-mu-1.)*gamma(mu+d1+1.)*(1.-gammq(mu+d1+1.,Dcrit1*lam))
-         
+
 !Region II -- integral from Dcrit1 to Dcrit2  (non-spherical unrimed ice)
 intsec_2 = lam**(-d2-mu-1.)*gamma(mu+d2+1.)*(gammq(mu+d2+1.,Dcrit1*lam))
 dum      = lam**(-d2-mu-1.)*gamma(mu+d2+1.)*(gammq(mu+d2+1.,Dcrit2*lam))
 intsec_2 = intsec_2-dum
-         
+
 !Region III -- integral from Dcrit2 to Dcrit3  (fully rimed spherical ice)
 intsec_3 = lam**(-d3-mu-1.)*gamma(mu+d3+1.)*(gammq(mu+d3+1.,Dcrit2*lam))
 dum      = lam**(-d3-mu-1.)*gamma(mu+d3+1.)*(gammq(mu+d3+1.,Dcrit3*lam))
 intsec_3 = intsec_3-dum
-         
+
 !Region IV -- integral from Dcrit3 to infinity  (partially rimed ice)
 intsec_4 = lam**(-d4-mu-1.)*gamma(mu+d4+1.)*(gammq(mu+d4+1.,Dcrit3*lam))
 
@@ -2365,7 +2360,7 @@ complex function m_complex_ice_maetzler(lambda,T)
 !      Academic Publishers, Dordrecht, pp. 241-257 (1998). Input:
 !      TK = temperature (K), range 20 to 273.15
 !      f = frequency in GHz, range 0.01 to 3000
-   
+
 implicit none
 real, intent(in) :: T,lambda
 
@@ -2468,7 +2463,7 @@ complex :: mtmp,get_m_mix
         vol2 = 1.0 - vol1
         mtmp = get_m_mix (m_a, m_i, m_w, 0.0, vol1, vol2,             &
                          mixingrule, matrix, inclusion)
-          
+
         if (hostmatrix .eq. 'air') then
          get_m_mix_nested = get_m_mix (m_a, mtmp, 2.0*m_a,            &
                          volair, (1.0-volair), 0.0, mixingrule,       &
