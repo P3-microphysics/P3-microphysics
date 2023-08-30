@@ -25,8 +25,16 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.3.2                                                                     !
-! Last updated:  2023 July                                                                 !
+! Version:       5.3.2 + dev-HM                                                            !
+! Last updated:  2023 Sept                                                                 !
+!
+! ++++++++++++++++++++++++++++++
+!  For dev-HM:
+!  - replaced hard-wired 4000.e-6 size threshold by parameter
+!  - lowered the value of this parameter
+!  - added "winter" condition to set log_hmossopOn
+!  - added other conditions based on liquid fraction (off) and required rime fraction)
+! ++++++++++++++++++++++++++++++
 !__________________________________________________________________________________________!
 
  MODULE microphy_p3
@@ -144,7 +152,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.3.2'
+ character(len=1024), parameter :: version_p3                    = '5.3.2+HM'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.4-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '6.4-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.0'
@@ -304,8 +312,11 @@
  f12     = 0.5*exp(2.5*(log(sig2))**2)
  f22     = 1. + 0.25*log(sig2)
 
- minVIS =  1.              ! minimum visibility  (m)
- maxVIS = 99.e+3           ! maximum visibility  (m)
+ Dmin_HM  = 1000.e-6       ! ice size threshold for rime-splintering (HM)
+ Dinit_HM =   10.e-6       ! initial ice diameter for rime splinters
+
+ minVIS  =  1.             ! minimum visibility  (m)
+ maxVIS  = 99.e+3          ! maximum visibility  (m)
 
 ! parameters for droplet mass spectral shape, used by Seifert and Beheng (2001)
 ! warm rain scheme only (iparam = 1)
@@ -2192,10 +2203,6 @@ END subroutine p3_init
 
  log_typeDiags  = .true.
 
- log_hmossopOn  = (nCat.gt.1)      !default: off for nCat=1, off for nCat>1
-!log_hmossopOn  = .true.           !switch to have Hallet-Mossop ON
-!log_hmossopOn  = .false.          !switch to have Hallet-Mossop OFF
-
  inv_dzq    = 1./dzq  ! inverse of thickness of layers
  odt        = 1./dt   ! inverse model time step
 
@@ -2238,6 +2245,19 @@ END subroutine p3_init
  t_old   = th_old*tmparr1    !compute temperature from theta (value at beginning of model time step)
  qv      = max(qv,0.)        !clip water vapor to prevent negative values passed in (beginning of microphysics)
 !==
+
+!log_hmossopOn  = (nCat.gt.1)      !default: off for nCat=1, off for nCat>1
+!log_hmossopOn  = .true.           !switch to have Hallet-Mossop ON
+!log_hmossopOn  = .false.          !switch to have Hallet-Mossop OFF
+
+ if (nCat.eq.1) then
+   !for nCat = 1, rime-splinter is shut off during the summer (dilution of rimed ice sizes
+   !weakens convection) but on during the winter.  The temperature threshold of +5 C (278 K)
+   !is used as a proxy for winter/summer
+    log_hmossopOn = t(i,kbot).lt.278.
+ else
+    log_hmossopOn = .true.
+ endif
 
 ! Note (BUG), I think SCF, SPF,... should be initialize here with scpf_on=.false.
 
@@ -3189,6 +3209,10 @@ END subroutine p3_init
 !......................................
 ! rime splintering (Hallet-Mossop 1974)
 
+! Rime splintering occurs from accretion of large drops (>25 microns diameter)
+! by large, rimed, fully-frozen ice.  For simplicitly it is assumed that all
+! accreted rain contributes to splintering, but accreted cloud water does not.
+
        rimesplintering_on:  if (log_hmossopOn) then
 
           if (nCat>1) then
@@ -3202,47 +3226,53 @@ END subroutine p3_init
 
           iice_loop_HM:  do iice = 1,nCat
 
-             ! rime splintering occurs from accretion by large ice, assume a threshold
-             ! mean mass size of 4 mm (ad-hoc, could be modified)
-             if (qitot(i,k,iice).ge.qsmall.and.diam_ice(i,k,iice).ge.4000.e-6            &
-                 .and. (qccol(iice).gt.0. .or. qrcol(iice).gt.0.)) then
+             ice_present:  if (qitot(i,k,iice).ge.qsmall) then
 
-                if (t(i,k).gt.270.15) then
-                   dum = 0.
-                elseif (t(i,k).le.270.15 .and. t(i,k).gt.268.15) then
-                   dum = (270.15-t(i,k))*0.5
-                elseif (t(i,k).le.268.15 .and. t(i,k).ge.265.15) then
-                   dum = (t(i,k)-265.15)*thrd
-                elseif (t(i,k).lt.265.15) then
-                   dum = 0.
-                endif
+                tmp1 = qirim(i,k,iice)/qitot(i,k,iice)                    ! rime fraction
+                tmp2 = qiliq(i,k,iice)/(qitot(i,k,iice)+qiliq(i,k,iice))  ! liquid fraction
 
-                !rime splintering from riming of cloud droplets
-!                dum1 = 35.e+4*qccol(iice)*dum*1000. ! 1000 is to convert kg to g
-!                dum2 = dum1*piov6*900.*(10.e-6)**3  ! assume 10 micron splinters
-!                qccol(iice) = qccol(iice)-dum2 ! subtract splintering from rime mass transfer
-!                if (qccol(iice) .lt. 0.) then
-!                   dum2 = qccol(iice)
-!                   qccol(iice) = 0.
-!                endif
-!                qcmul(iice_dest) = qcmul(iice_dest)+dum2
-!                nimul(iice_dest) = nimul(iice_dest)+dum2/(piov6*900.*(10.e-6)**3)
+                HM_conditions_met: if (diam_ice(i,k,iice).ge.Dmin_HM .and.               &
+                                       qiliq(i,k,iice).lt.qsmall     .and.               &
+                                       tmp1.gt.0.5                   .and.               &
+                                       tmp2.lt.0.1) then
 
-               !rime splintering from riming of large drops (> 25 microns diameter)
-               !for simplicitly it is assumed that all accreted rain contributes to splintering,
-               !but accreted cloud water does not - hence why the code is commented out above
-                dum1 = 35.e+4*qrcol(iice)*dum*1000. ! 1000 is to convert kg to g
-                dum2 = dum1*piov6*900.*(10.e-6)**3  ! assume 10 micron splinters
-                qrcol(iice) = qrcol(iice)-dum2      ! subtract splintering from rime mass transfer
-                if (qrcol(iice) .lt. 0.) then
-                   dum2 = qrcol(iice)+dum2
-                   qrcol(iice) = 0.
-                endif
+                   if (t(i,k).gt.270.15) then
+                      dum = 0.
+                   elseif (t(i,k).le.270.15 .and. t(i,k).gt.268.15) then
+                      dum = (270.15-t(i,k))*0.5
+                   elseif (t(i,k).le.268.15 .and. t(i,k).ge.265.15) then
+                      dum = (t(i,k)-265.15)*thrd
+                   elseif (t(i,k).lt.265.15) then
+                      dum = 0.
+                   endif
 
-                qrmul(iice_dest) = qrmul(iice_dest) + dum2
-                nimul(iice_dest) = nimul(iice_dest) + dum2/(piov6*900.*(10.e-6)**3)
+                !rime splintering from riming of cloud droplets:
+                !  (commented out to exclude rime splintering from accretion of cloud,
+                !   but code is retained in case of possible future use)
+!                   dum1 = 35.e+4*qccol(iice)*dum*1000. ! 1000 is to convert kg to g
+!                   dum2 = dum1*piov6*900.*(10.e-6)**3  ! assume 10 micron splinters
+!                   qccol(iice) = qccol(iice)-dum2 ! subtract splintering from rime mass transfer
+!                   if (qccol(iice) .lt. 0.) then
+!                      dum2 = qccol(iice)
+!                      qccol(iice) = 0.
+!                   endif
+!                   qcmul(iice_dest) = qcmul(iice_dest)+dum2
+!                   nimul(iice_dest) = nimul(iice_dest)+dum2/(piov6*900.*(10.e-6)**3)
 
-             endif
+                   !rime splintering from riming of rain:
+                   dum1 = 35.e+4*qrcol(iice)*dum*1000.  ! 1000 is to convert kg to g
+                   dum2 = dum1*piov6*900.*Dinit_HM**3
+                   qrcol(iice) = qrcol(iice)-dum2       ! subtract splintering from rime mass transfer
+                   if (qrcol(iice) .lt. 0.) then
+                      dum2 = qrcol(iice)+dum2
+                      qrcol(iice) = 0.
+                   endif
+                   qrmul(iice_dest) = qrmul(iice_dest) + dum3
+                   nimul(iice_dest) = nimul(iice_dest) + dum1
+
+                endif HM_conditions_met
+
+             endif ice_present
 
           enddo iice_loop_HM
 
