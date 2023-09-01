@@ -3212,8 +3212,9 @@ END subroutine p3_init
 ! Rime splintering occurs from accretion of large drops (>25 microns diameter)
 ! by large, rimed, fully-frozen ice.  For simplicitly it is assumed that all
 ! accreted rain contributes to splintering, but accreted cloud water does not.
+! It only occurs in the temperature range of -8C < T -3C.
 
-       rimesplintering_on:  if (log_hmossopOn) then
+       calc_HM:  if (log_hmossopOn .and. t(i,k).gt.265.15 .and. t(i,k).lt.270.15) then
 
           if (nCat>1) then
              !determine destination ice-phase category
@@ -3226,48 +3227,45 @@ END subroutine p3_init
 
           iice_loop_HM:  do iice = 1,nCat
 
-             ice_present:  if (qitot(i,k,iice).ge.qsmall) then
+             ice_present:  if (qitot(i,k,iice)-qiliq(i,k,iice) .ge. qsmall) then
 
-                tmp1 = qirim(i,k,iice)/qitot(i,k,iice)                    ! rime fraction
-                tmp2 = qiliq(i,k,iice)/(qitot(i,k,iice)+qiliq(i,k,iice))  ! liquid fraction
+                tmp1 = qirim(i,k,iice)/(qitot(i,k,iice)-qiliq(i,k,iice))  ! rime fraction
+                tmp2 = qiliq(i,k,iice)/qitot(i,k,iice)                    ! liquid fraction
 
                 HM_conditions_met: if (diam_ice(i,k,iice).ge.Dmin_HM .and.               &
-                                       qiliq(i,k,iice).lt.qsmall     .and.               &
                                        tmp1.gt.0.5                   .and.               &
-                                       tmp2.lt.0.1) then
+                                       tmp2.lt.0.1                   .and.               &
+!                                      qccol(iice).gt.0.             .and.               &
+                                       qrcol(iice).gt.0.) then
 
-                   if (t(i,k).gt.270.15) then
-                      dum = 0.
-                   elseif (t(i,k).le.270.15 .and. t(i,k).gt.268.15) then
+                   if (t(i,k).lt.270.15 .and. t(i,k).gt.268.15) then
                       dum = (270.15-t(i,k))*0.5
                    elseif (t(i,k).le.268.15 .and. t(i,k).ge.265.15) then
                       dum = (t(i,k)-265.15)*thrd
-                   elseif (t(i,k).lt.265.15) then
-                      dum = 0.
                    endif
 
                 !rime splintering from riming of cloud droplets:
                 !  (commented out to exclude rime splintering from accretion of cloud,
                 !   but code is retained in case of possible future use)
 !                   dum1 = 35.e+4*qccol(iice)*dum*1000. ! 1000 is to convert kg to g
-!                   dum2 = dum1*piov6*900.*(10.e-6)**3  ! assume 10 micron splinters
-!                   qccol(iice) = qccol(iice)-dum2 ! subtract splintering from rime mass transfer
+!                   dum2 = dum1*piov6*900.*Dinit_HM**3
+!                   qccol(iice) = qccol(iice)-dum2      ! subtract splintering from rime mass transfer
 !                   if (qccol(iice) .lt. 0.) then
-!                      dum2 = qccol(iice)
+!                      dum2 = qccol(iice) + dum2
 !                      qccol(iice) = 0.
 !                   endif
-!                   qcmul(iice_dest) = qcmul(iice_dest)+dum2
-!                   nimul(iice_dest) = nimul(iice_dest)+dum2/(piov6*900.*(10.e-6)**3)
+!                   qcmul(iice_dest) = qcmul(iice_dest) + dum2
+!                   nimul(iice_dest) = nimul(iice_dest) + dum1
 
                    !rime splintering from riming of rain:
                    dum1 = 35.e+4*qrcol(iice)*dum*1000.  ! 1000 is to convert kg to g
                    dum2 = dum1*piov6*900.*Dinit_HM**3
-                   qrcol(iice) = qrcol(iice)-dum2       ! subtract splintering from rime mass transfer
+                   qrcol(iice) = qrcol(iice) - dum2     ! subtract splintering from rime mass transfer
                    if (qrcol(iice) .lt. 0.) then
-                      dum2 = qrcol(iice)+dum2
+                      dum2 = qrcol(iice) + dum2
                       qrcol(iice) = 0.
                    endif
-                   qrmul(iice_dest) = qrmul(iice_dest) + dum3
+                   qrmul(iice_dest) = qrmul(iice_dest) + dum2
                    nimul(iice_dest) = nimul(iice_dest) + dum1
 
                 endif HM_conditions_met
@@ -3276,7 +3274,7 @@ END subroutine p3_init
 
           enddo iice_loop_HM
 
-       endif rimesplintering_on
+       endif calc_HM
 
 
 !....................................................
