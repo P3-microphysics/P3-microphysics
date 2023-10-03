@@ -307,7 +307,9 @@ contains
          DO_NI: do i = 1,ni
 
             ! Running time maximum hail size (ice P3 microphysics)
-            zsw_dhmax(i) = max(zsw_dhmax(i),a_diag_dhmax(i,nkm1))
+            if (stcond == 'MP_P3') then
+               zsw_dhmax(i) = max(zsw_dhmax(i),a_diag_dhmax(i,nkm1))
+            endif
 
             !taux des precipitations de la convection profonde
             zry(i) = ztsc(i) + ztlc(i)

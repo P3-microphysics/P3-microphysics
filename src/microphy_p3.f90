@@ -25,8 +25,8 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.3.2 + dev-HM                                                            !
-! Last updated:  2023 Sept                                                                 !
+! Version:       5.3.2 + dev-HM + bugfixes                                                 !
+! Last updated:  2023 Oct                                                                  !
 !
 ! ++++++++++++++++++++++++++++++
 !  For dev-HM:
@@ -117,7 +117,7 @@
                    vi,epsm,rhoa,map,ma,rr,bact,inv_rm1,inv_rm2,sig1,nanew1,f11,f21,sig2, &
                    nanew2,f12,f22,pi,thrd,sxth,piov3,piov6,rho_rimeMin,                  &
                    rho_rimeMax,inv_rho_rimeMax,max_total_Ni,dbrk,nmltratio,minVIS,       &
-                   maxVIS,mu_i_initial,mu_r_constant,inv_Drmax
+                   maxVIS,mu_i_initial,mu_r_constant,inv_Drmax,Dmin_HM,Dinit_HM
 
  integer :: n_iceCat = -1   !used for GEM interface
 
@@ -2250,15 +2250,6 @@ END subroutine p3_init
 !log_hmossopOn  = .true.           !switch to have Hallet-Mossop ON
 !log_hmossopOn  = .false.          !switch to have Hallet-Mossop OFF
 
- if (nCat.eq.1) then
-   !for nCat = 1, rime-splinter is shut off during the summer (dilution of rimed ice sizes
-   !weakens convection) but on during the winter.  The temperature threshold of +5 C (278 K)
-   !is used as a proxy for winter/summer
-    log_hmossopOn = t(i,kbot).lt.278.
- else
-    log_hmossopOn = .true.
- endif
-
 ! Note (BUG), I think SCF, SPF,... should be initialize here with scpf_on=.false.
 
 ! initialize the qiliq to 0. to allow gereralized use even if liqFrac is not used
@@ -2266,6 +2257,15 @@ END subroutine p3_init
 
 !-----------------------------------------------------------------------------------!
  i_loop_main: do i = its,ite  ! main i-loop (around the entire scheme)
+
+    if (nCat.eq.1) then
+       !for nCat = 1, rime-splinter is shut off during the summer (dilution of rimed ice sizes
+       !weakens convection) but on during the winter.  The temperature threshold of +5 C (278 K)
+       !is used as a proxy for winter/summer
+       log_hmossopOn = t(i,kbot).lt.278.
+    else
+       log_hmossopOn = .true.
+    endif
 
     if (debug_on) then
        location_ind = 100
