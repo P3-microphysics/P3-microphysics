@@ -2982,7 +2982,7 @@ END subroutine p3_init
 
 !Note (BUG) insert *iSCF(k) because epsi and epsiw needs to be in-cloud (to be done)
 
-        if (log_LiquidFrac) then
+        !if (log_LiquidFrac) then
           if (qitot(i,k,iice).ge.qsmall) then
              if ((qiliq(i,k,iice)/qitot(i,k,iice)).lt.0.01) then
                  epsi(iice)  = ((f1pr05+f1pr14*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*2.*pi* &
@@ -3001,15 +3001,15 @@ END subroutine p3_init
              epsi_tot    = 0.
              epsiw_tot   = 0.
           endif
-        else
-          if (qitot(i,k,iice).ge.qsmall .and. t(i,k).lt.273.15) then
-             epsi(iice) = ((f1pr05+f1pr14*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*2.*pi* &
-                          rho(i,k)*dv)*nitot(i,k,iice)
-             epsi_tot   = epsi_tot + epsi(iice)
-          else
-             epsi(iice) = 0.
-          endif
-        endif
+        !else
+        !  if (qitot(i,k,iice).ge.qsmall .and. t(i,k).lt.273.15) then
+        !     epsi(iice) = ((f1pr05+f1pr14*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*2.*pi* &
+        !                  rho(i,k)*dv)*nitot(i,k,iice)
+        !     epsi_tot   = epsi_tot + epsi(iice)
+        !  else
+        !     epsi(iice) = 0.
+        !  endif
+        !endif
 
 !............................................................
 ! refreezing of mixed-phase ice particles
@@ -3283,15 +3283,15 @@ END subroutine p3_init
        endif
 
        oabi = 1./abi
-       if (log_LiquidFrac) then
+       !if (log_LiquidFrac) then
          xx   = epsc + epsr + epsi_tot*(1.+xxls(i,k)*inv_cp*dqsdT)*oabi + epsiw_tot
-       else
-         if (t(i,k).lt.273.15) then
-            xx   = epsc + epsr + epsi_tot*(1.+xxls(i,k)*inv_cp*dqsdT)*oabi
-         else
-            xx   = epsc + epsr
-         endif
-       endif
+       !else
+       !  if (t(i,k).lt.273.15) then
+       !     xx   = epsc + epsr + epsi_tot*(1.+xxls(i,k)*inv_cp*dqsdT)*oabi
+       !  else
+       !     xx   = epsc + epsr
+       !  endif
+       !endif
 
        dumqvi = qvi(i,k)   !no modification due to latent heating
 !----
@@ -3324,17 +3324,17 @@ END subroutine p3_init
 
 !       dum = qvs(i,k)*rho(i,k)*g*uzpl(i,k)/max(1.e-3,(pres(i,k)-polysvp1(t(i,k),0)))
 
-       if (log_LiquidFrac) then
+       !if (log_LiquidFrac) then
          aaa = (qv(i,k)-qv_old(i,k))*odt - dqsdT*(-dum*g*inv_cp)-(qvs(i,k)-dumqvi)*(1.+xxls(i,k)*   &
                inv_cp*dqsdT)*oabi*epsi_tot
-       else
-         if (t(i,k).lt.273.15) then
-            aaa = (qv(i,k)-qv_old(i,k))*odt - dqsdT*(-dum*g*inv_cp)-(qvs(i,k)-dumqvi)*     &
-                  (1.+xxls(i,k)*inv_cp*dqsdT)*oabi*epsi_tot
-         else
-            aaa = (qv(i,k)-qv_old(i,k))*odt - dqsdT*(-dum*g*inv_cp)
-         endif
-       endif
+       !else
+       !  if (t(i,k).lt.273.15) then
+       !     aaa = (qv(i,k)-qv_old(i,k))*odt - dqsdT*(-dum*g*inv_cp)-(qvs(i,k)-dumqvi)*     &
+       !           (1.+xxls(i,k)*inv_cp*dqsdT)*oabi*epsi_tot
+       !  else
+       !     aaa = (qv(i,k)-qv_old(i,k))*odt - dqsdT*(-dum*g*inv_cp)
+       !  endif
+       !endif
 
        xx  = max(1.e-20,xx)   ! set lower bound on xx to prevent division by zero
        oxx = 1./xx
@@ -3390,7 +3390,7 @@ END subroutine p3_init
 
        iice_loop_depsub:  do iice = 1,nCat
 
-        if (log_LiquidFrac) then
+       ! if (log_LiquidFrac) then
 
               if (qitot(i,k,iice).ge.qsmall .and. (qiliq(i,k,iice)/qitot(i,k,iice)).lt.0.01) then
               ! Sublimation/deposition of ice
@@ -3416,7 +3416,7 @@ END subroutine p3_init
               !note: limit to saturation adjustment (for dep and subl) is applied later
                  qisub(iice) = -qidep(iice)
                  qisub(iice) = qisub(iice)*clbfact_sub
-                 qisub(iice) = min(qisub(iice), (qitot(i,k,iice)-qiliq(i,k,iice))*odt) ! not the limit is qitot-qiliq
+                 qisub(iice) = min(qisub(iice), (qitot(i,k,iice)-qiliq(i,k,iice))*odt)
                  nisub(iice) = qisub(iice)*(nitot(i,k,iice)/(qitot(i,k,iice)-qiliq(i,k,iice)))
                  qidep(iice) = 0.
               else
@@ -3446,39 +3446,39 @@ END subroutine p3_init
                  qlcon(iice) = min(qlcon(iice), qv(i,k)*odt)
               endif
 
-        else
+       ! else
 
-          if (qitot(i,k,iice).ge.qsmall .and. t(i,k).lt.273.15) then
+       !   if (qitot(i,k,iice).ge.qsmall .and. t(i,k).lt.273.15) then
             !note: diffusional growth/decay rate: (stored as 'qidep' temporarily; may go to qisub below)
 !Note (BUG) Cholette (Jul 2022), remove *SCF(k) for ssat_cld and multiplication *CF for grid-mean qccon
 !             qidep(iice) = ((aaa*epsi(iice)*oxx+(ssat_cld-aaa*oxx)*odt*epsi(iice)*oxx*                      &
 !                           (1.-sngl(dexp(-dble(xx*dt)))))*oabi+(qvs(i,k)-dumqvi)*epsi(iice)*oabi)*SCF(k)
-             qidep(iice) = (aaa*epsi(iice)*oxx+(ssat_cld*SCF(k)-aaa*oxx)*odt*epsi(iice)*oxx*   &
-                           (1.-sngl(dexp(-dble(xx*dt)))))*oabi+(qvs(i,k)-dumqvi)*epsi(iice)*oabi
-          endif
+       !      qidep(iice) = (aaa*epsi(iice)*oxx+(ssat_cld*SCF(k)-aaa*oxx)*odt*epsi(iice)*oxx*   &
+       !                    (1.-sngl(dexp(-dble(xx*dt)))))*oabi+(qvs(i,k)-dumqvi)*epsi(iice)*oabi
+       !   endif
 
          !for very small ice contents in dry air, sublimate all ice instantly
-          if (supi_cld.lt.-0.001 .and. qitot(i,k,iice).lt.1.e-12) &
-             qidep(iice) = -qitot(i,k,iice)*odt
+       !   if (supi_cld.lt.-0.001 .and. qitot(i,k,iice).lt.1.e-12) &
+       !      qidep(iice) = -qitot(i,k,iice)*odt
 
           !note: 'clbfact_dep' and 'clbfact_sub' calibration factors for ice deposition and sublimation
           !   These are adjustable ad hoc factors used to increase or decrease deposition and/or
           !   sublimation rates.  The representation of the ice capacitances are highly simplified
           !   and the appropriate values in the diffusional growth equation are uncertain.
 
-          if (qidep(iice).lt.0.) then
-           !note: limit to saturation adjustment (for dep and subl) is applied later
-             qisub(iice) = -qidep(iice)
-             qisub(iice) = qisub(iice)*clbfact_sub
-             qisub(iice) = min(qisub(iice), qitot(i,k,iice)*odt)
-             nisub(iice) = qisub(iice)*(nitot(i,k,iice)/qitot(i,k,iice))
-             qidep(iice) = 0.
-          else
-             qidep(iice) = qidep(iice)*clbfact_dep
-             qidep(iice) = min(qidep(iice), qv(i,k)*odt)
-          endif
+       !   if (qidep(iice).lt.0.) then
+       !    !note: limit to saturation adjustment (for dep and subl) is applied later
+       !      qisub(iice) = -qidep(iice)
+       !      qisub(iice) = qisub(iice)*clbfact_sub
+       !      qisub(iice) = min(qisub(iice), qitot(i,k,iice)*odt)
+       !      nisub(iice) = qisub(iice)*(nitot(i,k,iice)/qitot(i,k,iice))
+       !      qidep(iice) = 0.
+       !   else
+       !      qidep(iice) = qidep(iice)*clbfact_dep
+       !      qidep(iice) = min(qidep(iice), qv(i,k)*odt)
+       !   endif
 
-        endif ! log_LiquidFrac
+       ! endif ! log_LiquidFrac
 
        enddo iice_loop_depsub
 
