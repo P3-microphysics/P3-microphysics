@@ -156,9 +156,8 @@ contains
          istat1 = mp_p3_wrapper_gem(zste,zsqe,zsqce,zsqre,qitend,                                                          &
               qqm,qqp,ttm,ttp,dt,p3_dtmax,ww,psp,zgztherm,zgzmom,sigma,                                                    &
               kount,trnch,ni,nkm1,a_tls,a_tss,a_tls_rn1,a_tls_rn2,a_tss_sn1,                                               &
-              a_tss_sn2,a_tss_sn3,a_tss_pe1,a_tss_pe2,a_tss_snd,a_tss_wls,                                                 &
-              a_tss_wsn1,a_tss_wsn2,a_tss_wsn3,a_tss_wpe1,a_tss_wpe2,a_zet,a_zec,                                          &
-              a_effradc,qcp,ncp,qrp,nrp,N_DIAG_2D,diag_2d,N_DIAG_3D,diag_3d,                                               &
+              a_tss_sn2,a_tss_sn3,a_tss_pe1,a_tss_pe2,a_tss_snd,a_tss_ws,                                                  &
+              a_zet,a_zec,a_effradc,qcp,ncp,qrp,nrp,N_DIAG_2D,diag_2d,N_DIAG_3D,diag_3d,                                   &
               p3_depfact,p3_subfact,p3_debug,a_h_cb,a_h_sn,a_vis,a_vis1,                                                   &
               a_vis2,a_vis3,slw,p3_scpf_on,p3_pfrac,p3_resfact,a_fxp,a_diag_dhmax,                                         &
               a_qi_1,a_qi_2,a_qi_3,a_qi_4,a_qi_5,a_qi_6,                                                                   &
