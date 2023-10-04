@@ -25,8 +25,19 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.3.3                                                                     !
+! Version:       5.3.3 dev-outputWS                                                        !
 ! Last updated:  2023 Oct                                                                  !
+!
+! ++++++++++++++++++++++++++++++
+!  For dev-HM:
+!  - replaced hard-wired 4000.e-6 size threshold by parameter
+!  - lowered the value of this parameter
+!  - added "winter" condition to set log_hmossopOn
+!  - added other conditions based on liquid fraction (off) and required rime fraction)
+!  For dev-outputWS:
+!  - delete all outputs for wet graupel and wet hail and so on
+!  - Non-answer changing mods
+! ++++++++++++++++++++++++++++++
 !__________________________________________________________________________________________!
 
  MODULE microphy_p3
@@ -144,7 +155,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.3.3'
+ character(len=1024), parameter :: version_p3                    = '5.3.3+outputWS'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.4-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '6.4-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.0'
@@ -1092,9 +1103,8 @@ END subroutine p3_init
  function mp_p3_wrapper_gem(ttend,qtend,qctend,qrtend,qitend,                                     &
                               qvap_m,qvap,temp_m,temp,dt,dt_max,ww,psfc,gztherm,gzmom,sigma,kount,&
                               trnch,ni,nk,prt_liq,prt_sol,prt_drzl,prt_rain,prt_crys,prt_snow,    &
-                              prt_grpl,prt_pell,prt_hail,prt_sndp,prt_wlsnow,prt_wcrys,prt_wsnow, &
-                              prt_wgrpl,prt_wpell,prt_whail,diag_Zet,diag_Zec,diag_effc,          &
-                              qc,nc,qr,nr,n_diag_2d,diag_2d,n_diag_3d,diag_3d,                    &
+                              prt_grpl,prt_pell,prt_hail,prt_sndp,prt_wsnow,diag_Zet,diag_Zec,    &
+                              diag_effc,qc,nc,qr,nr,n_diag_2d,diag_2d,n_diag_3d,diag_3d,          &
                               clbfact_dep,clbfact_sub,debug_on,diag_hcb,diag_hsn,diag_vis,        &
                               diag_vis1,diag_vis2,diag_vis3,diag_slw,                             &
                               scpf_on,scpf_pfrac,scpf_resfact,cldfrac,maxD_hail,                  &
@@ -1191,12 +1201,7 @@ END subroutine p3_init
  real, intent(out),   dimension(ni)     :: prt_grpl              ! precipitation rate, graupel         m s-1
  real, intent(out),   dimension(ni)     :: prt_pell              ! precipitation rate, ice pellets     m s-1
  real, intent(out),   dimension(ni)     :: prt_hail              ! precipitation rate, hail            m s-1
- real, intent(out),   dimension(ni)     :: prt_wlsnow            ! precipitation rate, very wet snow   m s-1
- real, intent(out),   dimension(ni)     :: prt_wcrys             ! precipitation rate, wet ice cystals m s-1
  real, intent(out),   dimension(ni)     :: prt_wsnow             ! precipitation rate, wet snow        m s-1
- real, intent(out),   dimension(ni)     :: prt_wgrpl             ! precipitation rate, wet graupel     m s-1
- real, intent(out),   dimension(ni)     :: prt_wpell             ! precipitation rate, wet ice pellets m s-1
- real, intent(out),   dimension(ni)     :: prt_whail             ! precipitation rate, wet hail        m s-1
  real, intent(out),   dimension(ni)     :: prt_sndp              ! precipitation rate, unmelted snow   m s-1
  real, intent(out),   dimension(ni,nk)  :: diag_Zet              ! equivalent reflectivity, 3D         dBZ
  real, intent(out),   dimension(ni)     :: diag_Zec              ! equivalent reflectivity, col-max    dBZ
@@ -1257,8 +1262,7 @@ END subroutine p3_init
  real, dimension(ni,nk,n_qiType) :: qi_type     ! diagnostic precipitation types
 
  real, dimension(ni)     :: prt_liq_ave,prt_sol_ave,rn1_ave,rn2_ave,sn1_ave, &  ! ave pcp rates over full timestep
-                            sn2_ave,sn3_ave,pe1_ave,pe2_ave,snd_ave,wsn1_ave, &
-                            wsn2_ave,wsn3_ave,wpe1_ave,wpe2_ave,wls_ave
+                            sn2_ave,sn3_ave,pe1_ave,pe2_ave,snd_ave,ws_ave
  real                    :: dt_mp                                               ! timestep used by microphsyics (for substepping)
  real                    :: tmp1, idt
 
@@ -1389,12 +1393,7 @@ END subroutine p3_init
       sn3_ave(:)  = 0.
       pe1_ave(:)  = 0.
       pe2_ave(:)  = 0.
-      wls_ave(:)  = 0.
-      wsn1_ave(:) = 0.
-      wsn2_ave(:) = 0.
-      wsn3_ave(:) = 0.
-      wpe1_ave(:) = 0.
-      wpe2_ave(:) = 0.
+      ws_ave(:)  = 0.
       snd_ave(:)  = 0.
    endif
 
@@ -1418,7 +1417,7 @@ END subroutine p3_init
                    n_diag_3d,diag_3d,log_predictNc,trim(model),clbfact_dep,clbfact_sub,         &
                    debug_on,scpf_on,scpf_pfrac,scpf_resfact,cldfrac,log_trplMomI,log_liqFrac,   &
                    prt_drzl,prt_rain,prt_crys,prt_snow,prt_grpl,prt_pell,prt_hail,prt_sndp,     &
-                   prt_wlsnow,prt_wcrys,prt_wsnow,prt_wgrpl,prt_wpell,prt_whail,qi_type,        &
+                   prt_wsnow,qi_type,                                                           &
                    diag_vis  = diag_vis,                                                        &
                    diag_vis1 = diag_vis1,                                                       &
                    diag_vis2 = diag_vis2,                                                       &
@@ -1442,12 +1441,7 @@ END subroutine p3_init
          pe1_ave(:) = pe1_ave(:) + prt_pell(:)
          pe2_ave(:) = pe2_ave(:) + prt_hail(:)
          snd_ave(:) = snd_ave(:) + prt_sndp(:)
-         wls_ave(:) = wls_ave(:) + prt_wlsnow(:)
-         wsn1_ave(:) = wsn1_ave(:) + prt_wcrys(:)
-         wsn2_ave(:) = wsn2_ave(:) + prt_wsnow(:)
-         wsn3_ave(:) = wsn3_ave(:) + prt_wgrpl(:)
-         wpe1_ave(:) = wpe1_ave(:) + prt_wpell(:)
-         wpe2_ave(:) = wpe2_ave(:) + prt_whail(:)
+         ws_ave(:)  = ws_ave(:)  + prt_wsnow(:)
       endif
 
    enddo substep_loop
@@ -1470,12 +1464,7 @@ END subroutine p3_init
       prt_pell(:) = pe1_ave(:)*tmp1
       prt_hail(:) = pe2_ave(:)*tmp1
       prt_sndp(:) = snd_ave(:)*tmp1
-      prt_wlsnow(:) = wls_ave(:)*tmp1
-      prt_wcrys(:)  = wsn1_ave(:)*tmp1
-      prt_wsnow(:)  = wsn2_ave(:)*tmp1
-      prt_wgrpl(:)  = wsn3_ave(:)*tmp1
-      prt_wpell(:)  = wpe1_ave(:)*tmp1
-      prt_whail(:)  = wpe2_ave(:)*tmp1
+      prt_wsnow(:) = ws_ave(:)*tmp1
    endif
 
   !===
@@ -1816,9 +1805,8 @@ END subroutine p3_init
                     diag_2d,n_diag_3d,diag_3d,log_predictNc,model,clbfact_dep,            &
                     clbfact_sub,debug_on,scpf_on,scpf_pfrac,scpf_resfact,SCF_out,         &
                     log_3momentIce,log_LiquidFrac,prt_drzl,prt_rain,prt_crys,prt_snow,    &
-                    prt_grpl,prt_pell,prt_hail,prt_sndp,prt_wlsnow,prt_wcrys,prt_wsnow,   &
-                    prt_wgrpl,prt_wpell,prt_whail,qi_type,diag_vis,diag_vis1,diag_vis2,   &
-                    diag_vis3,diag_dhmax)
+                    prt_grpl,prt_pell,prt_hail,prt_sndp,prt_wsnow,qi_type,                &
+                    diag_vis,diag_vis1,diag_vis2,diag_vis3,diag_dhmax)
 
 !----------------------------------------------------------------------------------------!
 !                                                                                        !
@@ -1901,12 +1889,7 @@ END subroutine p3_init
  real, intent(out), dimension(its:ite), optional      :: prt_pell      ! precip rate, ice pellets      m s-1
  real, intent(out), dimension(its:ite), optional      :: prt_hail      ! precip rate, hail             m s-1
  real, intent(out), dimension(its:ite), optional      :: prt_sndp      ! precip rate, unmelted snow    m s-1
- real, intent(out), dimension(its:ite), optional      :: prt_wlsnow    ! precip rate, very wet snow    m s-1
- real, intent(out), dimension(its:ite), optional      :: prt_wcrys     ! precip rate, wet ice cystals  m s-1
- real, intent(out), dimension(its:ite), optional      :: prt_wsnow     ! precip rate, wet snow         m s-1
- real, intent(out), dimension(its:ite), optional      :: prt_wgrpl     ! precip rate, wet graupel      m s-1
- real, intent(out), dimension(its:ite), optional      :: prt_wpell     ! precip rate, wet ice pellets  m s-1
- real, intent(out), dimension(its:ite), optional      :: prt_whail     ! precip rate, wet hail         m s-1
+ real, intent(out), dimension(its:ite), optional      :: prt_wsnow    ! precip rate, very wet snow    m s-1
 
  real, intent(out), dimension(its:ite,kts:kte,nCat),     optional :: diag_dhmax ! maximum hail size                      m
  real, intent(out), dimension(its:ite,kts:kte,n_qiType), optional :: qi_type    ! mass mixing ratio, diagnosed ice type  kg kg-1
@@ -2079,7 +2062,7 @@ END subroutine p3_init
  real,    parameter                       :: freq3DtypeDiag     =  5.      !frequency (min) for full-column diagnostics
  real,    parameter                       :: thres_raindrop     = 100.e-6 !size threshold for drizzle vs. rain
  real,    dimension(its:ite,kts:kte)      :: Q_drizzle,Q_rain
- real,    dimension(its:ite,kts:kte,nCat) :: Q_crystals,Q_snow,Q_wlsnow,Q_grpl,Q_pellets,Q_hail
+ real,    dimension(its:ite,kts:kte,nCat) :: Q_crystals,Q_snow,Q_wsnow,Q_grpl,Q_pellets,Q_hail
  integer                                  :: ktop_typeDiag    !ktop_typeDiag_r,ktop_typeDiag_i
  logical                                  :: log_typeDiags,log_typeDiag_column
 
@@ -5750,12 +5733,8 @@ END subroutine p3_init
     prt_pell(:) = 0.
     prt_hail(:) = 0.
     prt_sndp(:) = 0.
-    prt_wlsnow(:) = 0.
-    prt_wcrys(:) = 0.
     prt_wsnow(:) = 0.
-    prt_wgrpl(:) = 0.
-    prt_wpell(:) = 0.
-    prt_whail(:) = 0.
+
     if (present(qi_type)) qi_type(:,:,:) = 0.
 
     if (freq3DtypeDiag>0. .and. mod(it*dt,freq3DtypeDiag*60.)==0.) then
@@ -5799,7 +5778,7 @@ END subroutine p3_init
 
              Q_crystals(i,k,iice) = 0.
              Q_snow(i,k,iice)     = 0.
-             Q_wlsnow(i,k,iice)   = 0.
+             Q_wsnow(i,k,iice)    = 0.
              Q_grpl(i,k,iice)     = 0.
              Q_pellets(i,k,iice)  = 0.
              Q_hail(i,k,iice)     = 0.
@@ -5816,27 +5795,27 @@ END subroutine p3_init
                 endif
                 liquidfraction(i,k,iice) = qiliq(i,k,iice)/qitot(i,k,iice)                 !liquid fraction
 
-                if (rimefraction(i,k,iice).lt.0.5) then
-                   if (diag_di(i,k,iice).lt.0.002) then
-                      Q_crystals(i,k,iice) = qitot(i,k,iice)
-                   else
-                     if (liquidfraction(i,k,iice).lt.0.35) then
-                         Q_snow(i,k,iice) = qitot(i,k,iice)
-                     else
-                         Q_wlsnow(i,k,iice) = qitot(i,k,iice)
-                     endif
-                   endif
+                if (liquidfraction(i,k,iice).ge.1.15) then
+                   Q_wsnow(i,k,iice) = qitot(i,k,iice)
                 else
-                   if (rimedensity(i,k,iice).lt.750) then
-                     Q_grpl(i,k,iice) = qitot(i,k,iice)
+                   if (rimefraction(i,k,iice).lt.0.5) then
+                      if (diag_di(i,k,iice).lt.0.002) then
+                         Q_crystals(i,k,iice) = qitot(i,k,iice)
+                      else
+                         Q_snow(i,k,iice) = qitot(i,k,iice)
+                      endif
                    else
-                     if (t_tmp.lt.283.15) then
-                        Q_pellets(i,k,iice) = qitot(i,k,iice)
-                     else
-                        Q_hail(i,k,iice) = qitot(i,k,iice)
-                        if (log_typeDiags) diag_dhmax(i,k,iice) = maxHailSize(rho(i,k),       &
-                           nitot(i,k,iice),rhofaci(i,k),arr_lami(i,k,iice),arr_mui(i,k,iice))
-                     endif
+                      if (rimedensity(i,k,iice).lt.750) then
+                        Q_grpl(i,k,iice) = qitot(i,k,iice)
+                      else
+                        if (t_tmp.lt.283.15) then
+                           Q_pellets(i,k,iice) = qitot(i,k,iice)
+                        else
+                           Q_hail(i,k,iice) = qitot(i,k,iice)
+                           if (log_typeDiags) diag_dhmax(i,k,iice) = maxHailSize(rho(i,k),       &
+                              nitot(i,k,iice),rhofaci(i,k),arr_lami(i,k,iice),arr_mui(i,k,iice))
+                        endif
+                      endif
                    endif
                 endif
 
@@ -5852,22 +5831,14 @@ END subroutine p3_init
              prt_crys(i) = prt_crys(i) + prt_soli(i,iice)   !precip rate of small crystals
           elseif (Q_snow(i,kbot,iice) .gt. 0.)  then
              prt_snow(i) = prt_snow(i) + prt_soli(i,iice)   !precip rate of snow
-          elseif (Q_wlsnow(i,kbot,iice) .gt. 0.)  then
-             prt_wlsnow(i) = prt_wlsnow(i) + prt_soli(i,iice)  !precip rate of wlsnow (wet low rimed snow)
+          elseif (Q_wsnow(i,kbot,iice) .gt. 0.)  then
+             prt_wsnow(i) = prt_wsnow(i) + prt_soli(i,iice) !precip rate of wsnow (wet low-rimed snow)
           elseif (Q_grpl(i,kbot,iice) .gt. 0.)    then
              prt_grpl(i) = prt_grpl(i) + prt_soli(i,iice)   !precip rate of graupel
           elseif (Q_pellets(i,kbot,iice) .gt. 0.) then
              prt_pell(i) = prt_pell(i) + prt_soli(i,iice)   !precip rate of ice pellets
           elseif (Q_hail(i,kbot,iice) .gt. 0.)    then
              prt_hail(i) = prt_hail(i) + prt_soli(i,iice)   !precip rate of hail
-          endif
-
-          if (liquidfraction(i,kbot,iice).ge.0.15) then
-             prt_wcrys(i) = prt_crys(i)
-             prt_wsnow(i) = prt_snow(i)
-             prt_wgrpl(i) = prt_grpl(i)
-             prt_wpell(i) = prt_pell(i)
-             prt_whail(i) = prt_hail(i)
           endif
 
           !precip rate of unmelted total "snow":
@@ -5891,7 +5862,7 @@ END subroutine p3_init
        do ii = 1,nCat
           qi_type(:,:,1) = qi_type(:,:,1) + Q_crystals(:,:,ii)
           qi_type(:,:,2) = qi_type(:,:,2) + Q_snow(:,:,ii)
-          qi_type(:,:,3) = qi_type(:,:,3) + Q_wlsnow(:,:,ii)
+          qi_type(:,:,3) = qi_type(:,:,3) + Q_wsnow(:,:,ii)
           qi_type(:,:,4) = qi_type(:,:,4) + Q_grpl(:,:,ii)
           qi_type(:,:,5) = qi_type(:,:,5) + Q_hail(:,:,ii)
           qi_type(:,:,6) = qi_type(:,:,6) + Q_pellets(:,:,ii)

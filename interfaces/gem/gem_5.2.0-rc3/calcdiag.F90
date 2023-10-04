@@ -246,15 +246,10 @@ contains
          if (associated(zass_pe1)) zass_pe1(:)  = 0.
          if (associated(zass_pe2)) zass_pe2(:)  = 0.
          if (associated(zass_pe2l)) zass_pe2l(:)  = 0.
-         if (associated(zass_snd)) zass_snd(:)    = 0.
-         if (associated(zass_mx)) zass_mx(:)      = 0.
-         if (associated(zass_s2l)) zass_s2l(:)    = 0.
-         if (associated(zass_wls)) zass_wls(:)    = 0.
-         if (associated(zass_wsn1)) zass_wsn1(:)  = 0.
-         if (associated(zass_wsn2)) zass_wsn2(:)  = 0.
-         if (associated(zass_wsn3)) zass_wsn3(:)  = 0.
-         if (associated(zass_wpe1)) zass_wpe1(:)  = 0.
-         if (associated(zass_wpe2)) zass_wpe2(:)  = 0.
+         if (associated(zass_snd))  zass_snd(:)   = 0.
+         if (associated(zass_mx))   zass_mx(:)    = 0.
+         if (associated(zass_s2l))  zass_s2l(:)   = 0.
+         if (associated(zass_ws))   zass_ws(:)    = 0.
          if (associated(zsw_dhmax)) zsw_dhmax(:) = 0.
 
       endif IF_RESET_PRECIP
@@ -307,7 +302,9 @@ contains
          DO_NI: do i = 1,ni
 
             ! Running time maximum hail size (ice P3 microphysics)
-            zsw_dhmax(i) = max(zsw_dhmax(i),a_diag_dhmax(i,nkm1))
+            if (stcond == 'MP_P3') then
+               zsw_dhmax(i) = max(zsw_dhmax(i),a_diag_dhmax(i,nkm1))
+            endif
 
             !taux des precipitations de la convection profonde
             zry(i) = ztsc(i) + ztlc(i)
@@ -345,7 +342,7 @@ contains
                ztls(i) = ztls_rn1(i) + ztls_rn2(i) + ztls_fr1(i) + ztls_fr2(i)
 
                !tss:  rate of solid precipitation (sum of all fozen precipitation types)
-               ztss(i) = ztss_sn1(i) + ztss_sn2(i) +ztss_sn3(i) + ztss_pe1(i) + ztss_pe2(i) + ztss_wls(i)
+               ztss(i) = ztss_sn1(i) + ztss_sn2(i) +ztss_sn3(i) + ztss_pe1(i) + ztss_pe2(i) + ztss_ws(i)
 
                !tss_mx:  rate of mixed precipitation (liquid and solid simultaneously [>0.01 mm/h each])
                if (ztls(i) > 2.78e-9 .and. ztss(i) > 2.78e-9) then   ![note: 2.78e-9 m/s = 0.01 mm/h]
@@ -372,8 +369,8 @@ contains
                !ass_sn2:  accumulation of snow
                zass_sn2(i) = zass_sn2(i) + ztss_sn2(i) * dt
 
-               !ass_wls:  accumulation of very wet snow
-               zass_wls(i) = zass_wls(i) + ztss_wls(i) * dt
+               !ass_ws:  accumulation of wet snow
+               zass_ws(i)  = zass_ws(i) + ztss_ws(i) * dt
 
                !ass_sn3:  accumulation of graupel
                zass_sn3(i) = zass_sn3(i) + ztss_sn3(i) * dt
@@ -383,21 +380,6 @@ contains
 
                !ass_pe2:  accumulation of hail
                zass_pe2(i) = zass_pe2(i) + ztss_pe2(i) * dt
-
-               !ass_wsn1:  accumulation of wet ice crystals
-               zass_wsn1(i) = zass_wsn1(i) + ztss_wsn1(i) * dt
-
-               !ass_wsn2:  accumulation of wet snow
-               zass_wsn2(i) = zass_wsn2(i) + ztss_wsn2(i) * dt
-
-               !ass_wsn3:  accumulation of wet graupel
-               zass_wsn3(i) = zass_wsn3(i) + ztss_wsn3(i) * dt
-
-               !ass_wpe1:  accumulation of wet ice pellets
-               zass_wpe1(i) = zass_wpe1(i) + ztss_wpe1(i) * dt
-
-               !ass_wpe2:  accumulation of wet hail
-               zass_wpe2(i) = zass_wpe2(i) + ztss_wpe2(i) * dt
 
                !ass_pe2l:  accumulation of hail (large only)
                zass_pe2l(i) = zass_pe2l(i) + ztss_pe2l(i) * dt
@@ -512,12 +494,12 @@ contains
                !note: Hail from M-Y (tss_pe2) is not included in total ice pellets (aip)
                !add explicit + diagnostic portion of snow from convective schemes:
                zsn(i)  = zsn(i)                                      &
-                    + (ztss_sn1(i)+ztss_sn2(i)+ztss_sn3(i)+ztss_wls(i))*dt  &  !from microphysics
+                    + (ztss_sn1(i)+ztss_sn2(i)+ztss_sn3(i)+ztss_ws(i))*dt  &  !from microphysics
                     + sol_conv*dt                                  !from convective schemes
                !note: contribution to SN from microphysics is from ice, snow,
                !      and graupel, instantaneous solid-to-liquid ratio for
                !      pcp rate total snow (i+s+g):
-               tempo       =  max(ztss_sn1(i)+ztss_sn2(i)+ztss_sn3(i)+ztss_wls(i), 1.e-18)
+               tempo       =  max(ztss_sn1(i)+ztss_sn2(i)+ztss_sn3(i)+ztss_ws(i), 1.e-18)
                ztss_s2l(i) = ztss_snd(i)/tempo
 
             else
