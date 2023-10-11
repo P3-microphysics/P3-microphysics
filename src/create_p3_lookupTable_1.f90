@@ -13,8 +13,8 @@ PROGRAM create_p3_lookuptable_1
 ! All other parameter settings are linked uniquely to the version number.
 !
 !--------------------------------------------------------------------------------------
-! Version:       6.4
-! Last modified: 2023-Feb
+! Version:       6.5b2
+! Last modified: 2023-Oct
 ! Version: including the liquid fraction (inner-loop i_Fl)
 !______________________________________________________________________________________
 
@@ -144,7 +144,7 @@ PROGRAM create_p3_lookuptable_1
  implicit none
 
  !-----
- character(len=20), parameter :: version   = '6.4'
+ character(len=20), parameter :: version   = '6.5b2'
  logical, parameter           :: log_3momI = .true.    !switch to create table for 2momI (.false.) or 3momI (.true.)
  !-----
 
@@ -197,12 +197,18 @@ PROGRAM create_p3_lookuptable_1
 
 ! outputs from lookup table (i.e. "f1prxx" read by access_lookup_table in s/r p3_main)
  real, dimension(n_Qnorm,n_Fr,n_Fl) :: uns,ums,refl,dmm,rhomm,nagg,nrwat,qsave,nsave,vdep,    &
-        eff,lsave,a_100,n_100,vdep1,i_qsmall,i_qlarge,nrwats,lambda_i,mu_i_save,refl2
+        eff,lsave,a_100,n_100,vdep1,i_qsmall,i_qlarge,lambda_i,mu_i_save,refl2
 
 ! New rates with liquid fraction (5 new columns)
  real, dimension(n_Qnorm,n_Fr,n_Fl) :: qshed,vdepm1,vdepm2,vdepm3,vdepm4
 
-! outputs for triple moment
+! New rates for m6
+ real, dimension(n_Qnorm,n_Fr,n_Fl) :: m6rime,m6dep,m6dep1
+
+! change in mass with D
+ real :: dmdD
+
+ ! outputs for triple moment
 ! HM zsmall, zlarge no longer needed
 ! real, dimension(n_Qnorm,n_Fr) :: uzs,zlarge,zsmall
  real, dimension(n_Qnorm,n_Fr,n_Fl) :: uzs
@@ -280,7 +286,6 @@ hostinclusionstring_m = 'spheroidal'
 !   Before running ./go_1-compile.ksh, delete all lines below this point and
 !   and save as 'create_p3_lookupTable_1-top.f90'
 !------------------------------------------------------------------------------------
-
 
 ! For testing single values, uncomment the following:
 ! i_Znorm = 1
@@ -473,7 +478,7 @@ hostinclusionstring_m = 'spheroidal'
 ! Thus, the loops 'i_Znorm_loop' and 'i_rhor_loop' are commented out accordingingly.
 !
 !i_Znorm_loop: do i_Znorm = 1,n_Znorm   !normally commented (kept to illustrate the structure (and to run in serial)
-   i_rhor_loop: do i_rhor = 1,n_rhor    !COMMENT OUT FOR PARALLELIZATION (2-MOMENT ONLY)
+!   i_rhor_loop: do i_rhor = 1,n_rhor    !COMMENT OUT FOR PARALLELIZATION (2-MOMENT ONLY)
      i_Fr_loop_1: do i_Fr = 1,n_Fr      !COMMENT OUT FOR PARALLELIZATION (2-MOMENT ONLY)
 
 ! 3-moment-ice only:
@@ -1360,7 +1365,7 @@ hostinclusionstring_m = 'spheroidal'
 
         ! initialize sum for integral
           sum1 = 0.
-          sum2 = 0.
+          sum2 = 0. !dM6/dt
           sum3 = 0. !qshed (with Fl)
 
 
@@ -1412,15 +1417,17 @@ hostinclusionstring_m = 'spheroidal'
 
              mass = (1.-Fl)*cs1*d1**ds1+Fl*pi*sxth*1000.*d1**3.
              area = (1.-Fl)*aas1*d1**bas1+Fl*pi/4.*d1**2.
-
+             dmdD = (1.-Fl)*cs1*ds1*d1**(ds1-1.) + 3.*Fl*pi*sxth*1000.*d1**2.
+             
             ! sum for integral
             ! include assumed ice particle size threshold for riming of 100 micron
             ! note: sum1 (nrwat) is the scaled collection rate, units of m^3 kg^-1 s^-1
-            !       sum2 (nrwats) is mass of snow times scaled collection rate, units of m^3 s^-1
+
 
              if (d1.ge.100.e-6) then
-                sum1 = sum1+area*fall1(jj)*n0*d1**mu_i*exp(-lam*d1)*dd
-               !sum2 = sum2+area*fall1(jj)*n0*d1**mu_i*exp(-lam*d1)*dd*mass
+                sum1 = sum1 + area*fall1(jj)*n0*d1**mu_i*exp(-lam*d1)*dd
+! dM6/dt = int((6+mu)*D^(5+mu)*dD/dt*n0*D^mu*exp(-lam*D)*dD)
+                sum2 = sum2 + (6.+mu_i)*d1**5*area*fall1(jj)*n0*d1**mu_i*exp(-lam*d1)*dd/dmdD
              endif
 
 !.....................................................................................
@@ -1439,7 +1446,7 @@ hostinclusionstring_m = 'spheroidal'
 
         ! save for output
           nrwat(i_Qnorm,i_Fr,i_Fl) = sum1    ! note: read in as 'f1pr4' in P3_MAIN
-         !nrwats(i_Qnorm,i_Fr,i_Fl) = sum2
+          m6rime(i_Qnorm,i_Fr,i_Fl) = sum2
           qshed(i_Qnorm,i_Fr,i_Fl) = sum3
 
 !.....................................................................................
@@ -1632,10 +1639,9 @@ hostinclusionstring_m = 'spheroidal'
           enddo i_Drscale_loop !(loop around lambda for rain)
 
 !.....................................................................................
-! melting and sublimation/deposition (ice)
+! melting
 !.....................................................................................
 
-! vapor deposition including ventilation effects
 ! note: in microphysics code we need to multiply by air density and
 ! (mu/dv)^0.3333*(rhofac/mu)^0.5, where rhofac is air density correction factor
 
@@ -1737,12 +1743,33 @@ hostinclusionstring_m = 'spheroidal'
 
           sum1 = 0.
           sum2 = 0.
-
+          sum3 = 0. ! first term dM6/dt
+          sum4 = 0. ! second term dM6/dt
+          
         ! loop over exponential size distribution:
           jj_loop_7: do jj = 1,num_int_bins
 
              d1 = real(jj)*dd - 0.5*dd   ! particle size
 
+! get m-D relation to obtain dmdD
+             if (d1.le.dcrit) then
+                cs1  = pi*sxth*900.
+                ds1  = 3.
+             elseif (d1.gt.dcrit.and.d1.le.dcrits) then
+                cs1  = cs
+                ds1  = ds
+             elseif (d1.gt.dcrits.and.d1.le.dcritr) then
+                cs1  = cgp(i_rhor)
+                ds1  = dg
+             elseif (d1.gt.dcritr) then
+                cs1 = csr
+                ds1 = dsr
+             endif
+
+! dmdD, accounting for weighting by liquid fraction
+             dmdD = (1.-Fl)*cs1*ds1*d1**(ds1-1.) + 3.*Fl*pi*sxth*1000.*d1**2.             
+!..........................             
+      
            ! get capacitance for different ice regimes:
              if (d1.le.dcrit) then
                 cap = 1. ! for small spherical crystal use sphere
@@ -1781,19 +1808,25 @@ hostinclusionstring_m = 'spheroidal'
 
               ! units are m^3 kg^-1 s^-1, thus multiplication by air density in P3_MAIN
 
+             
              if (d1.lt.100.e-6) then
                 sum1 = sum1+capm*n0*d1**(mu_i)*exp(-lam*d1)*dd
+                sum3 = sum3 + (6.+mu_i)*d1**5*capm*n0*d1**(mu_i)*exp(-lam*d1)*dd/dmdD
              else
                !sum1 = sum1+capm*n0*(0.65+0.44*dum)*d1**(mu_i)*exp(-lam*d1)*dd
                 sum1 = sum1+capm*n0*0.65*d1**(mu_i)*exp(-lam*d1)*dd
                 sum2 = sum2+capm*n0*0.44*dum*d1**(mu_i)*exp(-lam*d1)*dd
+                sum3 = sum3 + 0.65*(6.+mu_i)*d1**5*capm*n0*d1**(mu_i)*exp(-lam*d1)*dd/dmdD
+                sum4 = sum4 + 0.44*dum*(6.+mu_i)*d1**5*capm*n0*d1**(mu_i)*exp(-lam*d1)*dd/dmdD
              endif
 
           enddo jj_loop_7
 
           vdep(i_Qnorm,i_Fr,i_Fl)  = sum1
           vdep1(i_Qnorm,i_Fr,i_Fl) = sum2
-
+          m6dep(i_Qnorm,i_Fr,i_Fl)  = sum3
+          m6dep1(i_Qnorm,i_Fr,i_Fl)  = sum4
+          
 !.....................................................................................
 ! ice effective radius
 !   use definition of Francis et al. (1994), e.g., Eq. 3.11 in Fu (1996) J. Climate
@@ -1887,6 +1920,7 @@ hostinclusionstring_m = 'spheroidal'
           ums(i_Qnorm,i_Fr,i_Fl)       = dim( ums(i_Qnorm,i_Fr,i_Fl),       cutoff)
           nagg(i_Qnorm,i_Fr,i_Fl)      = dim( nagg(i_Qnorm,i_Fr,i_Fl),      cutoff)
           nrwat(i_Qnorm,i_Fr,i_Fl)     = dim( nrwat(i_Qnorm,i_Fr,i_Fl),     cutoff)
+          m6rime(i_Qnorm,i_Fr,i_Fl)    = dim( m6rime(i_Qnorm,i_Fr,i_Fl),    cutoff)
           vdep(i_Qnorm,i_Fr,i_Fl)      = dim( vdep(i_Qnorm,i_Fr,i_Fl),      cutoff)
           eff(i_Qnorm,i_Fr,i_Fl)       = dim( eff(i_Qnorm,i_Fr,i_Fl),       cutoff)
           i_qsmall(i_Qnorm,i_Fr,i_Fl)  = dim( i_qsmall(i_Qnorm,i_Fr,i_Fl),  cutoff)
@@ -1907,10 +1941,11 @@ hostinclusionstring_m = 'spheroidal'
           vdepm4(i_Qnorm,i_Fr,i_Fl)    = dim( vdepm4(i_Qnorm,i_Fr,i_Fl),    cutoff)
           qshed(i_Qnorm,i_Fr,i_Fl)     = dim( qshed(i_Qnorm,i_Fr,i_Fl),     cutoff)
           refl2(i_Qnorm,i_Fr,i_Fl)     = dim( refl2(i_Qnorm,i_Fr,i_Fl),     cutoff)
-
+          m6dep(i_Qnorm,i_Fr,i_Fl)     = dim( m6dep(i_Qnorm,i_Fr,i_Fl),     cutoff)
+          m6dep1(i_Qnorm,i_Fr,i_Fl)    = dim( m6dep1(i_Qnorm,i_Fr,i_Fl),    cutoff)
 
           if (log_3momI) then
-             write(1,'(5i5,20e15.5)')                             &
+             write(1,'(5i5,23e15.5)')                             &
                          i_Znorm,i_rhor,i_Fr,i_Fl,i_Qnorm,        &
                          uns(i_Qnorm,i_Fr,i_Fl),                  &
                          ums(i_Qnorm,i_Fr,i_Fl),                  &
@@ -1934,7 +1969,10 @@ hostinclusionstring_m = 'spheroidal'
                          vdepm2(i_Qnorm,i_Fr,i_Fl),               &
                          vdepm3(i_Qnorm,i_Fr,i_Fl),               &
                          vdepm4(i_Qnorm,i_Fr,i_Fl),               &
-                         qshed(i_Qnorm,i_Fr,i_Fl)
+                         qshed(i_Qnorm,i_Fr,i_Fl),                &
+                         m6rime(i_Qnorm,i_Fr,i_Fl),               &
+                         m6dep(i_Qnorm,i_Fr,i_Fl),   	      	  &
+                         m6dep1(i_Qnorm,i_Fr,i_Fl)
           else
              write(1,'(4i5,20e15.5)')                             &
                          i_rhor,i_Fr,i_Fl,i_Qnorm,                &
@@ -1984,7 +2022,7 @@ hostinclusionstring_m = 'spheroidal'
 ! version of code, thus the loops are commented out.
         enddo i_Fl_loop_1
       enddo i_Fr_loop_1
-    enddo i_rhor_loop
+!    enddo i_rhor_loop
 !enddo i_Znorm_loop
 !==
 
