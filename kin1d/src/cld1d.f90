@@ -39,9 +39,9 @@ subroutine columnmodel
 
       implicit none
 
-      integer, parameter :: n_iceCat     =  1
-      logical, parameter :: liqFrac      = .false.
-      logical, parameter :: trplMomIce   = .false.
+      integer, parameter :: n_iceCat     =  2
+      logical, parameter :: liqFrac      = .true.
+      logical, parameter :: trplMomIce   = .true.
 
       logical, parameter :: scpf_on      = .false.  ! switch for cloud fraction parameterization (SCPF)
       real,    parameter :: scpf_pfrac   = 1.        ! precipitation fraction factor (SCPF)

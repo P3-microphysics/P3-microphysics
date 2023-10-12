@@ -25,7 +25,7 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.3.3 dev-outputWS                                                        !
+! Version:       5.3.3 dev-outputWS bugfix-LT1meltingLF                                    !
 ! Last updated:  2023 Oct                                                                  !
 !
 ! ++++++++++++++++++++++++++++++
@@ -155,9 +155,9 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.3.3+outputWS'
- character(len=1024), parameter :: version_intended_table_1_2mom = '6.4-2momI'
- character(len=1024), parameter :: version_intended_table_1_3mom = '6.4-3momI'
+ character(len=1024), parameter :: version_p3                    = '5.3.3+outputWS+bugfixLT1'
+ character(len=1024), parameter :: version_intended_table_1_2mom = '6.5-2momI'
+ character(len=1024), parameter :: version_intended_table_1_3mom = '6.5-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.0'
 
  character(len=1024)            :: version_header_table_1_2mom
@@ -408,7 +408,7 @@
        do ii = 1,rimsize
           do ll = 1,liqsize
             do i = 1,isize
-             read(10,*) dum,dum,dum,dum, itab(jj,ii,ll,i, 1),itab(jj,ii,ll,i, 2),                   &
+             read(10,*) dum,dum,dum,dum, itab(jj,ii,ll,i, 1),itab(jj,ii,ll,i, 2),                  &
                     itab(jj,ii,ll,i, 3),itab(jj,ii,ll,i, 4),itab(jj,ii,ll,i, 5),                   &
                     itab(jj,ii,ll,i, 6),itab(jj,ii,ll,i, 7),itab(jj,ii,ll,i, 8),                   &
                     itab(jj,ii,ll,i, 9),itab(jj,ii,ll,i,10),itab(jj,ii,ll,i,11),                   &

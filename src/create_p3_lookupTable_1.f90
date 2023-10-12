@@ -13,9 +13,10 @@ PROGRAM create_p3_lookuptable_1
 ! All other parameter settings are linked uniquely to the version number.
 !
 !--------------------------------------------------------------------------------------
-! Version:       6.4
-! Last modified: 2023-Feb
+! Version:       6.5
+! Last modified: 2023-Oct
 ! Version: including the liquid fraction (inner-loop i_Fl)
+! v6.5: bug fix to melting with liquid fraction only
 !______________________________________________________________________________________
 
 !______________________________________________________________________________________
@@ -57,56 +58,74 @@ PROGRAM create_p3_lookuptable_1
 !______________________________________________________________________________________
 
 !--------------------------------------------------------------------------------------------
-! Parallel script 1 (of 3):  [copy text below (uncommented) to file 'go_1-compile.ksh']
+! Parallel script 1 (of 3):  [copy text below (uncommented) to file 'go_1-compile.sh']
 !  - creates individual parallel codes, compiles each
 !
 !-----------------------------
 ! For 2-MOMENT-ICE:
-
-! #!/bin/ksh
 !
-! for i_rhor in 01 02 03 04 05
-! do
+!#!/bin/sh
+! 
+!  for i_rhor in 01 02 03 04 05
+!  do
+!    for i_Fr in 01 02 03 04
+!    do
+!      rm cfg_input full_code.f90
+!      cat > cfg_input << EOF
+!       i_rhor = ${i_rhor}
+!       i_Fr = ${i_Fr}
+!EOF
+!      cat create_p3_lookupTable_1-top.f90 cfg_input create_p3_lookupTable_1-bottom.f90 > full_code.f90
+!      echo 'Compiling 'exec_${i_rhor}_${i_Fr}
+!#     ifort -r8 full_code.f90
+!      gfortran -fdefault-real-8 full_code.f90
+!      mv a.out exec_${i_rhor}_${i_Fr}
+!    done
+!  done
 !
-!    rm cfg_input full_code.f90
-!    cat > cfg_input << EOF
-!     i_rhor  = ${i_rhor}
-! EOF
-!    cat create_p3_lookupTable_1-top.f90 cfg_input create_p3_lookupTable_1-bottom.f90 > full_code.f90
-!    echo 'Compiling 'exec_${i_rhor}
-!    ifort -r8 full_code.f90
-!    mv a.out exec_${i_rhor}
+!rm cfg_input full_code.f90
 !
-! done
-!
-! rm cfg_input full_code.f90
-
 !-----------------------------
 ! For 3-MOMENT-ICE:
 
-!#!/bin/ksh
+!#!/bin/sh
 !
-! for i_Znorm in 01 02 03 04 05 06 07 08 09 10 11
-! do
-
-!    rm cfg_input full_code.f90
-!    cat > cfg_input << EOF
-!     i_Znorm = ${i_Znorm}
-! EOF
-!    cat create_p3_lookupTable_1-top.f90 cfg_input create_p3_lookupTable_1-bottom.f90 > full_code.f90
-!    echo 'Compiling 'exec_${i_Znorm}
-!    ifort -r8 full_code.f90
-!    mv a.out exec_${i_Znorm}
+!  for i_Znorm in 01 02 03 04 05 06 07 08 09 10 11
+!  do
+!    for i_rhor in 01 02 03 04 05
+!    do
 !
-! done
+!#     cat > cfg_input << EOF
+!#     i_Znorm = ${i_Znorm}
+!#EOF
 !
-! rm cfg_input full_code.f90
+!      cat > cfg_input << EOF
+!      i_Znorm = ${i_Znorm}
+!      i_rhor  = ${i_rhor}
+!EOF
+!
+!      cat create_p3_lookupTable_1-top.f90 cfg_input create_p3_lookupTable_1-bottom.f90 > full_code.f90
+!
+!      echo 'Compiling 'exec_${i_Znorm}_${i_rhor}
+!      #echo 'Compiling 'exec_${i_Znorm}
+!
+!      #pgf90 -r8 full_code.f90
+!      #ifort -r8 full_code.f90
+!      gfortran -fdefault-real-8 full_code.f90
+!
+!      mv a.out exec_${i_Znorm}_${i_rhor}
+!      #mv a.out exec_${i_Znorm}
+!
+!    done
+!  done
+!
+!rm cfg_input full_code.f90
 
 !--------------------------------------------------------------------------------------------
-!# Parallel script 2 (of 3):   [copy text below (uncommented) to file 'go_2-submit.ksh']
+!# Parallel script 2 (of 3):   [copy text below (uncommented) to file 'go_2-submit.sh']
 !#  - creates individual work directories, launches each executable
 
-!#!/bin/ksh
+!#!/bin/sh
 !
 ! for exec in `ls exec_*`
 ! do
@@ -119,10 +138,10 @@ PROGRAM create_p3_lookuptable_1
 ! done
 
 !--------------------------------------------------------------------------------------------
-!# Parallel script 3 (of 3):   [copy text below (uncommented) to file 'go_3-concatenate.ksh]
+!# Parallel script 3 (of 3):   [copy text below (uncommented) to file 'go_3-concatenate.sh]
 !#  - concatenates the output of each parallel job into a single output file.
 
-!#!/bin/ksh
+!#!/bin/sh
 !
 ! rm lt_total
 !
@@ -144,7 +163,7 @@ PROGRAM create_p3_lookuptable_1
  implicit none
 
  !-----
- character(len=20), parameter :: version   = '6.4'
+ character(len=20), parameter :: version   = '6.5'
  logical, parameter           :: log_3momI = .true.    !switch to create table for 2momI (.false.) or 3momI (.true.)
  !-----
 
@@ -280,7 +299,6 @@ hostinclusionstring_m = 'spheroidal'
 !   Before running ./go_1-compile.ksh, delete all lines below this point and
 !   and save as 'create_p3_lookupTable_1-top.f90'
 !------------------------------------------------------------------------------------
-
 
 ! For testing single values, uncomment the following:
 ! i_Znorm = 1
@@ -1688,9 +1706,9 @@ hostinclusionstring_m = 'spheroidal'
 
               if (d1.le.100.e-6) then
                   dumfac1 = 1.
-                  dumfac2 = 1.
+                  dumfac2 = 0.
                   dumfac12 = 1.
-                  dumfac22 = 1.
+                  dumfac22 = 0.
               else
                   dumfac1 = 0.65
                   dumfac2 = 0.44*dum
@@ -1723,8 +1741,6 @@ hostinclusionstring_m = 'spheroidal'
           vdepm2(i_Qnorm,i_Fr,i_Fl) = sum2
           vdepm3(i_Qnorm,i_Fr,i_Fl) = sum3
           vdepm4(i_Qnorm,i_Fr,i_Fl) = sum4
-
-!         print*,'vdepm1',vdepm1(i_Qnorm,i_Fr,i_Fl),vdepm3(i_Qnorm,i_Fr,i_Fl),vdepm4(i_Qnorm,i_Fr,i_Fl)
 
 !.....................................................................................
 ! vapor deposition/wet growth/refreezing
@@ -1936,7 +1952,7 @@ hostinclusionstring_m = 'spheroidal'
                          vdepm4(i_Qnorm,i_Fr,i_Fl),               &
                          qshed(i_Qnorm,i_Fr,i_Fl)
           else
-             write(1,'(4i5,20e15.5)')                             &
+             write(1,'(4i5,19e15.5)')                             &
                          i_rhor,i_Fr,i_Fl,i_Qnorm,                &
                          uns(i_Qnorm,i_Fr,i_Fl),                  &
                          ums(i_Qnorm,i_Fr,i_Fl),                  &
