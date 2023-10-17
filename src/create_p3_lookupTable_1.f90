@@ -13,7 +13,7 @@ PROGRAM create_p3_lookuptable_1
 ! All other parameter settings are linked uniquely to the version number.
 !
 !--------------------------------------------------------------------------------------
-! Version:       6.5b2
+! Version:       6.5b5
 ! Last modified: 2023-Oct
 ! Version: including the liquid fraction (inner-loop i_Fl)
 !______________________________________________________________________________________
@@ -144,7 +144,7 @@ PROGRAM create_p3_lookuptable_1
  implicit none
 
  !-----
- character(len=20), parameter :: version   = '6.5b2'
+ character(len=20), parameter :: version   = '6.5b5'
  logical, parameter           :: log_3momI = .true.    !switch to create table for 2momI (.false.) or 3momI (.true.)
  !-----
 
@@ -203,21 +203,26 @@ PROGRAM create_p3_lookuptable_1
  real, dimension(n_Qnorm,n_Fr,n_Fl) :: qshed,vdepm1,vdepm2,vdepm3,vdepm4
 
 ! New rates for m6
- real, dimension(n_Qnorm,n_Fr,n_Fl) :: m6rime,m6dep,m6dep1
+ real, dimension(n_Qnorm,n_Fr,n_Fl) :: m6rime,m6dep,m6dep1,m6mlt1,m6mlt2,m6agg,m6shd
 
 ! change in mass with D
  real :: dmdD
-
+ real :: mass2
+ 
  ! outputs for triple moment
 ! HM zsmall, zlarge no longer needed
 ! real, dimension(n_Qnorm,n_Fr) :: uzs,zlarge,zsmall
  real, dimension(n_Qnorm,n_Fr,n_Fl) :: uzs
 
  real, dimension(n_Qnorm,n_Drscale,n_Fr,n_Fl) :: qrrain,nrrain,nsrain,qsrain,ngrain
-
+ ! change in zi from rain-ice collection
+ real, dimension(n_Qnorm,n_Drscale,n_Fr,n_Fl) :: m6collr
+ 
  real, dimension(n_Drscale)         :: lamrs
  real, dimension(num_int_bins)      :: fall1,falls1,fallr1
  real, dimension(num_int_coll_bins) :: fall2,fallr,num,numi,falls
+! for M6 rates
+ real, dimension(num_int_coll_bins) :: numloss,massloss,massgain 
  real, dimension(n_rhor)            :: cgp,crp
  real, dimension(150)               :: mu_r_table
 
@@ -249,7 +254,8 @@ PROGRAM create_p3_lookuptable_1
  integer, parameter                 :: slen = 20
  character(len=slen)                :: mixingrulestring_m, matrixstring_m, inclusionstring_m,    &
                                        hoststring_m, hostmatrixstring_m, hostinclusionstring_m
-
+ integer :: bb
+ 
 do i = 1, slen
    mixingrulestring_m(i:i) = char(0)
    matrixstring_m(i:i) = char(0)
@@ -316,6 +322,9 @@ hostinclusionstring_m = 'spheroidal'
  c1   = 4./(del0**2*c0**0.5)
  c2   = del0**2/4.
 
+! exponent parameter for dm/dt of shedding
+ bb   = 3
+ 
  dd   =  2.e-6 ! bin width for numerical integration of ice processes (units of m)
  ddd  = 50.e-6 ! bin width for numerical integration for ice-ice and ice-rain collection (units of m)
 
@@ -1245,6 +1254,10 @@ hostinclusionstring_m = 'spheroidal'
 
           sum1 = 0.
 
+          numloss(:) = 0.
+          massloss(:) = 0.
+          massgain(:) = 0.
+
         ! set up binned distribution of ice
           do jj = num_int_coll_bins,1,-1
              d1      = real(jj)*ddd - 0.5*ddd
@@ -1293,7 +1306,8 @@ hostinclusionstring_m = 'spheroidal'
               ! total projected area for particle 1
                 area1 = (1.-Fl)*aas1*d1**bas1+Fl*pi/4.*d1**2.
 
-              ! parameters for particle 2
+                ! parameters for particle 2
+
                 if (d2.le.dcrit) then
                    bas2 = 2.
                    aas2 = pi/4.
@@ -1330,6 +1344,25 @@ hostinclusionstring_m = 'spheroidal'
               !  (note: in P3_MAIN  must multiply by air density correction factor, and collection efficiency
                 delu = abs(fall2(jj)-fall2(kk))
 
+        ! get m-D relation for particle 2 to obtain mass
+                if (d2.le.dcrit) then
+                cs1  = pi*sxth*900.
+                ds1  = 3.
+             elseif (d2.gt.dcrit.and.d2.le.dcrits) then
+                cs1  = cs
+                ds1  = ds
+             elseif (d2.gt.dcrits.and.d2.le.dcritr) then
+                cs1  = cgp(i_rhor)
+                ds1  = dg
+             elseif (d2.gt.dcritr) then
+                cs1 = csr
+                ds1 = dsr
+             endif
+
+             mass2 = (1.-Fl)*cs1*d2**ds1+Fl*pi*sxth*1000.*d2**3.
+             
+!..........................
+                
               ! sum for integral
 
               ! sum1 = # of collision pairs
@@ -1339,6 +1372,11 @@ hostinclusionstring_m = 'spheroidal'
 
                 sum1 = sum1+(area1+area2)*delu*num(jj)*num(kk)
 
+                ! distribution of particles removed, mass removed, and mass gained
+                numloss(kk) = numloss(kk)+(area1+area2)*delu*num(jj)*num(kk)
+                massloss(kk) = massloss(kk)+(area1+area2)*delu*num(jj)*num(kk)*mass2
+                massgain(jj) = massgain(jj)+(area1+area2)*delu*num(jj)*num(kk)*mass2
+                
                  ! remove collected particles from distribution over time period dt, update num
                  !  note -- dt is time scale for removal, not model time step
                  !                   num(kk) = num(kk)-(area1+area2)*delu*num(jj)*num(kk)*dt
@@ -1352,8 +1390,47 @@ hostinclusionstring_m = 'spheroidal'
              enddo kk_loop_1
           enddo jj_loop_3
 
+! calculate change in M6
+
+          sum2 = 0. ! M6 change from number loss
+          sum3 = 0. ! M6 change from mass gain
+          
+          do kk=1,num_int_coll_bins
+
+! define particle size in kk loop
+             d2 = real(kk)*ddd - 0.5*ddd       
+
+! define particle mass as as function of d2 here
+
+      ! get m-D relation to obtain dmdD
+             if (d2.le.dcrit) then
+                cs1  = pi*sxth*900.
+                ds1  = 3.
+             elseif (d2.gt.dcrit.and.d2.le.dcrits) then
+                cs1  = cs
+                ds1  = ds
+             elseif (d2.gt.dcrits.and.d2.le.dcritr) then
+                cs1  = cgp(i_rhor)
+                ds1  = dg
+             elseif (d2.gt.dcritr) then
+                cs1 = csr
+                ds1 = dsr
+             endif
+
+             ! dmdD, accounting for weighting by liquid fraction
+             dmdD = (1.-Fl)*cs1*ds1*d2**(ds1-1.) + 3.*Fl*pi*sxth*1000.*d2**2
+!..........................
+             
+! M6 change from number loss rate
+             sum2 = sum2 - numloss(kk)*d2**6
+! M6 change from mass gain (note: massgain = dm/dt*num(kk))
+             sum3 = sum3 + massgain(kk)/dmdD*6.*d2**5 !(dM/dt*dD/dm*6*D^5)
+          enddo ! kk loop
+          
           nagg(i_Qnorm,i_Fr,i_Fl) = sum1  ! save to write to output
 
+          m6agg(i_Qnorm,i_Fr,i_Fl) = sum2+sum3
+          
 !         print*,'nagg',nagg(i_Qnorm,i_Fr)
 
 !.....................................................................................
@@ -1367,7 +1444,7 @@ hostinclusionstring_m = 'spheroidal'
           sum1 = 0.
           sum2 = 0. !dM6/dt
           sum3 = 0. !qshed (with Fl)
-
+          sum4 = 0. !M_bb moment for zshed calculation
 
         ! loop over exponential size distribution (from 1 micron to 2 cm)
           jj_loop_4:  do jj = 1,num_int_bins
@@ -1417,7 +1494,7 @@ hostinclusionstring_m = 'spheroidal'
 
              mass = (1.-Fl)*cs1*d1**ds1+Fl*pi*sxth*1000.*d1**3.
              area = (1.-Fl)*aas1*d1**bas1+Fl*pi/4.*d1**2.
-             dmdD = (1.-Fl)*cs1*ds1*d1**(ds1-1.) + 3.*Fl*pi*sxth*1000.*d1**2.
+             dmdD = (1.-Fl)*cs1*ds1*d1**(ds1-1.) + 3.*Fl*pi*sxth*1000.*d1**2
              
             ! sum for integral
             ! include assumed ice particle size threshold for riming of 100 micron
@@ -1428,6 +1505,8 @@ hostinclusionstring_m = 'spheroidal'
                 sum1 = sum1 + area*fall1(jj)*n0*d1**mu_i*exp(-lam*d1)*dd
 ! dM6/dt = int((6+mu)*D^(5+mu)*dD/dt*n0*D^mu*exp(-lam*D)*dD)
                 sum2 = sum2 + (6.+mu_i)*d1**5*area*fall1(jj)*n0*d1**mu_i*exp(-lam*d1)*dd/dmdD
+! M_bb moment
+                sum4 = sum4 + d1**bb*n0*d1**mu_i*exp(-lam*d1)*dd
              endif
 
 !.....................................................................................
@@ -1449,6 +1528,42 @@ hostinclusionstring_m = 'spheroidal'
           m6rime(i_Qnorm,i_Fr,i_Fl) = sum2
           qshed(i_Qnorm,i_Fr,i_Fl) = sum3
 
+! z change from shedding
+
+          sum1 = 0.
+          
+          jj_loop_40:  do jj = 1,num_int_bins
+             
+             d1 = real(jj)*dd - 0.5*dd  ! particle size or dimension (m) for numerical integration
+
+             ! get m-D relation to obtain dmdD
+             if (d1.le.dcrit) then
+                cs1  = pi*sxth*900.
+		ds1  = 3.
+             elseif (d1.gt.dcrit.and.d1.le.dcrits) then
+		cs1  = cs
+                ds1  = ds
+             elseif (d1.gt.dcrits.and.d1.le.dcritr) then
+                cs1  = cgp(i_rhor)
+		ds1  = dg
+             elseif (d1.gt.dcritr) then
+                cs1 = csr
+		ds1 = dsr
+             endif
+
+             ! dmdD, accounting for weighting by liquid fraction
+             dmdD = (1.-Fl)*cs1*ds1*d1**(ds1-1.) + 3.*Fl*pi*sxth*1000.*d1**2
+!..........................
+             
+             if (d1.ge.0.009) then
+             ! = dm/dt*dD/dm, dm/dt = sum3/sum4*D^bb
+                sum1 = sum1+6.*d1**5*sum3/sum4*d1**bb*n0*d1**mu_i*exp(-lam*d1)*dd/dmdD
+             endif
+             
+          enddo jj_loop_40
+
+          m6shd(i_Qnorm,i_Fr,i_Fl) = sum1
+          
 !.....................................................................................
 ! collection of rain
 !.....................................................................................
@@ -1510,6 +1625,7 @@ hostinclusionstring_m = 'spheroidal'
            ! initialize sum
              sum1 = 0.
              sum2 = 0.
+             sum3 = 0.
              sum6 = 0.
 !            sum8 = 0.  ! total rain
 
@@ -1570,6 +1686,25 @@ hostinclusionstring_m = 'spheroidal'
 
                    delu = abs(fall2(jj)-fallr(kk))   ! differential fallspeed
 
+             ! get m-D relation to obtain dmdD
+             if (d1.le.dcrit) then
+                cs1  = pi*sxth*900.
+		ds1  = 3.
+             elseif (d1.gt.dcrit.and.d1.le.dcrits) then
+		cs1  = cs
+                ds1  = ds
+             elseif (d1.gt.dcrits.and.d1.le.dcritr) then
+		cs1  = cgp(i_rhor)
+                ds1  = dg
+             elseif (d1.gt.dcritr) then
+                cs1 = csr
+                ds1 = dsr
+             endif
+
+             ! dmdD, accounting for weighting by liquid fraction
+             dmdD = (1.-Fl)*cs1*ds1*d1**(ds1-1.) + 3.*Fl*pi*sxth*1000.*d1**2
+!..........................
+                   
 !......................................................
 ! collection of rain mass and number
 
@@ -1602,6 +1737,10 @@ hostinclusionstring_m = 'spheroidal'
                   !          exp(-lam*d1)*dd*num(kk)*dt
                   !num(kk) = max(num(kk),0.)
 
+                  ! change in zi due to collection of rain by ice
+                   sum3 = sum3+(area+pi*0.25*d2**2)*delu*6.*d1**5*n0*d1**mu_i*        &
+                          exp(-lam*d1)*ddd*num(kk)*pi*sxth*997.*d2**3/dmdD 
+                   
 !......................................................
 ! now calculate collection of ice mass by rain
 
@@ -1635,6 +1774,7 @@ hostinclusionstring_m = 'spheroidal'
              nrrain(i_Qnorm,i_Drscale,i_Fr,i_Fl) = sum1
              qrrain(i_Qnorm,i_Drscale,i_Fr,i_Fl) = sum2
              qsrain(i_Qnorm,i_Drscale,i_Fr,i_Fl) = sum6
+             m6collr(i_Qnorm,i_Drscale,i_Fr,i_Fl) = sum3
 
           enddo i_Drscale_loop !(loop around lambda for rain)
 
@@ -1649,12 +1789,34 @@ hostinclusionstring_m = 'spheroidal'
           sum2 = 0.
           sum3 = 0.
           sum4 = 0.
+          sum5 = 0. ! m6 melting term 1
+          sum6 = 0. ! m6 melting term 2 
 
         ! loop over exponential size distribution:
           jj_loop_6: do jj = 1,num_int_bins
 
              d1 = real(jj)*dd - 0.5*dd   ! particle size
 
+! get m-D relation to obtain dmdD
+             if (d1.le.dcrit) then
+                cs1  = pi*sxth*900.
+                ds1  = 3.
+             elseif (d1.gt.dcrit.and.d1.le.dcrits) then
+                cs1  = cs
+                ds1  = ds
+             elseif (d1.gt.dcrits.and.d1.le.dcritr) then
+                cs1  = cgp(i_rhor)
+                ds1  = dg
+             elseif (d1.gt.dcritr) then
+                cs1 = csr
+                ds1 = dsr
+             endif
+
+! dmdD, accounting for weighting by liquid fraction
+             dmdD = (1.-Fl)*cs1*ds1*d1**(ds1-1.) + 3.*Fl*pi*sxth*1000.*d1**2
+!..........................
+             
+             
            ! get capacitance for different ice regimes:
              if (d1.le.dcrit) then
                 cap = 1. ! for small spherical crystal use sphere
@@ -1694,9 +1856,9 @@ hostinclusionstring_m = 'spheroidal'
 
               if (d1.le.100.e-6) then
                   dumfac1 = 1.
-                  dumfac2 = 1.
+                  dumfac2 = 0. ! bug fix (Melissa)
                   dumfac12 = 1.
-                  dumfac22 = 1.
+                  dumfac22 = 0. ! bug fix (Melissa)
               else
                   dumfac1 = 0.65
                   dumfac2 = 0.44*dum
@@ -1713,6 +1875,9 @@ hostinclusionstring_m = 'spheroidal'
                 ! Melted water transferred to rain
                 sum1 = sum1+capm*fac1*n0d*d1**(mu_id)*exp(-lamd*d1)*dd
                 sum2 = sum2+capm*fac2*n0d*d1**(mu_id)*exp(-lamd*d1)*dd
+                ! M6 rates
+                sum5 = sum5+capm*(6.+mu_i)*d1**5*fac1*n0d*d1**(mu_id)*exp(-lamd*d1)*dd/dmdD
+                sum6 = sum6+capm*(6.+mu_i)*d1**5*fac2*n0d*d1**(mu_id)*exp(-lamd*d1)*dd/dmdD
                 !sum3 = sum3+0.
                 !sum4 = sum4+0.
              else
@@ -1721,6 +1886,9 @@ hostinclusionstring_m = 'spheroidal'
                 !sum2 = sum2+0.
                 sum3 = sum3+capm*fac1*n0d*d1**(mu_id)*exp(-lamd*d1)*dd
                 sum4 = sum4+capm*fac2*n0d*d1**(mu_id)*exp(-lamd*d1)*dd
+                ! M6 rates
+                !sum7 = sum7+capm*(6.+mu_i)*d1**5*fac1*n0d*d1**(mu_id)*exp(-lamd*d1)*dd/dmdD
+                !sum8 = sum8+capm*(6.+mu_i)*d1**5*fac2*n0d*d1**(mu_id)*exp(-lamd*d1)*dd/dmdD
              endif
 
           enddo jj_loop_6
@@ -1730,6 +1898,9 @@ hostinclusionstring_m = 'spheroidal'
           vdepm3(i_Qnorm,i_Fr,i_Fl) = sum3
           vdepm4(i_Qnorm,i_Fr,i_Fl) = sum4
 
+          m6mlt1(i_Qnorm,i_Fr,i_Fl) = sum5
+          m6mlt2(i_Qnorm,i_Fr,i_Fl) = sum6
+          
 !         print*,'vdepm1',vdepm1(i_Qnorm,i_Fr,i_Fl),vdepm3(i_Qnorm,i_Fr,i_Fl),vdepm4(i_Qnorm,i_Fr,i_Fl)
 
 !.....................................................................................
@@ -1767,7 +1938,7 @@ hostinclusionstring_m = 'spheroidal'
              endif
 
 ! dmdD, accounting for weighting by liquid fraction
-             dmdD = (1.-Fl)*cs1*ds1*d1**(ds1-1.) + 3.*Fl*pi*sxth*1000.*d1**2.             
+             dmdD = (1.-Fl)*cs1*ds1*d1**(ds1-1.) + 3.*Fl*pi*sxth*1000.*d1**2
 !..........................             
       
            ! get capacitance for different ice regimes:
@@ -1943,9 +2114,13 @@ hostinclusionstring_m = 'spheroidal'
           refl2(i_Qnorm,i_Fr,i_Fl)     = dim( refl2(i_Qnorm,i_Fr,i_Fl),     cutoff)
           m6dep(i_Qnorm,i_Fr,i_Fl)     = dim( m6dep(i_Qnorm,i_Fr,i_Fl),     cutoff)
           m6dep1(i_Qnorm,i_Fr,i_Fl)    = dim( m6dep1(i_Qnorm,i_Fr,i_Fl),    cutoff)
-
+          m6mlt1(i_Qnorm,i_Fr,i_Fl)    = dim( m6mlt1(i_Qnorm,i_Fr,i_Fl),    cutoff)
+          m6mlt2(i_Qnorm,i_Fr,i_Fl)    = dim( m6mlt2(i_Qnorm,i_Fr,i_Fl),    cutoff)
+          m6agg(i_Qnorm,i_Fr,i_Fl)     = dim( m6agg(i_Qnorm,i_Fr,i_Fl),     cutoff)
+          m6shd(i_Qnorm,i_Fr,i_Fl)     = dim( m6shd(i_Qnorm,i_Fr,i_Fl),     cutoff)
+          
           if (log_3momI) then
-             write(1,'(5i5,23e15.5)')                             &
+             write(1,'(5i5,27e15.5)')                             &
                          i_Znorm,i_rhor,i_Fr,i_Fl,i_Qnorm,        &
                          uns(i_Qnorm,i_Fr,i_Fl),                  &
                          ums(i_Qnorm,i_Fr,i_Fl),                  &
@@ -1972,7 +2147,11 @@ hostinclusionstring_m = 'spheroidal'
                          qshed(i_Qnorm,i_Fr,i_Fl),                &
                          m6rime(i_Qnorm,i_Fr,i_Fl),               &
                          m6dep(i_Qnorm,i_Fr,i_Fl),   	      	  &
-                         m6dep1(i_Qnorm,i_Fr,i_Fl)
+                         m6dep1(i_Qnorm,i_Fr,i_Fl),               &
+                         m6mlt1(i_Qnorm,i_Fr,i_Fl),   	      	  &
+                         m6mlt2(i_Qnorm,i_Fr,i_Fl),               &
+                         m6agg(i_Qnorm,i_Fr,i_Fl),                &
+                         m6shd(i_Qnorm,i_Fr,i_Fl)
           else
              write(1,'(4i5,20e15.5)')                             &
                          i_rhor,i_Fr,i_Fl,i_Qnorm,                &
@@ -2008,11 +2187,13 @@ hostinclusionstring_m = 'spheroidal'
 ! !              qrrain(i_Qnorm,i_Drscale,i_Fr) = dim(qrrain(i_Qnorm,i_Drscale,i_Fr), cutoff)
              nrrain(i_Qnorm,i_Drscale,i_Fr,i_Fl) = log10(max(nrrain(i_Qnorm,i_Drscale,i_Fr,i_Fl), 1.e-99))
              qrrain(i_Qnorm,i_Drscale,i_Fr,i_Fl) = log10(max(qrrain(i_Qnorm,i_Drscale,i_Fr,i_Fl), 1.e-99))
-
-             write(1,'(4i5,2e15.5)')                              &
+             m6collr(i_Qnorm,i_Drscale,i_Fr,i_Fl) = log10(max(m6collr(i_Qnorm,i_Drscale,i_Fr,i_Fl), 1.e-99))
+             
+             write(1,'(4i5,3e15.5)')                              &
                          i_Qnorm,i_Drscale,i_Fr,i_Fl,             &
                          nrrain(i_Qnorm,i_Drscale,i_Fr,i_Fl),     &
-                         qrrain(i_Qnorm,i_Drscale,i_Fr,i_Fl)
+                         qrrain(i_Qnorm,i_Drscale,i_Fr,i_Fl),     &
+                         m6collr(i_Qnorm,i_Drscale,i_Fr,i_Fl)
 
           enddo !i_Drscale-loop
        enddo !i_Qnorm-loop

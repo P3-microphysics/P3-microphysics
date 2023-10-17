@@ -25,7 +25,7 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.3.3+full3mv2                                                            !
+! Version:       5.3.3+full3mv5                                                            !
 ! Last updated:  2023 Oct                                                                  !
 !__________________________________________________________________________________________!
 
@@ -59,8 +59,9 @@
  integer, parameter :: liqsize      =  4
  integer, parameter :: rcollsize    = 30
  integer, parameter :: tabsize      = 19  ! number of quantities used from lookup table
- integer, parameter :: tabsize_3mom = 23  ! number of quantities used from 3-mom lookup table
+ integer, parameter :: tabsize_3mom = 27  ! number of quantities used from 3-mom lookup table
  integer, parameter :: colltabsize  =  2  ! number of ice-rain collection  quantities used from lookup table
+ integer, parameter :: colltabsize_3mom  =  3  ! number of ice-rain collection  quantities used from 3-mom lookup table
  integer, parameter :: collitabsize =  2  ! number of ice-ice collection  quantities used from lookup table
 
  real, parameter    :: real_rcollsize = real(rcollsize)
@@ -71,7 +72,7 @@
 
 !ice lookup table values for ice-rain collision/collection
  real, dimension(densize,rimsize,liqsize,isize,rcollsize,colltabsize)       :: itabcoll
- real, dimension(zsize,densize,rimsize,liqsize,isize,rcollsize,colltabsize) :: itabcoll_3mom
+ real, dimension(zsize,densize,rimsize,liqsize,isize,rcollsize,colltabsize_3mom) :: itabcoll_3mom
 
  ! NOTE: TO DO, MAKE LOOKUP TABLE ARRAYS ALLOCATABLE SO MULTICAT NOT ALLOCATED WHEN NCAT = 1
 ! separated into itabcolli001 and itabcolli002, due to max of 7 dimensional arrays on some FORTRAN compilers
@@ -146,7 +147,7 @@
  logical, save                  :: is_init = .false.
  character(len=1024), parameter :: version_p3                    = '5.3.3+full3mv1'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.4-2momI'
- character(len=1024), parameter :: version_intended_table_1_3mom = '6.5b2-3momI'
+ character(len=1024), parameter :: version_intended_table_1_3mom = '6.5b5-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.0'
 
  character(len=1024)            :: version_header_table_1_2mom
@@ -157,7 +158,7 @@
  character(len=1024)            :: dumstr,read_path
  integer                        :: i,j,ii,jj,kk,jjj,jjj2,jjjj,jjjj2,end_status,zz,procnum,istat,ierr,ll
  real                           :: lamr,mu_r,dum,dm,dum1,dum2,dum3,dum4,dum5,dd,amg,vt,dia
- double precision               :: dp_dum1, dp_dum2
+ double precision               :: dp_dum1, dp_dum2, dp_dum3
  logical                        :: err_abort
 
 !------------------------------------------------------------------------------------------!
@@ -479,15 +480,18 @@
                      itab_3mom(zz,jj,ii,ll,i,12),itab_3mom(zz,jj,ii,ll,i,13),itab_3mom(zz,jj,ii,ll,i,14),     &
                      itab_3mom(zz,jj,ii,ll,i,15),itab_3mom(zz,jj,ii,ll,i,16),itab_3mom(zz,jj,ii,ll,i,17),     &
                      itab_3mom(zz,jj,ii,ll,i,18),itab_3mom(zz,jj,ii,ll,i,19),itab_3mom(zz,jj,ii,ll,i,20),     &
-                     itab_3mom(zz,jj,ii,ll,i,21),itab_3mom(zz,jj,ii,ll,i,22),itab_3mom(zz,jj,ii,ll,i,23)
+                     itab_3mom(zz,jj,ii,ll,i,21),itab_3mom(zz,jj,ii,ll,i,22),itab_3mom(zz,jj,ii,ll,i,23),     &
+                     itab_3mom(zz,jj,ii,ll,i,24),itab_3mom(zz,jj,ii,ll,i,25),itab_3mom(zz,jj,ii,ll,i,26),     &
+                     itab_3mom(zz,jj,ii,ll,i,27)
                enddo
           !read in table for ice-rain collection
               do i = 1,isize
                  do j = 1,rcollsize
 !                  read(10,*) dum,dum,dum,dum,dum,dp_dum1,dp_dum2
-                   read(10,*) dum,dum,dum,dum, dp_dum1,dp_dum2
+                   read(10,*) dum,dum,dum,dum, dp_dum1,dp_dum2,dp_dum3
                    itabcoll_3mom(zz,jj,ii,ll,i,j,1) = dp_dum1
                    itabcoll_3mom(zz,jj,ii,ll,i,j,2) = dp_dum2
+                   itabcoll_3mom(zz,jj,ii,ll,i,j,3) = dp_dum3
                  enddo
               enddo
             enddo  !ll
@@ -1989,9 +1993,13 @@ END subroutine p3_init
  real, dimension(nCat) :: nimul     ! change in Ni, ice multiplication from rime-splintering (not included in the paper)
  real, dimension(nCat) :: ncshdc    ! source for rain number due to cloud water/ice collision above freezing  and shedding (combined with NRSHD in the paper)
  real, dimension(nCat) :: rhorime_c ! density of rime (from cloud)
- real, dimension(nCat) :: zqccol    ! M6 change from collection of cloud water by ice
- real, dimension(nCat) :: zidep     ! M6 change from vapor deposition
- real, dimension(nCat) :: zisub     ! M6 change from sublimation
+ real, dimension(nCat) :: zqccol    ! zi change from collection of cloud water by ice
+ real, dimension(nCat) :: zidep     ! zi change from vapor deposition
+ real, dimension(nCat) :: zisub     ! zi change from sublimation
+ real, dimension(nCat) :: zimlt     ! zi change from melting
+ real, dimension(nCat) :: zislf     ! zi change from self-collection
+ real, dimension(nCat) :: zishd     ! zi change from shedding
+ real, dimension(nCat) :: zqrcol    ! zi change from ice-rain collection
 
  real, dimension(nCat,nCat) :: nicol ! change of N due to ice-ice collision between categories
  real, dimension(nCat,nCat) :: qicol ! change of q due to ice-ice collision between categories
@@ -2080,9 +2088,14 @@ END subroutine p3_init
  real    :: f1pr28   ! shedding of mixed-phase ice
 
 ! new 3-moment quantities from lookup table
- real    :: f1pr29   ! M6 tendency riming
- real    :: f1pr30   ! M6 tendency vapor deposition term 1
- real    :: f1pr31   ! M6 tendency vapor deposition term 2
+ real    :: f1pr29   ! zi tendency riming
+ real    :: f1pr30   ! zi tendency vapor deposition term 1
+ real    :: f1pr31   ! zi tendency vapor deposition term 2
+ real    :: f1pr32   ! zi tendency melting term 1 (liquid fraction on only)
+ real    :: f1pr33   ! zi tendency melting term 1 (liquid fraction on only) 
+ real    :: f1pr34   ! zi tendency self-collection
+ real    :: f1pr35   ! zi tendency shedding
+ real    :: f1pr36   ! zi tendency ice-rain collection
 
 ! for full 3-moment
  real, dimension(nCat) :: epsiz
@@ -2478,6 +2491,8 @@ END subroutine p3_init
 
    ! Full 3-moment rates
        zqccol = 0.;      zidep    = 0.;     zisub   = 0.
+       zimlt  = 0.;      zislf    = 0.;     zishd   = 0.
+       zqrcol = 0.
 
        log_wetgrowth = .false.
 
@@ -2662,6 +2677,10 @@ END subroutine p3_init
                   call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,21,dum1,dum4,dum5,dum6,f1pr29)
                   call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,22,dum1,dum4,dum5,dum6,f1pr30)
                   call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,23,dum1,dum4,dum5,dum6,f1pr31)
+                  call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,24,dum1,dum4,dum5,dum6,f1pr32)
+                  call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,25,dum1,dum4,dum5,dum6,f1pr33)
+                  call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,26,dum1,dum4,dum5,dum6,f1pr34)
+                  call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,27,dum1,dum4,dum5,dum6,f1pr35)
                 else
                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi, 2,dum1,dum4,dum5,dum6,dum7,f1pr02)
                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi, 3,dum1,dum4,dum5,dum6,dum7,f1pr03)
@@ -2679,6 +2698,10 @@ END subroutine p3_init
                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,21,dum1,dum4,dum5,dum6,dum7,f1pr29)
                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,22,dum1,dum4,dum5,dum6,dum7,f1pr30)
                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,23,dum1,dum4,dum5,dum6,dum7,f1pr31)
+                  call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,24,dum1,dum4,dum5,dum6,dum7,f1pr32)
+                  call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,25,dum1,dum4,dum5,dum6,dum7,f1pr33)
+                  call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,26,dum1,dum4,dum5,dum6,dum7,f1pr34)
+                  call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,27,dum1,dum4,dum5,dum6,dum7,f1pr35)
                 endif
 
           ! ice-rain collection processes
@@ -2686,15 +2709,19 @@ END subroutine p3_init
                    if (.not. log_LiquidFrac) then
                       call access_lookup_table_coll_3mom(dumzz,dumjj,dumii,dumj,dumi,1,dum1,dum3,dum4,dum5,dum6,f1pr07)
                       call access_lookup_table_coll_3mom(dumzz,dumjj,dumii,dumj,dumi,2,dum1,dum3,dum4,dum5,dum6,f1pr08)
+                      call access_lookup_table_coll_3mom(dumzz,dumjj,dumii,dumj,dumi,3,dum1,dum3,dum4,dum5,dum6,f1pr36)
                    else
                       call access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,1,dum1,dum3,dum4,dum5,dum6, &
                            dum7,f1pr07)
                       call access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,2,dum1,dum3,dum4,dum5,dum6, &
                            dum7,f1pr08)
+                      call access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,3,dum1,dum3,dum4,dum5,dum6, &
+                           dum7,f1pr36)
                    endif
                 else
                    f1pr07 = -99. ! log space
                    f1pr08 = -99. ! log space
+                   f1pr36 = -99. ! log space
                 endif
 
              endif  !if log_3momentIce
@@ -2778,6 +2805,11 @@ END subroutine p3_init
            ! note: (SPF(k)-SPF_clr(k)) is SPF_cld(k)
              qrcol(iice) = 10.**(f1pr08+logn0r(i,k))*rho(i,k)*rhofaci(i,k)*eri*nitot(i,k,iice)*iSCF(k)*(SPF(k)-SPF_clr(k))
              nrcol(iice) = 10.**(f1pr07+logn0r(i,k))*rho(i,k)*rhofaci(i,k)*eri*nitot(i,k,iice)*iSCF(k)*(SPF(k)-SPF_clr(k))
+
+             if (log_3momentIce) then 
+                zqrcol(iice) = 10.**(f1pr36+logn0r(i,k))*rho(i,k)*rhofaci(i,k)*eri*nitot(i,k,iice)*iSCF(k)*(SPF(k)-SPF_clr(k))
+             endif
+
           endif
 
 !.......................
@@ -2810,6 +2842,8 @@ END subroutine p3_init
                 nccol(iice) = rhofaci(i,k)*f1pr04*nc(i,k)*eci*rho(i,k)*nitot(i,k,iice)*iSCF(k)
              ! source for rain number, assume 1 mm drops are shed
                 ncshdc(iice) = qcshd(iice)*1.923e+6
+             ! note: for full 3-moment, there is no impact of shedding on zitot when liquid fraction is off
+             !       because all cloud water collected is instantly shed (not affecting ice particles) 
              endif
              ! assume collected rain number is shed as 1 mm drops (original code)
              ! collection of rain above freezing does not impact total rain mass
@@ -2930,6 +2964,9 @@ END subroutine p3_init
 
           if (qitot(i,k,iice).ge.qsmall) then
              nislf(iice) = f1pr03*rho(i,k)*eii*Eii_fact(iice)*rhofaci(i,k)*nitot(i,k,iice)*nitot(i,k,iice)*iSCF(k)
+             if (log_3momentIce) then
+                zislf(iice) = f1pr34*rho(i,k)*eii*Eii_fact(iice)*rhofaci(i,k)*nitot(i,k,iice)*nitot(i,k,iice)*iSCF(k)
+             endif
           endif
 
 
@@ -2961,6 +2998,12 @@ END subroutine p3_init
                  qimlt(iice) = qimlt(iice)*ratio
              endif
              nimlt(iice) = qrmlt(iice)*(nitot(i,k,iice)/(qitot(i,k,iice)-qiliq(i,k,iice)))
+             if (log_3momentIce) then
+                zimlt(iice) = ((f1pr32+f1pr33*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*((t(i,k)-   &
+                            273.15)*kap-rho(i,k)*xxlv(i,k)*dv*(qsat0-Qv_cld(k)))*2.*pi/xlf(i,k)+   &
+                            dum)*nitot(i,k,iice)
+                zimlt(iice) = max(zimlt(iice),0.)
+             endif
           endif
        else
           if (qitot(i,k,iice).ge.qsmall .and. t(i,k).gt.273.15) then
@@ -2977,6 +3020,12 @@ END subroutine p3_init
                           dum)*nitot(i,k,iice)
              qrmlt(iice) = max(qrmlt(iice),0.)
              nimlt(iice) = qrmlt(iice)*(nitot(i,k,iice)/qitot(i,k,iice))
+             if (log_3momentIce) then
+                zimlt(iice) = ((f1pr30+f1pr31*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*((t(i,k)-   &
+                             273.15)*kap-rho(i,k)*xxlv(i,k)*dv*(qsat0-Qv_cld(k)))*2.*pi/xlf(i,k)+   &
+                             dum)*nitot(i,k,iice)
+                zimlt(iice) = max(zimlt(iice),0.)
+             endif
           endif
        endif
 
@@ -2996,10 +3045,14 @@ END subroutine p3_init
 
           if (log_LiquidFrac) then
               ! Densification from wet growth turn off as it is now contained into qiliq
-              ! log_wetgrowth(iice) = .false.
+              ! log_wetgrowth(iice) = .false. ! set to false at beginning of subroutine
+              ! NOTE: change variable name from log_wetgrowth to log_densify
               dum = max(0.,(qccol(iice)+qrcol(iice))-qwgrth(iice))
               if (dum.ge.1.e-10) then
-                 qwgrth1(iice)  = qrcol(iice)+qccol(iice)
+              !   qwgrth1(iice)  = qrcol(iice)+qccol(iice) ! not used anymore
+                 ! note: For full 3-moment ice, do not adjust zqccol and zqrcol from wet growth
+                 !       because both ice riming and retention of liquid increase in zitot.
+                 !       The difference in density between rime and collected liquid is neglected for zitot. 
                  qwgrth1c(iice) = qccol(iice)
                  qwgrth1r(iice) = qrcol(iice)
                  qrcol(iice)    = 0.
@@ -3015,6 +3068,11 @@ END subroutine p3_init
                    qcshd(iice) = qcshd(iice) + dum*qccol(iice)*dum1
                    qccol(iice) = qccol(iice) - dum*qccol(iice)*dum1
                    qrcol(iice) = qrcol(iice) - dum*qrcol(iice)*dum1
+                  ! adjust zqccol and zqrcol to account for wet growth and resulting shedding of collected liquid
+                   if (log_3momentIce) then
+                      zqccol(iice) = zqccol(iice) - dum*zqccol(iice)*dum1
+                      zqrcol(iice) = zqrcol(iice) - dum*zqrcol(iice)*dum1
+                   endif
                endif
              ! densify due to wet growth
                log_wetgrowth(iice) = .true.
@@ -3102,6 +3160,9 @@ END subroutine p3_init
              qlshd(iice) = tmp1*f1pr28*nitot(i,k,iice)*qiliq(i,k,iice)/qitot(i,k,iice)
              qlshd(iice) = min(max(0.,qlshd(iice)),qiliq(i,k,iice)*odt)
              nlshd(iice) = qlshd(iice)*1.928e+6
+             if (log_3momentIce) then
+                zishd(iice) = tmp1*f1pr35*nitot(i,k,iice)*qiliq(i,k,iice)/qitot(i,k,iice)
+             endif
           endif
        endif
 
@@ -3300,7 +3361,9 @@ END subroutine p3_init
                    !rime splintering from riming of rain:
                    dum1 = 35.e+4*qrcol(iice)*dum*1000.  ! 1000 is to convert kg to g
                    dum2 = dum1*piov6*900.*Dinit_HM**3
+                   dum3 = (qrcol(iice)-dum2)/qrcol(iice)
                    qrcol(iice) = qrcol(iice) - dum2     ! subtract splintering from rime mass transfer
+                   zqrcol(iice) = dum3*zqrcol(iice)
                    if (qrcol(iice) .lt. 0.) then
                       dum2 = qrcol(iice) + dum2
                       qrcol(iice) = 0.
@@ -4028,7 +4091,7 @@ END subroutine p3_init
 
       update_refl_processes: if (log_3momentIce) then
 
-       iice_loop_z1: do iice = 1,nCat
+!       iice_loop_z1: do iice = 1,nCat
 
        !----  Group 1 process rates (assume mu_i does not change)
        !
@@ -4044,61 +4107,59 @@ END subroutine p3_init
 !                                            qwgrth1r(iice)+qwgrth1c(iice)+                 &
 !                                            qrcoll(iice)+qccoll(iice) )*dt
 
-          dumm3(iice) = qitot(i,k,iice) + ( qrcol(iice)+           &
-                                            qrmul(iice)-qrmlt(iice)-           &
-                                            qlshd(iice)+           &
-                                            qwgrth1r(iice)+qwgrth1c(iice)+                 &
-                                            qrcoll(iice) )*dt
+!          dumm3(iice) = qitot(i,k,iice) + ( qrcol(iice)+           &
+!                                            qrmul(iice)-           &
+!                                            qlshd(iice)+           &
+!                                            qwgrth1r(iice)+qwgrth1c(iice)+                 &
+!                                            qrcoll(iice) )*dt
 
 ! full 3-moment, remove processes below that are now in group 3
         ! NOTE: must add nicol in line below for combining 3-moment with multi-cat P3
 !          dumm0(iice) = nitot(i,k,iice) + (-nimlt(iice)-nisub(iice)-      &
 !                                          nislf(iice)+nimul(iice)-        &
 !                                          nlevp(iice))*dt
-          dumm0(iice) = nitot(i,k,iice) + (-nimlt(iice)-      &
-                                          nislf(iice)+nimul(iice))*dt
 
-       enddo iice_loop_z1
+!       enddo iice_loop_z1
        !====
        iice_loop_z2: do iice = 1,nCat
 
          !update further due to category interactions:
-          do catcoll = 1,nCat
+!          do catcoll = 1,nCat
              !Note: qicol = 0 if iice=catcoll, optimised to not insert an if (catcoll.ne.iice)
-             dumm3(catcoll) = dumm3(catcoll) - qicol(catcoll,iice)*dt
-             dumm3(iice)    = dumm3(iice)    + qicol(catcoll,iice)*dt
-             dumm0(catcoll) = dumm0(catcoll) - nicol(catcoll,iice)*dt
-          enddo ! catcoll loop
+!             dumm3(catcoll) = dumm3(catcoll) - qicol(catcoll,iice)*dt
+!             dumm3(iice)    = dumm3(iice)    + qicol(catcoll,iice)*dt
+!             dumm0(catcoll) = dumm0(catcoll) - nicol(catcoll,iice)*dt
+!          enddo ! catcoll loop
 
-          if (dumm3(iice).ge.qsmall) then
+!          if (dumm3(iice).ge.qsmall) then
 
             !estimate moment3 from updated qitot (dum2).
-             if (qitot(i,k,iice).ge.qsmall) then
+!             if (qitot(i,k,iice).ge.qsmall) then
                !need to use mean ice density (f1pr16) from beginning of step, since the updated value is not available
-                dumm3(iice) = 6./(f1pr16*pi)*dumm3(iice)
-             else
+!                dumm3(iice) = 6./(f1pr16*pi)*dumm3(iice)
+!             else
                !if there is no existing ice, assume an ice density of 900 kg m-3
-                dumm3(iice) = 6./(900.*pi)*dumm3(iice)
-             endif
+!                dumm3(iice) = 6./(900.*pi)*dumm3(iice)
+!             endif
 
-            zitot(i,k,iice) = max(zitot(i,k,iice),zsmall)
+!            zitot(i,k,iice) = max(zitot(i,k,iice),zsmall)
             !solve or assign for mu_i (to be used to compute updated zitot)
-            if (qitot(i,k,iice).ge.qsmall) then
+!            if (qitot(i,k,iice).ge.qsmall) then
                !solve for mu_i from values of mom0,mom3,mom6 at beginning of time step
-                dum1 =  6./(f1pr16*pi)*qitot(i,k,iice)  !estimate of moment3
-                mu_i = compute_mu_3moment(nitot(i,k,iice),dum1,zitot(i,k,iice),mu_i_max)
+!                dum1 =  6./(f1pr16*pi)*qitot(i,k,iice)  !estimate of moment3
+!                mu_i = compute_mu_3moment(nitot(i,k,iice),dum1,zitot(i,k,iice),mu_i_max)
                 !mu_i = min(compute_mu_3moment(nitot(i,k,iice),dum1,zitot(i,k,iice),mu_i_max),mu_i_max)
-             else
+!             else
                !no ice present, therefore assign an initial value
-                mu_i = mu_i_initial
-             endif
+!                mu_i = mu_i_initial
+!             endif
 
             !compute zitot as a function of (old) mu_i and the "updated" moment_0 (dumm0) and moment_3 (dumm3)
-             zitot(i,k,iice) = G_of_mu(mu_i)*dumm3(iice)**2/max(dumm0(iice),nsmall)
+!             zitot(i,k,iice) = G_of_mu(mu_i)*dumm3(iice)**2/max(dumm0(iice),nsmall)
 
-          else
-             zitot(i,k,iice) = 0.
-          endif
+!          else
+!             zitot(i,k,iice) = 0.
+!          endif
 
        !====
 
@@ -4129,6 +4190,14 @@ END subroutine p3_init
              zitot(i,k,iice) = zitot(i,k,iice) + G_of_mu(mu_i_new)*tmp1**2/tmp2*dt
           endif
 
+        !proceses of ice multiplication
+          tmp2 = nimul(iice)                                   !moment_0 tendency
+          if (tmp2.ge.qsmall) then
+             tmp1 = qrmul(iice)*6./(900.*pi)                   !estimate of moment_3 tendency
+             mu_i_new = mu_i_initial                           !estimated assigned value
+             zitot(i,k,iice) = zitot(i,k,iice) + G_of_mu(mu_i_new)*tmp1**2/tmp2*dt
+          endif
+
        !====
 
        !----  Group 3 -- processes that we know how to do formally
@@ -4137,13 +4206,11 @@ END subroutine p3_init
 
 ! the future is now
 
-          zitot(i,k,iice) = zitot(i,k,iice) + (zqccol(iice)+zidep(iice)-zisub(iice))*dt
+! goto 589
 
- goto 589
+!          if (zqrcol(iice).gt.0.) then
 
-          dumm3(iice)=qitot(i,k,iice)
-
-          if (dumm3(iice).ge.qsmall) then
+          if (qitot(i,k,iice).ge.qsmall) then
 !                dum1z =  6./(f1pr16*pi)*dumm3(iice)  !estimate of moment3, as starting point use 200 kg m-3 estimate of bulk density
                 ! Same comment as before w.r.t scpf_on. Since mu_i is a function of G = M0*M6/M3^2, the multiplication by *iSCF
                 ! is on both the num and the denom and therefore cancel each other.
@@ -4153,40 +4220,48 @@ END subroutine p3_init
 
                     !impose limiter on zitot to make sure mu_i is in bounds                                                                                 
 
-                      dum1 = 6./(f1pr16*pi)*dumm3(iice)
+                      dum1 = 6./(f1pr16*pi)*qitot(i,k,iice)
                       tmp1 = G_of_mu(0.)
                       tmp2 = G_of_mu(20.)
                       zitot(i,k,iice) = min(zitot(i,k,iice),tmp1*dum1**2/nitot(i,k,iice))
                       zitot(i,k,iice) = max(zitot(i,k,iice),tmp2*dum1**2/nitot(i,k,iice))
  
-                dum1z =  6./(f1pr16*pi)*dumm3(iice)
+                dum1z =  6./(f1pr16*pi)*qitot(i,k,iice)
                 mu_i = compute_mu_3moment(nitot(i,k,iice),dum1z,zitot(i,k,iice),mu_i_max)
 
 
-          print*,'mu_i before',mu_i,zitot(i,k,iice)
+                print*,'mu_i',k,mu_i
+
+!          print*,'mu_i before',mu_i,zitot(i,k,iice)
           
-          write(6,'(a10,i5,3e15.5)')'z rates      ',k,zitot(i,k,iice),zqccol(iice)
-          print*,'q rate',qitot(i,k,iice),qccol(iice)
+!          write(6,'(a10,i5,3e15.5)')'z rates      ',k,zitot(i,k,iice),zqrcol(iice)
+!          print*,'q rate',qitot(i,k,iice),qrcol(iice)
+!          print*,'n rate',nitot(i,k,iice)!,nislf(iice)
 
-!          zitot(i,k,iice) = zitot(i,k,iice) + (zqccol(iice)+zidep(iice)-zisub(iice))*dt
-!          zitot(i,k,iice) = zitot(i,k,iice) + (zidep(iice))*dt
-          zitot(i,k,iice) = zitot(i,k,iice) + (zqccol(iice))*dt
+!          zitot(i,k,iice) = zitot(i,k,iice) + (zqrcol(iice))*dt
 
-          dumm3(iice)=qitot(i,k,iice)-qccol(iice)*dt
-          dumm0(iice)=nitot(i,k,iice)!-nisub(iice)*dt
+!          dumm3(iice)=qitot(i,k,iice)+qrcol(iice)*dt
+!          dumm0(iice)=nitot(i,k,iice)!-nislf(iice)*dt
 
-          dum1z =  6./(f1pr16*pi)*dumm3(iice)  !estimate of moment3, as starting point use 200 kg m-3 estimate of bulk density           
+!          dum1z =  6./(f1pr16*pi)*dumm3(iice)  !estimate of moment3, as starting point use 200 kg m-3 estimate of bulk density           
                 ! Same comment as before w.r.t scpf_on. Since mu_i is a function of G = M0*M6/M3^2, the multiplication by *iSCF                  
                 ! is on both the num and the denom and therefore cancel each other.                                                              
                 ! Note (OPT): this can be done differently with error computation                                                                
 
-           mu_i = compute_mu_3moment(dumm0(iice),dum1z,zitot(i,k,iice),mu_i_max)
+!           mu_i = compute_mu_3moment(dumm0(iice),dum1z,zitot(i,k,iice),mu_i_max)
 
-          print*,'mu_i after',mu_i,zitot(i,k,iice)
+!          print*,'mu_i after',mu_i,zitot(i,k,iice)
+
+!          zitot(i,k,iice) = zitot(i,k,iice) - (zqrcol(iice))*dt
 
           endif
 
+!          endif ! q rate > 0
+
  589    continue
+
+          zitot(i,k,iice) = zitot(i,k,iice) + (zqccol(iice)+zidep(iice)-zisub(iice)-zimlt(iice) &
+                               +zislf(iice)-zishd(iice)+zqrcol(iice))*dt
 
        end do iice_loop_z2
 
