@@ -13,7 +13,7 @@ PROGRAM create_p3_lookuptable_1
 ! All other parameter settings are linked uniquely to the version number.
 !
 !--------------------------------------------------------------------------------------
-! Version:       6.5b5
+! Version:       6.5b6
 ! Last modified: 2023-Oct
 ! Version: including the liquid fraction (inner-loop i_Fl)
 !______________________________________________________________________________________
@@ -144,7 +144,7 @@ PROGRAM create_p3_lookuptable_1
  implicit none
 
  !-----
- character(len=20), parameter :: version   = '6.5b5'
+ character(len=20), parameter :: version   = '6.5b6'
  logical, parameter           :: log_3momI = .true.    !switch to create table for 2momI (.false.) or 3momI (.true.)
  !-----
 
@@ -1503,8 +1503,8 @@ hostinclusionstring_m = 'spheroidal'
 
              if (d1.ge.100.e-6) then
                 sum1 = sum1 + area*fall1(jj)*n0*d1**mu_i*exp(-lam*d1)*dd
-! dM6/dt = int((6+mu)*D^(5+mu)*dD/dt*n0*D^mu*exp(-lam*D)*dD)
-                sum2 = sum2 + (6.+mu_i)*d1**5*area*fall1(jj)*n0*d1**mu_i*exp(-lam*d1)*dd/dmdD
+! dM6/dt = int(6*D^5*dD/dt*D^(mu)*n0*D^mu*exp(-lam*D)*dD)
+                sum2 = sum2 + 6.*d1**5*area*fall1(jj)*n0*d1**mu_i*exp(-lam*d1)*dd/dmdD
 ! M_bb moment
                 sum4 = sum4 + d1**bb*n0*d1**mu_i*exp(-lam*d1)*dd
              endif
@@ -1876,8 +1876,8 @@ hostinclusionstring_m = 'spheroidal'
                 sum1 = sum1+capm*fac1*n0d*d1**(mu_id)*exp(-lamd*d1)*dd
                 sum2 = sum2+capm*fac2*n0d*d1**(mu_id)*exp(-lamd*d1)*dd
                 ! M6 rates
-                sum5 = sum5+capm*(6.+mu_i)*d1**5*fac1*n0d*d1**(mu_id)*exp(-lamd*d1)*dd/dmdD
-                sum6 = sum6+capm*(6.+mu_i)*d1**5*fac2*n0d*d1**(mu_id)*exp(-lamd*d1)*dd/dmdD
+                sum5 = sum5+capm*6.*d1**5*fac1*n0d*d1**(mu_id)*exp(-lamd*d1)*dd/dmdD
+                sum6 = sum6+capm*6.*d1**5*fac2*n0d*d1**(mu_id)*exp(-lamd*d1)*dd/dmdD
                 !sum3 = sum3+0.
                 !sum4 = sum4+0.
              else
@@ -1887,8 +1887,8 @@ hostinclusionstring_m = 'spheroidal'
                 sum3 = sum3+capm*fac1*n0d*d1**(mu_id)*exp(-lamd*d1)*dd
                 sum4 = sum4+capm*fac2*n0d*d1**(mu_id)*exp(-lamd*d1)*dd
                 ! M6 rates
-                !sum7 = sum7+capm*(6.+mu_i)*d1**5*fac1*n0d*d1**(mu_id)*exp(-lamd*d1)*dd/dmdD
-                !sum8 = sum8+capm*(6.+mu_i)*d1**5*fac2*n0d*d1**(mu_id)*exp(-lamd*d1)*dd/dmdD
+                !sum7 = sum7+capm*6.*d1**5*fac1*n0d*d1**(mu_id)*exp(-lamd*d1)*dd/dmdD
+                !sum8 = sum8+capm*6.*d1**5*fac2*n0d*d1**(mu_id)*exp(-lamd*d1)*dd/dmdD
              endif
 
           enddo jj_loop_6
@@ -1982,13 +1982,13 @@ hostinclusionstring_m = 'spheroidal'
              
              if (d1.lt.100.e-6) then
                 sum1 = sum1+capm*n0*d1**(mu_i)*exp(-lam*d1)*dd
-                sum3 = sum3 + (6.+mu_i)*d1**5*capm*n0*d1**(mu_i)*exp(-lam*d1)*dd/dmdD
+                sum3 = sum3 + 6.*d1**5*capm*n0*d1**(mu_i)*exp(-lam*d1)*dd/dmdD
              else
                !sum1 = sum1+capm*n0*(0.65+0.44*dum)*d1**(mu_i)*exp(-lam*d1)*dd
                 sum1 = sum1+capm*n0*0.65*d1**(mu_i)*exp(-lam*d1)*dd
                 sum2 = sum2+capm*n0*0.44*dum*d1**(mu_i)*exp(-lam*d1)*dd
-                sum3 = sum3 + 0.65*(6.+mu_i)*d1**5*capm*n0*d1**(mu_i)*exp(-lam*d1)*dd/dmdD
-                sum4 = sum4 + 0.44*dum*(6.+mu_i)*d1**5*capm*n0*d1**(mu_i)*exp(-lam*d1)*dd/dmdD
+                sum3 = sum3 + 0.65*6.*d1**5*capm*n0*d1**(mu_i)*exp(-lam*d1)*dd/dmdD
+                sum4 = sum4 + 0.44*dum*6.*d1**5*capm*n0*d1**(mu_i)*exp(-lam*d1)*dd/dmdD
              endif
 
           enddo jj_loop_7
