@@ -25,7 +25,7 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.3.3+full3mv5                                                            !
+! Version:       5.3.3+full3mv6                                                            !
 ! Last updated:  2023 Oct                                                                  !
 !__________________________________________________________________________________________!
 
@@ -147,7 +147,7 @@
  logical, save                  :: is_init = .false.
  character(len=1024), parameter :: version_p3                    = '5.3.3+full3mv1'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.4-2momI'
- character(len=1024), parameter :: version_intended_table_1_3mom = '6.5b5-3momI'
+ character(len=1024), parameter :: version_intended_table_1_3mom = '6.5b6-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.0'
 
  character(len=1024)            :: version_header_table_1_2mom
@@ -2124,6 +2124,10 @@ END subroutine p3_init
 
  integer, parameter :: niter_satadj = 5 ! number of iterations for saturation adj. (testing only)
 
+! mu analysis for full 3-moment
+ real :: dmudt
+ real :: murate1,murate2,murate3,murate4,murate5,murate6
+
 !-----------------------------------------------------------------------------------!
 !  End of variables/parameters declarations
 !-----------------------------------------------------------------------------------!
@@ -2822,17 +2826,18 @@ END subroutine p3_init
              if (qitot(i,k,iice).ge.qsmall .and. qc(i,k).ge.qsmall .and. t(i,k).gt.273.15) then
                 qccoll(iice) = rhofaci(i,k)*f1pr04*qc(i,k)*eci*rho(i,k)*nitot(i,k,iice)*iSCF(k)
                 nccoll(iice) = rhofaci(i,k)*f1pr04*nc(i,k)*eci*rho(i,k)*nitot(i,k,iice)*iSCF(k)
-
                 if(log_3momentIce) then
                    zqccol(iice) = rhofaci(i,k)*f1pr29*qc(i,k)*eci*rho(i,k)*nitot(i,k,iice)*iSCF(k)
                 endif
-
              endif
              ! assume collected rain by qiliq
              if (qitot(i,k,iice).ge.qsmall .and. qr(i,k).ge.qsmall .and. t(i,k).gt.273.15) then
              ! note: f1pr08 and logn0r are already calculated as log_10
                  qrcoll(iice) = 10.**(f1pr08+logn0r(i,k))*rho(i,k)*rhofaci(i,k)*eri*nitot(i,k,iice)*iSCF(k)*(SPF(k)-SPF_clr(k))
                  nrcoll(iice) = 10.**(f1pr07+logn0r(i,k))*rho(i,k)*rhofaci(i,k)*eri*nitot(i,k,iice)*iSCF(k)*(SPF(k)-SPF_clr(k))
+             if (log_3momentIce) then
+                 zqrcol(iice) = 10.**(f1pr36+logn0r(i,k))*rho(i,k)*rhofaci(i,k)*eri*nitot(i,k,iice)*iSCF(k)*(SPF(k)-SPF_clr(k))
+             endif
              endif
           else
           ! assume cloud water is collected and shed as rain drops (original code)
@@ -4220,17 +4225,10 @@ END subroutine p3_init
 
                     !impose limiter on zitot to make sure mu_i is in bounds                                                                                 
 
-                      dum1 = 6./(f1pr16*pi)*qitot(i,k,iice)
-                      tmp1 = G_of_mu(0.)
-                      tmp2 = G_of_mu(20.)
-                      zitot(i,k,iice) = min(zitot(i,k,iice),tmp1*dum1**2/nitot(i,k,iice))
-                      zitot(i,k,iice) = max(zitot(i,k,iice),tmp2*dum1**2/nitot(i,k,iice))
- 
                 dum1z =  6./(f1pr16*pi)*qitot(i,k,iice)
                 mu_i = compute_mu_3moment(nitot(i,k,iice),dum1z,zitot(i,k,iice),mu_i_max)
 
-
-                print*,'mu_i',k,mu_i
+!                print*,'mu_i',k,mu_i
 
 !          print*,'mu_i before',mu_i,zitot(i,k,iice)
           
@@ -4259,6 +4257,72 @@ END subroutine p3_init
 !          endif ! q rate > 0
 
  589    continue
+
+          if (qitot(i,k,iice).ge.qsmall) then
+
+! qccol
+             dum1=0. ! nitend
+             dum2=qccol(iice)+qwgrth1c(iice)
+             dum3=zqccol(iice)
+             call calculate_mu_change(nitot(i,k,iice),qitot(i,k,iice),zitot(i,k,iice),   &
+                dum1,dum2,dum3,f1pr16,dmudt,dt)
+             diag_3d(i,k,3)=dmudt
+             murate1=dmudt
+! zidep
+             dum1=0.
+             dum2=qidep(iice)+qlcon(iice)
+             dum3=zidep(iice)
+             call calculate_mu_change(nitot(i,k,iice),qitot(i,k,iice),zitot(i,k,iice),   &
+                dum1,dum2,dum3,f1pr16,dmudt,dt)
+             diag_3d(i,k,4)=dmudt
+             murate2=dmudt
+! zisub
+             dum1=-nisub(iice)-nlevp(iice)
+             dum2=-qisub(iice)-qlevp(iice)
+             dum3=-zisub(iice)
+             call calculate_mu_change(nitot(i,k,iice),qitot(i,k,iice),zitot(i,k,iice),   &
+                dum1,dum2,dum3,f1pr16,dmudt,dt)
+             diag_3d(i,k,5)=dmudt
+             murate3=dmudt
+! zimlt
+             dum1=-nimlt(iice)
+             dum2=-qrmlt(iice)
+             dum3=-zimlt(iice)
+             call calculate_mu_change(nitot(i,k,iice),qitot(i,k,iice),zitot(i,k,iice),   &
+                dum1,dum2,dum3,f1pr16,dmudt,dt)
+             diag_3d(i,k,6)=dmudt
+             murate4=dmudt
+! zislf
+             dum1=-nislf(iice)
+             dum2=0.
+             dum3=zislf(iice)
+             call calculate_mu_change(nitot(i,k,iice),qitot(i,k,iice),zitot(i,k,iice),   &
+                dum1,dum2,dum3,f1pr16,dmudt,dt)
+             diag_3d(i,k,7)=dmudt
+             murate5=dmudt
+! zishd
+             dum1=0.
+             dum2=-qlshd(iice)
+             dum3=-zishd(iice)
+             call calculate_mu_change(nitot(i,k,iice),qitot(i,k,iice),zitot(i,k,iice),   &
+                dum1,dum2,dum3,f1pr16,dmudt,dt)
+             diag_3d(i,k,8)=dmudt
+             murate5=dmudt
+! zqrcol
+             dum1=0.
+             dum2=qrcol(iice)+qwgrth1r(iice)
+             dum3=zqrcol(iice)
+             call calculate_mu_change(nitot(i,k,iice),qitot(i,k,iice),zitot(i,k,iice),   &
+                dum1,dum2,dum3,f1pr16,dmudt,dt)
+             diag_3d(i,k,9)=dmudt
+             murate6=dmudt
+
+          write(6,'(i5,12e15.5)')k,qc(i,k),qr(i,k),qitot(i,k,iice),mu_i,diag_3d(i,k,3),diag_3d(i,k,4),diag_3d(i,k,5),diag_3d(i,k,6), &
+               diag_3d(i,k,7),diag_3d(i,k,8),diag_3d(i,k,9),qrmlt(iice)
+
+!          write(6,'(i5,8e15.5)')k,murate1,murate2,murate3,murate4,murate5,murate6
+
+          endif
 
           zitot(i,k,iice) = zitot(i,k,iice) + (zqccol(iice)+zidep(iice)-zisub(iice)-zimlt(iice) &
                                +zislf(iice)-zishd(iice)+zqrcol(iice))*dt
@@ -11969,6 +12033,29 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
   end function p3_iwc
 
 #endif
+
+ subroutine calculate_mu_change(nidum,qidum,zidum,nitend,qitend,zitend,den,dmudt,dt)
+   
+   real :: dum3mom,mu_old,mu_new
+   real :: ninew,qinew,zinew
+   real, intent(in) :: nidum,qidum,zidum,den,dt
+   real, intent(inout) :: dmudt
+   real :: nitend,qitend,zitend
+
+      dum3mom =  6./(den*pi)*qidum
+      mu_old = compute_mu_3moment(nidum,dum3mom,zidum,mu_i_max)
+
+     ! update with process rate
+      ninew=nidum+nitend*dt
+      qinew=qidum+qitend*dt
+      zinew=zidum+zitend*dt
+
+      dum3mom =  6./(den*pi)*qinew
+      mu_new = compute_mu_3moment(ninew,dum3mom,zinew,mu_i_max)
+
+      dmudt=(mu_new-mu_old)/dt
+
+ end subroutine calculate_mu_change
 
 !======================================================================================!
  END MODULE microphy_p3
