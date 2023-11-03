@@ -25,7 +25,7 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.3.3+full3mv6                                                            !
+! Version:       5.3.3+full3mv11                                                           !
 ! Last updated:  2023 Oct                                                                  !
 !__________________________________________________________________________________________!
 
@@ -59,7 +59,7 @@
  integer, parameter :: liqsize      =  4
  integer, parameter :: rcollsize    = 30
  integer, parameter :: tabsize      = 19  ! number of quantities used from lookup table
- integer, parameter :: tabsize_3mom = 27  ! number of quantities used from 3-mom lookup table
+ integer, parameter :: tabsize_3mom = 29  ! number of quantities used from 3-mom lookup table
  integer, parameter :: colltabsize  =  2  ! number of ice-rain collection  quantities used from lookup table
  integer, parameter :: colltabsize_3mom  =  3  ! number of ice-rain collection  quantities used from 3-mom lookup table
  integer, parameter :: collitabsize =  2  ! number of ice-ice collection  quantities used from lookup table
@@ -147,7 +147,7 @@
  logical, save                  :: is_init = .false.
  character(len=1024), parameter :: version_p3                    = '5.3.3+full3mv1'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.4-2momI'
- character(len=1024), parameter :: version_intended_table_1_3mom = '6.5b6-3momI'
+ character(len=1024), parameter :: version_intended_table_1_3mom = '6.5b10-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.0'
 
  character(len=1024)            :: version_header_table_1_2mom
@@ -482,7 +482,7 @@
                      itab_3mom(zz,jj,ii,ll,i,18),itab_3mom(zz,jj,ii,ll,i,19),itab_3mom(zz,jj,ii,ll,i,20),     &
                      itab_3mom(zz,jj,ii,ll,i,21),itab_3mom(zz,jj,ii,ll,i,22),itab_3mom(zz,jj,ii,ll,i,23),     &
                      itab_3mom(zz,jj,ii,ll,i,24),itab_3mom(zz,jj,ii,ll,i,25),itab_3mom(zz,jj,ii,ll,i,26),     &
-                     itab_3mom(zz,jj,ii,ll,i,27)
+                     itab_3mom(zz,jj,ii,ll,i,27),itab_3mom(zz,jj,ii,ll,i,28),itab_3mom(zz,jj,ii,ll,i,29)
                enddo
           !read in table for ice-rain collection
               do i = 1,isize
@@ -2096,9 +2096,11 @@ END subroutine p3_init
  real    :: f1pr34   ! zi tendency self-collection
  real    :: f1pr35   ! zi tendency shedding
  real    :: f1pr36   ! zi tendency ice-rain collection
+ real    :: f1pr37   ! zi tendency sublimation term 1
+ real    :: f1pr38   ! zi tendency sublimation term 1
 
 ! for full 3-moment
- real, dimension(nCat) :: epsiz
+ real, dimension(nCat) :: epsiz,epsizsb
 
 ! quantities related to diagnostic hydrometeor/precipitation types
  real,    parameter                       :: freq3DtypeDiag     =  5.      !frequency (min) for full-column diagnostics
@@ -2127,6 +2129,12 @@ END subroutine p3_init
 ! mu analysis for full 3-moment
  real :: dmudt
  real :: murate1,murate2,murate3,murate4,murate5,murate6
+ real :: dumni,dumqi,dumzi,dumqr,dumbi,dumql,dumden,dumnitend,dumqitend,dumzitend
+ real :: G_new
+ integer :: iana
+ real :: dummu_i,G_rate_tot,gfactor,ziold 
+ real, dimension(kts:kte) :: mu_i_old,mutend1,mutend2,mutend3,mutend4,mutend5,mutend0,mu_i_old2,mutend6
+ logical :: log_muDiagnostics
 
 !-----------------------------------------------------------------------------------!
 !  End of variables/parameters declarations
@@ -2266,6 +2274,24 @@ END subroutine p3_init
  t_old   = th_old*tmparr1    !compute temperature from theta (value at beginning of model time step)
  qv      = max(qv,0.)        !clip water vapor to prevent negative values passed in (beginning of microphysics)
 !==
+
+! initialize mu diagnostics (only at first time step)
+
+ log_muDiagnostics = .true.
+
+ if (log_muDiagnostics) then
+ if (it.eq.1) then
+    mu_i_old=0.
+    mu_i_old2=0.
+ endif
+ mutend0=0.
+ mutend1=0.
+ mutend2=0.
+ mutend3=0.
+ mutend4=0.
+ mutend5=0.
+ mutend6=0.
+ endif
 
 !log_hmossopOn  = (nCat.gt.1)      !default: off for nCat=1, off for nCat>1
 !log_hmossopOn  = .true.           !switch to have Hallet-Mossop ON
@@ -2605,6 +2631,11 @@ END subroutine p3_init
                         rimsize,liqsize,densize,qitot(i,k,iice),nitot(i,k,iice),qirim(i,k,iice),        &
                         qiliq(i,k,iice),rhop)
 
+!             print*,'qr,ql',qirim(i,k,iice),qiliq(i,k,iice)
+!             print*,'indices'
+!             print*,dumi,dumii,dumll,dumjj
+!             print*,'&&&&&&'
+
              call find_lookupTable_indices_1b(dumj,dum3,rcollsize,qr(i,k),nr(i,k))
 
              if (.not. log_3momentIce) then
@@ -2668,6 +2699,10 @@ END subroutine p3_init
                    dum1z =  6./(f1pr16*pi)*qitot(i,k,iice)  !estimate of moment3
                 enddo
 
+                mu_i = compute_mu_3moment(nitot(i,k,iice),dum1z,zitot(i,k,iice),mu_i_max)
+
+!                print*,'dumzz',dumzz,mu_i
+
              ! call to lookup table interpolation subroutines to get process rates
                if (.not. log_LiquidFrac) then
                   call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 2,dum1,dum4,dum5,dum6,f1pr02)
@@ -2685,6 +2720,8 @@ END subroutine p3_init
                   call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,25,dum1,dum4,dum5,dum6,f1pr33)
                   call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,26,dum1,dum4,dum5,dum6,f1pr34)
                   call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,27,dum1,dum4,dum5,dum6,f1pr35)
+                  call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,28,dum1,dum4,dum5,dum6,f1pr37)
+                  call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,29,dum1,dum4,dum5,dum6,f1pr38)
                 else
                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi, 2,dum1,dum4,dum5,dum6,dum7,f1pr02)
                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi, 3,dum1,dum4,dum5,dum6,dum7,f1pr03)
@@ -2706,7 +2743,17 @@ END subroutine p3_init
                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,25,dum1,dum4,dum5,dum6,dum7,f1pr33)
                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,26,dum1,dum4,dum5,dum6,dum7,f1pr34)
                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,27,dum1,dum4,dum5,dum6,dum7,f1pr35)
+                  call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,28,dum1,dum4,dum5,dum6,dum7,f1pr37)
+                  call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,29,dum1,dum4,dum5,dum6,dum7,f1pr38)
                 endif
+
+!                print*,'f1pr30,f1pr31',f1pr30,f1pr31
+!                print*,'from table',itab_3mom(dumzz,dumjj,dumii,dumll,dumi,22)
+!                write(6,'(5i5)')dumzz,dumjj,dumii,dumll,dumi
+!                write(6,'(5e15.5)')dum1,dum4,dum5,dum6,dum7
+!                print*,'from table',itab_3mom(dumzz,dumjj,dumii+1,dumll,dumi,22)
+!                print*,'from table',itab_3mom(dumzz,dumjj+1,dumii,dumll,dumi,22)
+!                print*,'from table',itab_3mom(dumzz+1,dumjj,dumii,dumll,dumi,22)
 
           ! ice-rain collection processes
                 if (qr(i,k).ge.qsmall) then
@@ -2725,7 +2772,7 @@ END subroutine p3_init
                 else
                    f1pr07 = -99. ! log space
                    f1pr08 = -99. ! log space
-                   f1pr36 = -99. ! log space
+                   f1pr36 = 0.
                 endif
 
              endif  !if log_3momentIce
@@ -2748,6 +2795,37 @@ END subroutine p3_init
                 zitot(i,k,iice) = min(zitot(i,k,iice),tmp1*dum1**2/nitot(i,k,iice))
                 zitot(i,k,iice) = max(zitot(i,k,iice),tmp2*dum1**2/nitot(i,k,iice))
              endif
+
+!.......................
+! diagnose mu tendency from vertical transport and adjustment
+
+         if (log_muDiagnostics) then
+          if (qitot(i,k,iice).ge.qsmall) then
+
+             call calc_bulkRhoRime(qitot(i,k,iice),qirim(i,k,iice),qiliq(i,k,iice),birim(i,k,iice),rhop)
+
+             call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,dum7,isize,         &
+                        rimsize,liqsize,densize,qitot(i,k,iice),nitot(i,k,iice),qirim(i,k,iice),        &
+                        qiliq(i,k,iice),rhop)
+
+              dum1z =  6./(200.*pi)*qitot(i,k,iice)
+              do imu=1,niter_mui
+                 dummu_i = compute_mu_3moment(nitot(i,k,iice),dum1z,zitot(i,k,iice),mu_i_max)
+                 call find_lookupTable_indices_1c(dumzz,dum6,zsize,dummu_i)
+                 call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,dumden)
+                 dum1z =  6./(dumden*pi)*qitot(i,k,iice)
+              end do
+              dummu_i = compute_mu_3moment(nitot(i,k,iice),dum1z,zitot(i,k,iice),mu_i_max)
+
+              mu_i_old2(k)=mu_i_old(k)
+              mutend0(k) = (dummu_i-mu_i_old(k))/dt
+!              print*,k,mu_i_old(k),mu_i
+              mu_i_old(k)=dummu_i
+          else
+              mu_i_old(k)=0.
+          endif ! qitot > qsmall
+         endif
+!....................... 
 
           ! Determine additional collection efficiency factor to be applied to ice-ice collection.
           ! The computed values of qicol and nicol are multipiled by Eii_fact to gradually shut off collection
@@ -2797,7 +2875,7 @@ END subroutine p3_init
              nccol(iice) = rhofaci(i,k)*f1pr04*nc(i,k)*eci*rho(i,k)*nitot(i,k,iice)*iSCF(k)
              
              if (log_3momentIce) then
-                zqccol(iice) = rhofaci(i,k)*f1pr29*qc(i,k)*eci*rho(i,k)*nitot(i,k,iice)*iSCF(k)
+                zqccol(iice) = rhofaci(i,k)*f1pr29*qc(i,k)*eci*rho(i,k)*iSCF(k)
              endif
 
           endif
@@ -2811,7 +2889,7 @@ END subroutine p3_init
              nrcol(iice) = 10.**(f1pr07+logn0r(i,k))*rho(i,k)*rhofaci(i,k)*eri*nitot(i,k,iice)*iSCF(k)*(SPF(k)-SPF_clr(k))
 
              if (log_3momentIce) then 
-                zqrcol(iice) = 10.**(f1pr36+logn0r(i,k))*rho(i,k)*rhofaci(i,k)*eri*nitot(i,k,iice)*iSCF(k)*(SPF(k)-SPF_clr(k))
+                zqrcol(iice) = 10.**(logn0r(i,k))*f1pr36*rho(i,k)*rhofaci(i,k)*eri*iSCF(k)*(SPF(k)-SPF_clr(k))
              endif
 
           endif
@@ -2827,7 +2905,7 @@ END subroutine p3_init
                 qccoll(iice) = rhofaci(i,k)*f1pr04*qc(i,k)*eci*rho(i,k)*nitot(i,k,iice)*iSCF(k)
                 nccoll(iice) = rhofaci(i,k)*f1pr04*nc(i,k)*eci*rho(i,k)*nitot(i,k,iice)*iSCF(k)
                 if(log_3momentIce) then
-                   zqccol(iice) = rhofaci(i,k)*f1pr29*qc(i,k)*eci*rho(i,k)*nitot(i,k,iice)*iSCF(k)
+                   zqccol(iice) = rhofaci(i,k)*f1pr29*qc(i,k)*eci*rho(i,k)*iSCF(k)
                 endif
              endif
              ! assume collected rain by qiliq
@@ -2836,7 +2914,7 @@ END subroutine p3_init
                  qrcoll(iice) = 10.**(f1pr08+logn0r(i,k))*rho(i,k)*rhofaci(i,k)*eri*nitot(i,k,iice)*iSCF(k)*(SPF(k)-SPF_clr(k))
                  nrcoll(iice) = 10.**(f1pr07+logn0r(i,k))*rho(i,k)*rhofaci(i,k)*eri*nitot(i,k,iice)*iSCF(k)*(SPF(k)-SPF_clr(k))
              if (log_3momentIce) then
-                 zqrcol(iice) = 10.**(f1pr36+logn0r(i,k))*rho(i,k)*rhofaci(i,k)*eri*nitot(i,k,iice)*iSCF(k)*(SPF(k)-SPF_clr(k))
+                 zqrcol(iice) = 10.**(logn0r(i,k))*f1pr36*rho(i,k)*rhofaci(i,k)*eri*iSCF(k)*(SPF(k)-SPF_clr(k))
              endif
              endif
           else
@@ -2970,7 +3048,8 @@ END subroutine p3_init
           if (qitot(i,k,iice).ge.qsmall) then
              nislf(iice) = f1pr03*rho(i,k)*eii*Eii_fact(iice)*rhofaci(i,k)*nitot(i,k,iice)*nitot(i,k,iice)*iSCF(k)
              if (log_3momentIce) then
-                zislf(iice) = f1pr34*rho(i,k)*eii*Eii_fact(iice)*rhofaci(i,k)*nitot(i,k,iice)*nitot(i,k,iice)*iSCF(k)
+               ! NOTE: already correct sign from lookup table, thus not multiplied by -1
+                zislf(iice) = f1pr34*rho(i,k)*eii*Eii_fact(iice)*rhofaci(i,k)*nitot(i,k,iice)*iSCF(k)
              endif
           endif
 
@@ -3004,10 +3083,9 @@ END subroutine p3_init
              endif
              nimlt(iice) = qrmlt(iice)*(nitot(i,k,iice)/(qitot(i,k,iice)-qiliq(i,k,iice)))
              if (log_3momentIce) then
-                zimlt(iice) = ((f1pr32+f1pr33*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*((t(i,k)-   &
+                zimlt(iice) = -((f1pr24*f1pr32+f1pr25*f1pr33*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*((t(i,k)-   &
                             273.15)*kap-rho(i,k)*xxlv(i,k)*dv*(qsat0-Qv_cld(k)))*2.*pi/xlf(i,k)+   &
-                            dum)*nitot(i,k,iice)
-                zimlt(iice) = max(zimlt(iice),0.)
+                            dum)
              endif
           endif
        else
@@ -3026,10 +3104,9 @@ END subroutine p3_init
              qrmlt(iice) = max(qrmlt(iice),0.)
              nimlt(iice) = qrmlt(iice)*(nitot(i,k,iice)/qitot(i,k,iice))
              if (log_3momentIce) then
-                zimlt(iice) = ((f1pr30+f1pr31*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*((t(i,k)-   &
+                zimlt(iice) = -((f1pr05*f1pr30+f1pr14*f1pr31*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*((t(i,k)-   &
                              273.15)*kap-rho(i,k)*xxlv(i,k)*dv*(qsat0-Qv_cld(k)))*2.*pi/xlf(i,k)+   &
-                             dum)*nitot(i,k,iice)
-                zimlt(iice) = max(zimlt(iice),0.)
+                             dum)
              endif
           endif
        endif
@@ -3109,7 +3186,9 @@ END subroutine p3_init
 
              if (log_3momentIce) then
                 epsiz(iice) = ((f1pr30+f1pr31*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*2.*pi* &
-                              rho(i,k)*dv)*nitot(i,k,iice)
+                              rho(i,k)*dv)
+                epsizsb(iice) = ((f1pr37+f1pr38*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*2.*pi* &
+                              rho(i,k)*dv)
              endif
 
           else
@@ -3118,6 +3197,7 @@ END subroutine p3_init
              epsi_tot    = 0.
              epsiw_tot   = 0.
              epsiz(iice) = 0.
+             epsizsb(iice) = 0.
           endif
 
         else
@@ -3129,12 +3209,15 @@ END subroutine p3_init
 
              if (log_3momentIce) then
                 epsiz(iice) = ((f1pr30+f1pr31*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*2.*pi* &
-                              rho(i,k)*dv)*nitot(i,k,iice)
+                              rho(i,k)*dv)
+                epsizsb(iice) = ((f1pr37+f1pr38*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*2.*pi* &
+                              rho(i,k)*dv)
              endif
 
           else
              epsi(iice) = 0.
              epsiz(iice) = 0.
+             epsizsb(iice) = 0.
           endif
 
         endif
@@ -3166,7 +3249,7 @@ END subroutine p3_init
              qlshd(iice) = min(max(0.,qlshd(iice)),qiliq(i,k,iice)*odt)
              nlshd(iice) = qlshd(iice)*1.928e+6
              if (log_3momentIce) then
-                zishd(iice) = tmp1*f1pr35*nitot(i,k,iice)*qiliq(i,k,iice)/qitot(i,k,iice)
+                zishd(iice) = -tmp1*f1pr35*qiliq(i,k,iice)/qitot(i,k,iice)
              endif
           endif
        endif
@@ -3554,7 +3637,7 @@ END subroutine p3_init
                  qidep(iice) = 0.
 
                  if (log_3momentIce.and.epsi(iice).gt.0.) then
-                    zisub(iice) = epsiz(iice)/epsi(iice)*qisub(iice)
+                    zisub(iice) = -epsizsb(iice)/epsi(iice)*qisub(iice)
                  endif
 
               else
@@ -3587,7 +3670,7 @@ END subroutine p3_init
                  qlcon(iice) = 0.
 
                  if (log_3momentIce.and.epsiw(iice).gt.0.) then
-                    zisub(iice) = epsiz(iice)/epsiw(iice)*qlevp(iice)
+                    zisub(iice) = -epsizsb(iice)/epsiw(iice)*qlevp(iice)
                  endif
 
               else
@@ -3628,7 +3711,7 @@ END subroutine p3_init
              qidep(iice) = 0.
 
              if (log_3momentIce.and.epsi(iice).gt.0.) then
-                zisub(iice) = epsiz(iice)/epsi(iice)*qisub(iice)
+                zisub(iice) = -epsizsb(iice)/epsi(iice)*qisub(iice)
              endif
 
           else
@@ -4096,7 +4179,7 @@ END subroutine p3_init
 
       update_refl_processes: if (log_3momentIce) then
 
-!       iice_loop_z1: do iice = 1,nCat
+       iice_loop_z1: do iice = 1,nCat
 
        !----  Group 1 process rates (assume mu_i does not change)
        !
@@ -4112,12 +4195,6 @@ END subroutine p3_init
 !                                            qwgrth1r(iice)+qwgrth1c(iice)+                 &
 !                                            qrcoll(iice)+qccoll(iice) )*dt
 
-!          dumm3(iice) = qitot(i,k,iice) + ( qrcol(iice)+           &
-!                                            qrmul(iice)-           &
-!                                            qlshd(iice)+           &
-!                                            qwgrth1r(iice)+qwgrth1c(iice)+                 &
-!                                            qrcoll(iice) )*dt
-
 ! full 3-moment, remove processes below that are now in group 3
         ! NOTE: must add nicol in line below for combining 3-moment with multi-cat P3
 !          dumm0(iice) = nitot(i,k,iice) + (-nimlt(iice)-nisub(iice)-      &
@@ -4126,7 +4203,7 @@ END subroutine p3_init
 
 !       enddo iice_loop_z1
        !====
-       iice_loop_z2: do iice = 1,nCat
+!       iice_loop_z2: do iice = 1,nCat
 
          !update further due to category interactions:
 !          do catcoll = 1,nCat
@@ -4166,172 +4243,350 @@ END subroutine p3_init
 !             zitot(i,k,iice) = 0.
 !          endif
 
-       !====
+!.............................................................................
+! code for diagnosing change in mu for each process
 
-       !----  Group 2 (initiation processes, where mu_i for the new ice resulting from that process (only) is assigned
-       !              note: mu_i_new is the mu_i associated with the new added ice for that process
+!          if (qitot(i,k,iice).ge.qsmall) then
+          if (qitot(i,k,iice).ge.1.e20) then
 
-        !proceses with rain freezing:
-          tmp2 =  nrhetc(iice) + nrheti(iice)                  !moment_0 tendency
-          if (tmp2.ge.qsmall) then
-             tmp1 = (qrhetc(iice) + qrheti(iice))*6./(900.*pi) !estimate of moment_3 tendency
-             mu_i_new = mu_r(i,k)
-             zitot(i,k,iice) = zitot(i,k,iice) + G_of_mu(mu_i_new)*tmp1**2/tmp2*dt
-          endif
+            tmp1 = 1./(qitot(i,k,iice)-qiliq(i,k,iice))
+            rimevolume(i,k,iice) = birim(i,k,iice)*tmp1
+            rimefraction(i,k,iice) = qirim(i,k,iice)*tmp1
+            liquidfraction(i,k,iice) = qiliq(i,k,iice)/qitot(i,k,iice)
 
-        !proceses with cloud freezing:
-          tmp2 =  nchetc(iice) + ncheti(iice)                  !moment_0 tendency
-          if (tmp2.ge.qsmall) then
-             tmp1 = (qchetc(iice) + qcheti(iice))*6./(900.*pi) !estimate of moment_3 tendency
-             mu_i_new = mu_c(i,k)
-             zitot(i,k,iice) = zitot(i,k,iice) + G_of_mu(mu_i_new)*tmp1**2/tmp2*dt
-          endif
-
-        !proceses of deposition nucleation
-          tmp2 = ninuc(iice)                                   !moment_0 tendency
-          if (tmp2.ge.qsmall) then
-             tmp1 = qinuc(iice)*6./(900.*pi)                   !estimate of moment_3 tendency
-             mu_i_new = mu_i_initial                           !estimated assigned value
-             zitot(i,k,iice) = zitot(i,k,iice) + G_of_mu(mu_i_new)*tmp1**2/tmp2*dt
-          endif
-
-        !proceses of ice multiplication
-          tmp2 = nimul(iice)                                   !moment_0 tendency
-          if (tmp2.ge.qsmall) then
-             tmp1 = qrmul(iice)*6./(900.*pi)                   !estimate of moment_3 tendency
-             mu_i_new = mu_i_initial                           !estimated assigned value
-             zitot(i,k,iice) = zitot(i,k,iice) + G_of_mu(mu_i_new)*tmp1**2/tmp2*dt
-          endif
-
-       !====
-
-       !----  Group 3 -- processes that we know how to do formally
-       ! FUTURE.  e.g. diffusional growth, riming, drop freezing
-       !====
-
-! the future is now
-
-! goto 589
-
-!          if (zqrcol(iice).gt.0.) then
-
-          if (qitot(i,k,iice).ge.qsmall) then
-!                dum1z =  6./(f1pr16*pi)*dumm3(iice)  !estimate of moment3, as starting point use 200 kg m-3 estimate of bulk density
-                ! Same comment as before w.r.t scpf_on. Since mu_i is a function of G = M0*M6/M3^2, the multiplication by *iSCF
-                ! is on both the num and the denom and therefore cancel each other.
-                ! Note (OPT): this can be done differently with error computation
-
-!                   mu_i = compute_mu_3moment(nitot(i,k,iice),dum1z,zitot(i,k,iice),mu_i_max)
-
-                    !impose limiter on zitot to make sure mu_i is in bounds                                                                                 
-
-                dum1z =  6./(f1pr16*pi)*qitot(i,k,iice)
-                mu_i = compute_mu_3moment(nitot(i,k,iice),dum1z,zitot(i,k,iice),mu_i_max)
-
-!                print*,'mu_i',k,mu_i
-
-!          print*,'mu_i before',mu_i,zitot(i,k,iice)
-          
-!          write(6,'(a10,i5,3e15.5)')'z rates      ',k,zitot(i,k,iice),zqrcol(iice)
-!          print*,'q rate',qitot(i,k,iice),qrcol(iice)
-!          print*,'n rate',nitot(i,k,iice)!,nislf(iice)
-
-!          zitot(i,k,iice) = zitot(i,k,iice) + (zqrcol(iice))*dt
-
-!          dumm3(iice)=qitot(i,k,iice)+qrcol(iice)*dt
-!          dumm0(iice)=nitot(i,k,iice)!-nislf(iice)*dt
-
-!          dum1z =  6./(f1pr16*pi)*dumm3(iice)  !estimate of moment3, as starting point use 200 kg m-3 estimate of bulk density           
-                ! Same comment as before w.r.t scpf_on. Since mu_i is a function of G = M0*M6/M3^2, the multiplication by *iSCF                  
-                ! is on both the num and the denom and therefore cancel each other.                                                              
-                ! Note (OPT): this can be done differently with error computation                                                                
-
-!           mu_i = compute_mu_3moment(dumm0(iice),dum1z,zitot(i,k,iice),mu_i_max)
-
-!          print*,'mu_i after',mu_i,zitot(i,k,iice)
-
-!          zitot(i,k,iice) = zitot(i,k,iice) - (zqrcol(iice))*dt
-
-          endif
-
-!          endif ! q rate > 0
-
- 589    continue
-
-          if (qitot(i,k,iice).ge.qsmall) then
-
+!.............................................................................
 ! qccol
-             dum1=0. ! nitend
-             dum2=qccol(iice)+qwgrth1c(iice)
-             dum3=zqccol(iice)
-             call calculate_mu_change(nitot(i,k,iice),qitot(i,k,iice),zitot(i,k,iice),   &
-                dum1,dum2,dum3,f1pr16,dmudt,dt)
-             diag_3d(i,k,3)=dmudt
-             murate1=dmudt
+
+             if (abs(zqccol(iice)).ge.1.e-30) then
+
+             dumni = nitot(i,k,iice)
+             dumqi = qitot(i,k,iice)+qccol(iice)*dt
+             dumzi = zitot(i,k,iice)
+             dumqr = qirim(i,k,iice)
+             dumbi = birim(i,k,iice)
+             dumql = qiliq(i,k,iice)
+
+             call calc_bulkRhoRime(dumqi,dumqr,dumql,dumbi,rhop)
+
+             call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,dum7,isize,         &
+                        rimsize,liqsize,densize,dumqi,dumni,dumqr,        &
+                        dumql,rhop)
+
+             dumden=f1pr16
+
+             do iana=1,5
+
+             dum1z =  6./(dumden*pi)*dumqi
+             do imu=1,niter_mui
+                dummu_i = compute_mu_3moment(dumni,dum1z,dumzi,mu_i_max)
+                call find_lookupTable_indices_1c(dumzz,dum6,zsize,dummu_i)
+                call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,dumden)
+                dum1z =  6./(dumden*pi)*dumqi
+             end do
+
+             dum1 = dumqi*6./(dumden*pi)
+             G_new = G_of_mu(mu_i) + zqccol(iice)*dt
+             dumzi = G_new*dum1**2/dumni
+
+             dummu_i = compute_mu_3moment(dumni,dum1,dumzi,mu_i_max)
+
+             enddo ! iana loop                                                                                    
+! get mu before by inverting G                                                                                    
+
+             dumqi=qitot(i,k,iice)
+             dumni=nitot(i,k,iice)
+             dumden=f1pr16
+
+             dum1 = dumqi*6./(dumden*pi)
+             G_new = G_of_mu(mu_i)
+             dumzi = G_new*dum1**2/dumni
+             mu_i_old(k) = compute_mu_3moment(dumni,dum1,dumzi,mu_i_max)
+
+!             print*,'dvar/dt deposition',zqccol(iice),G_new
+!             print*,'mu b/a',mu_i_old(k),dummu_i
+
+             endif
+
+!.............................................................................
 ! zidep
-             dum1=0.
-             dum2=qidep(iice)+qlcon(iice)
-             dum3=zidep(iice)
-             call calculate_mu_change(nitot(i,k,iice),qitot(i,k,iice),zitot(i,k,iice),   &
-                dum1,dum2,dum3,f1pr16,dmudt,dt)
-             diag_3d(i,k,4)=dmudt
-             murate2=dmudt
+
+             if (abs(zidep(iice)).ge.1.e-30) then
+
+             dumni = nitot(i,k,iice)
+             dumqi = qitot(i,k,iice)+qidep(iice)*dt
+             dumzi = zitot(i,k,iice)
+             dumqr = qirim(i,k,iice)
+             dumbi = birim(i,k,iice)
+             dumql = qiliq(i,k,iice)+qlcon(iice)*dt
+
+             call calc_bulkRhoRime(dumqi,dumqr,dumql,dumbi,rhop)
+
+             call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,dum7,isize,         &
+                        rimsize,liqsize,densize,dumqi,dumni,dumqr,        &
+                        dumql,rhop)
+
+             dumden=f1pr16
+
+             do iana=1,5
+
+             dum1z =  6./(dumden*pi)*dumqi
+             do imu=1,niter_mui
+                dummu_i = compute_mu_3moment(dumni,dum1z,dumzi,mu_i_max)
+                call find_lookupTable_indices_1c(dumzz,dum6,zsize,dummu_i)
+                call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,dumden)
+                dum1z =  6./(dumden*pi)*dumqi
+             end do
+
+             dum1 = dumqi*6./(dumden*pi)
+             G_new = G_of_mu(mu_i) + zidep(iice)*dt
+             dumzi = G_new*dum1**2/dumni
+
+             dummu_i = compute_mu_3moment(dumni,dum1,dumzi,mu_i_max)
+
+             enddo ! iana loop
+
+! get mu before by inverting G
+
+             dumqi=qitot(i,k,iice)
+             dumni=nitot(i,k,iice)
+             dumden=f1pr16
+
+             dum1 = dumqi*6./(dumden*pi)
+             G_new = G_of_mu(mu_i)
+             dumzi = G_new*dum1**2/dumni
+             mu_i_old(k) = compute_mu_3moment(dumni,dum1,dumzi,mu_i_max)
+
+!             print*,'dvar/dt deposition',zidep(iice),G_new
+!             print*,'mu b/a',mu_i_old(k),dummu_i
+
+             endif
+
+!.............................................................................
 ! zisub
-             dum1=-nisub(iice)-nlevp(iice)
-             dum2=-qisub(iice)-qlevp(iice)
-             dum3=-zisub(iice)
-             call calculate_mu_change(nitot(i,k,iice),qitot(i,k,iice),zitot(i,k,iice),   &
-                dum1,dum2,dum3,f1pr16,dmudt,dt)
-             diag_3d(i,k,5)=dmudt
-             murate3=dmudt
-! zimlt
-             dum1=-nimlt(iice)
-             dum2=-qrmlt(iice)
-             dum3=-zimlt(iice)
-             call calculate_mu_change(nitot(i,k,iice),qitot(i,k,iice),zitot(i,k,iice),   &
-                dum1,dum2,dum3,f1pr16,dmudt,dt)
-             diag_3d(i,k,6)=dmudt
-             murate4=dmudt
-! zislf
-             dum1=-nislf(iice)
-             dum2=0.
-             dum3=zislf(iice)
-             call calculate_mu_change(nitot(i,k,iice),qitot(i,k,iice),zitot(i,k,iice),   &
-                dum1,dum2,dum3,f1pr16,dmudt,dt)
-             diag_3d(i,k,7)=dmudt
-             murate5=dmudt
+
+             if (abs(zisub(iice)).ge.1.e-30) then
+
+             dumni = nitot(i,k,iice)-(nisub(iice)-nlevp(iice))*dt
+             dumqi = qitot(i,k,iice)-qisub(iice)*dt
+             dumzi = zitot(i,k,iice)
+             dumqr = qirim(i,k,iice)-qisub(iice)*dt*rimefraction(i,k,iice)
+             dumbi = birim(i,k,iice)-qisub(iice)*dt*rimevolume(i,k,iice)
+             dumql = qiliq(i,k,iice)-qlevp(iice)*dt
+
+             call calc_bulkRhoRime(dumqi,dumqr,dumql,dumbi,rhop)
+
+             call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,dum7,isize,         &
+                        rimsize,liqsize,densize,dumqi,dumni,dumqr,        &
+                        dumql,rhop)
+
+             dumden=f1pr16
+
+             do iana=1,5
+
+             dum1z =  6./(dumden*pi)*dumqi
+             do imu=1,niter_mui
+                dummu_i = compute_mu_3moment(dumni,dum1z,dumzi,mu_i_max)
+                call find_lookupTable_indices_1c(dumzz,dum6,zsize,dummu_i)
+                call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,dumden)
+                dum1z =  6./(dumden*pi)*dumqi
+             end do
+
+             dum1 = dumqi*6./(dumden*pi)
+             G_new = G_of_mu(mu_i) + zisub(iice)*dt
+             dumzi = G_new*dum1**2/dumni
+
+             dummu_i = compute_mu_3moment(dumni,dum1,dumzi,mu_i_max)
+
+             enddo ! iana loop
+
+! get mu before by inverting G
+
+             dumqi=qitot(i,k,iice)
+             dumni=nitot(i,k,iice)
+             dumden=f1pr16
+
+             dum1 = dumqi*6./(dumden*pi)
+             G_new = G_of_mu(mu_i)
+             dumzi = G_new*dum1**2/dumni
+             mu_i_old(k) = compute_mu_3moment(dumni,dum1,dumzi,mu_i_max)
+
+!             print*,'dvar/dt sublimation',zisub(iice),G_new
+!             print*,'mu b/a',mu_i_old(k),dummu_i
+
+             endif
+
+!.............................................................................
 ! zishd
-             dum1=0.
-             dum2=-qlshd(iice)
-             dum3=-zishd(iice)
-             call calculate_mu_change(nitot(i,k,iice),qitot(i,k,iice),zitot(i,k,iice),   &
-                dum1,dum2,dum3,f1pr16,dmudt,dt)
-             diag_3d(i,k,8)=dmudt
-             murate5=dmudt
-! zqrcol
-             dum1=0.
-             dum2=qrcol(iice)+qwgrth1r(iice)
-             dum3=zqrcol(iice)
-             call calculate_mu_change(nitot(i,k,iice),qitot(i,k,iice),zitot(i,k,iice),   &
-                dum1,dum2,dum3,f1pr16,dmudt,dt)
-             diag_3d(i,k,9)=dmudt
-             murate6=dmudt
 
-          write(6,'(i5,12e15.5)')k,qc(i,k),qr(i,k),qitot(i,k,iice),mu_i,diag_3d(i,k,3),diag_3d(i,k,4),diag_3d(i,k,5),diag_3d(i,k,6), &
-               diag_3d(i,k,7),diag_3d(i,k,8),diag_3d(i,k,9),qrmlt(iice)
+             if (abs(zishd(iice)).ge.1.e-30) then
 
-!          write(6,'(i5,8e15.5)')k,murate1,murate2,murate3,murate4,murate5,murate6
+             dumni = nitot(i,k,iice)
+             dumqi = qitot(i,k,iice)-qlshd(iice)*dt
+             dumzi = zitot(i,k,iice)
+             dumqr = qirim(i,k,iice)
+             dumbi = birim(i,k,iice)
+             dumql = qiliq(i,k,iice)-qlshd(iice)*dt
 
-          endif
+             call calc_bulkRhoRime(dumqi,dumqr,dumql,dumbi,rhop)
 
-          zitot(i,k,iice) = zitot(i,k,iice) + (zqccol(iice)+zidep(iice)-zisub(iice)-zimlt(iice) &
-                               +zislf(iice)-zishd(iice)+zqrcol(iice))*dt
+             call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,dum7,isize,         &
+                        rimsize,liqsize,densize,dumqi,dumni,dumqr,        &
+                        dumql,rhop)
 
-       end do iice_loop_z2
+             dumden=f1pr16
+
+             do iana=1,5
+
+             dum1z =  6./(dumden*pi)*dumqi
+             do imu=1,niter_mui
+                dummu_i = compute_mu_3moment(dumni,dum1z,dumzi,mu_i_max)
+                call find_lookupTable_indices_1c(dumzz,dum6,zsize,dummu_i)
+                call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,dumden)
+                dum1z =  6./(dumden*pi)*dumqi
+             end do
+
+             dum1 = dumqi*6./(dumden*pi)
+             G_new = G_of_mu(mu_i) + zishd(iice)*dt
+             dumzi = G_new*dum1**2/dumni
+
+             dummu_i = compute_mu_3moment(dumni,dum1,dumzi,mu_i_max)
+
+             enddo ! iana loop
+
+! get mu before by inverting G
+
+             dumqi=qitot(i,k,iice)
+             dumni=nitot(i,k,iice)
+             dumden=f1pr16
+
+             dum1 = dumqi*6./(dumden*pi)
+             G_new = G_of_mu(mu_i)
+             dumzi = G_new*dum1**2/dumni
+             mu_i_old(k) = compute_mu_3moment(dumni,dum1,dumzi,mu_i_max)
+
+!             print*,'dvar/dt shedding',zishd(iice),G_new
+!             print*,'mu b/a',mu_i_old(k),dummu_i
+
+             endif
+
+!.............................................................................
+! zimlt
+
+             if (abs(zimlt(iice)).ge.1.e-30) then
+
+             dumni = nitot(i,k,iice)-nimlt(iice)*dt
+             dumqi = qitot(i,k,iice)-qrmlt(iice)*dt
+             dumzi = zitot(i,k,iice)
+             dumqr = qirim(i,k,iice)-qrmlt(iice)*dt*rimefraction(i,k,iice)
+             dumbi = birim(i,k,iice)-qrmlt(iice)*dt*rimevolume(i,k,iice)
+             dumql = qiliq(i,k,iice)
+
+             call calc_bulkRhoRime(dumqi,dumqr,dumql,dumbi,rhop)
+
+             call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,dum7,isize,         &
+                        rimsize,liqsize,densize,dumqi,dumni,dumqr,        &
+                        dumql,rhop)
+
+             dumden=f1pr16
+
+             do iana=1,5
+
+             dum1z =  6./(dumden*pi)*dumqi
+             do imu=1,niter_mui
+                dummu_i = compute_mu_3moment(dumni,dum1z,dumzi,mu_i_max)
+                call find_lookupTable_indices_1c(dumzz,dum6,zsize,dummu_i)
+                call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,dumden)
+                dum1z =  6./(dumden*pi)*dumqi
+             end do
+
+             dum1 = dumqi*6./(dumden*pi)
+             G_new = G_of_mu(mu_i) + zimlt(iice)*dt
+             dumzi = G_new*dum1**2/dumni
+
+             dummu_i = compute_mu_3moment(dumni,dum1,dumzi,mu_i_max)
+
+             enddo ! iana loop
+
+! get mu before by inverting G
+
+             dumqi=qitot(i,k,iice)
+             dumni=nitot(i,k,iice)
+             dumden=f1pr16
+
+             dum1 = dumqi*6./(dumden*pi)
+             G_new = G_of_mu(mu_i)
+             dumzi = G_new*dum1**2/dumni
+             mu_i_old(k) = compute_mu_3moment(dumni,dum1,dumzi,mu_i_max)
+
+!             print*,'dvar/dt melting',zimlt(iice),G_new
+!             print*,'mu b/a',mu_i_old(k),dummu_i
+
+             endif
+
+!.............................................................................
+! zislf
+
+             if (abs(zislf(iice)).ge.1.e-30) then
+
+             dumni = nitot(i,k,iice)-nislf(iice)*dt
+             dumqi = qitot(i,k,iice)
+             dumzi = zitot(i,k,iice)
+             dumqr = qirim(i,k,iice)
+             dumbi = birim(i,k,iice)
+             dumql = qiliq(i,k,iice)
+
+             call calc_bulkRhoRime(dumqi,dumqr,dumql,dumbi,rhop)
+
+             call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,dum7,isize,         &
+                        rimsize,liqsize,densize,dumqi,dumni,dumqr,        &
+                        dumql,rhop)
+
+             dumden=f1pr16
+
+             do iana=1,5
+
+             dum1z =  6./(dumden*pi)*dumqi
+             do imu=1,niter_mui
+                dummu_i = compute_mu_3moment(dumni,dum1z,dumzi,mu_i_max)
+                call find_lookupTable_indices_1c(dumzz,dum6,zsize,dummu_i)
+                call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,dumden)
+                dum1z =  6./(dumden*pi)*dumqi
+             end do
+
+             dum1 = dumqi*6./(dumden*pi)
+             G_new = G_of_mu(mu_i) + zislf(iice)*dt
+             dumzi = G_new*dum1**2/dumni
+
+             dummu_i = compute_mu_3moment(dumni,dum1,dumzi,mu_i_max)
+
+             enddo ! iana loop
+
+! get mu before by inverting G
+
+             dumqi=qitot(i,k,iice)
+             dumni=nitot(i,k,iice)
+             dumden=f1pr16
+
+             dum1 = dumqi*6./(dumden*pi)
+             G_new = G_of_mu(mu_i)
+             dumzi = G_new*dum1**2/dumni
+             mu_i_old(k) = compute_mu_3moment(dumni,dum1,dumzi,mu_i_max)
+
+!             print*,'dvar/dt selfcollection',zislf(iice),G_new
+!             print*,'mu b/a',mu_i_old(k),dummu_i
+
+             endif
+
+!.............................................................................
+
+!          write(6,'(i5,12e15.5)')k,qc(i,k),qr(i,k),qitot(i,k,iice),mu_i,diag_3d(i,k,3),diag_3d(i,k,4),diag_3d(i,k,5),diag_3d(i,k,6), &
+!               diag_3d(i,k,7),diag_3d(i,k,8),diag_3d(i,k,9),qrmlt(iice)
+
+          endif ! qitot > qsmall
+
+       end do iice_loop_z1
 
       endif update_refl_processes
-
-      ! at this point, zitot has been completely updated due to all process rates (except sedimentation and homogeneous freezing)
 
 !======================================================================================!
 
@@ -4351,6 +4606,51 @@ END subroutine p3_init
          rimefraction(i,k,iice) = qirim(i,k,iice)*tmp1
          liquidfraction(i,k,iice) = qiliq(i,k,iice)/qitot(i,k,iice)
         endif
+
+       ! calculate previous old mu to get delta_mu !!!! DIAGNOSTIC ONLY!!!!!!
+       ! *****NOTE: CURRENTLY ONLY SET UP FOR NCAT = 1
+        if (log_3momentIce) then
+           gfactor=1.
+           if (qitot(i,k,iice).ge.qsmall) then
+              dumqi=qitot(i,k,iice)
+              dumni=nitot(i,k,iice)
+              dumden=f1pr16
+              dum1 = dumqi*6./(dumden*pi)
+
+              mu_i = compute_mu_3moment(dumni,dum1,zitot(i,k,iice),mu_i_max)
+
+              G_new = G_of_mu(mu_i)
+              ziold = G_new*dum1**2/dumni
+              dummu_i = compute_mu_3moment(dumni,dum1,ziold,mu_i_max)
+              if (dummu_i.ge.mu_i) then
+                 dum=0.0001
+              endif
+              if (dummu_i.lt.mu_i) then
+                 dum=-0.0001
+              endif
+              do iana=1,1000
+                 G_new = G_new+dum
+                 dumzi = G_new*dum1**2/dumni
+                 dummu_i = compute_mu_3moment(dumni,dum1,dumzi,mu_i_max)
+                 if (dum.ge.0.and.dummu_i.le.mu_i) then
+                    goto 222
+                 endif
+                 if (dum.lt.0.and.dummu_i.ge.mu_i) then
+                    goto 222
+                 endif
+              enddo
+222           continue
+
+            if (log_muDiagnostics) then
+              mutend6(k)=(dummu_i-mu_i_old(k))/dt
+              mu_i_old(k)=dummu_i
+            endif
+
+              gfactor=G_new/G_of_mu(mu_i)
+!              write(6,'(2i5,3e15.5)') k,iana,mu_i,compute_mu_3moment(dumni,dum1,ziold,mu_i_max),compute_mu_3moment(dumni,dum1,ziold*gfactor,mu_i_max)
+
+           endif
+         endif
 
        enddo iice_loop2
 
@@ -4545,6 +4845,174 @@ END subroutine p3_init
        call impose_max_total_Ni(nitot(i,k,:),max_total_Ni,inv_rho(i,k))
 
 !---------------------------------------------------------------------------------
+
+       if (log_3momentIce) then
+
+          do iice = 1,nCat
+
+! include all processes **except** group 2 processes which are added later below
+! thus, all group 2 processes are subtracted from the ice variables below
+          dumqi = qitot(i,k,iice) - (qinuc(iice)+qrhetc(iice)+qrheti(iice)+qchetc(iice)+qcheti(iice))*dt
+
+          if (dumqi.ge.qsmall) then
+
+             dumni = nitot(i,k,iice) - (ninuc(iice)+nrhetc(iice)+nrheti(iice)+nchetc(iice)+ncheti(iice)+nimul(iice))*dt
+             dumzi = zitot(i,k,iice)
+             dumqr = qirim(i,k,iice) - (qrhetc(iice)+qrheti(iice)+qchetc(iice)+qcheti(iice)+qrmul(iice))*dt
+             dumbi = birim(i,k,iice) - (qrhetc(iice)+qrheti(iice)+qchetc(iice)+qcheti(iice)+qrmul(iice))*inv_rho_rimeMax*dt
+             dumql = qiliq(i,k,iice)
+
+             dumni = max(dumni,nsmall) ! impose limit on dummy ni
+             dumzi = max(dumzi,zsmall) ! impose limit on dummy zi
+
+! sum of all G rates
+             G_rate_tot = zqccol(iice)+zidep(iice)+zisub(iice)+zishd(iice)+zimlt(iice)+zislf(iice)+zqrcol(iice)
+
+! get updated density to estimate M3 from Qitot
+
+             call calc_bulkRhoRime(dumqi,dumqr,dumql,dumbi,rhop)
+
+             call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,dum7,isize,         &
+                     rimsize,liqsize,densize,dumqi,dumni,dumqr,        &
+                     dumql,rhop)
+
+             dumden=f1pr16 ! for iteration, initialize density to the old density
+
+            ! apply iteration to find updated zitot consistent with updated G and dumqi, dumni, etc.
+             do iana=1,5
+
+               ! update density
+                dum1z =  6./(dumden*pi)*dumqi
+                do imu=1,niter_mui
+                   dummu_i = compute_mu_3moment(dumni,dum1z,dumzi,mu_i_max)
+                   call find_lookupTable_indices_1c(dumzz,dum6,zsize,dummu_i)
+                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,dumden)
+                   dum1z =  6./(dumden*pi)*dumqi
+                end do
+               ! update dummy zi based on updated density
+                dum1 = dumqi*6./(dumden*pi)
+                G_new = G_of_mu(mu_i) + G_rate_tot*dt
+                dumzi = G_new*dum1**2/dumni*gfactor
+                dumzi = max(dumzi,zsmall) ! impose limit on dummy zi
+
+               ! calculate new mu, ***DIAGNOSTIC ONLY***
+                dummu_i = compute_mu_3moment(dumni,dum1,dumzi,mu_i_max)
+
+             enddo ! iana iterative loop to estimate updated Zitot
+
+! update zitot
+             zitot(i,k,iice) = dumzi
+
+! calculate change in mu, output to screen
+             write(6,'(i5,11e15.5)') k,G_rate_tot,mu_i,mu_i_old(k),dummu_i,zqccol(iice),   &
+               zidep(iice),zisub(iice),zishd(iice),zimlt(iice),zislf(iice),zqrcol(iice)
+
+          endif ! qitot >= qsmall
+
+         if (log_muDiagnostics) then
+
+! diagnose mu tendency from group 3 processes
+
+          if (qitot(i,k,iice).ge.qsmall) then
+
+             call calc_bulkRhoRime(qitot(i,k,iice),qirim(i,k,iice),qiliq(i,k,iice),birim(i,k,iice),rhop)
+
+             call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,dum7,isize,         &
+                        rimsize,liqsize,densize,qitot(i,k,iice),nitot(i,k,iice),qirim(i,k,iice),        &
+                        qiliq(i,k,iice),rhop)
+
+              dum1z =  6./(200.*pi)*qitot(i,k,iice)
+              do imu=1,niter_mui
+                 dummu_i = compute_mu_3moment(nitot(i,k,iice),dum1z,zitot(i,k,iice),mu_i_max)
+                 call find_lookupTable_indices_1c(dumzz,dum6,zsize,dummu_i)
+                 call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,dumden)
+                 dum1z =  6./(dumden*pi)*qitot(i,k,iice)
+              end do
+              dummu_i = compute_mu_3moment(nitot(i,k,iice),dum1z,zitot(i,k,iice),mu_i_max)
+
+              mutend1(k) = (dummu_i-mu_i_old(k))/dt
+              mu_i_old(k)=dummu_i
+
+          else
+              mu_i_old(k)=0.
+          endif ! qitot > qsmall
+
+         endif
+
+!...........................................................................................
+       !----  Group 2 (initiation processes, where mu_i for the new ice resulting from that process (only) is assigned
+       !              note: mu_i_new is the mu_i associated with the new added ice for that process
+
+        !proceses with rain freezing:                                                                                      
+          tmp2 =  nrhetc(iice) + nrheti(iice)                  !moment_0 tendency                                          
+          if (tmp2.ge.qsmall) then
+             tmp1 = (qrhetc(iice) + qrheti(iice))*6./(900.*pi) !estimate of moment_3 tendency                              
+             mu_i_new = mu_r(i,k)
+             zitot(i,k,iice) = zitot(i,k,iice) + G_of_mu(mu_i_new)*tmp1**2/tmp2*dt
+          endif
+
+        !proceses with cloud freezing:                                                                                     
+          tmp2 =  nchetc(iice) + ncheti(iice)                  !moment_0 tendency                                          
+          if (tmp2.ge.qsmall) then
+             tmp1 = (qchetc(iice) + qcheti(iice))*6./(900.*pi) !estimate of moment_3 tendency                              
+             mu_i_new = mu_c(i,k)
+             zitot(i,k,iice) = zitot(i,k,iice) + G_of_mu(mu_i_new)*tmp1**2/tmp2*dt
+          endif
+
+        !proceses of deposition nucleation                                                                                 
+          tmp2 = ninuc(iice)                                   !moment_0 tendency                                          
+          if (tmp2.ge.qsmall) then
+             tmp1 = qinuc(iice)*6./(900.*pi)                   !estimate of moment_3 tendency                              
+             mu_i_new = mu_i_initial                           !estimated assigned value                                   
+             zitot(i,k,iice) = zitot(i,k,iice) + G_of_mu(mu_i_new)*tmp1**2/tmp2*dt
+          endif
+
+        !proceses of ice multiplication                                                                                    
+          tmp2 = nimul(iice)                                   !moment_0 tendency                                          
+          if (tmp2.ge.qsmall) then
+             tmp1 = qrmul(iice)*6./(900.*pi)                   !estimate of moment_3 tendency                              
+             mu_i_new = mu_i_initial                           !estimated assigned value                                   
+             zitot(i,k,iice) = zitot(i,k,iice) + G_of_mu(mu_i_new)*tmp1**2/tmp2*dt
+          endif
+
+         if (log_muDiagnostics) then
+! diagnose mu tendency from group 2 processes
+
+          if (qitot(i,k,iice).ge.qsmall) then
+
+             call calc_bulkRhoRime(qitot(i,k,iice),qirim(i,k,iice),qiliq(i,k,iice),birim(i,k,iice),rhop)
+
+             call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,dum7,isize,         &
+                        rimsize,liqsize,densize,qitot(i,k,iice),nitot(i,k,iice),qirim(i,k,iice),        &
+                        qiliq(i,k,iice),rhop)
+
+              dum1z =  6./(200.*pi)*qitot(i,k,iice)
+              do imu=1,niter_mui
+                 dummu_i = compute_mu_3moment(nitot(i,k,iice),dum1z,zitot(i,k,iice),mu_i_max)
+                 call find_lookupTable_indices_1c(dumzz,dum6,zsize,dummu_i)
+                 call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,dumden)
+                 dum1z =  6./(dumden*pi)*qitot(i,k,iice)
+              end do
+              dummu_i = compute_mu_3moment(nitot(i,k,iice),dum1z,zitot(i,k,iice),mu_i_max)
+
+              mutend2(k) = (dummu_i-mu_i_old(k))/dt 
+              mu_i_old(k)=dummu_i
+
+          else
+              mu_i_old(k)=0.
+          endif ! qitot > qsmall
+
+         endif
+
+       !====                                                                                                               
+
+! NOTE: Limits on zitot to keep mu_i in bounds are imposed at the start of sedimentation below (for ice)
+
+          enddo ! iice loop
+
+       endif ! log_3momentIce
+
+!................................................................................ 
 
 555    continue
 
@@ -5365,6 +5833,37 @@ END subroutine p3_init
 
     enddo iice_loop_sedi_ice  !iice-loop
 
+!................................................................................
+! diagnose mu tendency from sedimentation
+
+    if (log_muDiagnostics) then
+    do iice=1,ncat
+    do k = kbot,ktop,kdir
+          if (qitot(i,k,iice).ge.qsmall) then
+
+             call calc_bulkRhoRime(qitot(i,k,iice),qirim(i,k,iice),qiliq(i,k,iice),birim(i,k,iice),rhop)
+
+             call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,dum7,isize,         &
+                        rimsize,liqsize,densize,qitot(i,k,iice),nitot(i,k,iice),qirim(i,k,iice),        &
+                        qiliq(i,k,iice),rhop)
+
+                   dum1z =  6./(200.*pi)*qitot(i,k,iice)
+              do imu=1,niter_mui
+                 dummu_i = compute_mu_3moment(nitot(i,k,iice),dum1z,zitot(i,k,iice),mu_i_max)
+                 call find_lookupTable_indices_1c(dumzz,dum6,zsize,dummu_i)
+                 call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,dumden)
+                 dum1z =  6./(dumden*pi)*qitot(i,k,iice)
+              end do
+              dummu_i = compute_mu_3moment(nitot(i,k,iice),dum1z,zitot(i,k,iice),mu_i_max)
+
+              mutend3(k) = (dummu_i-mu_i_old(k))/dt
+              mu_i_old(k)=dummu_i
+          else  
+              mu_i_old(k)=0.
+          endif ! qitot > qsmall
+    enddo
+    enddo
+    endif
 !------------------------------------------------------------------------------------------!
 
 ! note: This debug check is commented since small negative qx,nx values are possible here
@@ -5506,6 +6005,37 @@ END subroutine p3_init
        endif qr_not_small_2
 
     enddo k_loop_fz
+
+ if (log_muDiagnostics) then
+! diagnose mu tendency from homogeneous freezing
+
+ do iice = 1,nCat
+    do k = kbot,ktop,kdir
+          if (qitot(i,k,iice).ge.qsmall) then
+
+             call calc_bulkRhoRime(qitot(i,k,iice),qirim(i,k,iice),qiliq(i,k,iice),birim(i,k,iice),rhop)
+
+             call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,dum7,isize,         &
+                        rimsize,liqsize,densize,qitot(i,k,iice),nitot(i,k,iice),qirim(i,k,iice),        &
+                        qiliq(i,k,iice),rhop)
+
+                   dum1z =  6./(200.*pi)*qitot(i,k,iice)
+              do imu=1,niter_mui
+                 dummu_i = compute_mu_3moment(nitot(i,k,iice),dum1z,zitot(i,k,iice),mu_i_max)
+                 call find_lookupTable_indices_1c(dumzz,dum6,zsize,dummu_i)
+                 call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,dumden)
+                 dum1z =  6./(dumden*pi)*qitot(i,k,iice)
+              end do
+              dummu_i = compute_mu_3moment(nitot(i,k,iice),dum1z,zitot(i,k,iice),mu_i_max)
+
+              mutend4(k) = (dummu_i-mu_i_old(k))/dt
+              mu_i_old(k)=dummu_i
+          else
+              mu_i_old(k)=0.
+          endif ! qitot > qsmall                                                                                                                             
+    enddo
+ enddo
+ endif
 
 !..............................................
 ! Merge ice categories with similar properties (based on specified similarly condition)
@@ -5782,7 +6312,6 @@ END subroutine p3_init
                 endif
              endif
 
-
           ! impose mean ice size bounds (i.e. apply lambda limiters)
              nitot(i,k,iice) = min(nitot(i,k,iice),f1pr09*qitot(i,k,iice))
              nitot(i,k,iice) = max(nitot(i,k,iice),f1pr10*qitot(i,k,iice))
@@ -5795,6 +6324,37 @@ END subroutine p3_init
                 tmp2 = G_of_mu(20.)
                 zitot(i,k,iice) = min(zitot(i,k,iice),tmp1*dum1**2/nitot(i,k,iice))
                 zitot(i,k,iice) = max(zitot(i,k,iice),tmp2*dum1**2/nitot(i,k,iice))
+
+!......................
+       if (log_muDiagnostics) then
+! mu diagnostics, mu change from homogeneous freezing and final adjustments
+          if (qitot(i,k,iice).ge.qsmall) then
+
+             call calc_bulkRhoRime(qitot(i,k,iice),qirim(i,k,iice),qiliq(i,k,iice),birim(i,k,iice),rhop)
+
+             call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,dum7,isize,         &
+                        rimsize,liqsize,densize,qitot(i,k,iice),nitot(i,k,iice),qirim(i,k,iice),        &
+                        qiliq(i,k,iice),rhop)
+
+              dum1z =  6./(200.*pi)*qitot(i,k,iice)
+              do imu=1,niter_mui
+                 dummu_i = compute_mu_3moment(nitot(i,k,iice),dum1z,zitot(i,k,iice),mu_i_max)
+                 call find_lookupTable_indices_1c(dumzz,dum6,zsize,dummu_i)
+                 call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,dumden)
+                 dum1z =  6./(dumden*pi)*qitot(i,k,iice)
+              end do
+              dummu_i = compute_mu_3moment(nitot(i,k,iice),dum1z,zitot(i,k,iice),mu_i_max)
+
+              mutend5(k) = (dummu_i-mu_i_old(k))/dt
+              mu_i_old(k)=dummu_i
+
+!          write(6,'(i5,10e15.5)') k,mutend0(k),mutend6(k),mutend1(k),mutend2(k),mutend3(k),mutend4(k),mutend5(k),mu_i_old(k), &
+!                            mutend0(k)+mutend1(k)+mutend2(k)+mutend3(k)+mutend4(k)+mutend5(k),(mu_i_old(k)-mu_i_old2(k))/dt
+
+          endif ! qitot > qsmall
+       endif
+!......................
+
              endif
 
   !--this should already be done in s/r 'calc_bulkRhoRime'
@@ -12034,15 +12594,15 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
 
 #endif
 
- subroutine calculate_mu_change(nidum,qidum,zidum,nitend,qitend,zitend,den,dmudt,dt)
+ subroutine calculate_mu_change(nidum,qidum,zidum,nitend,qitend,zitend,f1pr16,den,dmudt,dt)
    
    real :: dum3mom,mu_old,mu_new
    real :: ninew,qinew,zinew
-   real, intent(in) :: nidum,qidum,zidum,den,dt
+   real, intent(in) :: nidum,qidum,zidum,f1pr16,den,dt
    real, intent(inout) :: dmudt
    real :: nitend,qitend,zitend
 
-      dum3mom =  6./(den*pi)*qidum
+      dum3mom =  6./(f1pr16*pi)*qidum
       mu_old = compute_mu_3moment(nidum,dum3mom,zidum,mu_i_max)
 
      ! update with process rate
@@ -12050,10 +12610,15 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
       qinew=qidum+qitend*dt
       zinew=zidum+zitend*dt
 
+!      print*,'tend',nitend,qitend,zitend
+!      print*,'new qi etc',ninew,qinew,zinew
+
       dum3mom =  6./(den*pi)*qinew
       mu_new = compute_mu_3moment(ninew,dum3mom,zinew,mu_i_max)
 
       dmudt=(mu_new-mu_old)/dt
+
+!      print*,'mu old new',mu_old,mu_new
 
  end subroutine calculate_mu_change
 
