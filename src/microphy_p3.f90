@@ -25,7 +25,7 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.3.3+full3mv11                                                           !
+! Version:       5.3.3+full3mv12                                                           !
 ! Last updated:  2023 Oct                                                                  !
 !__________________________________________________________________________________________!
 
@@ -2134,7 +2134,9 @@ END subroutine p3_init
  integer :: iana
  real :: dummu_i,G_rate_tot,gfactor,ziold 
  real, dimension(kts:kte) :: mu_i_old,mutend1,mutend2,mutend3,mutend4,mutend5,mutend0,mu_i_old2,mutend6
- logical :: log_muDiagnostics
+ logical, parameter                :: log_muDiagnostics   = .true.   ! switch to turn on mu_i budget analysis
+ logical, parameter                :: log_ModAdvZitot     = .true.   ! switch for scaled Zitot advection and mixing (Zitot*Nitot)^(1/2)
+ logical, parameter                :: log_ModSedZitot     = .true.   ! switch for scaled Zitot sedimentation (Zitot*Nitot)^(1/2)
 
 !-----------------------------------------------------------------------------------!
 !  End of variables/parameters declarations
@@ -2198,11 +2200,13 @@ END subroutine p3_init
  !   This is done to preserve appropriate ratios between prognostic
  !   moments; for details, see Morrison et al. (2016), MWR
  if (log_3momentIce) then
+ if (log_ModAdvZitot) then
     where (nitot>0.)
        zitot = zitot**2/nitot
     elsewhere
        zitot = 0.
     endwhere
+ endif
  endif
 
 ! Determine threshold size difference [m] as a function of nCat
@@ -2276,9 +2280,6 @@ END subroutine p3_init
 !==
 
 ! initialize mu diagnostics (only at first time step)
-
- log_muDiagnostics = .true.
-
  if (log_muDiagnostics) then
  if (it.eq.1) then
     mu_i_old=0.
@@ -5623,6 +5624,11 @@ END subroutine p3_init
                       V_nit(k) = f1pr01*rhofaci(i,k)     !number-weighted fall speed (with density factor)
                       V_zit(k) = f1pr19*rhofaci(i,k)     !reflectivity-weighted fall speed (with density factor)
 
+                      ! convert zitot to sediment variable if (log_ModSedZitot) then
+                      if (log_ModSedZitot) then
+                         zitot(i,k,iice) = sqrt(zitot(i,k,iice)*nitot(i,k,iice))
+                      endif
+
                    endif qi_notsmall_i3
 
                    ! use V_zit for calculating sub-stepping since it is larger than V_qit
@@ -5689,6 +5695,17 @@ END subroutine p3_init
                 if (k_qxbot.ne.kbot) k_qxbot = k_qxbot - kdir
                 !or, optimzed: k_qxbot = k_qxbot +(k_qxbot.eq.kbot)*kdir
 
+                ! convert back to physical zitot
+                do k = k_qxtop,k_qxbot,-kdir
+                if (log_ModSedZitot) then
+                   if (nitot(i,k,iice)>0.) then
+                      zitot(i,k,iice) = zitot(i,k,iice)**2/nitot(i,k,iice)
+                   else
+                      zitot(i,k,iice) = 0.
+                   endif
+                endif
+                enddo
+
               enddo substep_sedi_i3
 
            else ! liquid_fraction_2
@@ -5748,6 +5765,11 @@ END subroutine p3_init
                       V_qit(k) = f1pr02*rhofaci(i,k)     !mass-weighted fall speed (with density factor)
                       V_nit(k) = f1pr01*rhofaci(i,k)     !number-weighted fall speed (with density factor)
                       V_zit(k) = f1pr19*rhofaci(i,k)     !reflectivity-weighted fall speed (with density factor)
+
+                ! convert zitot to sediment variable if (log_ModSedZitot) then
+                      if (log_ModSedZitot) then
+                         zitot(i,k,iice) = sqrt(zitot(i,k,iice)*nitot(i,k,iice))
+                      endif
 
                    endif qi_notsmall_i4
 
@@ -5819,6 +5841,17 @@ END subroutine p3_init
                 dt_left = dt_left - dt_sub  !update time remaining for sedimentation
                 if (k_qxbot.ne.kbot) k_qxbot = k_qxbot - kdir
                 !or, optimzed: k_qxbot = k_qxbot +(k_qxbot.eq.kbot)*kdir
+
+                ! convert back to physical zitot
+                do k = k_qxtop,k_qxbot,-kdir
+                if (log_ModSedZitot) then
+                   if (nitot(i,k,iice)>0.) then
+                      zitot(i,k,iice) = zitot(i,k,iice)**2/nitot(i,k,iice)
+                   else
+                      zitot(i,k,iice) = 0.
+                   endif
+                endif
+                enddo
 
               enddo substep_sedi_i4
 
@@ -6759,8 +6792,11 @@ END subroutine p3_init
 !=== (end of section for diagnostic hydrometeor/precip types)
 
  ! convert zitot to advected (dynamics) variable
- if (log_3momentIce) zitot = sqrt(zitot*nitot)
-
+ if (log_3momentIce) then
+ if (log_ModAdvZitot) then
+    zitot = sqrt(zitot*nitot)
+ endif
+ endif
 
 ! end of main microphysics routine
 
