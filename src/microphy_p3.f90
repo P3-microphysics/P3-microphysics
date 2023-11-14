@@ -5785,7 +5785,7 @@ END subroutine p3_init
                 endif
                 liquidfraction(i,k,iice) = qiliq(i,k,iice)/qitot(i,k,iice)                 !liquid fraction
 
-                if (liquidfraction(i,k,iice).ge.1.15) then
+                if (liquidfraction(i,k,iice).ge.0.15) then
                    Q_wsnow(i,k,iice) = qitot(i,k,iice)
                 else
                    if (rimefraction(i,k,iice).lt.0.5) then
