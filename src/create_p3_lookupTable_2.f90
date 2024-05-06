@@ -6,8 +6,8 @@ PROGRAM create_p3_lookuptable_2
 ! interactions for the multi-ice-category configuration of the P3 microphysics scheme.
 !
 !--------------------------------------------------------------------------------------
-! Version:       6.0
-! Last modified: 2022-JUN
+! Version:       6.1
+! Last modified: 2024-APR
 ! For coupling with liquid fraction
 ! _00 is Fi,liq1=0 and Fi,liq2=0 (p3v4)
 ! _10 is Fi,liq1=1 and Fi,liq2=0
@@ -117,7 +117,7 @@ PROGRAM create_p3_lookuptable_2
 
  implicit none
 
- character(len=16), parameter :: version = '6.0_00'
+ character(len=16), parameter :: version = '6.1_00'
 
  real, parameter :: Fl1 = 0.   ! liquid fraction of cat 1
  real, parameter :: Fl2 = 0.   ! liquid fraction of cat 2
@@ -149,7 +149,8 @@ PROGRAM create_p3_lookuptable_2
  real :: Q_normalized   ! function
  real :: lambdai        ! function
 
- real, parameter :: Dm_max = 40000.e-6   ! max. mean ice [m] size for lambda limiter
+ real, parameter :: Dm_max1 = 5000.e-6   ! max. mean ice [m] size for lambda limiter
+ real, parameter :: Dm_max2 = 20000.e-6  ! max. mean ice [m] size for lambda limiter
 !real, parameter :: Dm_max =  2000.e-6   ! max. mean ice [m] size for lambda limiter
  real, parameter :: Dm_min =     2.e-6   ! min. mean ice [m] size for lambda limiter
 
@@ -512,7 +513,8 @@ PROGRAM create_p3_lookuptable_2
              mu_i1(i_rhor,i_Fr,i) = diagnostic_mui(lam1(i_rhor,i_Fr,i),q,rhom1,Fr,pi)
 
 ! set min,max lam corresponding to Dm_max,Dm_min:
-             lam1(i_rhor,i_Fr,i) = max(lam1(i_rhor,i_Fr,i),(mu_i1(i_rhor,i_Fr,i)+1.)/Dm_max)
+             dum = Dm_max1+Dm_max2*Fr**2.
+             lam1(i_rhor,i_Fr,i) = max(lam1(i_rhor,i_Fr,i),(mu_i1(i_rhor,i_Fr,i)+1.)/dum)
              lam1(i_rhor,i_Fr,i) = min(lam1(i_rhor,i_Fr,i),(mu_i1(i_rhor,i_Fr,i)+1.)/Dm_min)
 ! get normalized n0 = n0/N
              n01(i_rhor,i_Fr,i) = lam1(i_rhor,i_Fr,i)**(mu_i1(i_rhor,i_Fr,i)+1.)/(gamma(mu_i1(i_rhor,i_Fr,i)+1.))
@@ -789,7 +791,8 @@ PROGRAM create_p3_lookuptable_2
              mu_i2(i_rhor,i_Fr,i) = diagnostic_mui(lam2(i_rhor,i_Fr,i),q,rhom2,Fr,pi)
 
             !set min,max lam corresponding to Dm_max, Dm_min
-             lam2(i_rhor,i_Fr,i) = max(lam2(i_rhor,i_Fr,i),(mu_i2(i_rhor,i_Fr,i)+1.)/Dm_max)
+             dum = Dm_max1+Dm_max2*Fr**2.
+             lam2(i_rhor,i_Fr,i) = max(lam2(i_rhor,i_Fr,i),(mu_i2(i_rhor,i_Fr,i)+1.)/dum)
              lam2(i_rhor,i_Fr,i) = min(lam2(i_rhor,i_Fr,i),(mu_i2(i_rhor,i_Fr,i)+1.)/Dm_min)
 
             !get n0, note this is normalized
@@ -916,7 +919,7 @@ PROGRAM create_p3_lookuptable_2
  ! Note: i1 loop (do/enddo statements) is commented out for parallelization; i1 gets initizatized there
  ! - to run in serial, uncomment the 'do i1' statement and the corresponding 'enddo'
 
- !Qnorm_loop_3: do i1 = 1,n_Qnorm    ! COMMENT OUT FOR PARALLELIZATION
+ Qnorm_loop_3: do i1 = 1,n_Qnorm    ! COMMENT OUT FOR PARALLELIZATION
    do i_Fr1 = 1,n_Fr
      do i_rhor1 = 1,n_rhor
        do i2 = 1,n_Qnorm
@@ -1099,7 +1102,7 @@ PROGRAM create_p3_lookuptable_2
        enddo   ! i2 loop
      enddo   ! i_rhor1 loop
    enddo   ! i_Fr1
- !enddo Qnorm_loop_3  ! i1 loop  (Qnorm)     ! COMMENTED OUT FOR PARALLELIZATION
+ enddo Qnorm_loop_3  ! i1 loop  (Qnorm)     ! COMMENTED OUT FOR PARALLELIZATION
 
  close(1)
 

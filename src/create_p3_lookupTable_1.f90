@@ -13,10 +13,9 @@ PROGRAM create_p3_lookuptable_1
 ! All other parameter settings are linked uniquely to the version number.
 !
 !--------------------------------------------------------------------------------------
-! Version:       6.5
-! Last modified: 2023-Oct
+! Version:       6.6
+! Last modified: 2024-Apr
 ! Version: including the liquid fraction (inner-loop i_Fl)
-! v6.5: bug fix to melting with liquid fraction only
 !______________________________________________________________________________________
 
 !______________________________________________________________________________________
@@ -58,74 +57,56 @@ PROGRAM create_p3_lookuptable_1
 !______________________________________________________________________________________
 
 !--------------------------------------------------------------------------------------------
-! Parallel script 1 (of 3):  [copy text below (uncommented) to file 'go_1-compile.sh']
+! Parallel script 1 (of 3):  [copy text below (uncommented) to file 'go_1-compile.ksh']
 !  - creates individual parallel codes, compiles each
 !
 !-----------------------------
 ! For 2-MOMENT-ICE:
+
+! #!/bin/ksh
 !
-!#!/bin/sh
-! 
-!  for i_rhor in 01 02 03 04 05
-!  do
-!    for i_Fr in 01 02 03 04
-!    do
-!      rm cfg_input full_code.f90
-!      cat > cfg_input << EOF
-!       i_rhor = ${i_rhor}
-!       i_Fr = ${i_Fr}
-!EOF
-!      cat create_p3_lookupTable_1-top.f90 cfg_input create_p3_lookupTable_1-bottom.f90 > full_code.f90
-!      echo 'Compiling 'exec_${i_rhor}_${i_Fr}
-!#     ifort -r8 full_code.f90
-!      gfortran -fdefault-real-8 full_code.f90
-!      mv a.out exec_${i_rhor}_${i_Fr}
-!    done
-!  done
+! for i_rhor in 01 02 03 04 05
+! do
 !
-!rm cfg_input full_code.f90
+!    rm cfg_input full_code.f90
+!    cat > cfg_input << EOF
+!     i_rhor  = ${i_rhor}
+! EOF
+!    cat create_p3_lookupTable_1-top.f90 cfg_input create_p3_lookupTable_1-bottom.f90 > full_code.f90
+!    echo 'Compiling 'exec_${i_rhor}
+!    ifort -r8 full_code.f90
+!    mv a.out exec_${i_rhor}
 !
+! done
+!
+! rm cfg_input full_code.f90
+
 !-----------------------------
 ! For 3-MOMENT-ICE:
 
-!#!/bin/sh
+!#!/bin/ksh
 !
-!  for i_Znorm in 01 02 03 04 05 06 07 08 09 10 11
-!  do
-!    for i_rhor in 01 02 03 04 05
-!    do
+! for i_Znorm in 01 02 03 04 05 06 07 08 09 10 11
+! do
+
+!    rm cfg_input full_code.f90
+!    cat > cfg_input << EOF
+!     i_Znorm = ${i_Znorm}
+! EOF
+!    cat create_p3_lookupTable_1-top.f90 cfg_input create_p3_lookupTable_1-bottom.f90 > full_code.f90
+!    echo 'Compiling 'exec_${i_Znorm}
+!    ifort -r8 full_code.f90
+!    mv a.out exec_${i_Znorm}
 !
-!#     cat > cfg_input << EOF
-!#     i_Znorm = ${i_Znorm}
-!#EOF
+! done
 !
-!      cat > cfg_input << EOF
-!      i_Znorm = ${i_Znorm}
-!      i_rhor  = ${i_rhor}
-!EOF
-!
-!      cat create_p3_lookupTable_1-top.f90 cfg_input create_p3_lookupTable_1-bottom.f90 > full_code.f90
-!
-!      echo 'Compiling 'exec_${i_Znorm}_${i_rhor}
-!      #echo 'Compiling 'exec_${i_Znorm}
-!
-!      #pgf90 -r8 full_code.f90
-!      #ifort -r8 full_code.f90
-!      gfortran -fdefault-real-8 full_code.f90
-!
-!      mv a.out exec_${i_Znorm}_${i_rhor}
-!      #mv a.out exec_${i_Znorm}
-!
-!    done
-!  done
-!
-!rm cfg_input full_code.f90
+! rm cfg_input full_code.f90
 
 !--------------------------------------------------------------------------------------------
-!# Parallel script 2 (of 3):   [copy text below (uncommented) to file 'go_2-submit.sh']
+!# Parallel script 2 (of 3):   [copy text below (uncommented) to file 'go_2-submit.ksh']
 !#  - creates individual work directories, launches each executable
 
-!#!/bin/sh
+!#!/bin/ksh
 !
 ! for exec in `ls exec_*`
 ! do
@@ -138,10 +119,10 @@ PROGRAM create_p3_lookuptable_1
 ! done
 
 !--------------------------------------------------------------------------------------------
-!# Parallel script 3 (of 3):   [copy text below (uncommented) to file 'go_3-concatenate.sh]
+!# Parallel script 3 (of 3):   [copy text below (uncommented) to file 'go_3-concatenate.ksh]
 !#  - concatenates the output of each parallel job into a single output file.
 
-!#!/bin/sh
+!#!/bin/ksh
 !
 ! rm lt_total
 !
@@ -163,7 +144,7 @@ PROGRAM create_p3_lookuptable_1
  implicit none
 
  !-----
- character(len=20), parameter :: version   = '6.5'
+ character(len=20), parameter :: version   = '6.6'
  logical, parameter           :: log_3momI = .true.    !switch to create table for 2momI (.false.) or 3momI (.true.)
  !-----
 
@@ -234,8 +215,8 @@ PROGRAM create_p3_lookuptable_1
  real, dimension(n_rhor)            :: cgp,crp
  real, dimension(150)               :: mu_r_table
 
- real, parameter                    :: Dm_max = 40000.e-6   ! max. mean ice [m] size for lambda limiter
-!real, parameter                    :: Dm_max =  2000.e-6   ! max. mean ice [m] size for lambda limiter
+ real, parameter                    :: Dm_max1 =  5000.e-6   ! max. mean ice [m] size for lambda limiter
+ real, parameter                    :: Dm_max2 = 20000.e-6   ! max. mean ice [m] size for lambda limiter
  real, parameter                    :: Dm_min =     2.e-6   ! min. mean ice [m] size for lambda limiter
 
  real, parameter                    :: thrd = 1./3.
@@ -299,6 +280,7 @@ hostinclusionstring_m = 'spheroidal'
 !   Before running ./go_1-compile.ksh, delete all lines below this point and
 !   and save as 'create_p3_lookupTable_1-top.f90'
 !------------------------------------------------------------------------------------
+
 
 ! For testing single values, uncomment the following:
 ! i_Znorm = 1
@@ -491,7 +473,7 @@ hostinclusionstring_m = 'spheroidal'
 ! Thus, the loops 'i_Znorm_loop' and 'i_rhor_loop' are commented out accordingingly.
 !
 !i_Znorm_loop: do i_Znorm = 1,n_Znorm   !normally commented (kept to illustrate the structure (and to run in serial)
-   i_rhor_loop: do i_rhor = 1,n_rhor    !COMMENT OUT FOR PARALLELIZATION (2-MOMENT ONLY)
+!   i_rhor_loop: do i_rhor = 1,n_rhor    !COMMENT OUT FOR PARALLELIZATION (2-MOMENT ONLY)
      i_Fr_loop_1: do i_Fr = 1,n_Fr      !COMMENT OUT FOR PARALLELIZATION (2-MOMENT ONLY)
 
 ! 3-moment-ice only:
@@ -845,8 +827,7 @@ hostinclusionstring_m = 'spheroidal'
                 if (.not. log_3momI) mu_id = diagnostic_mui(mu_i_min,mu_i_max,lamd,qid,cgp(i_rhor),Fr,pi)
 
               ! for lambda limiter:
-               !dum = Dm_max+Fr*(3000.e-6)
-                dum = Dm_max
+                dum = Dm_max1+Dm_max2*Fr**2.
                 lamd = max(lamd,(mu_id+1.)/dum)     ! set min lam corresponding to mean size of x
                 lamd = min(lamd,(mu_id+1.)/Dm_min)  ! set max lam corresponding to mean size of Dm_min (2 micron)
 
@@ -978,7 +959,7 @@ hostinclusionstring_m = 'spheroidal'
 
            ! for lambda limiter:
             !dum = Dm_max+Fr*(3000.e-6)
-             dum = Dm_max
+             dum = Dm_max1+Dm_max2*Fr**2.
              lam = max(lam,(mu_i+1.)/dum)     ! set min lam corresponding to mean size of x
              lam = min(lam,(mu_i+1.)/Dm_min)  ! set max lam corresponding to mean size of Dm_min (2 micron)
 
@@ -1082,7 +1063,8 @@ hostinclusionstring_m = 'spheroidal'
 
 
    ! limit based on max size, Dm_max:
-          duml = (mu_i+1.)/Dm_max
+          dum = Dm_max1+Dm_max2*Fr**2.
+          duml = (mu_i+1.)/dum
 
           call intgrl_section_Fl(duml,mu_i, ds1,ds,dg,dsr, dcrit,dcrits,dcritr,intgrR1,intgrR2,intgrR3,intgrR4,intgrR5)
           n0dum = q/((1.-Fl)*(cs1*intgrR1 + cs*intgrR2 + cgp(i_rhor)*intgrR3 + csr*intgrR4)+Fl*cs5*intgrR5)
@@ -2000,7 +1982,7 @@ hostinclusionstring_m = 'spheroidal'
 ! version of code, thus the loops are commented out.
         enddo i_Fl_loop_1
       enddo i_Fr_loop_1
-    enddo i_rhor_loop
+!    enddo i_rhor_loop
 !enddo i_Znorm_loop
 !==
 
@@ -2594,5 +2576,4 @@ complex :: beta2, beta3, m1t, m2t, m3t
        (1.0-vol2-vol3+vol2*beta2+vol3*beta3))
 
 end function m_complex_maxwellgarnett
-
 
