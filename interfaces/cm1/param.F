@@ -4424,6 +4424,7 @@
           np3a = 24            ! 3-mom, no_liqfrac, 1-cat (incl. vmi_1, dmi_1, rhoi_1)
           np3a = np3a + nout2d + nout3d + 1  !(1 for dhmax_x)
           np3o =  4            ! 1 x nCat; for vmi_(x), dmi_(x), rhoi_(x), dhmax_(x)
+          np3a = np3a + 7      ! adding 7 additional 3d output fields
 
       !cccccccccccccccccccccccccccccccccccccccccccccccccccc!
 
@@ -4585,6 +4586,8 @@
           np3a = 25            ! 3-mom, liqfrac, 1-cat (incl. vmi_1, dmi_1, rhoi_1)
           np3a = np3a + nout2d + nout3d + 1  !(1 for dhmax_x)
           np3o =  4            ! 1 x nCat; for vmi_(x), dmi_(x), rhoi_(x), dhmax_(x)
+
+          np3a = np3a + 7      ! adding 7 additional 3d output fields
 
       !cccccccccccccccccccccccccccccccccccccccccccccccccccc!
         ELSEIF( ptype.eq.61 )THEN

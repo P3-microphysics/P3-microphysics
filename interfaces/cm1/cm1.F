@@ -398,7 +398,8 @@
 !    No other changes are necessary:  output file will contain the 
 !    variables "out1", "out2", "out3", ... etc.
 
-      nout3d =   3
+!     nout3d =   3
+      nout3d =   19
 
 !----------------------------------------------------------------------
 !  For arbitrary 2d output array:  
