@@ -26,7 +26,7 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.3.6+wrf-v5-update-v1                                                    !
+! Version:       5.3.7                                                                     !
 ! Last updated:  2024 Aug                                                                  !
 !__________________________________________________________________________________________!
 
@@ -145,7 +145,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.3.6'
+ character(len=1024), parameter :: version_p3                    = '5.3.7'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.6-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '6.6-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.1'

@@ -1,0 +1,10 @@
+The following subdirectories contain the model interface files that have been modified from
+the pristine versions in the model library (for a particular version of that model) that need 
+to be included in the compilation for the version of P3 indicated (plus the version of
+'microphy_p3.f90', whose name (or extension) may needs to be changed for the given model.
+
+If the current version of P3 is already in the official model library, the interface files
+are not included in this repository.  The only purpose of this directory is to include the
+necessary files to run the latest version of P3 in a particular version of a model for which
+this version of P3 is not in the release version of the model.
+
