@@ -1,0 +1,5 @@
+In v533 where Dinit_HM=1000e-6 instead of 4000e-6
+that has changed the 1D solution for nCat>1...
+The solution looks wierd, this should be investigated 
+before using that version. However, everything looks ok
+with GEM.

@@ -13,8 +13,8 @@ PROGRAM create_p3_lookuptable_1
 ! All other parameter settings are linked uniquely to the version number.
 !
 !--------------------------------------------------------------------------------------
-! Version:       6.5b10
-! Last modified: 2023-Oct
+! Version:       6.6 + dev-3momfull  (formerly 6.5b10)
+! Last modified: 2023 Oct
 ! Version: including the liquid fraction (inner-loop i_Fl)
 !______________________________________________________________________________________
 
@@ -144,7 +144,7 @@ PROGRAM create_p3_lookuptable_1
  implicit none
 
  !-----
- character(len=20), parameter :: version   = '6.5b10'
+ character(len=20), parameter :: version   = '6.6+dev-3momfull0'
  logical, parameter           :: log_3momI = .true.    !switch to create table for 2momI (.false.) or 3momI (.true.)
  !-----
 
@@ -208,7 +208,7 @@ PROGRAM create_p3_lookuptable_1
 ! change in mass with D
  real :: dmdD
  real :: mass2
- 
+
  ! outputs for triple moment
 ! HM zsmall, zlarge no longer needed
 ! real, dimension(n_Qnorm,n_Fr) :: uzs,zlarge,zsmall
@@ -217,17 +217,17 @@ PROGRAM create_p3_lookuptable_1
  real, dimension(n_Qnorm,n_Drscale,n_Fr,n_Fl) :: qrrain,nrrain,nsrain,qsrain,ngrain
  ! change in zi from rain-ice collection
  real, dimension(n_Qnorm,n_Drscale,n_Fr,n_Fl) :: m6collr
- 
+
  real, dimension(n_Drscale)         :: lamrs
  real, dimension(num_int_bins)      :: fall1,falls1,fallr1
  real, dimension(num_int_coll_bins) :: fall2,fallr,num,numi,falls
 ! for M6 rates
- real, dimension(num_int_coll_bins) :: numloss,massloss,massgain 
+ real, dimension(num_int_coll_bins) :: numloss,massloss,massgain
  real, dimension(n_rhor)            :: cgp,crp
  real, dimension(150)               :: mu_r_table
 
- real, parameter                    :: Dm_max = 40000.e-6   ! max. mean ice [m] size for lambda limiter
-!real, parameter                    :: Dm_max =  2000.e-6   ! max. mean ice [m] size for lambda limiter
+ real, parameter                    :: Dm_max1 =  5000.e-6   ! max. mean ice [m] size for lambda limiter
+ real, parameter                    :: Dm_max2 = 20000.e-6   ! max. mean ice [m] size for lambda limiter
  real, parameter                    :: Dm_min =     2.e-6   ! min. mean ice [m] size for lambda limiter
 
  real, parameter                    :: thrd = 1./3.
@@ -258,7 +258,7 @@ PROGRAM create_p3_lookuptable_1
 
  real :: dumm3,dumm6,dummu_i,compute_mu_3moment2
 
- 
+
 do i = 1, slen
    mixingrulestring_m(i:i) = char(0)
    matrixstring_m(i:i) = char(0)
@@ -327,7 +327,7 @@ hostinclusionstring_m = 'spheroidal'
 
 ! exponent parameter for dm/dt of shedding
  bb   = 3
- 
+
  dd   =  2.e-6 ! bin width for numerical integration of ice processes (units of m)
  ddd  = 50.e-6 ! bin width for numerical integration for ice-ice and ice-rain collection (units of m)
 
@@ -844,8 +844,7 @@ hostinclusionstring_m = 'spheroidal'
                 if (.not. log_3momI) mu_id = diagnostic_mui(mu_i_min,mu_i_max,lamd,qid,cgp(i_rhor),Fr,pi)
 
               ! for lambda limiter:
-               !dum = Dm_max+Fr*(3000.e-6)
-                dum = Dm_max
+                dum = Dm_max1+Dm_max2*Fr**2.
                 lamd = max(lamd,(mu_id+1.)/dum)     ! set min lam corresponding to mean size of x
                 lamd = min(lamd,(mu_id+1.)/Dm_min)  ! set max lam corresponding to mean size of Dm_min (2 micron)
 
@@ -977,7 +976,7 @@ hostinclusionstring_m = 'spheroidal'
 
            ! for lambda limiter:
             !dum = Dm_max+Fr*(3000.e-6)
-             dum = Dm_max
+             dum = Dm_max1+Dm_max2*Fr**2.
              lam = max(lam,(mu_i+1.)/dum)     ! set min lam corresponding to mean size of x
              lam = min(lam,(mu_i+1.)/Dm_min)  ! set max lam corresponding to mean size of Dm_min (2 micron)
 
@@ -1081,7 +1080,8 @@ hostinclusionstring_m = 'spheroidal'
 
 
    ! limit based on max size, Dm_max:
-          duml = (mu_i+1.)/Dm_max
+          dum = Dm_max1+Dm_max2*Fr**2.
+          duml = (mu_i+1.)/dum
 
           call intgrl_section_Fl(duml,mu_i, ds1,ds,dg,dsr, dcrit,dcrits,dcritr,intgrR1,intgrR2,intgrR3,intgrR4,intgrR5)
           n0dum = q/((1.-Fl)*(cs1*intgrR1 + cs*intgrR2 + cgp(i_rhor)*intgrR3 + csr*intgrR4)+Fl*cs5*intgrR5)
@@ -1363,9 +1363,9 @@ hostinclusionstring_m = 'spheroidal'
              endif
 
              mass2 = (1.-Fl)*cs1*d2**ds1+Fl*pi*sxth*1000.*d2**3.
-             
+
 !..........................
-                
+
               ! sum for integral
 
               ! sum1 = # of collision pairs
@@ -1379,7 +1379,7 @@ hostinclusionstring_m = 'spheroidal'
                 numloss(kk) = numloss(kk)+(area1+area2)*delu*num(jj)*num(kk)
                 massloss(kk) = massloss(kk)+(area1+area2)*delu*num(jj)*num(kk)*mass2
                 massgain(jj) = massgain(jj)+(area1+area2)*delu*num(jj)*num(kk)*mass2
-                
+
                  ! remove collected particles from distribution over time period dt, update num
                  !  note -- dt is time scale for removal, not model time step
                  !                   num(kk) = num(kk)-(area1+area2)*delu*num(jj)*num(kk)*dt
@@ -1399,11 +1399,11 @@ hostinclusionstring_m = 'spheroidal'
           sum3 = 0. ! M6 change from mass gain
           sum4 = 0. ! M3 change from number loss
           sum5 = 0. ! M3 change from mass gain
-          
+
           do kk=1,num_int_coll_bins
 
 ! define particle size in kk loop
-             d2 = real(kk)*ddd - 0.5*ddd       
+             d2 = real(kk)*ddd - 0.5*ddd
 
 ! define particle mass as as function of d2 here
 
@@ -1425,7 +1425,7 @@ hostinclusionstring_m = 'spheroidal'
              ! dmdD, accounting for weighting by liquid fraction
              dmdD = (1.-Fl)*cs1*ds1*d2**(ds1-1.) + 3.*Fl*pi*sxth*1000.*d2**2
 !..........................
-             
+
 ! M6 change from number loss rate
              sum2 = sum2 - numloss(kk)*d2**6
 ! M6 change from mass gain (note: massgain = dm/dt*num(kk))
@@ -1433,10 +1433,10 @@ hostinclusionstring_m = 'spheroidal'
 ! M3 change from number loss rate
              sum4 = sum4 - numloss(kk)*d2**3
 ! M3 change from mass gain (note: massgain = dm/dt*num(kk))
-             sum5 = sum5 + massgain(kk)/dmdD*3.*d2**2 !(dM/dt*dD/dm*3*D^2)             
-             
+             sum5 = sum5 + massgain(kk)/dmdD*3.*d2**2 !(dM/dt*dD/dm*3*D^2)
+
           enddo ! kk loop
-          
+
           nagg(i_Qnorm,i_Fr,i_Fl) = sum1  ! save to write to output
 
           mom6 = n0*gamma(mu_i+7.)/lam**(mu_i+7.)
@@ -1446,7 +1446,7 @@ hostinclusionstring_m = 'spheroidal'
                                      -2.*mom6/mom3**3*(sum4+sum5)
 
 !          m6agg(i_Qnorm,i_Fr,i_Fl) = (sum2+sum3)/sum1 ! ratio of Ztend to Ntend
-          
+
 !         print*,'nagg',nagg(i_Qnorm,i_Fr)
 
 !.....................................................................................
@@ -1462,7 +1462,7 @@ hostinclusionstring_m = 'spheroidal'
           sum3 = 0. !qshed (with Fl)
           sum4 = 0. !M_bb moment for zshed calculation
           sum5 = 0. !dM3/dt
-          
+
         ! loop over exponential size distribution (from 1 micron to 2 cm)
           jj_loop_4:  do jj = 1,num_int_bins
 
@@ -1512,7 +1512,7 @@ hostinclusionstring_m = 'spheroidal'
              mass = (1.-Fl)*cs1*d1**ds1+Fl*pi*sxth*1000.*d1**3.
              area = (1.-Fl)*aas1*d1**bas1+Fl*pi/4.*d1**2.
              dmdD = (1.-Fl)*cs1*ds1*d1**(ds1-1.) + 3.*Fl*pi*sxth*1000.*d1**2
-             
+
             ! sum for integral
             ! include assumed ice particle size threshold for riming of 100 micron
             ! note: sum1 (nrwat) is the scaled collection rate, units of m^3 kg^-1 s^-1
@@ -1550,18 +1550,18 @@ hostinclusionstring_m = 'spheroidal'
           mom6 = n0*gamma(mu_i+7.)/lam**(mu_i+7.)
           mom3 = n0*gamma(mu_i+4.)/lam**(mu_i+4.)
           m6rime(i_Qnorm,i_Fr,i_Fl) = 1./mom3**2*sum2 - 2.*mom6/mom3**3*sum5 ! change in relative variance
-          
+
 !          dumm6 = mom6+sum2
 !          dumm3 = mom3+sum5
 !          dummu_i = compute_mu_3moment2(1.,dumm3,dumm6,20.)
-          
+
 ! z change from shedding
 
           sum1 = 0. ! M6 change
           sum2 = 0. ! M3 change
-          
+
           jj_loop_40:  do jj = 1,num_int_bins
-             
+
              d1 = real(jj)*dd - 0.5*dd  ! particle size or dimension (m) for numerical integration
 
              ! get m-D relation to obtain dmdD
@@ -1582,20 +1582,20 @@ hostinclusionstring_m = 'spheroidal'
              ! dmdD, accounting for weighting by liquid fraction
              dmdD = (1.-Fl)*cs1*ds1*d1**(ds1-1.) + 3.*Fl*pi*sxth*1000.*d1**2
 !..........................
-             
+
              if (d1.ge.0.009) then
              ! = dm/dt*dD/dm, dm/dt = sum3/sum4*D^bb
                 sum1 = sum1+6.*d1**5*sum3/sum4*d1**bb*n0*d1**mu_i*exp(-lam*d1)*dd/dmdD
                 sum2 = sum2+3.*d1**2*sum3/sum4*d1**bb*n0*d1**mu_i*exp(-lam*d1)*dd/dmdD
              endif
-             
+
           enddo jj_loop_40
 
           mom6 = n0*gamma(mu_i+7.)/lam**(mu_i+7.)
           mom3 = n0*gamma(mu_i+4.)/lam**(mu_i+4.)
           m6shd(i_Qnorm,i_Fr,i_Fl) = 1./mom3**2*sum1 - 2.*mom6/mom3**3*sum2 ! change in relative variance
           !m6shd(i_Qnorm,i_Fr,i_Fl) = sum1/sum3 ! ratio of Ztend to Qtend
-          
+
 !.....................................................................................
 ! collection of rain
 !.....................................................................................
@@ -1737,7 +1737,7 @@ hostinclusionstring_m = 'spheroidal'
              ! dmdD, accounting for weighting by liquid fraction
              dmdD = (1.-Fl)*cs1*ds1*d1**(ds1-1.) + 3.*Fl*pi*sxth*1000.*d1**2
 !..........................
-                   
+
 !......................................................
 ! collection of rain mass and number
 
@@ -1772,10 +1772,10 @@ hostinclusionstring_m = 'spheroidal'
 
                   ! change in zi due to collection of rain by ice
                    sum3 = sum3+(area+pi*0.25*d2**2)*delu*6.*d1**5*n0*d1**mu_i*        &
-                          exp(-lam*d1)*ddd*num(kk)*pi*sxth*997.*d2**3/dmdD 
+                          exp(-lam*d1)*ddd*num(kk)*pi*sxth*997.*d2**3/dmdD
                   ! change in M3
                    sum4 = sum4+(area+pi*0.25*d2**2)*delu*3.*d1**2*n0*d1**mu_i*        &
-                          exp(-lam*d1)*ddd*num(kk)*pi*sxth*997.*d2**3/dmdD                   
+                          exp(-lam*d1)*ddd*num(kk)*pi*sxth*997.*d2**3/dmdD
 !......................................................
 ! now calculate collection of ice mass by rain
 
@@ -1812,7 +1812,7 @@ hostinclusionstring_m = 'spheroidal'
 
           mom6 = n0*gamma(mu_i+7.)/lam**(mu_i+7.)
           mom3 = n0*gamma(mu_i+4.)/lam**(mu_i+4.)
-          m6collr(i_Qnorm,i_Drscale,i_Fr,i_Fl) = 1./mom3**2*sum3 - 2.*mom6/mom3**3*sum4 ! change in relative variance             
+          m6collr(i_Qnorm,i_Drscale,i_Fr,i_Fl) = 1./mom3**2*sum3 - 2.*mom6/mom3**3*sum4 ! change in relative variance
 
 !             m6collr(i_Qnorm,i_Drscale,i_Fr,i_Fl) = sum3
 
@@ -1857,8 +1857,8 @@ hostinclusionstring_m = 'spheroidal'
 ! dmdD, accounting for weighting by liquid fraction
              dmdD = (1.-Fl)*cs1*ds1*d1**(ds1-1.) + 3.*Fl*pi*sxth*1000.*d1**2
 !..........................
-             
-             
+
+
            ! get capacitance for different ice regimes:
              if (d1.le.dcrit) then
                 cap = 1. ! for small spherical crystal use sphere
@@ -1898,9 +1898,9 @@ hostinclusionstring_m = 'spheroidal'
 
               if (d1.le.100.e-6) then
                   dumfac1 = 1.
-                  dumfac2 = 0. ! bug fix (Melissa)
+                  dumfac2 = 0.
                   dumfac12 = 1.
-                  dumfac22 = 0. ! bug fix (Melissa)
+                  dumfac22 = 0.
               else
                   dumfac1 = 0.65
                   dumfac2 = 0.44*dum
@@ -1944,13 +1944,11 @@ hostinclusionstring_m = 'spheroidal'
           mom6 = n0*gamma(mu_i+7.)/lam**(mu_i+7.)
           mom3 = n0*gamma(mu_i+4.)/lam**(mu_i+4.)
           ! NOTE: form below includes dM0/dt change
-          m6mlt1(i_Qnorm,i_Fr,i_Fl) = 1./mom3**2*sum5 - 1.*mom6/mom3**3*sum7  ! change relative variance 
+          m6mlt1(i_Qnorm,i_Fr,i_Fl) = 1./mom3**2*sum5 - 1.*mom6/mom3**3*sum7  ! change relative variance
           m6mlt2(i_Qnorm,i_Fr,i_Fl) = 1./mom3**2*sum6 - 1.*mom6/mom3**3*sum8  ! change relative variance
-          
+
 !          m6mlt1(i_Qnorm,i_Fr,i_Fl) = sum5/sum1 ! ratio of Ztend to Qtend
 !          m6mlt2(i_Qnorm,i_Fr,i_Fl) = sum6/sum2 ! ratio of Ztend to Qtend
-          
-!         print*,'vdepm1',vdepm1(i_Qnorm,i_Fr,i_Fl),vdepm3(i_Qnorm,i_Fr,i_Fl),vdepm4(i_Qnorm,i_Fr,i_Fl)
 
 !.....................................................................................
 ! vapor deposition/wet growth/refreezing
@@ -1967,7 +1965,7 @@ hostinclusionstring_m = 'spheroidal'
           sum4 = 0. ! second term dM6/dt
           sum5 = 0. ! first term dM3/dt
           sum6 = 0. ! second term dM3/dt
-          
+
         ! loop over exponential size distribution:
           jj_loop_7: do jj = 1,num_int_bins
 
@@ -1990,8 +1988,8 @@ hostinclusionstring_m = 'spheroidal'
 
 ! dmdD, accounting for weighting by liquid fraction
              dmdD = (1.-Fl)*cs1*ds1*d1**(ds1-1.) + 3.*Fl*pi*sxth*1000.*d1**2
-!..........................             
-      
+!..........................
+
            ! get capacitance for different ice regimes:
              if (d1.le.dcrit) then
                 cap = 1. ! for small spherical crystal use sphere
@@ -2030,7 +2028,7 @@ hostinclusionstring_m = 'spheroidal'
 
               ! units are m^3 kg^-1 s^-1, thus multiplication by air density in P3_MAIN
 
-             
+
              if (d1.lt.100.e-6) then
                 sum1 = sum1+capm*n0*d1**(mu_i)*exp(-lam*d1)*dd
                 sum3 = sum3 + 6.*d1**5*capm*n0*d1**(mu_i)*exp(-lam*d1)*dd/dmdD
@@ -2057,17 +2055,17 @@ hostinclusionstring_m = 'spheroidal'
 ! NOTE: change in G for sublimation includes impact of dM0/dt, thus different from deposition above
           m6sub(i_Qnorm,i_Fr,i_Fl) = 1./mom3**2*sum3 - mom6/mom3**3*sum5
           m6sub1(i_Qnorm,i_Fr,i_Fl) = 1./mom3**2*sum4 - mom6/mom3**3*sum6
-          
+
 !          dumm6 = mom6+sum3
 !          dumm3 = mom3+sum5
-!          dummu_i = compute_mu_3moment2(1.,dumm3,dumm6,20.)          
+!          dummu_i = compute_mu_3moment2(1.,dumm3,dumm6,20.)
 !          dumm6 = mom6+sum4
 !          dumm3 = mom3+sum6
 !          dummu_i = compute_mu_3moment2(1.,dumm3,dumm6,20.)
-          
+
 !          m6dep(i_Qnorm,i_Fr,i_Fl)  = sum3/sum1 ! ratio of Ztend to Qtend
 !          m6dep1(i_Qnorm,i_Fr,i_Fl)  = sum4/sum2 ! ratio of Ztend to Qtend
-          
+
 !.....................................................................................
 ! ice effective radius
 !   use definition of Francis et al. (1994), e.g., Eq. 3.11 in Fu (1996) J. Climate
@@ -2223,7 +2221,7 @@ hostinclusionstring_m = 'spheroidal'
           else
              m6sub1(i_Qnorm,i_Fr,i_Fl)     = dim( m6sub1(i_Qnorm,i_Fr,i_Fl),     cutoff)
           endif
-          
+
 !          m6dep(i_Qnorm,i_Fr,i_Fl)     = dim( m6dep(i_Qnorm,i_Fr,i_Fl),     cutoff)
 !          m6dep1(i_Qnorm,i_Fr,i_Fl)    = dim( m6dep1(i_Qnorm,i_Fr,i_Fl),    cutoff)
 !          m6mlt1(i_Qnorm,i_Fr,i_Fl)    = dim( m6mlt1(i_Qnorm,i_Fr,i_Fl),    cutoff)
@@ -2267,9 +2265,9 @@ hostinclusionstring_m = 'spheroidal'
                          m6agg(i_Qnorm,i_Fr,i_Fl),                &
                          m6shd(i_Qnorm,i_Fr,i_Fl),                &
                          m6sub(i_Qnorm,i_Fr,i_Fl),                &
-                         m6sub1(i_Qnorm,i_Fr,i_Fl)                         
+                         m6sub1(i_Qnorm,i_Fr,i_Fl)
           else
-             write(1,'(4i5,20e15.5)')                             &
+             write(1,'(4i5,19e15.5)')                             &
                          i_rhor,i_Fr,i_Fl,i_Qnorm,                &
                          uns(i_Qnorm,i_Fr,i_Fl),                  &
                          ums(i_Qnorm,i_Fr,i_Fl),                  &
@@ -2312,7 +2310,7 @@ hostinclusionstring_m = 'spheroidal'
                 m6collr(i_Qnorm,i_Drscale,i_Fr,i_Fl)     = dim( m6collr(i_Qnorm,i_Drscale,i_Fr,i_Fl),     cutoff)
              endif
 
-             
+
              write(1,'(4i5,3e15.5)')                              &
                          i_Qnorm,i_Drscale,i_Fr,i_Fl,             &
                          nrrain(i_Qnorm,i_Drscale,i_Fr,i_Fl),     &
@@ -2924,57 +2922,57 @@ end function m_complex_maxwellgarnett
 
  real function compute_mu_3moment2(mom0,mom3,mom6,mu_max)
 
- !--------------------------------------------------------------------------       
- ! Computes mu as a function of moments 0, 3, and 6 of the size distribution       
- ! represented by N(D) = No*D^mu*e(-lambda*D).                                     
- !                                                                                 
+ !--------------------------------------------------------------------------
+ ! Computes mu as a function of moments 0, 3, and 6 of the size distribution
+ ! represented by N(D) = No*D^mu*e(-lambda*D).
+ !
  ! Note:  moment 3 is not equal to the mass mixing ratio (due to variable density)
- !                                                                                 
- ! G(mu)= mom0*mom6/mom3^2 = [(6+mu)(5+mu)(4+mu)]/[(3+mu)(2+mu)(1+mu)]             
- !--------------------------------------------------------------------------       
+ !
+ ! G(mu)= mom0*mom6/mom3^2 = [(6+mu)(5+mu)(4+mu)]/[(3+mu)(2+mu)(1+mu)]
+ !--------------------------------------------------------------------------
 
  implicit none
 
-! Arguments passed:                                                                
- real, intent(in) :: mom0    !0th moment                                           
- real, intent(in) :: mom3    !3th moment  (note, not normalized)                   
- real, intent(in) :: mom6    !6th moment  (note, not normalized)                   
- real, intent(in) :: mu_max  !maximum allowable value of mu                        
+! Arguments passed:
+ real, intent(in) :: mom0    !0th moment
+ real, intent(in) :: mom3    !3th moment  (note, not normalized)
+ real, intent(in) :: mom6    !6th moment  (note, not normalized)
+ real, intent(in) :: mu_max  !maximum allowable value of mu
 
-! Local variables:                                                                 
- real             :: mu   ! shape parameter in gamma distribution                  
- double precision :: G    ! function of mu (see comments above)                    
+! Local variables:
+ real             :: mu   ! shape parameter in gamma distribution
+ double precision :: G    ! function of mu (see comments above)
  double precision :: g2,x1,x2,x3
-!real             :: a1,g1                                                         
-!real, parameter  :: eps_m0 = 1.e-20                                               
+!real             :: a1,g1
+!real, parameter  :: eps_m0 = 1.e-20
  real, parameter  :: eps_m3 = 1.e-20
  real, parameter  :: eps_m6 = 1.e-35
 
  if (mom3>eps_m3) then
 
-    !G = (mom0*mom6)/(mom3**2)                                                     
-    !To avoid very small values of mom3**2 (not enough)                            
-    !G = (mom0/mom3)*(mom6/mom3)                                                   
+    !G = (mom0*mom6)/(mom3**2)
+    !To avoid very small values of mom3**2 (not enough)
+    !G = (mom0/mom3)*(mom6/mom3)
      x1 = 1./mom3
      x2 = mom0*x1
      x3 = mom6*x1
      G  = x2*x3
 
-     !----------------------------------------------------------!                       
-! !Solve alpha numerically: (brute-force)                                          
-!      mu= 0.                                                                      
-!      g2= 999.                                                                    
-!      do i=0,4000                                                                 
-!         a1= i*0.01                                                               
-!         g1= (6.+a1)*(5.+a1)*(4.+a1)/((3.+a1)*(2.+a1)*(1.+a1))                    
-!         if(abs(g-g1)<abs(g-g2)) then                                             
-!            mu = a1                                                               
-!            g2= g1                                                                
-!         endif                                                                    
-!      enddo                                                                       
+     !----------------------------------------------------------!
+! !Solve alpha numerically: (brute-force)
+!      mu= 0.
+!      g2= 999.
+!      do i=0,4000
+!         a1= i*0.01
+!         g1= (6.+a1)*(5.+a1)*(4.+a1)/((3.+a1)*(2.+a1)*(1.+a1))
+!         if(abs(g-g1)<abs(g-g2)) then
+!            mu = a1
+!            g2= g1
+!         endif
+!      enddo
 !----------------------------------------------------------!
 
-!Piecewise-polynomial approximation of G(mu) to solve for mu:                      
+!Piecewise-polynomial approximation of G(mu) to solve for mu:
      if (G>=20.) then
         mu = 0.
      else

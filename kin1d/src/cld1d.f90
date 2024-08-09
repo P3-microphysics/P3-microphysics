@@ -39,8 +39,8 @@ subroutine columnmodel
 
       implicit none
 
-      integer, parameter :: n_iceCat     =  1
-      logical, parameter :: liqFrac      = .false.
+      integer, parameter :: n_iceCat     =  2
+      logical, parameter :: liqFrac      = .true.
       logical, parameter :: trplMomIce   = .true.
 
       logical, parameter :: scpf_on      = .false.  ! switch for cloud fraction parameterization (SCPF)
@@ -165,12 +165,7 @@ subroutine columnmodel
       real, dimension(ni)      :: prt_pell      ! precip rate, ice pellets      m s-1
       real, dimension(ni)      :: prt_hail      ! precip rate, hail             m s-1
       real, dimension(ni)      :: prt_sndp      ! precip rate, unmelted snow    m s-1
-      real, dimension(ni)      :: prt_wlsnow    ! precip rate, very wet snow    m s-1
-      real, dimension(ni)      :: prt_wcrys     ! precip rate, wet ice cystals  m s-1
-      real, dimension(ni)      :: prt_wsnow     ! precip rate, wet snow         m s-1
-      real, dimension(ni)      :: prt_wgrpl     ! precip rate, wet graupel      m s-1
-      real, dimension(ni)      :: prt_wpell     ! precip rate, wet ice pellets  m s-1
-      real, dimension(ni)      :: prt_whail     ! precip rate, wet hail         m s-1
+      real, dimension(ni)      :: prt_wsnow     ! precip rate, very wet snow    m s-1
 
     ! Diagnostics, etc.
       real, dimension(ni,nk)   :: diag_ZET,Qvinit,GZ,scpf_cldfrac
@@ -552,12 +547,7 @@ subroutine columnmodel
                              prt_pell = prt_pell,  &
                              prt_hail = prt_hail,  &
                              prt_sndp = prt_sndp,  &
-                             prt_wlsnow = prt_wlsnow, &
-                             prt_wcrys = prt_wcrys, &
                              prt_wsnow = prt_wsnow, &
-                             prt_wgrpl = prt_wgrpl, &
-                             prt_wpell = prt_wpell, &
-                             prt_whail = prt_whail, &
                              qi_type  = qi_type,    &
                              diag_dhmax = diag_dhmax)
 
@@ -576,6 +566,7 @@ subroutine columnmodel
          prt_pell = prt_pell*3.6e+6
          prt_hail = prt_hail*3.6e+6
          prt_sndp = prt_sndp*3.6e+6
+         prt_wsnow = prt_wsnow*3.6e+6
 
 
 

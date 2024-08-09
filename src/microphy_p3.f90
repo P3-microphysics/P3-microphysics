@@ -1,3 +1,4 @@
+
 !__________________________________________________________________________________________!
 ! This module contains the Predicted Particle Property (P3) bulk microphysics scheme.      !
 !                                                                                          !
@@ -25,8 +26,8 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.3.3+full3mv28-clean                                                     !
-! Last updated:  2024 Aug                                                                  !
+! Version:       5.3.6 + full3mv28-clean                                                   !
+! Last updated:  Aug 2024                                                                  !
 !__________________________________________________________________________________________!
 
  MODULE microphy_p3
@@ -141,11 +142,11 @@
  integer,          intent(out), optional  :: stat               ! return status of subprogram
  logical,          intent(in),  optional  :: abort_on_err       ! abort when an error is encountered [.false.]
  character(len=*), intent(in),  optional  :: model              ! driving model
- logical,          intent(in)             :: dowr
+ logical,          intent(in),  optional  :: dowr
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.3.3+full3mv28'
+ character(len=1024), parameter :: version_p3                    = '5.3.6+full3mv28'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.4-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '6.5b10-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.0'
@@ -160,6 +161,7 @@
  real                           :: lamr,mu_r,dum,dm,dum1,dum2,dum3,dum4,dum5,dd,amg,vt,dia
  double precision               :: dp_dum1, dp_dum2, dp_dum3
  logical                        :: err_abort
+ logical                        :: owr = .true.
 
 !------------------------------------------------------------------------------------------!
 
@@ -174,6 +176,8 @@
  lookup_file_2 = trim(read_path)//'/'//'p3_lookupTable_2.dat-v'//trim(version_intended_table_2)
 
 !------------------------------------------------------------------------------------------!
+
+ if (present(dowr)) owr=dowr
 
  end_status = STATUS_ERROR
  err_abort = .false.
@@ -362,9 +366,9 @@
 
  IF_PROC0: if (procnum == 0) then
 
-  if(dowr) print*
-  if(dowr) print*, ' P3 microphysics: v',trim(version_p3)
-  if(dowr) print*, '   P3_INIT (reading/creating lookup tables)'
+  if(owr) print*
+  if(owr) print*, ' P3 microphysics: v',trim(version_p3)
+  if(owr) print*, '   P3_INIT (reading/creating lookup tables)'
 
   TRIPLE_MOMENT_ICE: if (.not. trplMomI) then
 
@@ -376,14 +380,14 @@
     !   note:  to override and use a different lookup table, simply comment out the 'return' below
     read(10,*) dumstr,version_header_table_1_2mom
     if (trim(version_intended_table_1_2mom) /= trim(version_header_table_1_2mom)) then
-       if(dowr) print*
-       if(dowr) print*, '***********   WARNING in P3_INIT   *************'
-       if(dowr) print*, ' Loading lookupTable_1: v',trim(version_header_table_1_2mom)
-       if(dowr) print*, ' P3 v',trim(version_p3),' is intended to use lookupTable_1: ',    &
+       if(owr) print*
+       if(owr) print*, '***********   WARNING in P3_INIT   *************'
+       if(owr) print*, ' Loading lookupTable_1: v',trim(version_header_table_1_2mom)
+       if(owr) print*, ' P3 v',trim(version_p3),' is intended to use lookupTable_1: ',    &
                trim(version_intended_table_1_2mom)
-      !if(dowr) print*, '               -- ABORTING -- '
-       if(dowr) print*, '************************************************'
-       if(dowr) print*
+      !if(owr) print*, '               -- ABORTING -- '
+       if(owr) print*, '************************************************'
+       if(owr) print*
        global_status = STATUS_ERROR
        if (trim(model) == 'WRF') then
           print*,'Stopping in P3 init'
@@ -398,7 +402,7 @@
        do ii = 1,rimsize
           do ll = 1,liqsize
             do i = 1,isize
-             read(10,*) dum,dum,dum,dum, itab(jj,ii,ll,i, 1),itab(jj,ii,ll,i, 2),                   &
+             read(10,*) dum,dum,dum,dum, itab(jj,ii,ll,i, 1),itab(jj,ii,ll,i, 2),                  &
                     itab(jj,ii,ll,i, 3),itab(jj,ii,ll,i, 4),itab(jj,ii,ll,i, 5),                   &
                     itab(jj,ii,ll,i, 6),itab(jj,ii,ll,i, 7),itab(jj,ii,ll,i, 8),                   &
                     itab(jj,ii,ll,i, 9),itab(jj,ii,ll,i,10),itab(jj,ii,ll,i,11),                   &
@@ -440,9 +444,9 @@
 
     open(unit=10,file=lookup_file_1,status='old',iostat=ierr,err=101)
  101  if (ierr.ne.0) then
-         if(dowr) print*,'Error opening 3-moment lookup table file '//lookup_file_1
-         if(dowr) print*,'Make sure this file is unzipped and then rerun the model.'
-         if(dowr) print*,' '
+         if(owr) print*,'Error opening 3-moment lookup table file '//lookup_file_1
+         if(owr) print*,'Make sure this file is unzipped and then rerun the model.'
+         if(owr) print*,' '
          flush(6)
          stop
       end if
@@ -451,14 +455,14 @@
     !   note:  to override and use a different lookup table, simply comment out the 'return' below
     read(10,*) dumstr,version_header_table_1_3mom
     if (trim(version_intended_table_1_3mom) /= trim(version_header_table_1_3mom)) then
-       if(dowr) print*
-       if(dowr) print*, '***********   WARNING in P3_INIT   *************'
-       if(dowr) print*, ' Loading lookupTable_1: v',trim(version_header_table_1_3mom)
-       if(dowr) print*, ' P3 v',trim(version_p3),' is intended to use lookupTable_1: v',    &
+       if(owr) print*
+       if(owr) print*, '***********   WARNING in P3_INIT   *************'
+       if(owr) print*, ' Loading lookupTable_1: v',trim(version_header_table_1_3mom)
+       if(owr) print*, ' P3 v',trim(version_p3),' is intended to use lookupTable_1: v',    &
                trim(version_intended_table_1_3mom)
-      !if(dowr) print*, '               -- ABORTING -- '
-       if(dowr) print*, '************************************************'
-       if(dowr) print*
+      !if(owr) print*, '               -- ABORTING -- '
+       if(owr) print*, '************************************************'
+       if(owr) print*
        global_status = STATUS_ERROR
        if (trim(model) == 'WRF') then
           print*,'Stopping in P3 init'
@@ -506,20 +510,20 @@
   IF_NCAT: if (nCat>1) then
    ! read in ice-ice collision lookup table  (used for multicategory only)
 
-       if(dowr) print*, '     Reading table 2 [v',trim(version_intended_table_2),'] ...'
+       if(owr) print*, '     Reading table 2 [v',trim(version_intended_table_2),'] ...'
        open(unit=10,file=lookup_file_2,status='old')
 
        !--check that table version is correct:
        read(10,*) dumstr,version_header_table_2
        if (trim(version_intended_table_2) /= trim(version_header_table_2)) then
-          if(dowr) print*
-          if(dowr) print*, '***********   WARNING in P3_INIT   *************'
-          if(dowr) print*, ' Loading lookupTable_2 version: ',trim(version_header_table_2)
-          if(dowr) print*, ' P3 v',trim(version_p3),' is intended to use lookupTable_2: v', &
+          if(owr) print*
+          if(owr) print*, '***********   WARNING in P3_INIT   *************'
+          if(owr) print*, ' Loading lookupTable_2 version: ',trim(version_header_table_2)
+          if(owr) print*, ' P3 v',trim(version_p3),' is intended to use lookupTable_2: v', &
                   trim(version_intended_table_2)
-         !if(dowr) print*, '               -- ABORTING -- '
-          if(dowr) print*, '************************************************'
-          if(dowr) print*
+         !if(owr) print*, '               -- ABORTING -- '
+          if(owr) print*, '************************************************'
+          if(owr) print*
           global_status = STATUS_ERROR
           if (trim(model)=='WRF' .or. trim(model)=='KIN1D') then
              print*,'Stopping in P3 init'
@@ -622,7 +626,7 @@
 ! make a 150x1 1D lookup table, this is done in parameter
 ! space of a scaled mean size proportional qr/Nr -- initlamr
 
-!if(dowr) print*, '   Generating rain lookup-table ...'
+!if(owr) print*, '   Generating rain lookup-table ...'
 
 !-- for variable mu_r only:
 ! ! !  do i = 1,150              ! loop over lookup table values
@@ -669,7 +673,7 @@
 ! proportional to qr/Nr and shape parameter mu_r
 
  if (procnum == 0) then
-    if(dowr) then
+    if(owr) then
     print*, '     Generating table for rain parameters ...'
     end if
  endif
@@ -742,8 +746,8 @@
 !.......................................................................
 
  if (procnum == 0) then
-    if(dowr) print*, '   P3_INIT DONE.'
-    if(dowr) print*
+    if(owr) print*, '   P3_INIT DONE.'
+    if(owr) print*
  endif
 
  end_status = STATUS_OK
@@ -1079,7 +1083,7 @@ END subroutine p3_init
       diag3d_01(:,:,j)  = diag3d(:,:,1)
       diag3d_02(:,:,j)  = diag3d(:,:,2)
       diag3d_03(:,:,j)  = diag3d(:,:,3)
-      
+
    enddo j_loop
 
    if (global_status /= STATUS_OK) then
@@ -1096,18 +1100,17 @@ END subroutine p3_init
 
  function mp_p3_wrapper_gem(ttend,qtend,qctend,qrtend,qitend,                                     &
                               qvap_m,qvap,temp_m,temp,dt,dt_max,ww,psfc,gztherm,gzmom,sigma,kount,&
-                              trnch,ni,nk,prt_liq,prt_sol,prt_drzl,prt_rain,prt_crys,prt_snow,    &
-                              prt_grpl,prt_pell,prt_hail,prt_sndp,prt_wlsnow,prt_wcrys,prt_wsnow, &
-                              prt_wgrpl,prt_wpell,prt_whail,diag_Zet,diag_Zec,diag_effc,          &
-                              qc,nc,qr,nr,n_diag_2d,diag_2d,n_diag_3d,diag_3d,                    &
-                              clbfact_dep,clbfact_sub,debug_on,diag_hcb,diag_hsn,diag_vis,        &
-                              diag_vis1,diag_vis2,diag_vis3,diag_slw,                             &
-                              scpf_on,scpf_pfrac,scpf_resfact,cldfrac,maxD_hail,                  &
-                              qi_type_1,qi_type_2,qi_type_3,qi_type_4,qi_type_5,qi_type_6,        &
-                              qitot_1,qirim_1,nitot_1,birim_1,diag_effi_1,zitot_1,qiliq_1,        &
-                              qitot_2,qirim_2,nitot_2,birim_2,diag_effi_2,zitot_2,qiliq_2,        &
-                              qitot_3,qirim_3,nitot_3,birim_3,diag_effi_3,zitot_3,qiliq_3,        &
-                              qitot_4,qirim_4,nitot_4,birim_4,diag_effi_4,zitot_4,qiliq_4)        &
+                              ni,nk,prt_liq,prt_sol,prt_drzl,prt_rain,prt_crys,prt_snow,          &
+                              prt_grpl,prt_pell,prt_hail,prt_sndp,prt_wsnow,diag_Zet,diag_Zec,    &
+                              diag_effc,qc_m,qc,nc,qr_m,qr,nr,n_diag_2d,diag_2d,n_diag_3d,diag_3d,  &
+                              clbfact_dep,clbfact_sub,debug_on,diag_hcb,diag_hsn,diag_vis,          &
+                              diag_vis1,diag_vis2,diag_vis3,diag_slw,                               &
+                              scpf_on,scpf_pfrac,scpf_resfact,cldfrac,maxD_hail,                    &
+                              qi_type_1,qi_type_2,qi_type_3,qi_type_4,qi_type_5,qi_type_6,          &
+                              qitot_1m,qitot_1,qirim_1,nitot_1,birim_1,diag_effi_1,zitot_1,qiliq_1, &
+                              qitot_2m,qitot_2,qirim_2,nitot_2,birim_2,diag_effi_2,zitot_2,qiliq_2, &
+                              qitot_3m,qitot_3,qirim_3,nitot_3,birim_3,diag_effi_3,zitot_3,qiliq_3, &
+                              qitot_4m,qitot_4,qirim_4,nitot_4,birim_4,diag_effi_4,zitot_4,qiliq_4) &
                               result(end_status)
 
 !------------------------------------------------------------------------------------------!
@@ -1127,7 +1130,6 @@ END subroutine p3_init
  integer, intent(in)                    :: nk                    ! number of vertical levels           -
 !integer, intent(in)                    :: n_iceCat              ! number of ice categories            -
  integer, intent(in)                    :: kount                 ! time step counter                   -
- integer, intent(in)                    :: trnch                 ! number of slice                     -
  integer, intent(in)                    :: n_diag_2d             ! number of 2D diagnostic fields      -
  integer, intent(in)                    :: n_diag_3d             ! number of 3D diagnostic fields      -
 
@@ -1135,42 +1137,48 @@ END subroutine p3_init
  real, intent(in)                       :: dt_max                ! maximum timestep for microphysics   s
  real, intent(in)                       :: clbfact_dep           ! calibration factor for deposition
  real, intent(in)                       :: clbfact_sub           ! calibration factor for sublimation
- real, intent(inout), dimension(ni,nk)  :: qc                    ! cloud mixing ratio, mass            kg kg-1
- real, intent(inout), dimension(ni,nk)  :: nc                    ! cloud mixing ratio, number          #  kg-1
- real, intent(inout), dimension(ni,nk)  :: qr                    ! rain  mixing ratio, mass            kg kg-1
- real, intent(inout), dimension(ni,nk)  :: nr                    ! rain  mixing ratio, number          #  kg-1
+ real, intent(inout), dimension(ni,nk)  :: qc                    ! cloud specific ratio, mass            kg kg-1
+ real, intent(inout), dimension(ni,nk)  :: nc                    ! cloud specific ratio, number          #  kg-1
+ real, intent(inout), dimension(ni,nk)  :: qr                    ! rain  specific ratio, mass            kg kg-1
+ real, intent(inout), dimension(ni,nk)  :: nr                    ! rain  specific ratio, number          #  kg-1
+ real, intent(in),    dimension(ni,nk)  :: qc_m                  ! cloud specific ratio, mass t-         kg kg-1
+ real, intent(in),    dimension(ni,nk)  :: qr_m                  ! rain  specific ratio, mass t-         kg kg-1
 
- real, dimension(:,:), pointer, contiguous  :: qitot_1           ! ice   mixing ratio, mass (total)    kg kg-1
- real, dimension(:,:), pointer, contiguous  :: qirim_1           ! ice   mixing ratio, mass (rime)     kg kg-1
- real, dimension(:,:), pointer, contiguous  :: nitot_1           ! ice   mixing ratio, number          #  kg-1
- real, dimension(:,:), pointer, contiguous  :: birim_1           ! ice   mixing ratio, volume          m3 kg-1
- real, dimension(:,:), pointer, contiguous  :: diag_effi_1       ! ice   effective radius, (cat 1)     m
- real, intent(inout), dimension(ni,nk), optional  :: zitot_1     ! ice   mixing ratio, reflectivity    m^6 kg-1
- real, intent(inout), dimension(ni,nk), optional  :: qiliq_1     ! ice   mixing ratio, mass (liquid)   kg kg-1
+ real, dimension(:,:), pointer, contiguous  :: qitot_1           ! ice   specific ratio, mass (total)    kg kg-1
+ real, dimension(:,:), pointer, contiguous  :: qitot_1m          ! ice   specific ratio, mass (t-)       kg kg-1
+ real, dimension(:,:), pointer, contiguous  :: qirim_1           ! ice   specific ratio, mass (rime)     kg kg-1
+ real, dimension(:,:), pointer, contiguous  :: nitot_1           ! ice   specific ratio, number          #  kg-1
+ real, dimension(:,:), pointer, contiguous  :: birim_1           ! ice   specific ratio, volume          m3 kg-1
+ real, dimension(:,:), pointer, contiguous  :: diag_effi_1       ! ice   effective radius, (cat 1)       m
+ real, dimension(:,:), pointer, contiguous  :: zitot_1           ! ice   specific ratio, reflectivity    m^6 kg-1
+ real, dimension(:,:), pointer, contiguous  :: qiliq_1           ! ice   specific ratio, mass (liquid)   kg kg-1
 
- real, dimension(:,:), pointer, contiguous  :: qitot_2           ! ice   mixing ratio, mass (total)    kg kg-1
- real, dimension(:,:), pointer, contiguous  :: qirim_2           ! ice   mixing ratio, mass (rime)     kg kg-1
- real, dimension(:,:), pointer, contiguous  :: nitot_2           ! ice   mixing ratio, number          #  kg-1
- real, dimension(:,:), pointer, contiguous  :: birim_2           ! ice   mixing ratio, volume          m3 kg-1
- real, dimension(:,:), pointer, contiguous  :: diag_effi_2       ! ice   effective radius, (cat 2)     m
- real, intent(inout), dimension(ni,nk), optional  :: zitot_2     ! ice   mixing ratio, reflectivity    m^6 kg-1
- real, intent(inout), dimension(ni,nk), optional  :: qiliq_2     ! ice   mixing ratio, mass (liquid)   kg kg-1
+ real, dimension(:,:), pointer, contiguous  :: qitot_2           ! ice   specific ratio, mass (total)    kg kg-1
+ real, dimension(:,:), pointer, contiguous  :: qitot_2m          ! ice   specific ratio, mass (t-)       kg kg-1
+ real, dimension(:,:), pointer, contiguous  :: qirim_2           ! ice   specific ratio, mass (rime)     kg kg-1
+ real, dimension(:,:), pointer, contiguous  :: nitot_2           ! ice   specific ratio, number          #  kg-1
+ real, dimension(:,:), pointer, contiguous  :: birim_2           ! ice   specific ratio, volume          m3 kg-1
+ real, dimension(:,:), pointer, contiguous  :: diag_effi_2       ! ice   effective radius, (cat 2)       m
+ real, dimension(:,:), pointer, contiguous  :: zitot_2           ! ice   specific ratio, reflectivity    m^6 kg-1
+ real, dimension(:,:), pointer, contiguous  :: qiliq_2           ! ice   specific ratio, mass (liquid)   kg kg-1
 
- real, dimension(:,:), pointer, contiguous  :: qitot_3           ! ice   mixing ratio, mass (total)    kg kg-1
- real, dimension(:,:), pointer, contiguous  :: qirim_3           ! ice   mixing ratio, mass (rime)     kg kg-1
- real, dimension(:,:), pointer, contiguous  :: nitot_3           ! ice   mixing ratio, number          #  kg-1
- real, dimension(:,:), pointer, contiguous  :: birim_3           ! ice   mixing ratio, volume          m3 kg-1
- real, dimension(:,:), pointer, contiguous  :: diag_effi_3       ! ice   effective radius,  (cat 3)     m
- real, intent(inout), dimension(ni,nk), optional  :: zitot_3     ! ice   mixing ratio, reflectivity    m^6 kg-1
- real, intent(inout), dimension(ni,nk), optional  :: qiliq_3     ! ice   mixing ratio, mass (liquid)   kg kg-1
+ real, dimension(:,:), pointer, contiguous  :: qitot_3           ! ice   specific ratio, mass (total)    kg kg-1
+ real, dimension(:,:), pointer, contiguous  :: qitot_3m          ! ice   specific ratio, mass (t-)       kg kg-1
+ real, dimension(:,:), pointer, contiguous  :: qirim_3           ! ice   specific ratio, mass (rime)     kg kg-1
+ real, dimension(:,:), pointer, contiguous  :: nitot_3           ! ice   specific ratio, number          #  kg-1
+ real, dimension(:,:), pointer, contiguous  :: birim_3           ! ice   specific ratio, volume          m3 kg-1
+ real, dimension(:,:), pointer, contiguous  :: diag_effi_3       ! ice   effective radius,  (cat 3)      m
+ real, dimension(:,:), pointer, contiguous  :: zitot_3           ! ice   specific ratio, reflectivity    m^6 kg-1
+ real, dimension(:,:), pointer, contiguous  :: qiliq_3           ! ice   specific ratio, mass (liquid)   kg kg-1
 
- real, dimension(:,:), pointer, contiguous  :: qitot_4           ! ice   mixing ratio, mass (total)    kg kg-1
- real, dimension(:,:), pointer, contiguous  :: qirim_4           ! ice   mixing ratio, mass (rime)     kg kg-1
- real, dimension(:,:), pointer, contiguous  :: nitot_4           ! ice   mixing ratio, number          #  kg-1
- real, dimension(:,:), pointer, contiguous  :: birim_4           ! ice   mixing ratio, volume          m3 kg-1
- real, dimension(:,:), pointer, contiguous  :: diag_effi_4       ! ice   effective radius, (cat 4)     m
- real, intent(inout), dimension(ni,nk), optional  :: zitot_4     ! ice   mixing ratio, reflectivity    m^6 kg-1
- real, intent(inout), dimension(ni,nk), optional  :: qiliq_4     ! ice   mixing ratio, mass (liquid)   kg kg-1
+ real, dimension(:,:), pointer, contiguous  :: qitot_4           ! ice   specific ratio, mass (total)    kg kg-1
+ real, dimension(:,:), pointer, contiguous  :: qitot_4m          ! ice   specific ratio, mass (t-)       kg kg-1
+ real, dimension(:,:), pointer, contiguous  :: qirim_4           ! ice   specific ratio, mass (rime)     kg kg-1
+ real, dimension(:,:), pointer, contiguous  :: nitot_4           ! ice   specific ratio, number          #  kg-1
+ real, dimension(:,:), pointer, contiguous  :: birim_4           ! ice   specific ratio, volume          m3 kg-1
+ real, dimension(:,:), pointer, contiguous  :: diag_effi_4       ! ice   effective radius, (cat 4)       m
+ real, dimension(:,:), pointer, contiguous  :: zitot_4           ! ice   specific ratio, reflectivity    m^6 kg-1
+ real, dimension(:,:), pointer, contiguous  :: qiliq_4           ! ice   specific ratio, mass (liquid)   kg kg-1
 
  real, intent(out), dimension(ni,nk) :: ttend                    ! temperature tendency                K s-1
  real, intent(out), dimension(ni,nk) :: qtend                    ! moisture tendency                   kg kg-1 s-1
@@ -1196,12 +1204,7 @@ END subroutine p3_init
  real, intent(out),   dimension(ni)     :: prt_grpl              ! precipitation rate, graupel         m s-1
  real, intent(out),   dimension(ni)     :: prt_pell              ! precipitation rate, ice pellets     m s-1
  real, intent(out),   dimension(ni)     :: prt_hail              ! precipitation rate, hail            m s-1
- real, intent(out),   dimension(ni)     :: prt_wlsnow            ! precipitation rate, very wet snow   m s-1
- real, intent(out),   dimension(ni)     :: prt_wcrys             ! precipitation rate, wet ice cystals m s-1
  real, intent(out),   dimension(ni)     :: prt_wsnow             ! precipitation rate, wet snow        m s-1
- real, intent(out),   dimension(ni)     :: prt_wgrpl             ! precipitation rate, wet graupel     m s-1
- real, intent(out),   dimension(ni)     :: prt_wpell             ! precipitation rate, wet ice pellets m s-1
- real, intent(out),   dimension(ni)     :: prt_whail             ! precipitation rate, wet hail        m s-1
  real, intent(out),   dimension(ni)     :: prt_sndp              ! precipitation rate, unmelted snow   m s-1
  real, intent(out),   dimension(ni,nk)  :: diag_Zet              ! equivalent reflectivity, 3D         dBZ
  real, intent(out),   dimension(ni)     :: diag_Zec              ! equivalent reflectivity, col-max    dBZ
@@ -1250,6 +1253,7 @@ END subroutine p3_init
 
  real, dimension(ni,nk)  :: theta_m             ! potential temperature (previous step)   K
  real, dimension(ni,nk)  :: qvapm               ! qv (previous step)                      kg kg-1
+ real, dimension(ni,nk)  :: qvapm1              ! qv (specific previous step)             kg kg-1
  real, dimension(ni,nk)  :: theta               ! potential temperature                   K
  real, dimension(ni,nk)  :: pres                ! pressure                                Pa
  real, dimension(ni,nk)  :: DZ                  ! difference in height between levels     m
@@ -1258,12 +1262,16 @@ END subroutine p3_init
  real, dimension(ni,nk)  :: qqdelta,ttdelta     ! for sub_stepping
  real, dimension(ni,nk)  :: iwc                 ! total ice water content
  real, dimension(ni,nk)  :: temp0, qvap0, qc0, qr0, iwc0 ! incoming state variables
+ real, dimension(ni,nk)  :: totmassm            ! total mass specific/ratio t-            kg kg-1
+ real, dimension(ni,nk)  :: totmass             ! total mass specific/ratio t*            kg kg-1
+ real, dimension(ni,nk)  :: totmass_mom         ! totmass on momentum levels              kg kg-1
+ real, dimension(ni,nk)  :: inv_totmassm        ! total mass specific/ratio t-            kg kg-1
+ real, dimension(ni,nk)  :: inv_totmass         ! total mass specific/ratio t*            kg kg-1
 
  real, dimension(ni,nk,n_qiType) :: qi_type     ! diagnostic precipitation types
 
  real, dimension(ni)     :: prt_liq_ave,prt_sol_ave,rn1_ave,rn2_ave,sn1_ave, &  ! ave pcp rates over full timestep
-                            sn2_ave,sn3_ave,pe1_ave,pe2_ave,snd_ave,wsn1_ave, &
-                            wsn2_ave,wsn3_ave,wpe1_ave,wpe2_ave,wls_ave
+                            sn2_ave,sn3_ave,pe1_ave,pe2_ave,snd_ave,ws_ave
  real                    :: dt_mp                                               ! timestep used by microphsyics (for substepping)
  real                    :: tmp1, idt
 
@@ -1279,8 +1287,6 @@ END subroutine p3_init
 
    end_status = STATUS_ERROR
 
-   tmpint1 = trnch !not used; prevents "variable not used" compiler message
-
    i_strt = 1  ! beginning index of slab
    k_strt = 1  ! beginning index of column
 
@@ -1288,15 +1294,15 @@ END subroutine p3_init
    kbot  = nk  ! k index of bottom level
    kdir  = -1  ! direction of vertical leveling for 1=bottom, nk=top
 
-   log_trplMomI = present(zitot_1)
-   log_liqFrac  = present(qiliq_1)
+   log_trplMomI = associated(zitot_1)
+   log_liqFrac  = associated(qiliq_1)
 
    !compute time step and number of steps for substepping
    idt = 1./dt
    n_substep = int((dt-0.1)/max(0.1,dt_max)) + 1
    dt_mp = dt/float(n_substep)
 
-   ! Save initial state for tendency calculation and reset
+   ! Save initial state for tendency calculation and reset (in specific ratios)
    temp0(:,:) = temp(:,:)
    qvap0(:,:) = qvap(:,:)
    qc0(:,:) = qc(:,:)
@@ -1306,12 +1312,66 @@ END subroutine p3_init
    if (n_iceCat > 2) iwc0(:,:) = iwc0(:,:) + qitot_3(:,:)
    if (n_iceCat > 3) iwc0(:,:) = iwc0(:,:) + qitot_4(:,:)
 
+   ! Transform every specific mass to mixing ratio
+   ! Total sum at t-
+   totmassm(:,:) = qvap_m(:,:)+qr_m(:,:)+qc_m(:,:)+qitot_1m(:,:)
+   if (n_iceCat > 1) totmassm(:,:) = totmassm(:,:) + qitot_2m(:,:)
+   if (n_iceCat > 2) totmassm(:,:) = totmassm(:,:) + qitot_3m(:,:)
+   if (n_iceCat > 3) totmassm(:,:) = totmassm(:,:) + qitot_4m(:,:)
+   inv_totmassm(:,:) = 1./(1.-totmassm(:,:))
+   ! Total sum at t*
+   totmass(:,:) = qvap(:,:)+qr(:,:)+qc(:,:)+qitot_1(:,:)
+   if (n_iceCat > 1) totmass(:,:) = totmass(:,:) + qitot_2(:,:)
+   if (n_iceCat > 2) totmass(:,:) = totmass(:,:) + qitot_3(:,:)
+   if (n_iceCat > 3) totmass(:,:) = totmass(:,:) + qitot_4(:,:)
+   inv_totmass(:,:) = 1./(1.-totmass(:,:))
+   ! Water vapour:
+   qvap(:,:) = qvap(:,:)*inv_totmass(:,:)
+   qvapm1(:,:) = qvap_m(:,:)*inv_totmassm(:,:)
+   ! Cloud water:
+   qc(:,:) = qc(:,:)*inv_totmass(:,:)
+   nc(:,:) = nc(:,:)*inv_totmass(:,:)
+   ! Rain water:
+   qr(:,:) = qr(:,:)*inv_totmass(:,:)
+   nr(:,:) = nr(:,:)*inv_totmass(:,:)
+   ! Ice:
+   qitot_1(:,:) = qitot_1(:,:)*inv_totmass(:,:)
+   qirim_1(:,:) = qirim_1(:,:)*inv_totmass(:,:)
+   nitot_1(:,:) = nitot_1(:,:)*inv_totmass(:,:)
+   birim_1(:,:) = birim_1(:,:)*inv_totmass(:,:)
+   if (associated(zitot_1)) zitot_1(:,:) = zitot_1(:,:)*inv_totmass(:,:)
+   if (associated(qiliq_1)) qiliq_1(:,:) = qiliq_1(:,:)*inv_totmass(:,:)
+   if (n_iceCat >= 2) then
+      qitot_2(:,:) = qitot_2(:,:)*inv_totmass(:,:)
+      qirim_2(:,:) = qirim_2(:,:)*inv_totmass(:,:)
+      nitot_2(:,:) = nitot_2(:,:)*inv_totmass(:,:)
+      birim_2(:,:) = birim_2(:,:)*inv_totmass(:,:)
+      if (associated(zitot_2)) zitot_2(:,:) = zitot_2(:,:)*inv_totmass(:,:)
+      if (associated(qiliq_2)) qiliq_2(:,:) = qiliq_2(:,:)*inv_totmass(:,:)
+      if (n_iceCat >= 3) then
+         qitot_3(:,:) = qitot_3(:,:)*inv_totmass(:,:)
+         qirim_3(:,:) = qirim_3(:,:)*inv_totmass(:,:)
+         nitot_3(:,:) = nitot_3(:,:)*inv_totmass(:,:)
+         birim_3(:,:) = birim_3(:,:)*inv_totmass(:,:)
+         if (associated(zitot_3)) zitot_3(:,:) = zitot_3(:,:)*inv_totmass(:,:)
+         if (associated(qiliq_3)) qiliq_3(:,:) = qiliq_3(:,:)*inv_totmass(:,:)
+         if (n_iceCat >= 4) then
+            qitot_4(:,:) = qitot_4(:,:)*inv_totmass(:,:)
+            qirim_4(:,:) = qirim_4(:,:)*inv_totmass(:,:)
+            nitot_4(:,:) = nitot_4(:,:)*inv_totmass(:,:)
+            birim_4(:,:) = birim_4(:,:)*inv_totmass(:,:)
+            if (associated(zitot_4)) zitot_4(:,:) = zitot_4(:,:)*inv_totmass(:,:)
+            if (associated(qiliq_4)) qiliq_4(:,:) = qiliq_4(:,:)*inv_totmass(:,:)
+         endif
+      endif
+   endif
+
+   ! All variables are in mixing ratios
    ! External forcings are distributed evenly over steps
-   ! Note qqdelta is converted from specific to mixing ratio
-   qqdelta = (qvap/(1-qvap)-qvap_m/(1-qvap_m)) / float(n_substep)
+   qqdelta = (qvap-qvapm1) / float(n_substep)
    ttdelta = (temp-temp_m) / float(n_substep)
    ! initialise for the 1st substepping
-   qvap = qvap_m/(1-qvap_m) ! mixing ratio instead of specific humidity
+   qvap = qvapm1
    temp = temp_m
 
   !if (kount == 0) then
@@ -1344,14 +1404,14 @@ END subroutine p3_init
    enddo
    DZ(:,kbot) = gzmom(:,kbot)
 
-  !contruct full ice arrays from individual category arrays:
+  !construct full ice arrays from individual category arrays:
    qitot(:,:,1) = qitot_1(:,:)
    qirim(:,:,1) = qirim_1(:,:)
    nitot(:,:,1) = nitot_1(:,:)
    birim(:,:,1) = birim_1(:,:)
    diag_effi(:,:,1) = diag_effi_1(:,:)
-   if (present(zitot_1)) zitot(:,:,1) = zitot_1(:,:)
-   if (present(qiliq_1)) qiliq(:,:,1) = qiliq_1(:,:)
+   if (associated(zitot_1)) zitot(:,:,1) = zitot_1(:,:)
+   if (associated(qiliq_1)) qiliq(:,:,1) = qiliq_1(:,:)
 
    if (n_iceCat >= 2) then
       qitot(:,:,2) = qitot_2(:,:)
@@ -1359,8 +1419,8 @@ END subroutine p3_init
       nitot(:,:,2) = nitot_2(:,:)
       birim(:,:,2) = birim_2(:,:)
       diag_effi(:,:,2) = diag_effi_2(:,:)
-      if (present(zitot_2)) zitot(:,:,2) = zitot_2(:,:)
-      if (present(qiliq_2)) qiliq(:,:,2) = qiliq_2(:,:)
+      if (associated(zitot_2)) zitot(:,:,2) = zitot_2(:,:)
+      if (associated(qiliq_2)) qiliq(:,:,2) = qiliq_2(:,:)
 
       if (n_iceCat >= 3) then
          qitot(:,:,3) = qitot_3(:,:)
@@ -1368,8 +1428,8 @@ END subroutine p3_init
          nitot(:,:,3) = nitot_3(:,:)
          birim(:,:,3) = birim_3(:,:)
          diag_effi(:,:,3) = diag_effi_3(:,:)
-         if (present(zitot_3)) zitot(:,:,3) = zitot_3(:,:)
-         if (present(qiliq_3)) qiliq(:,:,3) = qiliq_3(:,:)
+         if (associated(zitot_3)) zitot(:,:,3) = zitot_3(:,:)
+         if (associated(qiliq_3)) qiliq(:,:,3) = qiliq_3(:,:)
 
          if (n_iceCat == 4) then
             qitot(:,:,4) = qitot_4(:,:)
@@ -1377,8 +1437,8 @@ END subroutine p3_init
             nitot(:,:,4) = nitot_4(:,:)
             birim(:,:,4) = birim_4(:,:)
             diag_effi(:,:,4) = diag_effi_4(:,:)
-            if (present(zitot_4)) zitot(:,:,4) = zitot_4(:,:)
-            if (present(qiliq_4)) qiliq(:,:,4) = qiliq_4(:,:)
+            if (associated(zitot_4)) zitot(:,:,4) = zitot_4(:,:)
+            if (associated(qiliq_4)) qiliq(:,:,4) = qiliq_4(:,:)
          endif
       endif
    endif
@@ -1394,12 +1454,7 @@ END subroutine p3_init
       sn3_ave(:)  = 0.
       pe1_ave(:)  = 0.
       pe2_ave(:)  = 0.
-      wls_ave(:)  = 0.
-      wsn1_ave(:) = 0.
-      wsn2_ave(:) = 0.
-      wsn3_ave(:) = 0.
-      wpe1_ave(:) = 0.
-      wpe2_ave(:) = 0.
+      ws_ave(:)  = 0.
       snd_ave(:)  = 0.
    endif
 
@@ -1423,7 +1478,7 @@ END subroutine p3_init
                    n_diag_3d,diag_3d,log_predictNc,trim(model),clbfact_dep,clbfact_sub,         &
                    debug_on,scpf_on,scpf_pfrac,scpf_resfact,cldfrac,log_trplMomI,log_liqFrac,   &
                    prt_drzl,prt_rain,prt_crys,prt_snow,prt_grpl,prt_pell,prt_hail,prt_sndp,     &
-                   prt_wlsnow,prt_wcrys,prt_wsnow,prt_wgrpl,prt_wpell,prt_whail,qi_type,        &
+                   prt_wsnow,qi_type,                                                           &
                    diag_vis  = diag_vis,                                                        &
                    diag_vis1 = diag_vis1,                                                       &
                    diag_vis2 = diag_vis2,                                                       &
@@ -1447,18 +1502,10 @@ END subroutine p3_init
          pe1_ave(:) = pe1_ave(:) + prt_pell(:)
          pe2_ave(:) = pe2_ave(:) + prt_hail(:)
          snd_ave(:) = snd_ave(:) + prt_sndp(:)
-         wls_ave(:) = wls_ave(:) + prt_wlsnow(:)
-         wsn1_ave(:) = wsn1_ave(:) + prt_wcrys(:)
-         wsn2_ave(:) = wsn2_ave(:) + prt_wsnow(:)
-         wsn3_ave(:) = wsn3_ave(:) + prt_wgrpl(:)
-         wpe1_ave(:) = wpe1_ave(:) + prt_wpell(:)
-         wpe2_ave(:) = wpe2_ave(:) + prt_whail(:)
+         ws_ave(:)  = ws_ave(:)  + prt_wsnow(:)
       endif
 
    enddo substep_loop
-
-   ! retransferring mixing ratio to specific humidity (only t* is needed)
-   qvap = qvap/(1+qvap)
 
    ! Take maximum hail size for all category included
    maxD_hail = maxval(diag_dhmax,3)
@@ -1475,12 +1522,7 @@ END subroutine p3_init
       prt_pell(:) = pe1_ave(:)*tmp1
       prt_hail(:) = pe2_ave(:)*tmp1
       prt_sndp(:) = snd_ave(:)*tmp1
-      prt_wlsnow(:) = wls_ave(:)*tmp1
-      prt_wcrys(:)  = wsn1_ave(:)*tmp1
-      prt_wsnow(:)  = wsn2_ave(:)*tmp1
-      prt_wgrpl(:)  = wsn3_ave(:)*tmp1
-      prt_wpell(:)  = wpe1_ave(:)*tmp1
-      prt_whail(:)  = wpe2_ave(:)*tmp1
+      prt_wsnow(:) = ws_ave(:)*tmp1
    endif
 
   !===
@@ -1491,8 +1533,8 @@ END subroutine p3_init
    qirim_1(:,:) = qirim(:,:,1)
    nitot_1(:,:) = nitot(:,:,1)
    birim_1(:,:) = birim(:,:,1)
-   if (present(zitot_1)) zitot_1(:,:) = zitot(:,:,1)
-   if (present(qiliq_1)) qiliq_1(:,:) = qiliq(:,:,1)
+   if (associated(zitot_1)) zitot_1(:,:) = zitot(:,:,1)
+   if (associated(qiliq_1)) qiliq_1(:,:) = qiliq(:,:,1)
    where (qitot_1(:,:) >= SMALL_ICE_MASS)
       diag_effi_1(:,:) = diag_effi(:,:,1)
    elsewhere
@@ -1504,8 +1546,8 @@ END subroutine p3_init
       qirim_2(:,:) = qirim(:,:,2)
       nitot_2(:,:) = nitot(:,:,2)
       birim_2(:,:) = birim(:,:,2)
-      if (present(zitot_2)) zitot_2(:,:) = zitot(:,:,2)
-      if (present(qiliq_2)) qiliq_2(:,:) = qiliq(:,:,2)
+      if (associated(zitot_2)) zitot_2(:,:) = zitot(:,:,2)
+      if (associated(qiliq_2)) qiliq_2(:,:) = qiliq(:,:,2)
       where (qitot_2(:,:) >= SMALL_ICE_MASS)
          diag_effi_2(:,:) = diag_effi(:,:,2)
       elsewhere
@@ -1517,8 +1559,8 @@ END subroutine p3_init
          qirim_3(:,:) = qirim(:,:,3)
          nitot_3(:,:) = nitot(:,:,3)
          birim_3(:,:) = birim(:,:,3)
-         if (present(zitot_3)) zitot_3(:,:) = zitot(:,:,3)
-         if (present(qiliq_3)) qiliq_3(:,:) = qiliq(:,:,3)
+         if (associated(zitot_3)) zitot_3(:,:) = zitot(:,:,3)
+         if (associated(qiliq_3)) qiliq_3(:,:) = qiliq(:,:,3)
          where (qitot_3(:,:) >= SMALL_ICE_MASS)
             diag_effi_3(:,:) = diag_effi(:,:,3)
          elsewhere
@@ -1530,8 +1572,8 @@ END subroutine p3_init
             qirim_4(:,:) = qirim(:,:,4)
             nitot_4(:,:) = nitot(:,:,4)
             birim_4(:,:) = birim(:,:,4)
-            if (present(zitot_4)) zitot_4(:,:) = zitot(:,:,4)
-            if (present(qiliq_4)) qiliq_4(:,:) = qiliq(:,:,4)
+            if (associated(zitot_4)) zitot_4(:,:) = zitot(:,:,4)
+            if (associated(qiliq_4)) qiliq_4(:,:) = qiliq(:,:,4)
             where (qitot_4(:,:) >= SMALL_ICE_MASS)
                diag_effi_4(:,:) = diag_effi(:,:,4)
             elsewhere
@@ -1595,6 +1637,52 @@ END subroutine p3_init
       call physeterror('microphy_p3::mp_p3_wrapper_gem', &
            'Insufficient size for qi_type')
       return
+   endif
+
+   ! Total sum at t+
+   totmass(:,:) = qvap(:,:)+qr(:,:)+qc(:,:)+qitot_1(:,:)
+   if (n_iceCat > 1) totmass(:,:) = totmass(:,:) + qitot_2(:,:)
+   if (n_iceCat > 2) totmass(:,:) = totmass(:,:) + qitot_3(:,:)
+   if (n_iceCat > 3) totmass(:,:) = totmass(:,:) + qitot_4(:,:)
+   inv_totmass(:,:) = 1./(1.+totmass(:,:))
+   ! Water vapour:
+   qvap(:,:) = qvap(:,:)*inv_totmass(:,:)
+   ! Cloud water:
+   qc(:,:) = qc(:,:)*inv_totmass(:,:)
+   nc(:,:) = nc(:,:)*inv_totmass(:,:)
+   ! Rain water:
+   qr(:,:) = qr(:,:)*inv_totmass(:,:)
+   nr(:,:) = nr(:,:)*inv_totmass(:,:)
+   ! Ice:
+   qitot_1(:,:) = qitot_1(:,:)*inv_totmass(:,:)
+   qirim_1(:,:) = qirim_1(:,:)*inv_totmass(:,:)
+   nitot_1(:,:) = nitot_1(:,:)*inv_totmass(:,:)
+   birim_1(:,:) = birim_1(:,:)*inv_totmass(:,:)
+   if (associated(zitot_1)) zitot_1(:,:) = zitot_1(:,:)*inv_totmass(:,:)
+   if (associated(qiliq_1)) qiliq_1(:,:) = qiliq_1(:,:)*inv_totmass(:,:)
+   if (n_iceCat >= 2) then
+      qitot_2(:,:) = qitot_2(:,:)*inv_totmass(:,:)
+      qirim_2(:,:) = qirim_2(:,:)*inv_totmass(:,:)
+      nitot_2(:,:) = nitot_2(:,:)*inv_totmass(:,:)
+      birim_2(:,:) = birim_2(:,:)*inv_totmass(:,:)
+      if (associated(zitot_2)) zitot_2(:,:) = zitot_2(:,:)*inv_totmass(:,:)
+      if (associated(qiliq_2)) qiliq_2(:,:) = qiliq_2(:,:)*inv_totmass(:,:)
+      if (n_iceCat >= 3) then
+         qitot_3(:,:) = qitot_3(:,:)*inv_totmass(:,:)
+         qirim_3(:,:) = qirim_3(:,:)*inv_totmass(:,:)
+         nitot_3(:,:) = nitot_3(:,:)*inv_totmass(:,:)
+         birim_3(:,:) = birim_3(:,:)*inv_totmass(:,:)
+         if (associated(zitot_3)) zitot_3(:,:) = zitot_3(:,:)*inv_totmass(:,:)
+         if (associated(qiliq_3)) qiliq_3(:,:) = qiliq_3(:,:)*inv_totmass(:,:)
+         if (n_iceCat >= 4) then
+            qitot_4(:,:) = qitot_4(:,:)*inv_totmass(:,:)
+            qirim_4(:,:) = qirim_4(:,:)*inv_totmass(:,:)
+            nitot_4(:,:) = nitot_4(:,:)*inv_totmass(:,:)
+            birim_4(:,:) = birim_4(:,:)*inv_totmass(:,:)
+            if (associated(zitot_4)) zitot_4(:,:) = zitot_4(:,:)*inv_totmass(:,:)
+            if (associated(qiliq_4)) qiliq_4(:,:) = qiliq_4(:,:)*inv_totmass(:,:)
+         endif
+      endif
    endif
 
    ! Compute tendencies and reset state
@@ -1821,9 +1909,8 @@ END subroutine p3_init
                     diag_2d,n_diag_3d,diag_3d,log_predictNc,model,clbfact_dep,            &
                     clbfact_sub,debug_on,scpf_on,scpf_pfrac,scpf_resfact,SCF_out,         &
                     log_3momentIce,log_LiquidFrac,prt_drzl,prt_rain,prt_crys,prt_snow,    &
-                    prt_grpl,prt_pell,prt_hail,prt_sndp,prt_wlsnow,prt_wcrys,prt_wsnow,   &
-                    prt_wgrpl,prt_wpell,prt_whail,qi_type,diag_vis,diag_vis1,diag_vis2,   &
-                    diag_vis3,diag_dhmax)
+                    prt_grpl,prt_pell,prt_hail,prt_sndp,prt_wsnow,qi_type,                &
+                    diag_vis,diag_vis1,diag_vis2,diag_vis3,diag_dhmax)
 
 !----------------------------------------------------------------------------------------!
 !                                                                                        !
@@ -1906,12 +1993,7 @@ END subroutine p3_init
  real, intent(out), dimension(its:ite), optional      :: prt_pell      ! precip rate, ice pellets      m s-1
  real, intent(out), dimension(its:ite), optional      :: prt_hail      ! precip rate, hail             m s-1
  real, intent(out), dimension(its:ite), optional      :: prt_sndp      ! precip rate, unmelted snow    m s-1
- real, intent(out), dimension(its:ite), optional      :: prt_wlsnow    ! precip rate, very wet snow    m s-1
- real, intent(out), dimension(its:ite), optional      :: prt_wcrys     ! precip rate, wet ice cystals  m s-1
- real, intent(out), dimension(its:ite), optional      :: prt_wsnow     ! precip rate, wet snow         m s-1
- real, intent(out), dimension(its:ite), optional      :: prt_wgrpl     ! precip rate, wet graupel      m s-1
- real, intent(out), dimension(its:ite), optional      :: prt_wpell     ! precip rate, wet ice pellets  m s-1
- real, intent(out), dimension(its:ite), optional      :: prt_whail     ! precip rate, wet hail         m s-1
+ real, intent(out), dimension(its:ite), optional      :: prt_wsnow    ! precip rate, very wet snow    m s-1
 
  real, intent(out), dimension(its:ite,kts:kte,nCat),     optional :: diag_dhmax ! maximum hail size                      m
  real, intent(out), dimension(its:ite,kts:kte,n_qiType), optional :: qi_type    ! mass mixing ratio, diagnosed ice type  kg kg-1
@@ -2092,7 +2174,7 @@ END subroutine p3_init
  real    :: f1pr30   ! zi tendency vapor deposition term 1
  real    :: f1pr31   ! zi tendency vapor deposition term 2
  real    :: f1pr32   ! zi tendency melting term 1 (liquid fraction on only)
- real    :: f1pr33   ! zi tendency melting term 1 (liquid fraction on only) 
+ real    :: f1pr33   ! zi tendency melting term 1 (liquid fraction on only)
  real    :: f1pr34   ! zi tendency self-collection
  real    :: f1pr35   ! zi tendency shedding
  real    :: f1pr36   ! zi tendency ice-rain collection
@@ -2106,7 +2188,7 @@ END subroutine p3_init
  real,    parameter                       :: freq3DtypeDiag     =  5.      !frequency (min) for full-column diagnostics
  real,    parameter                       :: thres_raindrop     = 100.e-6 !size threshold for drizzle vs. rain
  real,    dimension(its:ite,kts:kte)      :: Q_drizzle,Q_rain
- real,    dimension(its:ite,kts:kte,nCat) :: Q_crystals,Q_snow,Q_wlsnow,Q_grpl,Q_pellets,Q_hail
+ real,    dimension(its:ite,kts:kte,nCat) :: Q_crystals,Q_snow,Q_wsnow,Q_grpl,Q_pellets,Q_hail
  integer                                  :: ktop_typeDiag    !ktop_typeDiag_r,ktop_typeDiag_i
  logical                                  :: log_typeDiags,log_typeDiag_column
 
@@ -2123,7 +2205,7 @@ END subroutine p3_init
 ! add integers for mu_i index
  integer :: imu
  integer, parameter :: niter_mui = 5 ! number of iterations for find mu for lookup table
-      
+
  integer, parameter :: niter_satadj = 5 ! number of iterations for saturation adj. (testing only)
 
 ! mu analysis for full 3-moment
@@ -2131,7 +2213,7 @@ END subroutine p3_init
  real :: dumni,dumqi,dumzi,dumqr,dumbi,dumql,dumden,dumnitend,dumqitend,dumzitend
  real :: G_new
  integer :: iana
- real :: dummu_i,G_rate_tot,ziold 
+ real :: dummu_i,G_rate_tot,ziold
 ! real, dimension(kts:kte) :: mu_i_old,mutend1,mutend2,mutend3,mutend4,mutend5,mutend0,mu_i_old2,mutend6
 ! real, dimension(kts:kte) :: mu1,mu2,mu3,mu4,mu5,mu6,mu7
 ! logical, parameter                :: log_muDiagnostics   = .true.   ! switch to turn on mu_i budget analysis (not in current version)
@@ -2786,7 +2868,7 @@ END subroutine p3_init
 !.......................
 ! diagnose mu tendency from vertical transport and adjustment
 
-!....................... 
+!.......................
 
           ! Determine additional collection efficiency factor to be applied to ice-ice collection.
           ! The computed values of qicol and nicol are multipiled by Eii_fact to gradually shut off collection
@@ -2834,7 +2916,7 @@ END subroutine p3_init
           if (qitot(i,k,iice).ge.qsmall .and. qc(i,k).ge.qsmall .and. t(i,k).le.273.15) then
              qccol(iice) = rhofaci(i,k)*f1pr04*qc(i,k)*eci*rho(i,k)*nitot(i,k,iice)*iSCF(k)
              nccol(iice) = rhofaci(i,k)*f1pr04*nc(i,k)*eci*rho(i,k)*nitot(i,k,iice)*iSCF(k)
-             
+
              if (log_3momentIce) then
                 zqccol(iice) = rhofaci(i,k)*f1pr29*qc(i,k)*eci*rho(i,k)*iSCF(k)
              endif
@@ -2849,7 +2931,7 @@ END subroutine p3_init
              qrcol(iice) = 10.**(f1pr08+logn0r(i,k))*rho(i,k)*rhofaci(i,k)*eri*nitot(i,k,iice)*iSCF(k)*(SPF(k)-SPF_clr(k))
              nrcol(iice) = 10.**(f1pr07+logn0r(i,k))*rho(i,k)*rhofaci(i,k)*eri*nitot(i,k,iice)*iSCF(k)*(SPF(k)-SPF_clr(k))
 
-             if (log_3momentIce) then 
+             if (log_3momentIce) then
                 zqrcol(iice) = 10.**(logn0r(i,k))*f1pr36*rho(i,k)*rhofaci(i,k)*eri*iSCF(k)*(SPF(k)-SPF_clr(k))
              endif
 
@@ -2887,7 +2969,7 @@ END subroutine p3_init
              ! source for rain number, assume 1 mm drops are shed
                 ncshdc(iice) = qcshd(iice)*1.923e+6
              ! note: for full 3-moment, there is no impact of shedding on zitot when liquid fraction is off
-             !       because all cloud water collected is instantly shed (not affecting ice particles) 
+             !       because all cloud water collected is instantly shed (not affecting ice particles)
              endif
              ! assume collected rain number is shed as 1 mm drops (original code)
              ! collection of rain above freezing does not impact total rain mass
@@ -3095,7 +3177,7 @@ END subroutine p3_init
               !   qwgrth1(iice)  = qrcol(iice)+qccol(iice) ! not used anymore
                  ! note: For full 3-moment ice, do not adjust zqccol and zqrcol from wet growth
                  !       because both ice riming and retention of liquid increase in zitot.
-                 !       The difference in density between rime and collected liquid is neglected for zitot. 
+                 !       The difference in density between rime and collected liquid is neglected for zitot.
                  qwgrth1c(iice) = qccol(iice)
                  qwgrth1r(iice) = qrcol(iice)
                  qrcol(iice)    = 0.
@@ -3131,7 +3213,7 @@ END subroutine p3_init
 
 !Note (BUG) insert *iSCF(k) because epsi and epsiw needs to be in-cloud (to be done)
 
-        if (log_LiquidFrac) then
+        !if (log_LiquidFrac) then
           if (qitot(i,k,iice).ge.qsmall) then
              if ((qiliq(i,k,iice)/qitot(i,k,iice)).lt.0.01) then
                  epsi(iice)  = ((f1pr05+f1pr14*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*2.*pi* &
@@ -3462,15 +3544,15 @@ END subroutine p3_init
        endif
 
        oabi = 1./abi
-       if (log_LiquidFrac) then
+       !if (log_LiquidFrac) then
          xx   = epsc + epsr + epsi_tot*(1.+xxls(i,k)*inv_cp*dqsdT)*oabi + epsiw_tot
-       else
-         if (t(i,k).lt.273.15) then
-            xx   = epsc + epsr + epsi_tot*(1.+xxls(i,k)*inv_cp*dqsdT)*oabi
-         else
-            xx   = epsc + epsr
-         endif
-       endif
+       !else
+       !  if (t(i,k).lt.273.15) then
+       !     xx   = epsc + epsr + epsi_tot*(1.+xxls(i,k)*inv_cp*dqsdT)*oabi
+       !  else
+       !     xx   = epsc + epsr
+       !  endif
+       !endif
 
        dumqvi = qvi(i,k)   !no modification due to latent heating
 !----
@@ -3503,17 +3585,17 @@ END subroutine p3_init
 
 !       dum = qvs(i,k)*rho(i,k)*g*uzpl(i,k)/max(1.e-3,(pres(i,k)-polysvp1(t(i,k),0)))
 
-       if (log_LiquidFrac) then
+       !if (log_LiquidFrac) then
          aaa = (qv(i,k)-qv_old(i,k))*odt - dqsdT*(-dum*g*inv_cp)-(qvs(i,k)-dumqvi)*(1.+xxls(i,k)*   &
                inv_cp*dqsdT)*oabi*epsi_tot
-       else
-         if (t(i,k).lt.273.15) then
-            aaa = (qv(i,k)-qv_old(i,k))*odt - dqsdT*(-dum*g*inv_cp)-(qvs(i,k)-dumqvi)*     &
-                  (1.+xxls(i,k)*inv_cp*dqsdT)*oabi*epsi_tot
-         else
-            aaa = (qv(i,k)-qv_old(i,k))*odt - dqsdT*(-dum*g*inv_cp)
-         endif
-       endif
+       !else
+       !  if (t(i,k).lt.273.15) then
+       !     aaa = (qv(i,k)-qv_old(i,k))*odt - dqsdT*(-dum*g*inv_cp)-(qvs(i,k)-dumqvi)*     &
+       !           (1.+xxls(i,k)*inv_cp*dqsdT)*oabi*epsi_tot
+       !  else
+       !     aaa = (qv(i,k)-qv_old(i,k))*odt - dqsdT*(-dum*g*inv_cp)
+       !  endif
+       !endif
 
        xx  = max(1.e-20,xx)   ! set lower bound on xx to prevent division by zero
        oxx = 1./xx
@@ -3569,7 +3651,7 @@ END subroutine p3_init
 
        iice_loop_depsub:  do iice = 1,nCat
 
-        if (log_LiquidFrac) then
+       ! if (log_LiquidFrac) then
 
               if (qitot(i,k,iice).ge.qsmall .and. (qiliq(i,k,iice)/qitot(i,k,iice)).lt.0.01) then
               ! Sublimation/deposition of ice
@@ -3595,7 +3677,7 @@ END subroutine p3_init
               !note: limit to saturation adjustment (for dep and subl) is applied later
                  qisub(iice) = -qidep(iice)
                  qisub(iice) = qisub(iice)*clbfact_sub
-                 qisub(iice) = min(qisub(iice), (qitot(i,k,iice)-qiliq(i,k,iice))*odt) ! not the limit is qitot-qiliq
+                 qisub(iice) = min(qisub(iice), (qitot(i,k,iice)-qiliq(i,k,iice))*odt)
                  nisub(iice) = qisub(iice)*(nitot(i,k,iice)/(qitot(i,k,iice)-qiliq(i,k,iice)))
                  qidep(iice) = 0.
 
@@ -3647,18 +3729,18 @@ END subroutine p3_init
 
         else ! liquid fraction turned off
 
-          if (qitot(i,k,iice).ge.qsmall .and. t(i,k).lt.273.15) then
+       !   if (qitot(i,k,iice).ge.qsmall .and. t(i,k).lt.273.15) then
             !note: diffusional growth/decay rate: (stored as 'qidep' temporarily; may go to qisub below)
 !Note (BUG) Cholette (Jul 2022), remove *SCF(k) for ssat_cld and multiplication *CF for grid-mean qccon
 !             qidep(iice) = ((aaa*epsi(iice)*oxx+(ssat_cld-aaa*oxx)*odt*epsi(iice)*oxx*                      &
 !                           (1.-sngl(dexp(-dble(xx*dt)))))*oabi+(qvs(i,k)-dumqvi)*epsi(iice)*oabi)*SCF(k)
-             qidep(iice) = (aaa*epsi(iice)*oxx+(ssat_cld*SCF(k)-aaa*oxx)*odt*epsi(iice)*oxx*   &
-                           (1.-sngl(dexp(-dble(xx*dt)))))*oabi+(qvs(i,k)-dumqvi)*epsi(iice)*oabi
-          endif
+       !      qidep(iice) = (aaa*epsi(iice)*oxx+(ssat_cld*SCF(k)-aaa*oxx)*odt*epsi(iice)*oxx*   &
+       !                    (1.-sngl(dexp(-dble(xx*dt)))))*oabi+(qvs(i,k)-dumqvi)*epsi(iice)*oabi
+       !   endif
 
          !for very small ice contents in dry air, sublimate all ice instantly
-          if (supi_cld.lt.-0.001 .and. qitot(i,k,iice).lt.1.e-12) &
-             qidep(iice) = -qitot(i,k,iice)*odt
+       !   if (supi_cld.lt.-0.001 .and. qitot(i,k,iice).lt.1.e-12) &
+       !      qidep(iice) = -qitot(i,k,iice)*odt
 
           !note: 'clbfact_dep' and 'clbfact_sub' calibration factors for ice deposition and sublimation
           !   These are adjustable ad hoc factors used to increase or decrease deposition and/or
@@ -3687,7 +3769,7 @@ END subroutine p3_init
 
           endif
 
-        endif ! log_LiquidFrac
+       ! endif ! log_LiquidFrac
 
        enddo iice_loop_depsub
 
@@ -4157,7 +4239,7 @@ END subroutine p3_init
         if (log_3momentIce) then
 
            mu_i_s(iice)=mu_i_initial
-           
+
            if (qitot(i,k,iice).ge.qsmall) then
               dumqi=qitot(i,k,iice)
               dumni=nitot(i,k,iice)
@@ -4167,7 +4249,7 @@ END subroutine p3_init
               mu_i = compute_mu_3moment1(dumni,dum1,zitot(i,k,iice),mu_i_max)
 
               mu_i_s(iice)=mu_i
-              
+
            endif
          endif
 
@@ -4385,10 +4467,10 @@ END subroutine p3_init
              dumzi = max(dumzi,zsmall) ! impose limit on dummy zi
 
 !.......................
-! use full-3 moment method             
-             
+! use full-3 moment method
+
              if (log_full3Mom) then
-             
+
 ! sum of all G rates
              G_rate_tot = zqccol(iice)+zidep(iice)+zisub(iice)+zishd(iice)+zimlt(iice)+zislf(iice)+zqrcol(iice)
 
@@ -4404,7 +4486,7 @@ END subroutine p3_init
              do iana=1,niter_mui
 
                 dumden=200. ! initialize density for iteration
-                
+
                ! update density
                 dum1z =  6./(dumden*pi)*dumqi
                 do imu=1,niter_mui
@@ -4431,9 +4513,9 @@ END subroutine p3_init
              else
 
 ! get updated Zitot using old mu
-                
+
 ! get updated density to estimate M3 from Qitot
-                
+
              call calc_bulkRhoRime(dumqi,dumqr,dumql,dumbi,rhop)
 
              call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,dum7,isize,         &
@@ -4444,7 +4526,7 @@ END subroutine p3_init
              do iana=1,niter_mui
 
                 dumden=200. ! initial density for iteration
-                
+
                 ! update density
                 dum1z =  6./(dumden*pi)*dumqi
 
@@ -4458,7 +4540,7 @@ END subroutine p3_init
                 G_new = G_of_mu(mu_i_s(iice))
                 dumzi = G_new*dum1z**2/dumni
                 dumzi = max(dumzi,zsmall) ! impose limit on dummy zi
-                
+
              enddo ! iana iterative loop to estimate updated Zitot
 
              zitot(i,k,iice) = dumzi
@@ -4466,46 +4548,46 @@ END subroutine p3_init
              endif ! log_full3Mom
 
 !......................................................
-             
+
        endif ! dumqi > qsmall
 
 !...........................................................................................
        !----  Group 2 (initiation processes, where mu_i for the new ice resulting from that process (only) is assigned
        !              note: mu_i_new is the mu_i associated with the new added ice for that process
 
-        !proceses with rain freezing:                                                                                      
-          tmp2 =  nrhetc(iice) + nrheti(iice)                  !moment_0 tendency                                          
+        !proceses with rain freezing:
+          tmp2 =  nrhetc(iice) + nrheti(iice)                  !moment_0 tendency
           if (tmp2.ge.qsmall) then
-             tmp1 = (qrhetc(iice) + qrheti(iice))*6./(900.*pi) !estimate of moment_3 tendency                              
+             tmp1 = (qrhetc(iice) + qrheti(iice))*6./(900.*pi) !estimate of moment_3 tendency
              mu_i_new = mu_r(i,k)
              zitot(i,k,iice) = zitot(i,k,iice) + G_of_mu(mu_i_new)*tmp1**2/tmp2*dt
           endif
 
-        !proceses with cloud freezing:                                                                                     
-          tmp2 =  nchetc(iice) + ncheti(iice)                  !moment_0 tendency                                          
+        !proceses with cloud freezing:
+          tmp2 =  nchetc(iice) + ncheti(iice)                  !moment_0 tendency
           if (tmp2.ge.qsmall) then
-             tmp1 = (qchetc(iice) + qcheti(iice))*6./(900.*pi) !estimate of moment_3 tendency                              
+             tmp1 = (qchetc(iice) + qcheti(iice))*6./(900.*pi) !estimate of moment_3 tendency
              mu_i_new = mu_c(i,k)
              zitot(i,k,iice) = zitot(i,k,iice) + G_of_mu(mu_i_new)*tmp1**2/tmp2*dt
           endif
 
-        !proceses of deposition nucleation                                                                                 
-          tmp2 = ninuc(iice)                                   !moment_0 tendency                                          
+        !proceses of deposition nucleation
+          tmp2 = ninuc(iice)                                   !moment_0 tendency
           if (tmp2.ge.qsmall) then
-             tmp1 = qinuc(iice)*6./(900.*pi)                   !estimate of moment_3 tendency                              
-             mu_i_new = mu_i_initial                           !estimated assigned value                                   
+             tmp1 = qinuc(iice)*6./(900.*pi)                   !estimate of moment_3 tendency
+             mu_i_new = mu_i_initial                           !estimated assigned value
              zitot(i,k,iice) = zitot(i,k,iice) + G_of_mu(mu_i_new)*tmp1**2/tmp2*dt
           endif
 
-        !proceses of ice multiplication                                                                                    
-          tmp2 = nimul(iice)                                   !moment_0 tendency                                          
+        !proceses of ice multiplication
+          tmp2 = nimul(iice)                                   !moment_0 tendency
           if (tmp2.ge.qsmall) then
-             tmp1 = qrmul(iice)*6./(900.*pi)                   !estimate of moment_3 tendency                              
-             mu_i_new = mu_i_initial                           !estimated assigned value                                   
+             tmp1 = qrmul(iice)*6./(900.*pi)                   !estimate of moment_3 tendency
+             mu_i_new = mu_i_initial                           !estimated assigned value
              zitot(i,k,iice) = zitot(i,k,iice) + G_of_mu(mu_i_new)*tmp1**2/tmp2*dt
           endif
 
-       !====                                                                                                               
+       !====
 
 ! NOTE: Limits on zitot to keep mu_i in bounds are imposed at the start of sedimentation below (for ice)
 
@@ -4513,7 +4595,7 @@ END subroutine p3_init
 
        endif ! log_3momentIce
 
-!................................................................................ 
+!................................................................................
 
 555    continue
 
@@ -5112,7 +5194,7 @@ END subroutine p3_init
                       nitot(i,k,iice) = min(nitot(i,k,iice),f1pr09*qitot(i,k,iice))
                       nitot(i,k,iice) = max(nitot(i,k,iice),f1pr10*qitot(i,k,iice))
 
-                    !impose limiter on zitot to make sure mu_i is in bounds 
+                    !impose limiter on zitot to make sure mu_i is in bounds
                       dum1 = 6./(f1pr16*pi)*qitot(i,k,iice)
                       tmp1 = G_of_mu(0.)
                       tmp2 = G_of_mu(20.)
@@ -5960,9 +6042,9 @@ END subroutine p3_init
 !.....................................................
 
 ! output mu tendencies and G rates for full 3-moment
-      
+
 !.....................................................
-      
+
  enddo i_loop_main
 
 ! Save final microphysics values of theta and qv as old values for next time step
@@ -6026,12 +6108,8 @@ END subroutine p3_init
     prt_pell(:) = 0.
     prt_hail(:) = 0.
     prt_sndp(:) = 0.
-    prt_wlsnow(:) = 0.
-    prt_wcrys(:) = 0.
     prt_wsnow(:) = 0.
-    prt_wgrpl(:) = 0.
-    prt_wpell(:) = 0.
-    prt_whail(:) = 0.
+
     if (present(qi_type)) qi_type(:,:,:) = 0.
 
     if (freq3DtypeDiag>0. .and. mod(it*dt,freq3DtypeDiag*60.)==0.) then
@@ -6075,7 +6153,7 @@ END subroutine p3_init
 
              Q_crystals(i,k,iice) = 0.
              Q_snow(i,k,iice)     = 0.
-             Q_wlsnow(i,k,iice)   = 0.
+             Q_wsnow(i,k,iice)    = 0.
              Q_grpl(i,k,iice)     = 0.
              Q_pellets(i,k,iice)  = 0.
              Q_hail(i,k,iice)     = 0.
@@ -6092,27 +6170,27 @@ END subroutine p3_init
                 endif
                 liquidfraction(i,k,iice) = qiliq(i,k,iice)/qitot(i,k,iice)                 !liquid fraction
 
-                if (rimefraction(i,k,iice).lt.0.5) then
-                   if (diag_di(i,k,iice).lt.0.002) then
-                      Q_crystals(i,k,iice) = qitot(i,k,iice)
-                   else
-                     if (liquidfraction(i,k,iice).lt.0.35) then
-                         Q_snow(i,k,iice) = qitot(i,k,iice)
-                     else
-                         Q_wlsnow(i,k,iice) = qitot(i,k,iice)
-                     endif
-                   endif
+                if (liquidfraction(i,k,iice).ge.0.15) then
+                   Q_wsnow(i,k,iice) = qitot(i,k,iice)
                 else
-                   if (rimedensity(i,k,iice).lt.750) then
-                     Q_grpl(i,k,iice) = qitot(i,k,iice)
+                   if (rimefraction(i,k,iice).lt.0.5) then
+                      if (diag_di(i,k,iice).lt.0.002) then
+                         Q_crystals(i,k,iice) = qitot(i,k,iice)
+                      else
+                         Q_snow(i,k,iice) = qitot(i,k,iice)
+                      endif
                    else
-                     if (t_tmp.lt.283.15) then
-                        Q_pellets(i,k,iice) = qitot(i,k,iice)
-                     else
-                        Q_hail(i,k,iice) = qitot(i,k,iice)
-                        if (log_typeDiags) diag_dhmax(i,k,iice) = maxHailSize(rho(i,k),       &
-                           nitot(i,k,iice),rhofaci(i,k),arr_lami(i,k,iice),arr_mui(i,k,iice))
-                     endif
+                      if (rimedensity(i,k,iice).lt.750) then
+                        Q_grpl(i,k,iice) = qitot(i,k,iice)
+                      else
+                        if (t_tmp.lt.283.15) then
+                           Q_pellets(i,k,iice) = qitot(i,k,iice)
+                        else
+                           Q_hail(i,k,iice) = qitot(i,k,iice)
+                           if (log_typeDiags) diag_dhmax(i,k,iice) = maxHailSize(rho(i,k),       &
+                              nitot(i,k,iice),rhofaci(i,k),arr_lami(i,k,iice),arr_mui(i,k,iice))
+                        endif
+                      endif
                    endif
                 endif
 
@@ -6128,22 +6206,14 @@ END subroutine p3_init
              prt_crys(i) = prt_crys(i) + prt_soli(i,iice)   !precip rate of small crystals
           elseif (Q_snow(i,kbot,iice) .gt. 0.)  then
              prt_snow(i) = prt_snow(i) + prt_soli(i,iice)   !precip rate of snow
-          elseif (Q_wlsnow(i,kbot,iice) .gt. 0.)  then
-             prt_wlsnow(i) = prt_wlsnow(i) + prt_soli(i,iice)  !precip rate of wlsnow (wet low rimed snow)
+          elseif (Q_wsnow(i,kbot,iice) .gt. 0.)  then
+             prt_wsnow(i) = prt_wsnow(i) + prt_soli(i,iice) !precip rate of wsnow (wet low-rimed snow)
           elseif (Q_grpl(i,kbot,iice) .gt. 0.)    then
              prt_grpl(i) = prt_grpl(i) + prt_soli(i,iice)   !precip rate of graupel
           elseif (Q_pellets(i,kbot,iice) .gt. 0.) then
              prt_pell(i) = prt_pell(i) + prt_soli(i,iice)   !precip rate of ice pellets
           elseif (Q_hail(i,kbot,iice) .gt. 0.)    then
              prt_hail(i) = prt_hail(i) + prt_soli(i,iice)   !precip rate of hail
-          endif
-
-          if (liquidfraction(i,kbot,iice).ge.0.15) then
-             prt_wcrys(i) = prt_crys(i)
-             prt_wsnow(i) = prt_snow(i)
-             prt_wgrpl(i) = prt_grpl(i)
-             prt_wpell(i) = prt_pell(i)
-             prt_whail(i) = prt_hail(i)
           endif
 
           !precip rate of unmelted total "snow":
@@ -6167,7 +6237,7 @@ END subroutine p3_init
        do ii = 1,nCat
           qi_type(:,:,1) = qi_type(:,:,1) + Q_crystals(:,:,ii)
           qi_type(:,:,2) = qi_type(:,:,2) + Q_snow(:,:,ii)
-          qi_type(:,:,3) = qi_type(:,:,3) + Q_wlsnow(:,:,ii)
+          qi_type(:,:,3) = qi_type(:,:,3) + Q_wsnow(:,:,ii)
           qi_type(:,:,4) = qi_type(:,:,4) + Q_grpl(:,:,ii)
           qi_type(:,:,5) = qi_type(:,:,5) + Q_hail(:,:,ii)
           qi_type(:,:,6) = qi_type(:,:,6) + Q_pellets(:,:,ii)
@@ -11725,7 +11795,7 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
  real, parameter  :: eps_m6 = 1.e-35
 
  real :: dum,c1,c2,c3,Q,R,aa,bb
-      
+
  if (mom3>eps_m3) then
 
     !G = (mom0*mom6)/(mom3**2)
@@ -11775,7 +11845,7 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
      endif
 
 !...................................................
-      
+
      mu = min(mu,mu_max)
 
      compute_mu_3moment = mu
@@ -11792,32 +11862,32 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
 
  end function compute_mu_3moment
 
-!==========================================================================================!  
+!==========================================================================================!
  real function compute_mu_3moment1(mom0,mom3,mom6,mu_max)
- 
- !--------------------------------------------------------------------------       
- ! Computes mu as a function of moments 0, 3, and 6 of the size distribution       
- ! represented by N(D) = No*D^mu*e(-lambda*D).                                     
- !                                                                                 
- ! Note:  moment 3 is not equal to the mass mixing ratio (due to variable density) 
- !                                                                                 
- ! G(mu)= mom0*mom6/mom3^2 = [(6+mu)(5+mu)(4+mu)]/[(3+mu)(2+mu)(1+mu)]             
- !--------------------------------------------------------------------------       
+
+ !--------------------------------------------------------------------------
+ ! Computes mu as a function of moments 0, 3, and 6 of the size distribution
+ ! represented by N(D) = No*D^mu*e(-lambda*D).
+ !
+ ! Note:  moment 3 is not equal to the mass mixing ratio (due to variable density)
+ !
+ ! G(mu)= mom0*mom6/mom3^2 = [(6+mu)(5+mu)(4+mu)]/[(3+mu)(2+mu)(1+mu)]
+ !--------------------------------------------------------------------------
 
  implicit none
 
-! Arguments passed:                                                                
- real, intent(in) :: mom0    !0th moment                                           
- real, intent(in) :: mom3    !3th moment  (note, not normalized)                   
- real, intent(in) :: mom6    !6th moment  (note, not normalized)                   
- real, intent(in) :: mu_max  !maximum allowable value of mu                        
+! Arguments passed:
+ real, intent(in) :: mom0    !0th moment
+ real, intent(in) :: mom3    !3th moment  (note, not normalized)
+ real, intent(in) :: mom6    !6th moment  (note, not normalized)
+ real, intent(in) :: mu_max  !maximum allowable value of mu
 
-! Local variables:                                                                 
- real             :: mu   ! shape parameter in gamma distribution                  
- double precision :: G    ! function of mu (see comments above)                    
+! Local variables:
+ real             :: mu   ! shape parameter in gamma distribution
+ double precision :: G    ! function of mu (see comments above)
  double precision :: g2,x1,x2,x3
-!real             :: a1,g1                                                         
-!real, parameter  :: eps_m0 = 1.e-20                                               
+!real             :: a1,g1
+!real, parameter  :: eps_m0 = 1.e-20
  real, parameter  :: eps_m3 = 1.e-20
  real, parameter  :: eps_m6 = 1.e-35
 
@@ -11825,9 +11895,9 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
 
  if (mom3>eps_m3) then
 
-    !G = (mom0*mom6)/(mom3**2)                                                     
-    !To avoid very small values of mom3**2 (not enough)                            
-    !G = (mom0/mom3)*(mom6/mom3)                                                   
+    !G = (mom0*mom6)/(mom3**2)
+    !To avoid very small values of mom3**2 (not enough)
+    !G = (mom0/mom3)*(mom6/mom3)
      x1 = 1./mom3
      x2 = mom0*x1
      x3 = mom6*x1
@@ -11836,21 +11906,21 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
      ! set minimum on G, below this the analytic solution breaks down
      g=max(1.3,g)
 
-!----------------------------------------------------------!                       
-! !Solve alpha numerically: (brute-force)                                          
-!      mu= 0.                                                                      
-!      g2= 999.                                                                    
-!      do i=0,4000                                                                 
-!         a1= i*0.01                                                               
-!         g1= (6.+a1)*(5.+a1)*(4.+a1)/((3.+a1)*(2.+a1)*(1.+a1))                    
-!         if(abs(g-g1)<abs(g-g2)) then                                             
-!            mu = a1                                                               
-!            g2= g1                                                                
-!         endif                                                                    
-!      enddo                                                                       
-!----------------------------------------------------------!                       
+!----------------------------------------------------------!
+! !Solve alpha numerically: (brute-force)
+!      mu= 0.
+!      g2= 999.
+!      do i=0,4000
+!         a1= i*0.01
+!         g1= (6.+a1)*(5.+a1)*(4.+a1)/((3.+a1)*(2.+a1)*(1.+a1))
+!         if(abs(g-g1)<abs(g-g2)) then
+!            mu = a1
+!            g2= g1
+!         endif
+!      enddo
+!----------------------------------------------------------!
 
-!Piecewise-polynomial approximation of G(mu) to solve for mu:      
+!Piecewise-polynomial approximation of G(mu) to solve for mu:
 !     if (G>=20.) then
 !        mu = 0.
 !     else
@@ -11873,8 +11943,8 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
 !           mu = mu_max
 !        endif
 !     endif
-      
-! HM 4/26/24, replace with analytic cubic root formula                             
+
+! HM 4/26/24, replace with analytic cubic root formula
      dum=1./(1.-G)
      c1=(15.-6.*G)*dum
      c2=(74.-11.*G)*dum
@@ -11883,7 +11953,7 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
      Q=(c1**2-3.*c2)/9.
      R=(2.*c1**3-9.*c1*c2+27.*c3)/54.
 
-     ! NOTE: R is always < 0, thus we take the following:                          
+     ! NOTE: R is always < 0, thus we take the following:
 
      aa=(abs(R)+sqrt(R**2-Q**3))**0.333333333333
      bb=Q/aa
@@ -11891,7 +11961,7 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
      mu=aa+bb-c1/3.
 
      mu = max(mu,0.)
-!...................................................                               
+!...................................................
 
      mu = min(mu,mu_max)
 
@@ -11907,8 +11977,8 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
 
  endif
 
- end function compute_mu_3moment1 
-     
+ end function compute_mu_3moment1
+
 !======================================================================================!
  real function G_of_mu(mu)
 
@@ -12081,25 +12151,26 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
     return
   end function p3_phybusinit
 
+#include "phymkptr.hf"
+
+
 !===========================================================================================
 
   ! Compute total water mass
-  function p3_lwc(F_qltot, F_dbus, F_pbus, F_vbus) result(F_istat)
-    use phybus
+  function p3_lwc(F_qltot, F_pvars) result(F_istat)
+    use phybusidx
+    use phymem, only: phyvar
     use phy_status, only: PHY_OK, PHY_ERROR
     implicit none
     real, dimension(:,:), intent(out) :: F_qltot        !Total water mass (kg/kg)
-    real, dimension(:), pointer, contiguous :: F_dbus   !Dynamics bus
-    real, dimension(:), pointer, contiguous :: F_pbus   !Permanent bus
-    real, dimension(:), pointer, contiguous :: F_vbus   !Volatile bus
+    type(phyvar), pointer, contiguous :: F_pvars(:)   !All phy vars (meta + slab data)
     integer :: F_istat                                  !Return status
-#include "phymkptr.hf"
     integer :: ni, nkm1
     real, dimension(:,:), pointer :: zqcp, zqrp
     F_istat = PHY_ERROR
     ni = size(F_qltot, dim=1); nkm1 = size(F_qltot, dim=2)
-    MKPTR2Dm1(zqcp, qcplus, F_dbus)
-    MKPTR2Dm1(zqrp, qrplus, F_dbus)
+    MKPTR2Dm1(zqcp, qcplus, F_pvars)
+    MKPTR2Dm1(zqrp, qrplus, F_pvars)
     F_qltot(:,:) = zqcp(:,:) + zqrp(:,:)
     F_istat = PHY_OK
     return
@@ -12108,24 +12179,22 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
 !===========================================================================================
 
   ! Compute total ice mass
-  function p3_iwc(F_qitot, F_dbus, F_pbus, F_vbus) result(F_istat)
-    use phybus
+  function p3_iwc(F_qitot, F_pvars) result(F_istat)
+    use phybusidx
+    use phymem, only: phyvar
     use phy_status, only: PHY_OK, PHY_ERROR
     implicit none
     real, dimension(:,:), intent(out) :: F_qitot        !Total ice mass (kg/kg)
-    real, dimension(:), pointer, contiguous :: F_dbus   !Dynamics bus
-    real, dimension(:), pointer, contiguous :: F_pbus   !Permanent bus
-    real, dimension(:), pointer, contiguous :: F_vbus   !Volatile bus
+    type(phyvar), pointer, contiguous :: F_pvars(:)   !All phy vars (meta + slab data)
     integer :: F_istat                                  !Return status
-#include "phymkptr.hf"
     integer :: ni, nkm1
     real, dimension(:,:), pointer :: zqti1p, zqti2p, zqti3p, zqti4p
     F_istat = PHY_ERROR
     ni = size(F_qitot, dim=1); nkm1 = size(F_qitot, dim=2)
-    MKPTR2Dm1(zqti1p, qti1plus, F_dbus)
-    MKPTR2Dm1(zqti2p, qti2plus, F_dbus)
-    MKPTR2Dm1(zqti3p, qti3plus, F_dbus)
-    MKPTR2Dm1(zqti4p, qti4plus, F_dbus)
+    MKPTR2Dm1(zqti1p, qti1plus, F_pvars)
+    MKPTR2Dm1(zqti2p, qti2plus, F_pvars)
+    MKPTR2Dm1(zqti3p, qti3plus, F_pvars)
+    MKPTR2Dm1(zqti4p, qti4plus, F_pvars)
     F_qitot = 0.
     if (associated(zqti1p)) F_qitot = F_qitot + zqti1p
     if (associated(zqti2p)) F_qitot = F_qitot + zqti2p
@@ -12138,7 +12207,7 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
 #endif
 
  subroutine calculate_mu_change(nidum,qidum,zidum,nitend,qitend,zitend,f1pr16,den,dmudt,dt)
-   
+
    real :: dum3mom,mu_old,mu_new
    real :: ninew,qinew,zinew
    real, intent(in) :: nidum,qidum,zidum,f1pr16,den,dt
