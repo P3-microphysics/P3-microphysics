@@ -26,7 +26,7 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.3.6 + full3mv28-clean                                                   !
+! Version:       5.3.6 + dev-3momfull (full3mv28-clean)                                    !
 ! Last updated:  Aug 2024                                                                  !
 !__________________________________________________________________________________________!
 
@@ -146,7 +146,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.3.6+full3mv28'
+ character(len=1024), parameter :: version_p3                    = '5.3.7+full3mv28'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.4-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '6.5b10-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.0'
@@ -883,7 +883,9 @@ END subroutine p3_init
    real, dimension(ims:ime, kms:kme) ::nc_loc,ssat
 
    real, dimension(ims:ime, kms:kme, n_iceCat) :: qitot,qirim,nitot,birim,diag_dmi,diag_vmi,       &
-                                                  diag_rhoi,diag_effi, diag_dhmax
+                                                  diag_rhoi,diag_effi
+
+   real, dimension(its:ite, kts:kte, n_iceCat) :: diag_dhmax
 
    real, dimension(ims:ime, kms:kme,n_iceCat)  :: zitot   ! ice mixing ratio, reflectivity          m6 kg-1
    real, dimension(ims:ime, kms:kme,n_iceCat)  :: qiliq   ! liquid mixing ratio on ice kg/kg
@@ -966,22 +968,29 @@ END subroutine p3_init
       if (.not. log_3momIce) zitot = 0.  !not used, but avoids passing uninialized values
       if (.not. log_liqFrac) qiliq = 0.  !not used, but avoids passing uninialized values
 
-      call p3_main( qc(:,:,j),nc_loc,qr(:,:,j),qnr(:,:,j),th_old(:,:,j),th(:,:,j),       &
-                      qv_old(:,:,j),qv(:,:,j),dt,qitot,qirim,qiliq,nitot,birim,zitot,    &
-                      ssat,w(:,:,j),p(:,:,j),dz(:,:,j),itimestep,pcprt_liq,pcprt_sol,    &
-                      its,ite,kts,kte,n_iceCat,diag_zdbz(:,:,j),diag_effc(:,:,j),        &
-                      diag_effi,diag_vmi,diag_dmi,diag_rhoi,n_diag2d,diag2d,             &
-                      n_diag3d,diag3d,log_predictNc,trim(model),clbfact_dep,             &
-                      clbfact_sub,log_debug,log_scpf,scpf_pfrac,scpf_resfact,cldfrac,    &
-                      log_3momIce,log_liqFrac, diag_dhmax = diag_dhmax )
+      call p3_main( qc(its:ite,kts:kte,j),nc_loc(its:ite,kts:kte),qr(its:ite,kts:kte,j),       &
+                      qnr(its:ite,kts:kte,j),th_old(its:ite,kts:kte,j),th(its:ite,kts:kte,j),  &
+                      qv_old(its:ite,kts:kte,j),qv(its:ite,kts:kte,j),dt,                      &
+                      qitot(its:ite,kts:kte,1:n_iceCat),qirim(its:ite,kts:kte,1:n_iceCat),     &
+                      qiliq(its:ite,kts:kte,1:n_iceCat),nitot(its:ite,kts:kte,1:n_iceCat),     &
+                      birim(its:ite,kts:kte,1:n_iceCat),zitot(its:ite,kts:kte,1:n_iceCat),     &
+                      ssat(its:ite,kts:kte),w(its:ite,kts:kte,j),p(its:ite,kts:kte,j),         &
+                      dz(its:ite,kts:kte,j),itimestep,pcprt_liq,pcprt_sol,its,ite,kts,kte,     &
+                      n_iceCat,diag_zdbz(its:ite,kts:kte,j),diag_effc(its:ite,kts:kte,j),      &
+                      diag_effi(its:ite,kts:kte,1:n_iceCat),diag_vmi(its:ite,kts:kte,1:n_iceCat),  &
+                      diag_dmi(its:ite,kts:kte,1:n_iceCat),diag_rhoi(its:ite,kts:kte,1:n_iceCat),  &
+                      n_diag2d,diag2d(its:ite,1:n_diag2d),n_diag3d,diag3d(its:ite,kts:kte,1:n_diag3d), &
+                      log_predictNc,trim(model),clbfact_dep,clbfact_sub,log_debug,log_scpf,    &
+                      scpf_pfrac,scpf_resfact,cldfrac,log_3momIce,log_liqFrac,                 &
+                      diag_dhmax = diag_dhmax )
 
      !surface precipitation output:
       dum1 = 1000.*dt
-      rainnc(:,j)  = rainnc(:,j) + (pcprt_liq(:) + pcprt_sol(:))*dum1  ! conversion from m/s to mm/time step
-      rainncv(:,j) = (pcprt_liq(:) + pcprt_sol(:))*dum1                ! conversion from m/s to mm/time step
-      snownc(:,j)  = snownc(:,j) + pcprt_sol(:)*dum1                   ! conversion from m/s to mm/time step
-      snowncv(:,j) = pcprt_sol(:)*dum1                                 ! conversion from m/s to mm/time step
-      sr(:,j)      = pcprt_sol(:)/(pcprt_liq(:)+pcprt_sol(:)+1.e-12)   ! solid-to-total ratio
+      rainnc(its:ite,j)  = rainnc(its:ite,j) + (pcprt_liq(:) + pcprt_sol(:))*dum1  ! conversion from m/s to mm/time step
+      rainncv(its:ite,j) = (pcprt_liq(:) + pcprt_sol(:))*dum1                ! conversion from m/s to mm/time step
+      snownc(its:ite,j)  = snownc(its:ite,j) + pcprt_sol(:)*dum1                   ! conversion from m/s to mm/time step
+      snowncv(its:ite,j) = pcprt_sol(:)*dum1                                 ! conversion from m/s to mm/time step
+      sr(its:ite,j)      = pcprt_sol(:)/(pcprt_liq(:)+pcprt_sol(:)+1.e-12)   ! solid-to-total ratio
 
       if (log_predictNc) nc(:,:,j) = nc_loc(:,:)
 
@@ -1078,11 +1087,11 @@ END subroutine p3_init
 
 
     ! copy generic output arrays (from p3_main) to local arrays (passed back to wrapper)
-      diag2d_01(:,j)    = diag2d(:,1)
-      diag2d_02(:,j)    = diag2d(:,2)
-      diag3d_01(:,:,j)  = diag3d(:,:,1)
-      diag3d_02(:,:,j)  = diag3d(:,:,2)
-      diag3d_03(:,:,j)  = diag3d(:,:,3)
+      if (present(diag2d_01))  diag2d_01(:,j)    = diag2d(:,1)
+      if (present(diag2d_02))  diag2d_02(:,j)    = diag2d(:,2)
+      if (present(diag3d_01))  diag3d_01(:,:,j)  = diag3d(:,:,1)
+      if (present(diag3d_02))  diag3d_02(:,:,j)  = diag3d(:,:,2)
+      if (present(diag3d_03))  diag3d_03(:,:,j)  = diag3d(:,:,3)
 
    enddo j_loop
 
