@@ -26,7 +26,7 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.3.6 + dev-3momfull (full3mv28-clean)                                    !
+! Version:       5.3.7+full3m+fix1                                                         !
 ! Last updated:  Aug 2024                                                                  !
 !__________________________________________________________________________________________!
 
@@ -146,9 +146,9 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.3.7+full3mv28'
+ character(len=1024), parameter :: version_p3                    = '5.3.7+full3m+fix1'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.4-2momI'
- character(len=1024), parameter :: version_intended_table_1_3mom = '6.5b10-3momI'
+ character(len=1024), parameter :: version_intended_table_1_3mom = '6.6+dev-3momfull0'
  character(len=1024), parameter :: version_intended_table_2      = '6.0'
 
  character(len=1024)            :: version_header_table_1_2mom
@@ -2369,8 +2369,6 @@ END subroutine p3_init
  qv      = max(qv,0.)        !clip water vapor to prevent negative values passed in (beginning of microphysics)
 !==
 
-! initialize mu diagnostics (only at first time step)
-
 !log_hmossopOn  = (nCat.gt.1)      !default: off for nCat=1, off for nCat>1
 !log_hmossopOn  = .true.           !switch to have Hallet-Mossop ON
 !log_hmossopOn  = .false.          !switch to have Hallet-Mossop OFF
@@ -3251,29 +3249,16 @@ END subroutine p3_init
              epsiz(iice) = 0.
              epsizsb(iice) = 0.
           endif
-
-        else
-
-          if (qitot(i,k,iice).ge.qsmall .and. t(i,k).lt.273.15) then
-             epsi(iice) = ((f1pr05+f1pr14*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*2.*pi* &
-                          rho(i,k)*dv)*nitot(i,k,iice)
-             epsi_tot   = epsi_tot + epsi(iice)
-
-             if (log_3momentIce) then
-                epsiz(iice) = ((f1pr30+f1pr31*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*2.*pi* &
-                              rho(i,k)*dv)
-                epsizsb(iice) = ((f1pr37+f1pr38*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*2.*pi* &
-                              rho(i,k)*dv)
-             endif
-
-          else
-             epsi(iice) = 0.
-             epsiz(iice) = 0.
-             epsizsb(iice) = 0.
-          endif
-
-        endif
-
+        !else          
+        !  if (qitot(i,k,iice).ge.qsmall .and. t(i,k).lt.273.15) then
+        !     epsi(iice) = ((f1pr05+f1pr14*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*2.*pi* &
+        !                  rho(i,k)*dv)*nitot(i,k,iice)
+        !     epsi_tot   = epsi_tot + epsi(iice)
+        !  else
+        !     epsi(iice) = 0.
+        !  endif
+        !endif
+          
 !............................................................
 ! refreezing of mixed-phase ice particles
 ! only with predicted liquid fraction (log_liqFrac)
@@ -3730,13 +3715,13 @@ END subroutine p3_init
               else
                  qlcon(iice) = min(qlcon(iice), qv(i,k)*odt)
 
-                 if (log_3momentIce.and.epsiw(iice).gt.0.) then
+                 if (log_3momentIce.and.epsiw(iice).gt.0..and.(qiliq(i,k,iice)/qitot(i,k,iice)).ge.0.01) then
                     zidep(iice) = epsiz(iice)/epsiw(iice)*qlcon(iice)
                  endif
 
               endif
 
-        else ! liquid fraction turned off
+       ! else
 
        !   if (qitot(i,k,iice).ge.qsmall .and. t(i,k).lt.273.15) then
             !note: diffusional growth/decay rate: (stored as 'qidep' temporarily; may go to qisub below)
@@ -3756,27 +3741,27 @@ END subroutine p3_init
           !   sublimation rates.  The representation of the ice capacitances are highly simplified
           !   and the appropriate values in the diffusional growth equation are uncertain.
 
-          if (qidep(iice).lt.0.) then
-           !note: limit to saturation adjustment (for dep and subl) is applied later
-             qisub(iice) = -qidep(iice)
-             qisub(iice) = qisub(iice)*clbfact_sub
-             qisub(iice) = min(qisub(iice), qitot(i,k,iice)*odt)
-             nisub(iice) = qisub(iice)*(nitot(i,k,iice)/qitot(i,k,iice))
-             qidep(iice) = 0.
+       !   if (qidep(iice).lt.0.) then
+       !    !note: limit to saturation adjustment (for dep and subl) is applied later
+       !      qisub(iice) = -qidep(iice)
+       !      qisub(iice) = qisub(iice)*clbfact_sub
+       !      qisub(iice) = min(qisub(iice), qitot(i,k,iice)*odt)
+       !      nisub(iice) = qisub(iice)*(nitot(i,k,iice)/qitot(i,k,iice))
+       !      qidep(iice) = 0.
 
-             if (log_3momentIce.and.epsi(iice).gt.0.) then
-                zisub(iice) = -epsizsb(iice)/epsi(iice)*qisub(iice)
-             endif
+       !      if (log_3momentIce.and.epsi(iice).gt.0.) then
+       !         zisub(iice) = -epsizsb(iice)/epsi(iice)*qisub(iice)
+       !      endif
 
-          else
-             qidep(iice) = qidep(iice)*clbfact_dep
-             qidep(iice) = min(qidep(iice), qv(i,k)*odt)
+       !   else
+       !      qidep(iice) = qidep(iice)*clbfact_dep
+       !      qidep(iice) = min(qidep(iice), qv(i,k)*odt)
 
-             if (log_3momentIce.and.epsi(iice).gt.0.) then
-                zidep(iice) = epsiz(iice)/epsi(iice)*qidep(iice)
-             endif
+       !      if (log_3momentIce.and.epsi(iice).gt.0.) then
+       !         zidep(iice) = epsiz(iice)/epsi(iice)*qidep(iice)
+       !      endif
 
-          endif
+       !   endif
 
        ! endif ! log_LiquidFrac
 
@@ -5859,6 +5844,29 @@ END subroutine p3_init
                 zitot(i,k,iice) = max(zitot(i,k,iice),tmp2*dum1**2/nitot(i,k,iice))
 
 !......................
+
+! mu diagnostics
+!          if (qitot(i,k,iice).ge.qsmall) then
+
+!             call calc_bulkRhoRime(qitot(i,k,iice),qirim(i,k,iice),qiliq(i,k,iice),birim(i,k,iice),rhop)
+
+!             call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,dum7,isize,         &
+!                        rimsize,liqsize,densize,qitot(i,k,iice),nitot(i,k,iice),qirim(i,k,iice),        &
+!                        qiliq(i,k,iice),rhop)
+
+!              dum1z =  6./(200.*pi)*qitot(i,k,iice)
+!              do imu=1,niter_mui
+!                 dummu_i = compute_mu_3moment1(nitot(i,k,iice),dum1z,zitot(i,k,iice),mu_i_max)
+!                 call find_lookupTable_indices_1c(dumzz,dum6,zsize,dummu_i)
+!                 call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,dumden)
+!                 dum1z =  6./(dumden*pi)*qitot(i,k,iice)
+!              end do
+!              dummu_i = compute_mu_3moment1(nitot(i,k,iice),dum1z,zitot(i,k,iice),mu_i_max)
+
+!              diag_3d(i,k,3) = dummu_i
+
+!           endif ! qitot > qsmall
+              
 !......................
 
              endif
