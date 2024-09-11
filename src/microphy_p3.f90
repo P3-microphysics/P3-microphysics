@@ -11193,10 +11193,10 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
           lammin = (mu_r+1.)*inv_Drmax
           if (lamr.lt.lammin) then
              lamr = lammin
-             nr   = exp(3.*log(lamr)+log(qr)+log(gamma(mu_r+1.))-log(gamma(mu_r+4.)))/(cons1)
+             nr   = 6.*lamr**3*qr/(pi*rhow*(mu_r+3.)*(mu_r+2.)*(mu_r+1.))
           elseif (lamr.gt.lammax) then
              lamr = lammax
-             nr   = exp(3.*log(lamr)+log(qr)+log(gamma(mu_r+1.))-log(gamma(mu_r+4.)))/(cons1)
+             nr   = 6.*lamr**3*qr/(pi*rhow*(mu_r+3.)*(mu_r+2.)*(mu_r+1.))
           endif
 
           logn0r  = alog10(nr)+(mu_r+1.)*alog10(lamr)-alog10(gamma(mu_r+1)) !note: logn0r is calculated as log10(n0r)
