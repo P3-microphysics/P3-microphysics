@@ -26,8 +26,8 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.3.7 + bugfix-negrimrate v1                                              !
-! Last updated:  2024 Sep                                                                  !
+! Version:       5.3.8                                                                     !
+! Last updated:  2024 Sept                                                                 !
 !__________________________________________________________________________________________!
 
  MODULE microphy_p3
@@ -145,7 +145,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.3.7'
+ character(len=1024), parameter :: version_p3                    = '5.3.8'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.6-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '6.6-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.1'
