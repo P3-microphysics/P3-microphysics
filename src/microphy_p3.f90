@@ -26,8 +26,8 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.3.7                                                                     !
-! Last updated:  2024 Aug                                                                  !
+! Version:       5.3.7 + bugfix-negrimrate v1                                              !
+! Last updated:  2024 Sep                                                                  !
 !__________________________________________________________________________________________!
 
  MODULE microphy_p3
@@ -3644,6 +3644,7 @@ END subroutine p3_init
           ab    = 1. + dqsdT*xxlv(i,k)*inv_cp
           dum   = max(0.,min(dum,(Qv_cld(k)-dumqvs)/ab))  ! limit overdepletion of supersaturation
           qcnuc = dum*odt*SCF(k)
+          qcnuc = max(qcnuc,0.)
        endif
 
        if (log_predictNc) then
