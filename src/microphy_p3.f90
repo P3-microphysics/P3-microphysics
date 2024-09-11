@@ -26,7 +26,7 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.3.8                                                                     !
+! Version:       5.3.8 + bugfix-epsi v1                                                    !
 ! Last updated:  2024 Sept                                                                 !
 !__________________________________________________________________________________________!
 
@@ -145,7 +145,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.3.8'
+ character(len=1024), parameter :: version_p3                    = '5.3.8+'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.6-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '6.6-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.1'
@@ -3106,8 +3106,6 @@ END subroutine p3_init
           else
              epsi(iice)  = 0.
              epsiw(iice) = 0.
-             epsi_tot    = 0.
-             epsiw_tot   = 0.
           endif
         !else
         !  if (qitot(i,k,iice).ge.qsmall .and. t(i,k).lt.273.15) then
