@@ -26,7 +26,7 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.3.9                                                                     !
+! Version:       5.3.9 + cleanup-misc_refactor v1                                          !
 ! Last updated:  2024 Sept                                                                 !
 !__________________________________________________________________________________________!
 
@@ -145,7 +145,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.3.9'
+ character(len=1024), parameter :: version_p3                    = '5.3.9+'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.6-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '6.6-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.1'
@@ -3097,11 +3097,11 @@ END subroutine p3_init
                                rho(i,k)*dv)*nitot(i,k,iice)
                  epsi_tot    = epsi_tot + epsi(iice)
                  epsiw(iice) = 0.
-             elseif ((qiliq(i,k,iice)/qitot(i,k,iice)).ge.0.01) then
+             else
                  epsiw(iice) = ((f1pr05+f1pr14*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*2.*pi* &
                                rho(i,k)*dv)*nitot(i,k,iice)
                  epsiw_tot   = epsiw_tot + epsiw(iice)
-                 epsi(iice) = 0.
+                 epsi(iice)  = 0.
              endif
           else
              epsi(iice)  = 0.
