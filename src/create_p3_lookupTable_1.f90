@@ -13,8 +13,8 @@ PROGRAM create_p3_lookuptable_1
 ! All other parameter settings are linked uniquely to the version number.
 !
 !--------------------------------------------------------------------------------------
-! Version:       6.6 + dev-3momfull  (formerly 6.5b10)
-! Last modified: 2023 Oct
+! Version:       6.6 + feature-full3mom b1
+! Last modified: 2024 Sep
 ! Version: including the liquid fraction (inner-loop i_Fl)
 !______________________________________________________________________________________
 
@@ -144,7 +144,7 @@ PROGRAM create_p3_lookuptable_1
  implicit none
 
  !-----
- character(len=20), parameter :: version   = '6.6+dev-3momfull0'
+ character(len=20), parameter :: version   = '6.6+feature-full3mom+b1'
  logical, parameter           :: log_3momI = .true.    !switch to create table for 2momI (.false.) or 3momI (.true.)
  !-----
 
@@ -228,7 +228,7 @@ PROGRAM create_p3_lookuptable_1
 
  real, parameter                    :: Dm_max1 =  5000.e-6   ! max. mean ice [m] size for lambda limiter
  real, parameter                    :: Dm_max2 = 20000.e-6   ! max. mean ice [m] size for lambda limiter
- real, parameter                    :: Dm_min =     2.e-6   ! min. mean ice [m] size for lambda limiter
+ real, parameter                    :: Dm_min  =     2.e-6   ! min. mean ice [m] size for lambda limiter
 
  real, parameter                    :: thrd = 1./3.
  real, parameter                    :: sxth = 1./6.
@@ -1393,14 +1393,16 @@ hostinclusionstring_m = 'spheroidal'
              enddo kk_loop_1
           enddo jj_loop_3
 
+          threemom_3: if (log_3momI) then
+          
 ! calculate change in M6
+          
+           sum2 = 0. ! M6 change from number loss
+           sum3 = 0. ! M6 change from mass gain
+           sum4 = 0. ! M3 change from number loss
+           sum5 = 0. ! M3 change from mass gain
 
-          sum2 = 0. ! M6 change from number loss
-          sum3 = 0. ! M6 change from mass gain
-          sum4 = 0. ! M3 change from number loss
-          sum5 = 0. ! M3 change from mass gain
-
-          do kk=1,num_int_coll_bins
+           do kk=1,num_int_coll_bins
 
 ! define particle size in kk loop
              d2 = real(kk)*ddd - 0.5*ddd
@@ -1435,18 +1437,20 @@ hostinclusionstring_m = 'spheroidal'
 ! M3 change from mass gain (note: massgain = dm/dt*num(kk))
              sum5 = sum5 + massgain(kk)/dmdD*3.*d2**2 !(dM/dt*dD/dm*3*D^2)
 
-          enddo ! kk loop
+           enddo ! kk loop
 
+          endif threemom_3
+          
           nagg(i_Qnorm,i_Fr,i_Fl) = sum1  ! save to write to output
 
-          mom6 = n0*gamma(mu_i+7.)/lam**(mu_i+7.)
-          mom3 = n0*gamma(mu_i+4.)/lam**(mu_i+4.)
-          ! change in relative variance
-          m6agg(i_Qnorm,i_Fr,i_Fl) = mom6/mom3**2*sum1 + 1./mom3**2*(sum2+sum3) &
+          if (log_3momI) then
+             mom6 = n0*gamma(mu_i+7.)/lam**(mu_i+7.)
+             mom3 = n0*gamma(mu_i+4.)/lam**(mu_i+4.)
+             ! change in relative variance
+             m6agg(i_Qnorm,i_Fr,i_Fl) = mom6/mom3**2*sum1 + 1./mom3**2*(sum2+sum3) &
                                      -2.*mom6/mom3**3*(sum4+sum5)
-
-!          m6agg(i_Qnorm,i_Fr,i_Fl) = (sum2+sum3)/sum1 ! ratio of Ztend to Ntend
-
+          endif
+          
 !         print*,'nagg',nagg(i_Qnorm,i_Fr)
 
 !.....................................................................................
@@ -1458,11 +1462,13 @@ hostinclusionstring_m = 'spheroidal'
 
         ! initialize sum for integral
           sum1 = 0.
-          sum2 = 0. !dM6/dt
           sum3 = 0. !qshed (with Fl)
-          sum4 = 0. !M_bb moment for zshed calculation
-          sum5 = 0. !dM3/dt
-
+          if (log_3momI) then
+             sum2 = 0. !dM6/dt
+             sum4 = 0. !M_bb moment for zshed calculation
+             sum5 = 0. !dM3/dt
+          endif
+             
         ! loop over exponential size distribution (from 1 micron to 2 cm)
           jj_loop_4:  do jj = 1,num_int_bins
 
@@ -1520,12 +1526,14 @@ hostinclusionstring_m = 'spheroidal'
 
              if (d1.ge.100.e-6) then
                 sum1 = sum1 + area*fall1(jj)*n0*d1**mu_i*exp(-lam*d1)*dd
+                if (log_3momI) then
 ! dM6/dt = int(6*D^5*dD/dt*D^(mu)*n0*D^mu*exp(-lam*D)*dD)
-                sum2 = sum2 + 6.*d1**5*area*fall1(jj)*n0*d1**mu_i*exp(-lam*d1)*dd/dmdD
+                   sum2 = sum2 + 6.*d1**5*area*fall1(jj)*n0*d1**mu_i*exp(-lam*d1)*dd/dmdD
 ! M_bb moment
-                sum4 = sum4 + d1**bb*n0*d1**mu_i*exp(-lam*d1)*dd
+                   sum4 = sum4 + d1**bb*n0*d1**mu_i*exp(-lam*d1)*dd
 ! dM3/dt
-                sum5 = sum5 + 3.*d1**2*area*fall1(jj)*n0*d1**mu_i*exp(-lam*d1)*dd/dmdD
+                   sum5 = sum5 + 3.*d1**2*area*fall1(jj)*n0*d1**mu_i*exp(-lam*d1)*dd/dmdD
+                endif
              endif
 
 !.....................................................................................
@@ -1544,23 +1552,21 @@ hostinclusionstring_m = 'spheroidal'
 
         ! save for output
           nrwat(i_Qnorm,i_Fr,i_Fl) = sum1    ! note: read in as 'f1pr4' in P3_MAIN
-!          m6rime(i_Qnorm,i_Fr,i_Fl) = sum2/sum1 ! ratio of Ztend to Qtend
+
           qshed(i_Qnorm,i_Fr,i_Fl) = sum3
 
-          mom6 = n0*gamma(mu_i+7.)/lam**(mu_i+7.)
-          mom3 = n0*gamma(mu_i+4.)/lam**(mu_i+4.)
-          m6rime(i_Qnorm,i_Fr,i_Fl) = 1./mom3**2*sum2 - 2.*mom6/mom3**3*sum5 ! change in relative variance
+          threemom_1: if (log_3momI) then
+             
+             mom6 = n0*gamma(mu_i+7.)/lam**(mu_i+7.)
+             mom3 = n0*gamma(mu_i+4.)/lam**(mu_i+4.)
+             m6rime(i_Qnorm,i_Fr,i_Fl) = 1./mom3**2*sum2 - 2.*mom6/mom3**3*sum5 ! change in relative variance
+             
+! m6 change from shedding
 
-!          dumm6 = mom6+sum2
-!          dumm3 = mom3+sum5
-!          dummu_i = compute_mu_3moment2(1.,dumm3,dumm6,20.)
+             sum1 = 0. ! M6 change
+             sum2 = 0. ! M3 change
 
-! z change from shedding
-
-          sum1 = 0. ! M6 change
-          sum2 = 0. ! M3 change
-
-          jj_loop_40:  do jj = 1,num_int_bins
+             jj_loop_40:  do jj = 1,num_int_bins
 
              d1 = real(jj)*dd - 0.5*dd  ! particle size or dimension (m) for numerical integration
 
@@ -1589,13 +1595,14 @@ hostinclusionstring_m = 'spheroidal'
                 sum2 = sum2+3.*d1**2*sum3/sum4*d1**bb*n0*d1**mu_i*exp(-lam*d1)*dd/dmdD
              endif
 
-          enddo jj_loop_40
+             enddo jj_loop_40
 
-          mom6 = n0*gamma(mu_i+7.)/lam**(mu_i+7.)
-          mom3 = n0*gamma(mu_i+4.)/lam**(mu_i+4.)
-          m6shd(i_Qnorm,i_Fr,i_Fl) = 1./mom3**2*sum1 - 2.*mom6/mom3**3*sum2 ! change in relative variance
-          !m6shd(i_Qnorm,i_Fr,i_Fl) = sum1/sum3 ! ratio of Ztend to Qtend
+             mom6 = n0*gamma(mu_i+7.)/lam**(mu_i+7.)
+             mom3 = n0*gamma(mu_i+4.)/lam**(mu_i+4.)
+             m6shd(i_Qnorm,i_Fr,i_Fl) = 1./mom3**2*sum1 - 2.*mom6/mom3**3*sum2 ! change in relative variance
 
+          endif threemom_1
+          
 !.....................................................................................
 ! collection of rain
 !.....................................................................................
@@ -1657,8 +1664,10 @@ hostinclusionstring_m = 'spheroidal'
            ! initialize sum
              sum1 = 0.
              sum2 = 0.
-             sum3 = 0. ! M6 tendency
-             sum4 = 0. ! M3 tendency
+             if (log_3momI) then
+                sum3 = 0. ! M6 tendency
+                sum4 = 0. ! M3 tendency
+             endif
              sum6 = 0.
 !            sum8 = 0.  ! total rain
 
@@ -1770,12 +1779,15 @@ hostinclusionstring_m = 'spheroidal'
                   !          exp(-lam*d1)*dd*num(kk)*dt
                   !num(kk) = max(num(kk),0.)
 
-                  ! change in zi due to collection of rain by ice
-                   sum3 = sum3+(area+pi*0.25*d2**2)*delu*6.*d1**5*n0*d1**mu_i*        &
+                   if (log_3momI) then
+                  ! change in M6 due to collection of rain by ice
+                      sum3 = sum3+(area+pi*0.25*d2**2)*delu*6.*d1**5*n0*d1**mu_i*        &
                           exp(-lam*d1)*ddd*num(kk)*pi*sxth*997.*d2**3/dmdD
                   ! change in M3
-                   sum4 = sum4+(area+pi*0.25*d2**2)*delu*3.*d1**2*n0*d1**mu_i*        &
+                      sum4 = sum4+(area+pi*0.25*d2**2)*delu*3.*d1**2*n0*d1**mu_i*        &
                           exp(-lam*d1)*ddd*num(kk)*pi*sxth*997.*d2**3/dmdD
+                   endif
+                   
 !......................................................
 ! now calculate collection of ice mass by rain
 
@@ -1810,11 +1822,11 @@ hostinclusionstring_m = 'spheroidal'
              qrrain(i_Qnorm,i_Drscale,i_Fr,i_Fl) = sum2
              qsrain(i_Qnorm,i_Drscale,i_Fr,i_Fl) = sum6
 
-          mom6 = n0*gamma(mu_i+7.)/lam**(mu_i+7.)
-          mom3 = n0*gamma(mu_i+4.)/lam**(mu_i+4.)
-          m6collr(i_Qnorm,i_Drscale,i_Fr,i_Fl) = 1./mom3**2*sum3 - 2.*mom6/mom3**3*sum4 ! change in relative variance
-
-!             m6collr(i_Qnorm,i_Drscale,i_Fr,i_Fl) = sum3
+             if (log_3momI) then
+                mom6 = n0*gamma(mu_i+7.)/lam**(mu_i+7.)
+                mom3 = n0*gamma(mu_i+4.)/lam**(mu_i+4.)
+                m6collr(i_Qnorm,i_Drscale,i_Fr,i_Fl) = 1./mom3**2*sum3 - 2.*mom6/mom3**3*sum4 ! change in relative variance
+             endif
 
           enddo i_Drscale_loop !(loop around lambda for rain)
 
@@ -1829,11 +1841,13 @@ hostinclusionstring_m = 'spheroidal'
           sum2 = 0.
           sum3 = 0.
           sum4 = 0.
-          sum5 = 0. ! m6 melting term 1
-          sum6 = 0. ! m6 melting term 2
-          sum7 = 0. ! M3 term 1
-          sum8 = 0. ! M3 term 2
-
+          if (log_3momI) then
+             sum5 = 0. ! m6 melting term 1
+             sum6 = 0. ! m6 melting term 2
+             sum7 = 0. ! m3 term 1
+             sum8 = 0. ! m3 term 2
+          endif
+             
         ! loop over exponential size distribution:
           jj_loop_6: do jj = 1,num_int_bins
 
@@ -1917,12 +1931,14 @@ hostinclusionstring_m = 'spheroidal'
                 ! Melted water transferred to rain
                 sum1 = sum1+capm*fac1*n0d*d1**(mu_id)*exp(-lamd*d1)*dd
                 sum2 = sum2+capm*fac2*n0d*d1**(mu_id)*exp(-lamd*d1)*dd
-                ! M6 rates
-                sum5 = sum5+capm*6.*d1**5*fac1*n0d*d1**(mu_id)*exp(-lamd*d1)*dd/dmdD
-                sum6 = sum6+capm*6.*d1**5*fac2*n0d*d1**(mu_id)*exp(-lamd*d1)*dd/dmdD
-                ! M3 rates
-                sum7 = sum7+capm*3.*d1**2*fac1*n0d*d1**(mu_id)*exp(-lamd*d1)*dd/dmdD
-                sum8 = sum8+capm*3.*d1**2*fac2*n0d*d1**(mu_id)*exp(-lamd*d1)*dd/dmdD
+                if (log_3momI) then
+                   ! M6 rates
+                   sum5 = sum5+capm*6.*d1**5*fac1*n0d*d1**(mu_id)*exp(-lamd*d1)*dd/dmdD
+                   sum6 = sum6+capm*6.*d1**5*fac2*n0d*d1**(mu_id)*exp(-lamd*d1)*dd/dmdD
+                   ! M3 rates
+                   sum7 = sum7+capm*3.*d1**2*fac1*n0d*d1**(mu_id)*exp(-lamd*d1)*dd/dmdD
+                   sum8 = sum8+capm*3.*d1**2*fac2*n0d*d1**(mu_id)*exp(-lamd*d1)*dd/dmdD
+                endif
                 !sum3 = sum3+0.
                 !sum4 = sum4+0.
              else
@@ -1941,15 +1957,14 @@ hostinclusionstring_m = 'spheroidal'
           vdepm3(i_Qnorm,i_Fr,i_Fl) = sum3
           vdepm4(i_Qnorm,i_Fr,i_Fl) = sum4
 
-          mom6 = n0*gamma(mu_i+7.)/lam**(mu_i+7.)
-          mom3 = n0*gamma(mu_i+4.)/lam**(mu_i+4.)
-          ! NOTE: form below includes dM0/dt change
-          m6mlt1(i_Qnorm,i_Fr,i_Fl) = 1./mom3**2*sum5 - 1.*mom6/mom3**3*sum7  ! change relative variance
-          m6mlt2(i_Qnorm,i_Fr,i_Fl) = 1./mom3**2*sum6 - 1.*mom6/mom3**3*sum8  ! change relative variance
-
-!          m6mlt1(i_Qnorm,i_Fr,i_Fl) = sum5/sum1 ! ratio of Ztend to Qtend
-!          m6mlt2(i_Qnorm,i_Fr,i_Fl) = sum6/sum2 ! ratio of Ztend to Qtend
-
+          if (log_3momI) then
+             mom6 = n0*gamma(mu_i+7.)/lam**(mu_i+7.)
+             mom3 = n0*gamma(mu_i+4.)/lam**(mu_i+4.)
+             ! NOTE: form below includes dM0/dt change
+             m6mlt1(i_Qnorm,i_Fr,i_Fl) = 1./mom3**2*sum5 - 1.*mom6/mom3**3*sum7  ! change relative variance
+             m6mlt2(i_Qnorm,i_Fr,i_Fl) = 1./mom3**2*sum6 - 1.*mom6/mom3**3*sum8  ! change relative variance
+          endif
+             
 !.....................................................................................
 ! vapor deposition/wet growth/refreezing
 !.....................................................................................
@@ -1961,11 +1976,13 @@ hostinclusionstring_m = 'spheroidal'
 
           sum1 = 0.
           sum2 = 0.
-          sum3 = 0. ! first term dM6/dt
-          sum4 = 0. ! second term dM6/dt
-          sum5 = 0. ! first term dM3/dt
-          sum6 = 0. ! second term dM3/dt
-
+          if (log_3momI) then
+             sum3 = 0. ! first term dM6/dt
+             sum4 = 0. ! second term dM6/dt
+             sum5 = 0. ! first term dM3/dt
+             sum6 = 0. ! second term dM3/dt
+          endif
+             
         ! loop over exponential size distribution:
           jj_loop_7: do jj = 1,num_int_bins
 
@@ -2031,16 +2048,20 @@ hostinclusionstring_m = 'spheroidal'
 
              if (d1.lt.100.e-6) then
                 sum1 = sum1+capm*n0*d1**(mu_i)*exp(-lam*d1)*dd
-                sum3 = sum3 + 6.*d1**5*capm*n0*d1**(mu_i)*exp(-lam*d1)*dd/dmdD
-		sum5 = sum5 + 3.*d1**2*capm*n0*d1**(mu_i)*exp(-lam*d1)*dd/dmdD
+                if (log_3momI) then
+                   sum3 = sum3 + 6.*d1**5*capm*n0*d1**(mu_i)*exp(-lam*d1)*dd/dmdD
+     		   sum5 = sum5 + 3.*d1**2*capm*n0*d1**(mu_i)*exp(-lam*d1)*dd/dmdD
+                endif
              else
                !sum1 = sum1+capm*n0*(0.65+0.44*dum)*d1**(mu_i)*exp(-lam*d1)*dd
                 sum1 = sum1+capm*n0*0.65*d1**(mu_i)*exp(-lam*d1)*dd
                 sum2 = sum2+capm*n0*0.44*dum*d1**(mu_i)*exp(-lam*d1)*dd
-                sum3 = sum3 + 0.65*6.*d1**5*capm*n0*d1**(mu_i)*exp(-lam*d1)*dd/dmdD
-                sum4 = sum4 + 0.44*dum*6.*d1**5*capm*n0*d1**(mu_i)*exp(-lam*d1)*dd/dmdD
-                sum5 = sum5 + 0.65*3.*d1**2*capm*n0*d1**(mu_i)*exp(-lam*d1)*dd/dmdD
-                sum6 = sum6 + 0.44*dum*3.*d1**2*capm*n0*d1**(mu_i)*exp(-lam*d1)*dd/dmdD
+                if (log_3momI) then
+                   sum3 = sum3 + 0.65*6.*d1**5*capm*n0*d1**(mu_i)*exp(-lam*d1)*dd/dmdD
+                   sum4 = sum4 + 0.44*dum*6.*d1**5*capm*n0*d1**(mu_i)*exp(-lam*d1)*dd/dmdD
+                   sum5 = sum5 + 0.65*3.*d1**2*capm*n0*d1**(mu_i)*exp(-lam*d1)*dd/dmdD
+                   sum6 = sum6 + 0.44*dum*3.*d1**2*capm*n0*d1**(mu_i)*exp(-lam*d1)*dd/dmdD
+                endif
              endif
 
           enddo jj_loop_7
@@ -2048,24 +2069,16 @@ hostinclusionstring_m = 'spheroidal'
           vdep(i_Qnorm,i_Fr,i_Fl)  = sum1
           vdep1(i_Qnorm,i_Fr,i_Fl) = sum2
 
-          mom6 = n0*gamma(mu_i+7.)/lam**(mu_i+7.)
-          mom3 = n0*gamma(mu_i+4.)/lam**(mu_i+4.)
-          m6dep(i_Qnorm,i_Fr,i_Fl) = 1./mom3**2*sum3 - 2.*mom6/mom3**3*sum5
-          m6dep1(i_Qnorm,i_Fr,i_Fl) = 1./mom3**2*sum4 - 2.*mom6/mom3**3*sum6
+          if (log_3momI) then
+             mom6 = n0*gamma(mu_i+7.)/lam**(mu_i+7.)
+             mom3 = n0*gamma(mu_i+4.)/lam**(mu_i+4.)
+             m6dep(i_Qnorm,i_Fr,i_Fl) = 1./mom3**2*sum3 - 2.*mom6/mom3**3*sum5
+             m6dep1(i_Qnorm,i_Fr,i_Fl) = 1./mom3**2*sum4 - 2.*mom6/mom3**3*sum6
 ! NOTE: change in G for sublimation includes impact of dM0/dt, thus different from deposition above
-          m6sub(i_Qnorm,i_Fr,i_Fl) = 1./mom3**2*sum3 - mom6/mom3**3*sum5
-          m6sub1(i_Qnorm,i_Fr,i_Fl) = 1./mom3**2*sum4 - mom6/mom3**3*sum6
-
-!          dumm6 = mom6+sum3
-!          dumm3 = mom3+sum5
-!          dummu_i = compute_mu_3moment2(1.,dumm3,dumm6,20.)
-!          dumm6 = mom6+sum4
-!          dumm3 = mom3+sum6
-!          dummu_i = compute_mu_3moment2(1.,dumm3,dumm6,20.)
-
-!          m6dep(i_Qnorm,i_Fr,i_Fl)  = sum3/sum1 ! ratio of Ztend to Qtend
-!          m6dep1(i_Qnorm,i_Fr,i_Fl)  = sum4/sum2 ! ratio of Ztend to Qtend
-
+             m6sub(i_Qnorm,i_Fr,i_Fl) = 1./mom3**2*sum3 - mom6/mom3**3*sum5
+             m6sub1(i_Qnorm,i_Fr,i_Fl) = 1./mom3**2*sum4 - mom6/mom3**3*sum6
+          endif
+             
 !.....................................................................................
 ! ice effective radius
 !   use definition of Francis et al. (1994), e.g., Eq. 3.11 in Fu (1996) J. Climate
@@ -2154,7 +2167,7 @@ hostinclusionstring_m = 'spheroidal'
         ! Set values less than cutoff (1.e-99) to 0.
         !   note: dim(x,cutoff) actually returns x-cutoff (if x>cutoff; else 0.), but this difference will
         !   have no effect since the values will be read in single precision in P3_INIT. The purppse
-        !   here is to avoid problems trying to writevalues with 3-digit exponents (e.g. 0.123456E-100)
+        !   here is to avoid problems trying to write values with 3-digit exponents (e.g. 0.123456E-100)
           uns(i_Qnorm,i_Fr,i_Fl)       = dim( uns(i_Qnorm,i_Fr,i_Fl),       cutoff)
           ums(i_Qnorm,i_Fr,i_Fl)       = dim( ums(i_Qnorm,i_Fr,i_Fl),       cutoff)
           nagg(i_Qnorm,i_Fr,i_Fl)      = dim( nagg(i_Qnorm,i_Fr,i_Fl),      cutoff)
@@ -2169,9 +2182,6 @@ hostinclusionstring_m = 'spheroidal'
           dmm(i_Qnorm,i_Fr,i_Fl)       = dim( dmm(i_Qnorm,i_Fr,i_Fl),       cutoff)
           rhomm(i_Qnorm,i_Fr,i_Fl)     = dim( rhomm(i_Qnorm,i_Fr,i_Fl),     cutoff)
           uzs(i_Qnorm,i_Fr,i_Fl)       = dim( uzs(i_Qnorm,i_Fr,i_Fl),       cutoff)
-! HM no longer needed
-!          zlarge(i_Qnorm,i_Fr,i_Fl)    = dim( zlarge(i_Qnorm,i_Fr,i_Fl),    cutoff)
-!          zsmall(i_Qnorm,i_Fr,i_Fl)    = dim( zsmall(i_Qnorm,i_Fr,i_Fl),    cutoff)
           lambda_i(i_Qnorm,i_Fr,i_Fl)  = dim( lambda_i(i_Qnorm,i_Fr,i_Fl),  cutoff)
           mu_i_save(i_Qnorm,i_Fr,i_Fl) = dim( mu_i_save(i_Qnorm,i_Fr,i_Fl), cutoff)
           vdepm1(i_Qnorm,i_Fr,i_Fl)    = dim( vdepm1(i_Qnorm,i_Fr,i_Fl),    cutoff)
@@ -2180,57 +2190,53 @@ hostinclusionstring_m = 'spheroidal'
           vdepm4(i_Qnorm,i_Fr,i_Fl)    = dim( vdepm4(i_Qnorm,i_Fr,i_Fl),    cutoff)
           qshed(i_Qnorm,i_Fr,i_Fl)     = dim( qshed(i_Qnorm,i_Fr,i_Fl),     cutoff)
           refl2(i_Qnorm,i_Fr,i_Fl)     = dim( refl2(i_Qnorm,i_Fr,i_Fl),     cutoff)
+
           ! modified below since rates could be positive or negative
-          if (m6dep(i_Qnorm,i_Fr,i_Fl).lt.0.) then
-             m6dep(i_Qnorm,i_Fr,i_Fl)     = -dim( -m6dep(i_Qnorm,i_Fr,i_Fl),     cutoff)
-          else
-             m6dep(i_Qnorm,i_Fr,i_Fl)     = dim( m6dep(i_Qnorm,i_Fr,i_Fl),     cutoff)
-          endif
-          if (m6dep1(i_Qnorm,i_Fr,i_Fl).lt.0.) then
-             m6dep1(i_Qnorm,i_Fr,i_Fl)     = -dim( -m6dep1(i_Qnorm,i_Fr,i_Fl),     cutoff)
-          else
-             m6dep1(i_Qnorm,i_Fr,i_Fl)     = dim( m6dep1(i_Qnorm,i_Fr,i_Fl),     cutoff)
-          endif
-          if (m6mlt1(i_Qnorm,i_Fr,i_Fl).lt.0.) then
-             m6mlt1(i_Qnorm,i_Fr,i_Fl)     = -dim( -m6mlt1(i_Qnorm,i_Fr,i_Fl),     cutoff)
-          else
-             m6mlt1(i_Qnorm,i_Fr,i_Fl)     = dim( m6mlt1(i_Qnorm,i_Fr,i_Fl),     cutoff)
-          endif
-          if (m6mlt2(i_Qnorm,i_Fr,i_Fl).lt.0.) then
-             m6mlt2(i_Qnorm,i_Fr,i_Fl)     = -dim( -m6mlt2(i_Qnorm,i_Fr,i_Fl),     cutoff)
-          else
-             m6mlt2(i_Qnorm,i_Fr,i_Fl)     = dim( m6mlt2(i_Qnorm,i_Fr,i_Fl),     cutoff)
-          endif
-          if (m6agg(i_Qnorm,i_Fr,i_Fl).lt.0.) then
-             m6agg(i_Qnorm,i_Fr,i_Fl)     = -dim( -m6agg(i_Qnorm,i_Fr,i_Fl),     cutoff)
-          else
-             m6agg(i_Qnorm,i_Fr,i_Fl)     = dim( m6agg(i_Qnorm,i_Fr,i_Fl),     cutoff)
-          endif
-          if (m6shd(i_Qnorm,i_Fr,i_Fl).lt.0.) then
-             m6shd(i_Qnorm,i_Fr,i_Fl)     = -dim( -m6shd(i_Qnorm,i_Fr,i_Fl),     cutoff)
-          else
-             m6shd(i_Qnorm,i_Fr,i_Fl)     = dim( m6shd(i_Qnorm,i_Fr,i_Fl),     cutoff)
-          endif
-          if (m6sub(i_Qnorm,i_Fr,i_Fl).lt.0.) then
-             m6sub(i_Qnorm,i_Fr,i_Fl)     = -dim( -m6sub(i_Qnorm,i_Fr,i_Fl),     cutoff)
-          else
-             m6sub(i_Qnorm,i_Fr,i_Fl)     = dim( m6sub(i_Qnorm,i_Fr,i_Fl),     cutoff)
-          endif
-          if (m6sub1(i_Qnorm,i_Fr,i_Fl).lt.0.) then
-             m6sub1(i_Qnorm,i_Fr,i_Fl)     = -dim( -m6sub1(i_Qnorm,i_Fr,i_Fl),     cutoff)
-          else
-             m6sub1(i_Qnorm,i_Fr,i_Fl)     = dim( m6sub1(i_Qnorm,i_Fr,i_Fl),     cutoff)
-          endif
+          threemom_2: if (log_3momI) then
+             
+             if (m6dep(i_Qnorm,i_Fr,i_Fl).lt.0.) then
+                m6dep(i_Qnorm,i_Fr,i_Fl)     = -dim( -m6dep(i_Qnorm,i_Fr,i_Fl),     cutoff)
+             else
+                m6dep(i_Qnorm,i_Fr,i_Fl)     = dim( m6dep(i_Qnorm,i_Fr,i_Fl),     cutoff)
+             endif
+             if (m6dep1(i_Qnorm,i_Fr,i_Fl).lt.0.) then
+                m6dep1(i_Qnorm,i_Fr,i_Fl)     = -dim( -m6dep1(i_Qnorm,i_Fr,i_Fl),     cutoff)
+             else
+                m6dep1(i_Qnorm,i_Fr,i_Fl)     = dim( m6dep1(i_Qnorm,i_Fr,i_Fl),     cutoff)
+             endif
+             if (m6mlt1(i_Qnorm,i_Fr,i_Fl).lt.0.) then
+                m6mlt1(i_Qnorm,i_Fr,i_Fl)     = -dim( -m6mlt1(i_Qnorm,i_Fr,i_Fl),     cutoff)
+             else
+                m6mlt1(i_Qnorm,i_Fr,i_Fl)     = dim( m6mlt1(i_Qnorm,i_Fr,i_Fl),     cutoff)
+             endif
+             if (m6mlt2(i_Qnorm,i_Fr,i_Fl).lt.0.) then
+                m6mlt2(i_Qnorm,i_Fr,i_Fl)     = -dim( -m6mlt2(i_Qnorm,i_Fr,i_Fl),     cutoff)
+             else
+                m6mlt2(i_Qnorm,i_Fr,i_Fl)     = dim( m6mlt2(i_Qnorm,i_Fr,i_Fl),     cutoff)
+             endif
+             if (m6agg(i_Qnorm,i_Fr,i_Fl).lt.0.) then
+                m6agg(i_Qnorm,i_Fr,i_Fl)     = -dim( -m6agg(i_Qnorm,i_Fr,i_Fl),     cutoff)
+             else
+                m6agg(i_Qnorm,i_Fr,i_Fl)     = dim( m6agg(i_Qnorm,i_Fr,i_Fl),     cutoff)
+             endif
+             if (m6shd(i_Qnorm,i_Fr,i_Fl).lt.0.) then
+                m6shd(i_Qnorm,i_Fr,i_Fl)     = -dim( -m6shd(i_Qnorm,i_Fr,i_Fl),     cutoff)
+             else
+                m6shd(i_Qnorm,i_Fr,i_Fl)     = dim( m6shd(i_Qnorm,i_Fr,i_Fl),     cutoff)
+             endif
+             if (m6sub(i_Qnorm,i_Fr,i_Fl).lt.0.) then
+                m6sub(i_Qnorm,i_Fr,i_Fl)     = -dim( -m6sub(i_Qnorm,i_Fr,i_Fl),     cutoff)
+             else
+                m6sub(i_Qnorm,i_Fr,i_Fl)     = dim( m6sub(i_Qnorm,i_Fr,i_Fl),     cutoff)
+             endif
+             if (m6sub1(i_Qnorm,i_Fr,i_Fl).lt.0.) then
+                m6sub1(i_Qnorm,i_Fr,i_Fl)     = -dim( -m6sub1(i_Qnorm,i_Fr,i_Fl),     cutoff)
+             else
+                m6sub1(i_Qnorm,i_Fr,i_Fl)     = dim( m6sub1(i_Qnorm,i_Fr,i_Fl),     cutoff)
+             endif
 
-!          m6dep(i_Qnorm,i_Fr,i_Fl)     = dim( m6dep(i_Qnorm,i_Fr,i_Fl),     cutoff)
-!          m6dep1(i_Qnorm,i_Fr,i_Fl)    = dim( m6dep1(i_Qnorm,i_Fr,i_Fl),    cutoff)
-!          m6mlt1(i_Qnorm,i_Fr,i_Fl)    = dim( m6mlt1(i_Qnorm,i_Fr,i_Fl),    cutoff)
-!          m6mlt2(i_Qnorm,i_Fr,i_Fl)    = dim( m6mlt2(i_Qnorm,i_Fr,i_Fl),    cutoff)
-!          m6agg(i_Qnorm,i_Fr,i_Fl)     = dim( m6agg(i_Qnorm,i_Fr,i_Fl),     cutoff)
-!          m6shd(i_Qnorm,i_Fr,i_Fl)     = dim( m6shd(i_Qnorm,i_Fr,i_Fl),     cutoff)
-!          m6sub(i_Qnorm,i_Fr,i_Fl)     = dim( m6sub(i_Qnorm,i_Fr,i_Fl),     cutoff)
-!          m6sub1(i_Qnorm,i_Fr,i_Fl)    = dim( m6sub1(i_Qnorm,i_Fr,i_Fl),     cutoff)
-
+          endif threemom_2
+             
           if (log_3momI) then
              write(1,'(5i5,29e15.5)')                             &
                          i_Znorm,i_rhor,i_Fr,i_Fl,i_Qnorm,        &
@@ -2247,9 +2253,6 @@ hostinclusionstring_m = 'spheroidal'
                          dmm(i_Qnorm,i_Fr,i_Fl),                  &
                          rhomm(i_Qnorm,i_Fr,i_Fl),                &
                          uzs(i_Qnorm,i_Fr,i_Fl),                  &
-! HM no longer needed
-!                         zlarge(i_Qnorm,i_Fr,i_Fl),               &
-!                         zsmall(i_Qnorm,i_Fr,i_Fl),               &
                          lambda_i(i_Qnorm,i_Fr,i_Fl),             &
                          mu_i_save(i_Qnorm,i_Fr,i_Fl),            &
                          vdepm1(i_Qnorm,i_Fr,i_Fl),               &
@@ -2301,21 +2304,27 @@ hostinclusionstring_m = 'spheroidal'
 ! !              qrrain(i_Qnorm,i_Drscale,i_Fr) = dim(qrrain(i_Qnorm,i_Drscale,i_Fr), cutoff)
              nrrain(i_Qnorm,i_Drscale,i_Fr,i_Fl) = log10(max(nrrain(i_Qnorm,i_Drscale,i_Fr,i_Fl), 1.e-99))
              qrrain(i_Qnorm,i_Drscale,i_Fr,i_Fl) = log10(max(qrrain(i_Qnorm,i_Drscale,i_Fr,i_Fl), 1.e-99))
+             if (log_3momI) then
 ! do not output m6collr as log10
-!             m6collr(i_Qnorm,i_Drscale,i_Fr,i_Fl) = log10(max(m6collr(i_Qnorm,i_Drscale,i_Fr,i_Fl), 1.e-99))
-
-             if (m6collr(i_Qnorm,i_Drscale,i_Fr,i_Fl).lt.0.) then
-                m6collr(i_Qnorm,i_Drscale,i_Fr,i_Fl)     = -dim( -m6collr(i_Qnorm,i_Drscale,i_Fr,i_Fl),     cutoff)
-             else
-                m6collr(i_Qnorm,i_Drscale,i_Fr,i_Fl)     = dim( m6collr(i_Qnorm,i_Drscale,i_Fr,i_Fl),     cutoff)
-             endif
-
-
-             write(1,'(4i5,3e15.5)')                              &
+!                m6collr(i_Qnorm,i_Drscale,i_Fr,i_Fl) = log10(max(m6collr(i_Qnorm,i_Drscale,i_Fr,i_Fl), 1.e-99))
+  
+                if (m6collr(i_Qnorm,i_Drscale,i_Fr,i_Fl).lt.0.) then
+                   m6collr(i_Qnorm,i_Drscale,i_Fr,i_Fl)     = -dim( -m6collr(i_Qnorm,i_Drscale,i_Fr,i_Fl),     cutoff)
+                else
+                   m6collr(i_Qnorm,i_Drscale,i_Fr,i_Fl)     = dim( m6collr(i_Qnorm,i_Drscale,i_Fr,i_Fl),     cutoff)
+                endif
+                
+                write(1,'(4i5,3e15.5)')                           &
                          i_Qnorm,i_Drscale,i_Fr,i_Fl,             &
                          nrrain(i_Qnorm,i_Drscale,i_Fr,i_Fl),     &
                          qrrain(i_Qnorm,i_Drscale,i_Fr,i_Fl),     &
                          m6collr(i_Qnorm,i_Drscale,i_Fr,i_Fl)
+             else ! 2-moment
+                write(1,'(4i5,2e15.5)')                           &
+                         i_Qnorm,i_Drscale,i_Fr,i_Fl,             &
+                         nrrain(i_Qnorm,i_Drscale,i_Fr,i_Fl),     &
+                         qrrain(i_Qnorm,i_Drscale,i_Fr,i_Fl)
+             endif
 
           enddo !i_Drscale-loop
        enddo !i_Qnorm-loop
