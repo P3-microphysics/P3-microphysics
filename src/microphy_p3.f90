@@ -26,8 +26,8 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.3.7+full3m+fix1                                                         !
-! Last updated:  Aug 2024                                                                  !
+! Version:       5.3.7+full3m+multicat v2                                                  !
+! Last updated:  Sept 2024                                                                 !
 !__________________________________________________________________________________________!
 
  MODULE microphy_p3
@@ -146,7 +146,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.3.7+full3m+fix1'
+ character(len=1024), parameter :: version_p3                    = '5.3.7+'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.4-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '6.6+dev-3momfull0'
  character(len=1024), parameter :: version_intended_table_2      = '6.0'
@@ -4240,8 +4240,12 @@ END subroutine p3_init
               dumden=f1pr16
               dum1 = dumqi*6./(dumden*pi)
 
-              mu_i = compute_mu_3moment1(dumni,dum1,zitot(i,k,iice),mu_i_max)
-
+              mu_i = compute_mu_3moment(dumni,dum1,zitot(i,k,iice),mu_i_max)
+! Uncomment this line and comment line above to do more expensive (and more accurate)
+! calculation of mu. This is location 1 of 3 that needs to be changed for this. 
+! Search for 'compute_mu_3moment1'.
+! mu_i = compute_mu_3moment1(dumni,dum1,zitot(i,k,iice),mu_i_max)
+              
               mu_i_s(iice)=mu_i
 
            endif
@@ -4465,6 +4469,10 @@ END subroutine p3_init
 
              if (log_full3Mom) then
 
+! NOTE: for ice-ice category collection with nCat > 1, for simplicity it is assumed that
+! mu does change change from this process. This is implicitly accounted for in the code below since
+! in effect G_rate = 0 for category collection.
+                
 ! sum of all G rates
              G_rate_tot = zqccol(iice)+zidep(iice)+zisub(iice)+zishd(iice)+zimlt(iice)+zislf(iice)+zqrcol(iice)
 
@@ -4484,7 +4492,11 @@ END subroutine p3_init
                ! update density
                 dum1z =  6./(dumden*pi)*dumqi
                 do imu=1,niter_mui
-                   dummu_i = compute_mu_3moment1(dumni,dum1z,dumzi,mu_i_max)
+                   dummu_i = compute_mu_3moment(dumni,dum1z,dumzi,mu_i_max)
+! Uncomment this line and comment line above to do more expensive (and more accurate) 
+! calculation of mu. This is location 2 of 3 that needs to be changed for this.       
+! Search for 'compute_mu_3moment1'.                            
+!                   dummu_i = compute_mu_3moment1(dumni,dum1z,dumzi,mu_i_max)
                    call find_lookupTable_indices_1c(dumzz,dum6,zsize,dummu_i)
                    call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,dumden)
                    dum1z =  6./(dumden*pi)*dumqi
@@ -4525,6 +4537,10 @@ END subroutine p3_init
                 dum1z =  6./(dumden*pi)*dumqi
 
                 do imu=1,niter_mui
+                   dummu_i = compute_mu_3moment(dumni,dum1z,dumzi,mu_i_max)
+! Uncomment this line and comment line above to do more expensive (and more accurate)  
+! calculation of mu. This is location 3 of 3 that needs to be changed for this.        
+! Search for 'compute_mu_3moment1'.
                    dummu_i = compute_mu_3moment1(dumni,dum1z,dumzi,mu_i_max)
                    call find_lookupTable_indices_1c(dumzz,dum6,zsize,dummu_i)
                    call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,dumden)
