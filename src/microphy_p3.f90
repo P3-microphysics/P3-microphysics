@@ -4541,7 +4541,7 @@ END subroutine p3_init
 ! Uncomment this line and comment line above to do more expensive (and more accurate)  
 ! calculation of mu. This is location 3 of 3 that needs to be changed for this.        
 ! Search for 'compute_mu_3moment1'.
-                   dummu_i = compute_mu_3moment1(dumni,dum1z,dumzi,mu_i_max)
+!                   dummu_i = compute_mu_3moment1(dumni,dum1z,dumzi,mu_i_max)
                    call find_lookupTable_indices_1c(dumzz,dum6,zsize,dummu_i)
                    call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,dumden)
                    dum1z =  6./(dumden*pi)*dumqi
