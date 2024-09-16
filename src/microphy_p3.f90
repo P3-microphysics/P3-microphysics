@@ -26,7 +26,7 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.3.7+full3m+multicat v2                                                  !
+! Version:       5.4.0                                                                     !
 ! Last updated:  Sept 2024                                                                 !
 !__________________________________________________________________________________________!
 
@@ -146,10 +146,10 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.3.7+'
- character(len=1024), parameter :: version_intended_table_1_2mom = '6.4-2momI'
- character(len=1024), parameter :: version_intended_table_1_3mom = '6.6+dev-3momfull0'
- character(len=1024), parameter :: version_intended_table_2      = '6.0'
+ character(len=1024), parameter :: version_p3                    = '5.4.0'
+ character(len=1024), parameter :: version_intended_table_1_2mom = '6.7-2momI'
+ character(len=1024), parameter :: version_intended_table_1_3mom = '6.7-3momI
+ character(len=1024), parameter :: version_intended_table_2      = '6.1'
 
  character(len=1024)            :: version_header_table_1_2mom
  character(len=1024)            :: version_header_table_1_3mom

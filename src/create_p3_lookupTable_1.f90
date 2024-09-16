@@ -13,7 +13,7 @@ PROGRAM create_p3_lookuptable_1
 ! All other parameter settings are linked uniquely to the version number.
 !
 !--------------------------------------------------------------------------------------
-! Version:       6.6 + feature-full3mom b1
+! Version:       6.7                          
 ! Last modified: 2024 Sep
 ! Version: including the liquid fraction (inner-loop i_Fl)
 !______________________________________________________________________________________
@@ -144,7 +144,7 @@ PROGRAM create_p3_lookuptable_1
  implicit none
 
  !-----
- character(len=20), parameter :: version   = '6.6+feature-full3mom+b1'
+ character(len=20), parameter :: version   = '6.7'
  logical, parameter           :: log_3momI = .true.    !switch to create table for 2momI (.false.) or 3momI (.true.)
  !-----
 
