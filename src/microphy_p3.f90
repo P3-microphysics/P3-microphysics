@@ -26,8 +26,8 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.4.0                                                                     !
-! Last updated:  Sept 2024                                                                 !
+! Version:       5.4-rc                                                                    !
+! Last updated:  2024 Sept                                                                 !
 !__________________________________________________________________________________________!
 
  MODULE microphy_p3
@@ -146,7 +146,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.4.0'
+ character(len=1024), parameter :: version_p3                    = '5.4.0-rc'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.7-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '6.7-3momI
  character(len=1024), parameter :: version_intended_table_2      = '6.1'
@@ -3227,11 +3227,11 @@ END subroutine p3_init
                                rho(i,k)*dv)*nitot(i,k,iice)
                  epsi_tot    = epsi_tot + epsi(iice)
                  epsiw(iice) = 0.
-             elseif ((qiliq(i,k,iice)/qitot(i,k,iice)).ge.0.01) then
+             else
                  epsiw(iice) = ((f1pr05+f1pr14*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*2.*pi* &
                                rho(i,k)*dv)*nitot(i,k,iice)
                  epsiw_tot   = epsiw_tot + epsiw(iice)
-                 epsi(iice) = 0.
+                 epsi(iice)  = 0.
              endif
 
              if (log_3momentIce) then
@@ -3244,12 +3244,10 @@ END subroutine p3_init
           else
              epsi(iice)  = 0.
              epsiw(iice) = 0.
-             epsi_tot    = 0.
-             epsiw_tot   = 0.
              epsiz(iice) = 0.
              epsizsb(iice) = 0.
           endif
-        !else          
+        !else
         !  if (qitot(i,k,iice).ge.qsmall .and. t(i,k).lt.273.15) then
         !     epsi(iice) = ((f1pr05+f1pr14*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*2.*pi* &
         !                  rho(i,k)*dv)*nitot(i,k,iice)
@@ -3258,7 +3256,7 @@ END subroutine p3_init
         !     epsi(iice) = 0.
         !  endif
         !endif
-          
+
 !............................................................
 ! refreezing of mixed-phase ice particles
 ! only with predicted liquid fraction (log_liqFrac)
@@ -3821,6 +3819,7 @@ END subroutine p3_init
           ab    = 1. + dqsdT*xxlv(i,k)*inv_cp
           dum   = max(0.,min(dum,(Qv_cld(k)-dumqvs)/ab))  ! limit overdepletion of supersaturation
           qcnuc = dum*odt*SCF(k)
+          qcnuc = max(qcnuc,0.)
        endif
 
        if (log_predictNc) then
@@ -4242,10 +4241,10 @@ END subroutine p3_init
 
               mu_i = compute_mu_3moment(dumni,dum1,zitot(i,k,iice),mu_i_max)
 ! Uncomment this line and comment line above to do more expensive (and more accurate)
-! calculation of mu. This is location 1 of 3 that needs to be changed for this. 
+! calculation of mu. This is location 1 of 3 that needs to be changed for this.
 ! Search for 'compute_mu_3moment1'.
 ! mu_i = compute_mu_3moment1(dumni,dum1,zitot(i,k,iice),mu_i_max)
-              
+
               mu_i_s(iice)=mu_i
 
            endif
@@ -4472,7 +4471,7 @@ END subroutine p3_init
 ! NOTE: for ice-ice category collection with nCat > 1, for simplicity it is assumed that
 ! mu does change change from this process. This is implicitly accounted for in the code below since
 ! in effect G_rate = 0 for category collection.
-                
+
 ! sum of all G rates
              G_rate_tot = zqccol(iice)+zidep(iice)+zisub(iice)+zishd(iice)+zimlt(iice)+zislf(iice)+zqrcol(iice)
 
@@ -4493,9 +4492,9 @@ END subroutine p3_init
                 dum1z =  6./(dumden*pi)*dumqi
                 do imu=1,niter_mui
                    dummu_i = compute_mu_3moment(dumni,dum1z,dumzi,mu_i_max)
-! Uncomment this line and comment line above to do more expensive (and more accurate) 
-! calculation of mu. This is location 2 of 3 that needs to be changed for this.       
-! Search for 'compute_mu_3moment1'.                            
+! Uncomment this line and comment line above to do more expensive (and more accurate)
+! calculation of mu. This is location 2 of 3 that needs to be changed for this.
+! Search for 'compute_mu_3moment1'.
 !                   dummu_i = compute_mu_3moment1(dumni,dum1z,dumzi,mu_i_max)
                    call find_lookupTable_indices_1c(dumzz,dum6,zsize,dummu_i)
                    call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,dumden)
@@ -4538,8 +4537,8 @@ END subroutine p3_init
 
                 do imu=1,niter_mui
                    dummu_i = compute_mu_3moment(dumni,dum1z,dumzi,mu_i_max)
-! Uncomment this line and comment line above to do more expensive (and more accurate)  
-! calculation of mu. This is location 3 of 3 that needs to be changed for this.        
+! Uncomment this line and comment line above to do more expensive (and more accurate)
+! calculation of mu. This is location 3 of 3 that needs to be changed for this.
 ! Search for 'compute_mu_3moment1'.
 !                   dummu_i = compute_mu_3moment1(dumni,dum1z,dumzi,mu_i_max)
                    call find_lookupTable_indices_1c(dumzz,dum6,zsize,dummu_i)
@@ -5882,7 +5881,7 @@ END subroutine p3_init
 !              diag_3d(i,k,3) = dummu_i
 
 !           endif ! qitot > qsmall
-              
+
 !......................
 
              endif
@@ -11497,10 +11496,10 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
           lammin = (mu_r+1.)*inv_Drmax
           if (lamr.lt.lammin) then
              lamr = lammin
-             nr   = exp(3.*log(lamr)+log(qr)+log(gamma(mu_r+1.))-log(gamma(mu_r+4.)))/(cons1)
+             nr   = 6.*lamr**3*qr/(pi*rhow*(mu_r+3.)*(mu_r+2.)*(mu_r+1.))
           elseif (lamr.gt.lammax) then
              lamr = lammax
-             nr   = exp(3.*log(lamr)+log(qr)+log(gamma(mu_r+1.))-log(gamma(mu_r+4.)))/(cons1)
+             nr   = 6.*lamr**3*qr/(pi*rhow*(mu_r+3.)*(mu_r+2.)*(mu_r+1.))
           endif
 
           logn0r  = alog10(nr)+(mu_r+1.)*alog10(lamr)-alog10(gamma(mu_r+1)) !note: logn0r is calculated as log10(n0r)
