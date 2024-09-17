@@ -26,7 +26,7 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.4-rc                                                                    !
+! Version:       5.4.0                                                                     !
 ! Last updated:  2024 Sept                                                                 !
 !__________________________________________________________________________________________!
 
@@ -146,9 +146,9 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.4.0-rc'
+ character(len=1024), parameter :: version_p3                    = '5.4.0'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.7-2momI'
- character(len=1024), parameter :: version_intended_table_1_3mom = '6.7-3momI
+ character(len=1024), parameter :: version_intended_table_1_3mom = '6.7-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.1'
 
  character(len=1024)            :: version_header_table_1_2mom
@@ -6110,12 +6110,6 @@ END subroutine p3_init
           diag_3d(i,k,2) = maxval(diag_dhmax(i,k,:))
        enddo
     enddo
-
-!-- diagnostic output (for hail study):
-    diag_2d(:,1) = prt_liq(:)
-    diag_2d(:,2) = prt_sol(:)
-!   diag_3d(:,:,1) = qitot(:,:,1)
-!--
 
  endif
 !---

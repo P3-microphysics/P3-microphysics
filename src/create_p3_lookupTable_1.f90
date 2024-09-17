@@ -88,16 +88,21 @@ PROGRAM create_p3_lookuptable_1
 !
 ! for i_Znorm in 01 02 03 04 05 06 07 08 09 10 11
 ! do
-
-!    rm cfg_input full_code.f90
-!    cat > cfg_input << EOF
-!     i_Znorm = ${i_Znorm}
-! EOF
-!    cat create_p3_lookupTable_1-top.f90 cfg_input create_p3_lookupTable_1-bottom.f90 > full_code.f90
-!    echo 'Compiling 'exec_${i_Znorm}
-!    ifort -r8 full_code.f90
-!    mv a.out exec_${i_Znorm}
 !
+! for i_rhor in 01 02 03 04 05
+! do
+!    rm cfg_input full_code.f90
+!    cat > cfg_input << EOF                                                                                                               
+!    i_Znorm = ${i_Znorm}                                                                                                                 
+!    i_rhor = ${i_rhor}                                                                                                                   
+!EOF                                                                                                                                      
+!    cat create_p3_lookupTable_1-top.f90 cfg_input create_p3_lookupTable_1-bottom.f90 > full_code.f90
+!    cp full_code.f90 full_code_${i_Znorm}_${i_rhor}.f90
+!    echo 'Compiling 'exec_${i_Znorm}_${i_rhor}
+!    ifort -r8 full_code.f90
+!    mv a.out exec_${i_Znorm}_${i_rhor}
+!
+! done
 ! done
 !
 ! rm cfg_input full_code.f90
@@ -299,12 +304,15 @@ hostinclusionstring_m = 'spheroidal'
 ! For testing single values, uncomment the following:
 ! i_Znorm = 1
 ! i_rhor  = 1
+
 !------------------------------------------------------------------------------------
 ! CODE BELOW HERE IS FOR THE "BOTTOM" OF THE BROKEN UP CODE (for running in parallel)
 !
 !   Before running ./go_1-compile.ksh, delete all lines below this point and
 !   and save as 'create_p3_lookupTable_1-bottom.f90'
 !------------------------------------------------------------------------------------
+
+ if (.not.log_3momI) i_Znorm = -9  ! to avoid uninitialized value (2-moment only)
 
 ! set constants and parameters
 
@@ -490,8 +498,8 @@ hostinclusionstring_m = 'spheroidal'
 ! Thus, the loops 'i_Znorm_loop' and 'i_rhor_loop' are commented out accordingingly.
 !
 !i_Znorm_loop: do i_Znorm = 1,n_Znorm   !normally commented (kept to illustrate the structure (and to run in serial)
-!   i_rhor_loop: do i_rhor = 1,n_rhor    !COMMENT OUT FOR PARALLELIZATION (2-MOMENT ONLY)
-     i_Fr_loop_1: do i_Fr = 1,n_Fr      !COMMENT OUT FOR PARALLELIZATION (2-MOMENT ONLY)
+!   i_rhor_loop: do i_rhor = 1,n_rhor    !COMMENT OUT FOR PARALLELIZATION OF THIS LOOP (2-MOMENT ONLY)
+     i_Fr_loop_1: do i_Fr = 1,n_Fr      !COMMENT OUT FOR PARALLELIZATION OF THIS LOOP (2-MOMENT ONLY)
 
 ! 3-moment-ice only:
 ! compute Z value from input Z index whose value is "passed in" through the script
