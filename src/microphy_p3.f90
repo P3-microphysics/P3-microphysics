@@ -26,7 +26,7 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.4.0                                                                     !
+! Version:       5.4.1                                                                     !
 ! Last updated:  2024 Sept                                                                 !
 !__________________________________________________________________________________________!
 
@@ -146,7 +146,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.4.0'
+ character(len=1024), parameter :: version_p3                    = '5.4.1'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.7-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '6.7-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.1'
@@ -5463,40 +5463,43 @@ END subroutine p3_init
 
     k_loop_fz:  do k = kbot,ktop,kdir
 
-    ! compute mean-mass ice diameters
-       diam_ice(i,k,:) = 0.
-       do iice = 1,nCat
-          if (qitot(i,k,iice).ge.qsmall) then
-             nitot(i,k,iice) = max(nitot(i,k,iice),nsmall)
-             call calc_bulkRhoRime(qitot(i,k,iice),qirim(i,k,iice),qiliq(i,k,iice),birim(i,k,iice),rhop)
-             call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,dum7,isize,         &
-                        rimsize,liqsize,densize,qitot(i,k,iice),nitot(i,k,iice),qirim(i,k,iice),        &
-                        qiliq(i,k,iice),rhop)
+          multicat1: if (nCat>1) then
+       ! compute mean-mass ice diameters
+          diam_ice(i,k,:) = 0.
+          do iice = 1,nCat
+             if (qitot(i,k,iice).ge.qsmall) then
+                nitot(i,k,iice) = max(nitot(i,k,iice),nsmall)
+                call calc_bulkRhoRime(qitot(i,k,iice),qirim(i,k,iice),qiliq(i,k,iice),birim(i,k,iice),rhop)
+                call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,dum7,isize,         &
+                           rimsize,liqsize,densize,qitot(i,k,iice),nitot(i,k,iice),qirim(i,k,iice),        &
+                           qiliq(i,k,iice),rhop)
 
-             if (.not. log_3momentIce) then
-               if (.not. log_LiquidFrac) then
-                  call access_lookup_table(dumjj,dumii,dumi,12,dum1,dum4,dum5,f1pr16)
-               else
-                  call access_lookup_table_LF(dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum7,f1pr16)
-               endif
-             else
-               zitot(i,k,iice) = max(zitot(i,k,iice),zsmall)
-               dum1z = 6./(200.*pi)*qitot(i,k,iice)
-               do imu=1,niter_mui
-                  mu_i = compute_mu_3moment(nitot(i,k,iice),dum1z,zitot(i,k,iice),mu_i_max)
-                  call find_lookupTable_indices_1c(dumzz,dum6,zsize,mu_i)
-                  call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,f1pr16)
-                  dum1z =  6./(f1pr16*pi)*qitot(i,k,iice)  !estimate of moment3
-               enddo
-               if (.not. log_LiquidFrac) then
-                  call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,12,dum1,dum4,dum5,dum6,f1pr16)
-               else
-                  call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,f1pr16)
-               endif
+                if (.not. log_3momentIce) then
+                   if (.not. log_LiquidFrac) then
+                      call access_lookup_table(dumjj,dumii,dumi,12,dum1,dum4,dum5,f1pr16)
+                   else
+                     call access_lookup_table_LF(dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum7,f1pr16)
+                   endif
+                else
+                   zitot(i,k,iice) = max(zitot(i,k,iice),zsmall)
+                   dum1z = 6./(200.*pi)*qitot(i,k,iice)
+                   do imu=1,niter_mui
+                      mu_i = compute_mu_3moment(nitot(i,k,iice),dum1z,zitot(i,k,iice),mu_i_max)
+                      call find_lookupTable_indices_1c(dumzz,dum6,zsize,mu_i)
+                      call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,f1pr16)
+                      dum1z =  6./(f1pr16*pi)*qitot(i,k,iice)  !estimate of moment3
+                   enddo
+                   if (.not. log_LiquidFrac) then
+                      call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,12,dum1,dum4,dum5,dum6,f1pr16)
+                   else
+                      call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,f1pr16)
+                   endif
+                endif
+                diam_ice(i,k,iice) = ((qitot(i,k,iice)*6.)/(nitot(i,k,iice)*f1pr16*pi))**thrd
              endif
-             diam_ice(i,k,iice) = ((qitot(i,k,iice)*6.)/(nitot(i,k,iice)*f1pr16*pi))**thrd
-          endif
-       enddo  !iice loop
+          enddo  !iice loop
+
+       endif multicat1
 
        qc_not_small_2: if (qc(i,k).ge.qsmall .and. t(i,k).lt.233.15) then
 
