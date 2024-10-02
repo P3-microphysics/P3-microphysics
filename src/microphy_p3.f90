@@ -26,7 +26,7 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.3.10-qiliq_conserv-v1                                                   !
+! Version:       5.3.10-qiliq_conserv-v2                                                   !
 ! Last updated:  2024 Oct                                                                  !
 !__________________________________________________________________________________________!
 
@@ -145,7 +145,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.3.10-qiliq_conserv-v1'
+ character(len=1024), parameter :: version_p3                    = '5.3.10-qiliq_conserv-v2'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.6-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '6.6-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.1'
@@ -2468,6 +2468,9 @@ END subroutine p3_init
              qiliq(i,k,iice) = 0.
              birim(i,k,iice) = 0.
           endif
+
+    ! ensure qiliq >= 0
+          qiliq(i,i,iice)=max(qiliq(i,i,iice),0.)
 
        enddo  !iice-loop
 
