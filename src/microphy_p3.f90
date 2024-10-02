@@ -26,7 +26,7 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.3.10-qiliq_conserv-v2                                                   !
+! Version:       5.3.10-qiliq_conserv-v3                                                   !
 ! Last updated:  2024 Oct                                                                  !
 !__________________________________________________________________________________________!
 
@@ -145,7 +145,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.3.10-qiliq_conserv-v2'
+ character(len=1024), parameter :: version_p3                    = '5.3.10-qiliq_conserv-v3'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.6-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '6.6-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.1'
@@ -2105,7 +2105,7 @@ END subroutine p3_init
  real :: eii ! temperature dependent aggregation efficiency
 
  real, dimension(its:ite,kts:kte,nCat) :: diam_ice,liquidfraction,rimefraction,          &
-            rimevolume,arr_lami,arr_mui,rimedensity
+            rimevolume,arr_lami,arr_mui,rimedensity,den_ice
 
  real, dimension(its:ite,kts:kte)      :: inv_dzq,inv_rho,ze_ice,ze_rain,prec,acn,rho,   &
             rhofacr,rhofaci,xxls,xxlv,xlf,qvs,qvi,sup,supi,vtrmi1,tmparr1,mflux_r,       &
@@ -2302,6 +2302,7 @@ END subroutine p3_init
  mu_r      = 0.
  diag_ze   = -99.
  diam_ice  = 0.
+ den_ice   = 400.
  rimefraction   = 0.
  rimevolume     = 0.
  liquidfraction = 0.
@@ -2774,6 +2775,7 @@ END subroutine p3_init
 
           ! Compute ice diameter (volume equivalent -- for multi-cat)
              diam_ice(i,k,iice) = ((qitot(i,k,iice)*6.)/(nitot(i,k,iice)*f1pr16*pi))**thrd
+	     den_ice(i,k,iice) = f1pr16
 
           ! adjust Ni if needed to make sure mean size is in bounds (i.e. apply lambda limiters)
           !  note: the inv_Qmin (f1pr09) and inv_Qmax (f1pr10) are normalized, thus the
@@ -4083,8 +4085,8 @@ END subroutine p3_init
 
             !estimate moment3 from updated qitot (dum2).
              if (qitot(i,k,iice).ge.qsmall) then
-               !need to use mean ice density (f1pr16) from beginning of step, since the updated value is not available
-                dumm3(iice) = 6./(f1pr16*pi)*dumm3(iice)
+               !need to use mean ice density (den_ice(i,k,iice)) from beginning of step, since the updated value is not available
+                dumm3(iice) = 6./(den_ice(i,k,iice)*pi)*dumm3(iice)
              else
                !if there is no existing ice, assume an ice density of 900 kg m-3
                 dumm3(iice) = 6./(900.*pi)*dumm3(iice)
@@ -4094,7 +4096,7 @@ END subroutine p3_init
             !solve or assign for mu_i (to be used to compute updated zitot)
             if (qitot(i,k,iice).ge.qsmall) then
                !solve for mu_i from values of mom0,mom3,mom6 at beginning of time step
-                dum1 =  6./(f1pr16*pi)*qitot(i,k,iice)  !estimate of moment3
+                dum1 =  6./(den_ice(i,k,iice)*pi)*qitot(i,k,iice)  !estimate of moment3
                 mu_i = compute_mu_3moment(nitot(i,k,iice),dum1,zitot(i,k,iice),mu_i_max)
                 !mu_i = min(compute_mu_3moment(nitot(i,k,iice),dum1,zitot(i,k,iice),mu_i_max),mu_i_max)
              else
