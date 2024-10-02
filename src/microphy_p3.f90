@@ -26,7 +26,7 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.4.1 + qiliq_conserv-v1                                                  !
+! Version:       5.4.1 + qiliq_conserv-v2                                                  !
 ! Last updated:  2024 Sept                                                                 !
 !__________________________________________________________________________________________!
 
@@ -2508,6 +2508,9 @@ END subroutine p3_init
              qiliq(i,k,iice) = 0.
              birim(i,k,iice) = 0.
           endif
+
+    ! ensure qiliq >= 0
+          qiliq(i,i,iice)=max(qiliq(i,i,iice),0.)
 
        enddo  !iice-loop
 
