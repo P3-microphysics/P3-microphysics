@@ -26,7 +26,7 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.4.1                                                                     !
+! Version:       5.4.1 + qiliq_conserv-v1                                                  !
 ! Last updated:  2024 Sept                                                                 !
 !__________________________________________________________________________________________!
 
@@ -146,7 +146,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.4.1'
+ character(len=1024), parameter :: version_p3                    = '5.4.1+'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.7-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '6.7-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.1'
@@ -4171,12 +4171,17 @@ END subroutine p3_init
           sinks   = (qifrz(iice)+qlshd(iice)+qlevp(iice))*dt
           sources = qiliq(i,k,iice) + (qimlt(iice)+qrcoll(iice)+qccoll(iice)+qlcon(iice)+ &
                     qwgrth1c(iice)+qwgrth1r(iice))*dt
+          if (qitot(i,k,iice).ge.qsmall) then
+             dum=qiliq(i,k,iice)/qitot(i,k,iice)
+          else
+             dum=0.
+          endif		    
           do catcoll = 1,nCat
             !Note: qicol = 0 if iice=catcoll, optimised to not insert an if (catcoll.ne.iice)
             !category interaction leading to source for iice category
-             sources = sources + qicol(catcoll,iice)*dt
+             sources = sources + qicol(catcoll,iice)*dt*dum
             !category interaction leading to sink for iice category
-             sinks = sinks + qicol(iice,catcoll)*dt
+             sinks = sinks + qicol(iice,catcoll)*dt*dum
           enddo
           if (sinks.gt.sources .and. sinks.ge.1.e-20) then
              ratio = sources/sinks
