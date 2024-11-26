@@ -26,8 +26,8 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.3.11                                                                    !
-! Last updated:  2024 Oct                                                                  !
+! Version:       5.3.12                                                                    !
+! Last updated:  2024 Nov                                                                  !
 !__________________________________________________________________________________________!
 
  MODULE microphy_p3
@@ -145,7 +145,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.3.11'
+ character(len=1024), parameter :: version_p3                    = '5.3.12'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.6-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '6.6-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.1'
@@ -880,7 +880,7 @@ END subroutine p3_init
    real, dimension(ims:ime, kms:kme, n_iceCat) :: qitot,qirim,nitot,birim,diag_dmi,diag_vmi,       &
                                                   diag_rhoi,diag_effi
 
-   real, dimension(its:ite, kts:kte, n_iceCat) :: diag_dhmax   
+   real, dimension(its:ite, kts:kte, n_iceCat) :: diag_dhmax
 
    real, dimension(ims:ime, kms:kme,n_iceCat)  :: zitot   ! ice mixing ratio, reflectivity          m6 kg-1
    real, dimension(ims:ime, kms:kme,n_iceCat)  :: qiliq   ! liquid mixing ratio on ice kg/kg
@@ -963,28 +963,28 @@ END subroutine p3_init
       if (.not. log_3momIce) zitot = 0.  !not used, but avoids passing uninialized values
       if (.not. log_liqFrac) qiliq = 0.  !not used, but avoids passing uninialized values
 
-      call p3_main( qc(its:ite,kts:kte,j),nc_loc(its:ite,kts:kte),qr(its:ite,kts:kte,j),       &          
-                      qnr(its:ite,kts:kte,j),th_old(its:ite,kts:kte,j),th(its:ite,kts:kte,j),  &          
-                      qv_old(its:ite,kts:kte,j),qv(its:ite,kts:kte,j),dt,                      &          
-                      qitot(its:ite,kts:kte,1:n_iceCat),qirim(its:ite,kts:kte,1:n_iceCat),     &          
-                      qiliq(its:ite,kts:kte,1:n_iceCat),nitot(its:ite,kts:kte,1:n_iceCat),     &          
-                      birim(its:ite,kts:kte,1:n_iceCat),zitot(its:ite,kts:kte,1:n_iceCat),     &          
-                      ssat(its:ite,kts:kte),w(its:ite,kts:kte,j),p(its:ite,kts:kte,j),         &          
-                      dz(its:ite,kts:kte,j),itimestep,pcprt_liq,pcprt_sol,its,ite,kts,kte,     &          
-                      n_iceCat,diag_zdbz(its:ite,kts:kte,j),diag_effc(its:ite,kts:kte,j),      &          
-                      diag_effi(its:ite,kts:kte,1:n_iceCat),diag_vmi(its:ite,kts:kte,1:n_iceCat),  &      
-                      diag_dmi(its:ite,kts:kte,1:n_iceCat),diag_rhoi(its:ite,kts:kte,1:n_iceCat),  &      
-                      n_diag2d,diag2d(its:ite,1:n_diag2d),n_diag3d,diag3d(its:ite,kts:kte,1:n_diag3d), &  
-                      log_predictNc,trim(model),clbfact_dep,clbfact_sub,log_debug,log_scpf,    &          
-                      scpf_pfrac,scpf_resfact,cldfrac,log_3momIce,log_liqFrac,                 &          
+      call p3_main( qc(its:ite,kts:kte,j),nc_loc(its:ite,kts:kte),qr(its:ite,kts:kte,j),       &
+                      qnr(its:ite,kts:kte,j),th_old(its:ite,kts:kte,j),th(its:ite,kts:kte,j),  &
+                      qv_old(its:ite,kts:kte,j),qv(its:ite,kts:kte,j),dt,                      &
+                      qitot(its:ite,kts:kte,1:n_iceCat),qirim(its:ite,kts:kte,1:n_iceCat),     &
+                      qiliq(its:ite,kts:kte,1:n_iceCat),nitot(its:ite,kts:kte,1:n_iceCat),     &
+                      birim(its:ite,kts:kte,1:n_iceCat),zitot(its:ite,kts:kte,1:n_iceCat),     &
+                      ssat(its:ite,kts:kte),w(its:ite,kts:kte,j),p(its:ite,kts:kte,j),         &
+                      dz(its:ite,kts:kte,j),itimestep,pcprt_liq,pcprt_sol,its,ite,kts,kte,     &
+                      n_iceCat,diag_zdbz(its:ite,kts:kte,j),diag_effc(its:ite,kts:kte,j),      &
+                      diag_effi(its:ite,kts:kte,1:n_iceCat),diag_vmi(its:ite,kts:kte,1:n_iceCat),  &
+                      diag_dmi(its:ite,kts:kte,1:n_iceCat),diag_rhoi(its:ite,kts:kte,1:n_iceCat),  &
+                      n_diag2d,diag2d(its:ite,1:n_diag2d),n_diag3d,diag3d(its:ite,kts:kte,1:n_diag3d), &
+                      log_predictNc,trim(model),clbfact_dep,clbfact_sub,log_debug,log_scpf,    &
+                      scpf_pfrac,scpf_resfact,cldfrac,log_3momIce,log_liqFrac,                 &
                       diag_dhmax = diag_dhmax )
 
      !surface precipitation output:
-      dum1 = 1000.*dt                                                                                                        
-      rainnc(its:ite,j)  = rainnc(its:ite,j) + (pcprt_liq(:) + pcprt_sol(:))*dum1  ! conversion from m/s to mm/time step     
-      rainncv(its:ite,j) = (pcprt_liq(:) + pcprt_sol(:))*dum1                ! conversion from m/s to mm/time step           
-      snownc(its:ite,j)  = snownc(its:ite,j) + pcprt_sol(:)*dum1                   ! conversion from m/s to mm/time step     
-      snowncv(its:ite,j) = pcprt_sol(:)*dum1                                 ! conversion from m/s to mm/time step           
+      dum1 = 1000.*dt
+      rainnc(its:ite,j)  = rainnc(its:ite,j) + (pcprt_liq(:) + pcprt_sol(:))*dum1  ! conversion from m/s to mm/time step
+      rainncv(its:ite,j) = (pcprt_liq(:) + pcprt_sol(:))*dum1                ! conversion from m/s to mm/time step
+      snownc(its:ite,j)  = snownc(its:ite,j) + pcprt_sol(:)*dum1                   ! conversion from m/s to mm/time step
+      snowncv(its:ite,j) = pcprt_sol(:)*dum1                                 ! conversion from m/s to mm/time step
       sr(its:ite,j)      = pcprt_sol(:)/(pcprt_liq(:)+pcprt_sol(:)+1.e-12)   ! solid-to-total ratio
 
       if (log_predictNc) nc(:,:,j) = nc_loc(:,:)
@@ -1082,11 +1082,11 @@ END subroutine p3_init
 
 
     ! copy generic output arrays (from p3_main) to local arrays (passed back to wrapper)
-      if (present(diag2d_01))  diag2d_01(:,j)    = diag2d(:,1)                                                               
-      if (present(diag2d_02))  diag2d_02(:,j)    = diag2d(:,2)                                                               
-      if (present(diag3d_01))  diag3d_01(:,:,j)  = diag3d(:,:,1)                                                             
-      if (present(diag3d_02))  diag3d_02(:,:,j)  = diag3d(:,:,2)                                                             
-      if (present(diag3d_03))  diag3d_03(:,:,j)  = diag3d(:,:,3)                                                             
+      if (present(diag2d_01))  diag2d_01(:,j)    = diag2d(:,1)
+      if (present(diag2d_02))  diag2d_02(:,j)    = diag2d(:,2)
+      if (present(diag3d_01))  diag3d_01(:,:,j)  = diag3d(:,:,1)
+      if (present(diag3d_02))  diag3d_02(:,:,j)  = diag3d(:,:,2)
+      if (present(diag3d_03))  diag3d_03(:,:,j)  = diag3d(:,:,3)
 
    enddo j_loop
 
@@ -1322,13 +1322,13 @@ END subroutine p3_init
    if (n_iceCat > 1) totmassm(:,:) = totmassm(:,:) + qitot_2m(:,:)
    if (n_iceCat > 2) totmassm(:,:) = totmassm(:,:) + qitot_3m(:,:)
    if (n_iceCat > 3) totmassm(:,:) = totmassm(:,:) + qitot_4m(:,:)
-   inv_totmassm(:,:) = 1./(1.-totmassm(:,:))   
+   inv_totmassm(:,:) = 1./(1.-totmassm(:,:))
    ! Total sum at t*
    totmass(:,:) = qvap(:,:)+qr(:,:)+qc(:,:)+qitot_1(:,:)
    if (n_iceCat > 1) totmass(:,:) = totmass(:,:) + qitot_2(:,:)
    if (n_iceCat > 2) totmass(:,:) = totmass(:,:) + qitot_3(:,:)
-   if (n_iceCat > 3) totmass(:,:) = totmass(:,:) + qitot_4(:,:) 
-   inv_totmass(:,:) = 1./(1.-totmass(:,:))    
+   if (n_iceCat > 3) totmass(:,:) = totmass(:,:) + qitot_4(:,:)
+   inv_totmass(:,:) = 1./(1.-totmass(:,:))
    ! Water vapour:
    qvap(:,:) = qvap(:,:)*inv_totmass(:,:)
    qvapm1(:,:) = qvap_m(:,:)*inv_totmassm(:,:)
@@ -1647,8 +1647,8 @@ END subroutine p3_init
    totmass(:,:) = qvap(:,:)+qr(:,:)+qc(:,:)+qitot_1(:,:)
    if (n_iceCat > 1) totmass(:,:) = totmass(:,:) + qitot_2(:,:)
    if (n_iceCat > 2) totmass(:,:) = totmass(:,:) + qitot_3(:,:)
-   if (n_iceCat > 3) totmass(:,:) = totmass(:,:) + qitot_4(:,:) 
-   inv_totmass(:,:) = 1./(1.+totmass(:,:)) 
+   if (n_iceCat > 3) totmass(:,:) = totmass(:,:) + qitot_4(:,:)
+   inv_totmass(:,:) = 1./(1.+totmass(:,:))
    ! Water vapour:
    qvap(:,:) = qvap(:,:)*inv_totmass(:,:)
    ! Cloud water:
@@ -4002,7 +4002,7 @@ END subroutine p3_init
              dum=qiliq(i,k,iice)/qitot(i,k,iice)
           else
              dum=0.
-          endif		    
+          endif
           do catcoll = 1,nCat
             !Note: qicol = 0 if iice=catcoll, optimised to not insert an if (catcoll.ne.iice)
             !category interaction leading to source for iice category
@@ -11768,25 +11768,34 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
 
 #include "phymkptr.hf"
 
-  
+
 !===========================================================================================
 
   ! Compute total water mass
-  function p3_lwc(F_qltot, F_pvars) result(F_istat)
+  function p3_lwc(F_qltot, F_pvars, F_tminus) result(F_istat)
     use phybusidx
     use phymem, only: phyvar
     use phy_status, only: PHY_OK, PHY_ERROR
     implicit none
     real, dimension(:,:), intent(out) :: F_qltot        !Total water mass (kg/kg)
-    type(phyvar), pointer, contiguous :: F_pvars(:)   !All phy vars (meta + slab data)
+    type(phyvar), pointer, contiguous :: F_pvars(:)     !All phy vars (meta + slab data)
+    logical, intent(in), optional :: F_tminus           !Compute fields at time-minus [false]
     integer :: F_istat                                  !Return status
     integer :: ni, nkm1
-    real, dimension(:,:), pointer :: zqcp, zqrp
+    real, dimension(:,:), pointer, contiguous :: zqc, zqr
+    logical :: my_tminus
     F_istat = PHY_ERROR
+    my_tminus = .false.
+    if (present(F_tminus)) my_tminus = F_tminus
     ni = size(F_qltot, dim=1); nkm1 = size(F_qltot, dim=2)
-    MKPTR2Dm1(zqcp, qcplus, F_pvars)
-    MKPTR2Dm1(zqrp, qrplus, F_pvars)
-    F_qltot(:,:) = zqcp(:,:) + zqrp(:,:)
+    if (my_tminus) then
+       MKPTR2Dm1(zqc, qcmoins, F_pvars)
+       MKPTR2Dm1(zqr, qrmoins, F_pvars)
+    else
+       MKPTR2Dm1(zqc, qcplus, F_pvars)
+       MKPTR2Dm1(zqr, qrplus, F_pvars)
+    endif
+    F_qltot(:,:) = zqc(:,:) + zqr(:,:)
     F_istat = PHY_OK
     return
   end function p3_lwc
@@ -11794,30 +11803,42 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
 !===========================================================================================
 
   ! Compute total ice mass
-  function p3_iwc(F_qitot, F_pvars) result(F_istat)
+  function p3_iwc(F_qitot, F_pvars, F_tminus) result(F_istat)
     use phybusidx
     use phymem, only: phyvar
     use phy_status, only: PHY_OK, PHY_ERROR
     implicit none
     real, dimension(:,:), intent(out) :: F_qitot        !Total ice mass (kg/kg)
-    type(phyvar), pointer, contiguous :: F_pvars(:)   !All phy vars (meta + slab data)
+    type(phyvar), pointer, contiguous :: F_pvars(:)     !All phy vars (meta + slab data)
+    logical, intent(in), optional :: F_tminus           !Compute fields at time-minus [false]
     integer :: F_istat                                  !Return status
     integer :: ni, nkm1
-    real, dimension(:,:), pointer :: zqti1p, zqti2p, zqti3p, zqti4p
+    real, dimension(:,:), pointer, contiguous :: zqti1, zqti2, zqti3, zqti4
+    logical :: my_tminus
     F_istat = PHY_ERROR
+    my_tminus = .false.
+    if (present(F_tminus)) my_tminus = F_tminus
     ni = size(F_qitot, dim=1); nkm1 = size(F_qitot, dim=2)
-    MKPTR2Dm1(zqti1p, qti1plus, F_pvars)
-    MKPTR2Dm1(zqti2p, qti2plus, F_pvars)
-    MKPTR2Dm1(zqti3p, qti3plus, F_pvars)
-    MKPTR2Dm1(zqti4p, qti4plus, F_pvars)
+    if (my_tminus) then
+       MKPTR2Dm1(zqti1, qti1moins, F_pvars)
+       MKPTR2Dm1(zqti2, qti2moins, F_pvars)
+       MKPTR2Dm1(zqti3, qti3moins, F_pvars)
+       MKPTR2Dm1(zqti4, qti4moins, F_pvars)
+    else
+       MKPTR2Dm1(zqti1, qti1plus, F_pvars)
+       MKPTR2Dm1(zqti2, qti2plus, F_pvars)
+       MKPTR2Dm1(zqti3, qti3plus, F_pvars)
+       MKPTR2Dm1(zqti4, qti4plus, F_pvars)
+    endif
     F_qitot = 0.
-    if (associated(zqti1p)) F_qitot = F_qitot + zqti1p
-    if (associated(zqti2p)) F_qitot = F_qitot + zqti2p
-    if (associated(zqti3p)) F_qitot = F_qitot + zqti3p
-    if (associated(zqti4p)) F_qitot = F_qitot + zqti4p
+    if (associated(zqti1)) F_qitot = F_qitot + zqti1
+    if (associated(zqti2)) F_qitot = F_qitot + zqti2
+    if (associated(zqti3)) F_qitot = F_qitot + zqti3
+    if (associated(zqti4)) F_qitot = F_qitot + zqti4
     F_istat = PHY_OK
     return
   end function p3_iwc
+
 
 #endif
 
