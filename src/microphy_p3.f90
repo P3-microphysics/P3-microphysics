@@ -26,8 +26,8 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.4.2                                                                     !
-! Last updated:  2024 Oct                                                                  !
+! Version:       5.4.2+bugfix-LT1NaNs                                                      !
+! Last updated:  2025 Jan                                                                  !
 !__________________________________________________________________________________________!
 
  MODULE microphy_p3
@@ -146,9 +146,9 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.4.2'
- character(len=1024), parameter :: version_intended_table_1_2mom = '6.7-2momI'
- character(len=1024), parameter :: version_intended_table_1_3mom = '6.7-3momI'
+ character(len=1024), parameter :: version_p3                    = '5.4.2+bugfix-LT1NaNs'
+ character(len=1024), parameter :: version_intended_table_1_2mom = '6.8-2momI'
+ character(len=1024), parameter :: version_intended_table_1_3mom = '6.8-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.1'
 
  character(len=1024)            :: version_header_table_1_2mom
@@ -408,7 +408,7 @@
                     itab(jj,ii,ll,i, 9),itab(jj,ii,ll,i,10),itab(jj,ii,ll,i,11),                   &
                     itab(jj,ii,ll,i,12),itab(jj,ii,ll,i,13),itab(jj,ii,ll,i,14),                   &
                     itab(jj,ii,ll,i,15),itab(jj,ii,ll,i,16),itab(jj,ii,ll,i,17),                   &
-                    itab(jj,ii,ll,i,18),itab(jj,ii,ll,i,19)
+                    itab(jj,ii,ll,i,18),itab(jj,ii,ll,i,19),dum,dum
             enddo
 
          !read in table for ice-rain collection
@@ -486,7 +486,8 @@
                      itab_3mom(zz,jj,ii,ll,i,18),itab_3mom(zz,jj,ii,ll,i,19),itab_3mom(zz,jj,ii,ll,i,20),     &
                      itab_3mom(zz,jj,ii,ll,i,21),itab_3mom(zz,jj,ii,ll,i,22),itab_3mom(zz,jj,ii,ll,i,23),     &
                      itab_3mom(zz,jj,ii,ll,i,24),itab_3mom(zz,jj,ii,ll,i,25),itab_3mom(zz,jj,ii,ll,i,26),     &
-                     itab_3mom(zz,jj,ii,ll,i,27),itab_3mom(zz,jj,ii,ll,i,28),itab_3mom(zz,jj,ii,ll,i,29)
+                     itab_3mom(zz,jj,ii,ll,i,27),itab_3mom(zz,jj,ii,ll,i,28),itab_3mom(zz,jj,ii,ll,i,29),     &
+                     dum,dum
                enddo
           !read in table for ice-rain collection
               do i = 1,isize

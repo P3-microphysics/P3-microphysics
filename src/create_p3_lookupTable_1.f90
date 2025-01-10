@@ -13,9 +13,9 @@ PROGRAM create_p3_lookuptable_1
 ! All other parameter settings are linked uniquely to the version number.
 !
 !--------------------------------------------------------------------------------------
-! Version:       6.7                          
-! Last modified: 2024 Sep
-! Version: including the liquid fraction (inner-loop i_Fl)
+! Version:       6.8                          
+! Last modified: 2025 Jan
+! Version: including the liquid fraction (inner-loop i_Fl), full3mom, prognostic aerosols
 !______________________________________________________________________________________
 
 !______________________________________________________________________________________
@@ -149,7 +149,7 @@ PROGRAM create_p3_lookuptable_1
  implicit none
 
  !-----
- character(len=20), parameter :: version   = '6.7'
+ character(len=20), parameter :: version   = '6.8'
  logical, parameter           :: log_3momI = .true.    !switch to create table for 2momI (.false.) or 3momI (.true.)
  !-----
 
@@ -185,7 +185,8 @@ PROGRAM create_p3_lookuptable_1
          cap,lamr,dia,amg,dv,n0dum,sum5,sum6,sum7,sum8,dg,cg,bag,aag,dcritg,dcrits,      &
          dcritr,Fr,csr,dsr,duml,dum3,rhodep,cgpold,m1,m2,m3,dt,mu_r,initlamr,lamv,       &
          rdumii,lammin,lammax,pi,g,p,t,rho,mu,mu_i,ds,cs,bas,aas,dcrit,mu_dum,gdum,      &
-         Z_value,sum9,mom3,mom6,intgrR1,intgrR2,intgrR3,intgrR4,dum4,cs2,ds2,mur_constant
+         Z_value,sum9,mom3,mom6,intgrR1,intgrR2,intgrR3,intgrR4,dum4,cs2,ds2,mur_constant, &
+         boltzman,meanpath,Daw,Dai,wcc,icc,Re,diffin,sc,st,aval,st2,Effw,Effi,eiaw,eiai
 
 ! New parameters with liquid fraction
  real :: area,area1,area2,mass,fac1,fac2,dumfac1,dumfac2,dumfac12,dumfac22,capm,gg,      &
@@ -209,6 +210,9 @@ PROGRAM create_p3_lookuptable_1
 
 ! New rates for m6
  real, dimension(n_Qnorm,n_Fr,n_Fl) :: m6rime,m6dep,m6dep1,m6mlt1,m6mlt2,m6agg,m6shd,m6sub,m6sub1
+
+! New rates with prognostic aerosols (2 new columns)
+ real, dimension(n_Qnorm,n_Fr,n_Fl) :: nawcol,naicol
 
 ! change in mass with D
  real :: dmdD
@@ -325,6 +329,12 @@ hostinclusionstring_m = 'spheroidal'
  mu  = 1.496E-6*t**1.5/(t+120.)/rho    ! viscosity of air
  dv  = 8.794E-5*t**1.81/p              ! diffusivity of water vapor in air
  dt  = 10.                             ! time step for collection (s)
+
+! constants for prognostic aerosols (collection with ice)
+ boltzman = 1.3806503E-23
+ meanpath = 0.0256E-6
+ Daw = 0.04E-6
+ Dai = 0.8E-6
 
 ! parameters for surface roughness of ice particle used for fallspeed
 ! see mitchell and heymsfield 2005
@@ -1462,7 +1472,7 @@ hostinclusionstring_m = 'spheroidal'
 !         print*,'nagg',nagg(i_Qnorm,i_Fr)
 
 !.....................................................................................
-! collection of cloud droplets
+! collection of cloud droplets and aerosols
 !.....................................................................................
 ! note: In P3_MAIN, needs to be multiplied by collection efficiency Eci
 !       Also needs to be multiplied by air density correction factor for fallspeed,
@@ -1476,6 +1486,8 @@ hostinclusionstring_m = 'spheroidal'
              sum4 = 0. !M_bb moment for zshed calculation
              sum5 = 0. !dM3/dt
           endif
+          sum6 = 0. !for niawcol
+          sum7 = 0. !for niaicol
              
         ! loop over exponential size distribution (from 1 micron to 2 cm)
           jj_loop_4:  do jj = 1,num_int_bins
@@ -1544,6 +1556,37 @@ hostinclusionstring_m = 'spheroidal'
                 endif
              endif
 
+             ! Collection with aerosols (assuming Daw and Dai)
+             ! for Effaw (water-friendly aerosols)
+             Re    = 0.5*rho*d1*fall1(jj)/mu
+             wcc    = 1. + 2.*meanpath/Daw *(1.257+0.4*exp(-0.55*Daw/meanpath))
+             diffin  = boltzman*t*wcc/(3.*pi*mu*Daw)
+             Sc    = mu/(rho*diffin)
+             St    = Daw*Daw*fall1(jj)*1000.*wcc/(9.*mu*d1)
+             aval  = log(1.+Re)
+             St2   = (1.2 + 1./12.*aval)/(1.+aval)
+             Effw = 4./(Re*Sc) * (1. + 0.4*Re**0.5*Sc**0.3333             &
+                         + 0.16*Re**0.5*Sc**0.5)                         &
+                         + 4.*Daw/d1 * (0.02 + Daw/d1*(1.+2.*Re**0.5))
+             if (St.gt.St2) Effw = Effw  + ( (St-St2)/(St-St2+0.666667))**1.5
+             eiaw = max(1.e-5, min(Effw, 1.0))
+
+             ! for Effai (ice-friendly aerosols)
+             icc    = 1. + 2.*meanpath/Dai *(1.257+0.4*exp(-0.55*Dai/meanpath))
+             diffin  = boltzman*t*icc/(3.*pi*mu*Dai)
+             Sc    = mu/(rho*diffin)
+             St    = Dai*Dai*fall1(jj)*1000.*icc/(9.*mu*d1)
+             aval  = log(1.+Re)
+             St2   = (1.2 + 1./12.*aval)/(1.+aval)
+             Effi = 4./(Re*Sc) * (1. + 0.4*Re**0.5*Sc**0.3333             &
+                         + 0.16*Re**0.5*Sc**0.5)                         &
+                         + 4.*Dai/d1 * (0.02 + Dai/d1*(1.+2.*Re**0.5))
+             if (St.gt.St2) Effi = Effi  + ( (St-St2)/(St-St2+0.666667))**1.5
+             eiai = max(1.e-5, min(Effi, 1.0))
+
+             sum6 = sum6+area*eiaw*fall1(jj)*n0*d1**mu_i*exp(-lam*d1)*dd
+             sum7 = sum7+area*eiai*fall1(jj)*n0*d1**mu_i*exp(-lam*d1)*dd
+
 !.....................................................................................
 ! shedding
 !.....................................................................................
@@ -1562,6 +1605,9 @@ hostinclusionstring_m = 'spheroidal'
           nrwat(i_Qnorm,i_Fr,i_Fl) = sum1    ! note: read in as 'f1pr4' in P3_MAIN
 
           qshed(i_Qnorm,i_Fr,i_Fl) = sum3
+
+          nawcol(i_Qnorm,i_Fr,i_Fl) = sum6
+          naicol(i_Qnorm,i_Fr,i_Fl) = sum7
 
           threemom_1: if (log_3momI) then
              
@@ -1597,7 +1643,7 @@ hostinclusionstring_m = 'spheroidal'
              dmdD = (1.-Fl)*cs1*ds1*d1**(ds1-1.) + 3.*Fl*pi*sxth*1000.*d1**2
 !..........................
 
-             if (d1.ge.0.009) then
+             if (d1.ge.0.009 .and. sum4.gt.0.) then
              ! = dm/dt*dD/dm, dm/dt = sum3/sum4*D^bb
                 sum1 = sum1+6.*d1**5*sum3/sum4*d1**bb*n0*d1**mu_i*exp(-lam*d1)*dd/dmdD
                 sum2 = sum2+3.*d1**2*sum3/sum4*d1**bb*n0*d1**mu_i*exp(-lam*d1)*dd/dmdD
@@ -2244,9 +2290,12 @@ hostinclusionstring_m = 'spheroidal'
              endif
 
           endif threemom_2
+
+          nawcol(i_Qnorm,i_Fr,i_Fl)    = dim( nawcol(i_Qnorm,i_Fr,i_Fl),    cutoff)
+          naicol(i_Qnorm,i_Fr,i_Fl)    = dim( naicol(i_Qnorm,i_Fr,i_Fl),    cutoff)
              
           if (log_3momI) then
-             write(1,'(5i5,29e15.5)')                             &
+             write(1,'(5i5,31e15.5)')                             &
                          i_Znorm,i_rhor,i_Fr,i_Fl,i_Qnorm,        &
                          uns(i_Qnorm,i_Fr,i_Fl),                  &
                          ums(i_Qnorm,i_Fr,i_Fl),                  &
@@ -2276,9 +2325,11 @@ hostinclusionstring_m = 'spheroidal'
                          m6agg(i_Qnorm,i_Fr,i_Fl),                &
                          m6shd(i_Qnorm,i_Fr,i_Fl),                &
                          m6sub(i_Qnorm,i_Fr,i_Fl),                &
-                         m6sub1(i_Qnorm,i_Fr,i_Fl)
+                         m6sub1(i_Qnorm,i_Fr,i_Fl),               &
+                         nawcol(i_Qnorm,i_Fr,i_Fl),               &
+                         naicol(i_Qnorm,i_Fr,i_Fl)
           else
-             write(1,'(4i5,19e15.5)')                             &
+             write(1,'(4i5,21e15.5)')                             &
                          i_rhor,i_Fr,i_Fl,i_Qnorm,                &
                          uns(i_Qnorm,i_Fr,i_Fl),                  &
                          ums(i_Qnorm,i_Fr,i_Fl),                  &
@@ -2298,7 +2349,9 @@ hostinclusionstring_m = 'spheroidal'
                          vdepm2(i_Qnorm,i_Fr,i_Fl),               &
                          vdepm3(i_Qnorm,i_Fr,i_Fl),               &
                          vdepm4(i_Qnorm,i_Fr,i_Fl),               &
-                         qshed(i_Qnorm,i_Fr,i_Fl)
+                         qshed(i_Qnorm,i_Fr,i_Fl),                &
+                         nawcol(i_Qnorm,i_Fr,i_Fl),               &
+                         naicol(i_Qnorm,i_Fr,i_Fl)
           endif
 
        enddo i_Qnorm_loop_2
