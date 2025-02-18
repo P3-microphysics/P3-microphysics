@@ -6,12 +6,12 @@ PROGRAM create_p3_lookuptable_2
 ! interactions for the multi-ice-category configuration of the P3 microphysics scheme.
 !
 !--------------------------------------------------------------------------------------
-! Version:       6.1
-! Last modified: 2024-APR
+! Version:       6.2
+! Last modified: 2025-FEB
 !______________________________________________________________________________________
 
 ! For coupling with liquid fraction
-! _00 is Fi,liq1=0 and Fi,liq2=0 (p3v4)
+! _00 is Fi,liq1=0 and Fi,liq2=0
 ! _10 is Fi,liq1=1 and Fi,liq2=0
 ! _01 is Fi,liq1=0 and Fi,liq2=1
 ! _11 is Fi,liq1=1 and Fi,liq2=1
@@ -118,7 +118,7 @@ PROGRAM create_p3_lookuptable_2
 
  implicit none
 
- character(len=16), parameter :: version = '6.1_00'
+ character(len=16), parameter :: version = '6.2_00'
 
  real, parameter :: Fl1 = 0.   ! liquid fraction of cat 1
  real, parameter :: Fl2 = 0.   ! liquid fraction of cat 2
@@ -1055,18 +1055,18 @@ PROGRAM create_p3_lookuptable_2
 ! for the lookup table calculations, and then not multipling process rate by air density
 ! in the P3 code... TO BE FIXED IN THE FUTURE
 
-!                   sum1 = sum1+min((area1+area2)*delu*num(jj)*num(kk),   &
+!                   sum1 = sum1+min((sqrt(area1)+sqrt(area2))**2*delu*num(jj)*num(kk),   &
 !                          num(kk)/dt)
 
 ! set collection efficiency
 !                  eii = 0.1
 
 ! accretion of number
-                         !sum1 = sum1 + (aas1*d1**bas1 + aas2*d2**bas2)*delu*num1(jj)*num2(kk)
-                         sum1 = sum1 + (area1 + area2)*delu*num1(jj)*num2(kk)
+                         !sum1 = sum1 + (sqrt(aas1*d1**bas1) + sqrt(aas2*d2**bas2))**2*delu*num1(jj)*num2(kk)
+                         sum1 = sum1 + (sqrt(area1)+sqrt(area2))**2*delu*num1(jj)*num2(kk)
 ! accretion of mass
-                         !sum2 = sum2 + cs1*d1**ds1*(aas1*d1**bas1 + aas2*d2**bas2)*delu*num1(jj)*num2(kk)
-                         sum2 = sum2 + mass1*(area1 + area2)*delu*num1(jj)*num2(kk)
+                         !sum2 = sum2 + cs1*d1**ds1*(sqrt(aas1*d1**bas1) + sqrt(aas2*d2**bas2))**2*delu*num1(jj)*num2(kk)
+                         sum2 = sum2 + mass1*(sqrt(area1)+sqrt(area2))**2*delu*num1(jj)*num2(kk)
 
 ! remove collected particles from distribution over time period dt, update num1
 !  note -- dt is time scale for removal, not necessarily the model time step

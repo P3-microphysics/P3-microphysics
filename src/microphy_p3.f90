@@ -26,8 +26,8 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.4.2+bugfix-LT1NaNs                                                      !
-! Last updated:  2025 Jan                                                                  !
+! Version:       5.4.2+bugfix-LT1NaNs+LTscollrates                                         !
+! Last updated:  2025 Feb                                                                  !
 !__________________________________________________________________________________________!
 
  MODULE microphy_p3
@@ -146,10 +146,10 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.4.2+bugfix-LT1NaNs'
- character(len=1024), parameter :: version_intended_table_1_2mom = '6.8-2momI'
- character(len=1024), parameter :: version_intended_table_1_3mom = '6.8-3momI'
- character(len=1024), parameter :: version_intended_table_2      = '6.1'
+ character(len=1024), parameter :: version_p3                    = '5.4.2+bugfix-LT1NaNs-LTscollrates'
+ character(len=1024), parameter :: version_intended_table_1_2mom = '6.9-2momI'
+ character(len=1024), parameter :: version_intended_table_1_3mom = '6.9-3momI'
+ character(len=1024), parameter :: version_intended_table_2      = '6.2'
 
  character(len=1024)            :: version_header_table_1_2mom
  character(len=1024)            :: version_header_table_1_3mom

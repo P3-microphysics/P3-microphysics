@@ -13,8 +13,8 @@ PROGRAM create_p3_lookuptable_1
 ! All other parameter settings are linked uniquely to the version number.
 !
 !--------------------------------------------------------------------------------------
-! Version:       6.8                          
-! Last modified: 2025 Jan
+! Version:       6.9
+! Last modified: 2025 Feb
 ! Version: including the liquid fraction (inner-loop i_Fl), full3mom, prognostic aerosols
 !______________________________________________________________________________________
 
@@ -92,10 +92,10 @@ PROGRAM create_p3_lookuptable_1
 ! for i_rhor in 01 02 03 04 05
 ! do
 !    rm cfg_input full_code.f90
-!    cat > cfg_input << EOF                                                                                                               
-!    i_Znorm = ${i_Znorm}                                                                                                                 
-!    i_rhor = ${i_rhor}                                                                                                                   
-!EOF                                                                                                                                      
+!    cat > cfg_input << EOF
+!    i_Znorm = ${i_Znorm}
+!    i_rhor = ${i_rhor}
+!EOF
 !    cat create_p3_lookupTable_1-top.f90 cfg_input create_p3_lookupTable_1-bottom.f90 > full_code.f90
 !    cp full_code.f90 full_code_${i_Znorm}_${i_rhor}.f90
 !    echo 'Compiling 'exec_${i_Znorm}_${i_rhor}
@@ -149,7 +149,7 @@ PROGRAM create_p3_lookuptable_1
  implicit none
 
  !-----
- character(len=20), parameter :: version   = '6.8'
+ character(len=20), parameter :: version   = '6.9'
  logical, parameter           :: log_3momI = .true.    !switch to create table for 2momI (.false.) or 3momI (.true.)
  !-----
 
@@ -304,6 +304,7 @@ hostinclusionstring_m = 'spheroidal'
 !   Before running ./go_1-compile.ksh, delete all lines below this point and
 !   and save as 'create_p3_lookupTable_1-top.f90'
 !------------------------------------------------------------------------------------
+
 
 ! For testing single values, uncomment the following:
 ! i_Znorm = 1
@@ -1391,22 +1392,22 @@ hostinclusionstring_m = 'spheroidal'
               !  number mixing ratio by 1 kg^-1 s^-1 per kg/m^3 of air (this is
               !  why we need to multiply by air density, to get units of 1/kg^-1 s^-1)
 
-                sum1 = sum1+(area1+area2)*delu*num(jj)*num(kk)
+                sum1 = sum1+(sqrt(area1)+sqrt(area2))**2*delu*num(jj)*num(kk)
 
                 ! distribution of particles removed, mass removed, and mass gained
-                numloss(kk) = numloss(kk)+(area1+area2)*delu*num(jj)*num(kk)
-                massloss(kk) = massloss(kk)+(area1+area2)*delu*num(jj)*num(kk)*mass2
-                massgain(jj) = massgain(jj)+(area1+area2)*delu*num(jj)*num(kk)*mass2
+                numloss(kk) = numloss(kk)+(sqrt(area1)+sqrt(area2))**2*delu*num(jj)*num(kk)
+                massloss(kk) = massloss(kk)+(sqrt(area1)+sqrt(area2))**2*delu*num(jj)*num(kk)*mass2
+                massgain(jj) = massgain(jj)+(sqrt(area1)+sqrt(area2))**2*delu*num(jj)*num(kk)*mass2
 
                  ! remove collected particles from distribution over time period dt, update num
                  !  note -- dt is time scale for removal, not model time step
-                 !                   num(kk) = num(kk)-(area1+area2)*delu*num(jj)*num(kk)*dt
+                 !                   num(kk) = num(kk)-(sqrt(area1)+sqrt(area2))**2*delu*num(jj)*num(kk)*dt
                  !                   num(kk) = max(num(kk),0.)
 
                  ! write(6,'(2i5,8e15.5)')jj,kk,sum1,num(jj),num(kk),delu,aas1,d1,aas2,d2
-                 ! num(kk)=num(kk)-(area1+area2)*delu*num(jj)*num(kk)*0.1*0.5
+                 ! num(kk)=num(kk)-(sqrt(area1)+sqrt(area2))**2*delu*num(jj)*num(kk)*0.1*0.5
                  ! num(kk)=max(num(kk),0.)
-                 ! sum1 = sum1+0.5*(area1+area2)*delu*n0*n0*(d1+d2)**mu_i*exp(-lam*(d1+d2))*dd**2
+                 ! sum1 = sum1+0.5*(sqrt(area1)+sqrt(area2))**2*delu*n0*n0*(d1+d2)**mu_i*exp(-lam*(d1+d2))*dd**2
 
              enddo kk_loop_1
           enddo jj_loop_3
@@ -1814,31 +1815,31 @@ hostinclusionstring_m = 'spheroidal'
                  ! change in rain N (units of m^4 s^-1 kg^-1), thus need to multiply
                  ! by air density (units kg m^-3) and n0r (units kg^-1 m^-1) in P3_MAIN
 
-                  !sum1 = sum1+(area+pi*0.25*d2**2)*delu*n0*d1**mu_i*        &
+                  !sum1 = sum1+(sqrt(area)+sqrt(pi*0.25*d2**2))**2*delu*n0*d1**mu_i*        &
                   !       exp(-lam*d1)* &dd*num(kk)
-                   sum1 = sum1+(area+pi*0.25*d2**2)*delu*n0*d1**mu_i*        &
+                   sum1 = sum1+(sqrt(area)+sqrt(pi*0.25*d2**2))**2*delu*n0*d1**mu_i*        &
                           exp(-lam*d1)*ddd*num(kk)
-                  !sum1 = sum1+min((area+pi*0.25*d2**2)*delu*n0*d1**mu_i*    &
+                  !sum1 = sum1+min((sqrt(area)+sqrt(pi*0.25*d2**2))**2*delu*n0*d1**mu_i*    &
                   !       exp(-lam*d1)*dd*num(kk),num(kk))
 
                  ! change in rain q (units of m^4 s^-1), again need to multiply by air density and n0r in P3_MAIN
 
-                  !sum2 = sum2+(area+pi*0.25*d2**2)*delu*n0*d1**mu_i*        &
+                  !sum2 = sum2+(sqrt(area)+sqrt(pi*0.25*d2**2))**2*delu*n0*d1**mu_i*        &
                   !       exp(-lam*d1)*dd*num(kk)*pi*sxth*997.*d2**3
-                   sum2 = sum2+(area+pi*0.25*d2**2)*delu*n0*d1**mu_i*        &
+                   sum2 = sum2+(sqrt(area)+sqrt(pi*0.25*d2**2))**2*delu*n0*d1**mu_i*        &
                           exp(-lam*d1)*ddd*num(kk)*pi*sxth*997.*d2**3
 
                   ! remove collected rain drops from distribution:
-                  !num(kk) = num(kk)-(area+pi*0.25*d2**2)*delu*n0*d1**mu_i*  &
+                  !num(kk) = num(kk)-(sqrt(area)+sqrt(pi*0.25*d2**2))**2*delu*n0*d1**mu_i*  &
                   !          exp(-lam*d1)*dd*num(kk)*dt
                   !num(kk) = max(num(kk),0.)
 
                    if (log_3momI) then
                   ! change in M6 due to collection of rain by ice
-                      sum3 = sum3+(area+pi*0.25*d2**2)*delu*6.*d1**5*n0*d1**mu_i*        &
+                      sum3 = sum3+(sqrt(area)+sqrt(pi*0.25*d2**2))**2*delu*6.*d1**5*n0*d1**mu_i*        &
                           exp(-lam*d1)*ddd*num(kk)*pi*sxth*997.*d2**3/dmdD
                   ! change in M3
-                      sum4 = sum4+(area+pi*0.25*d2**2)*delu*3.*d1**2*n0*d1**mu_i*        &
+                      sum4 = sum4+(sqrt(area)+sqrt(pi*0.25*d2**2))**2*delu*3.*d1**2*n0*d1**mu_i*        &
                           exp(-lam*d1)*ddd*num(kk)*pi*sxth*997.*d2**3/dmdD
                    endif
                    
@@ -1856,15 +1857,15 @@ hostinclusionstring_m = 'spheroidal'
 
 ! collection of ice number
 
-                !  sum5 = sum5+(area+pi/4.*d2**2)*delu*exp(-lamr*d2)*dd*numi(jj)
+                !  sum5 = sum5+(sqrt(area)+sqrt(pi*0.25*d2**2))**2*delu*exp(-lamr*d2)*dd*numi(jj)
 
                 ! collection of ice mass (units of m^4 s^-1)
                 !   note: need to multiply by air density and n0r in microphysics code
-                   sum6 = sum6+(area+pi*0.25*d2**2)*delu*d2**mu_r*           &
+                   sum6 = sum6+(sqrt(area)+sqrt(pi*0.25*d2**2))**2*delu*d2**mu_r*           &
                           exp(-lamr*d2)*ddd*numi(jj)*mass
 
                   ! remove collected snow from distribution:
-                  !numi(jj) = numi(jj)-(area+pi*0.25*d2**2)*delu*d2**mu_r*   &
+                  !numi(jj) = numi(jj)-(sqrt(area)+sqrt(pi*0.25*d2**2))**2*delu*d2**mu_r*   &
                   !           exp(-lamr*d2)*dd*numi(jj)*dt
                   !numi(jj) = max(numi(jj),0.)
 
