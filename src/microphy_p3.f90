@@ -26,8 +26,8 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.3.14                                                                    !
-! Last updated:  2025 Feb                                                                  !
+! Version:       5.3.14 + optimize                                                         !
+! Last updated:  2025 April                                                                !
 !__________________________________________________________________________________________!
 
  MODULE microphy_p3
@@ -145,7 +145,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.3.14'
+ character(len=1024), parameter :: version_p3                    = '5.3.14 + optimize'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.9-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '6.9-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.2'
@@ -1914,7 +1914,8 @@ END subroutine p3_init
                     clbfact_sub,debug_on,scpf_on,scpf_pfrac,scpf_resfact,SCF_out,         &
                     log_3momentIce,log_LiquidFrac,prt_drzl,prt_rain,prt_crys,prt_snow,    &
                     prt_grpl,prt_pell,prt_hail,prt_sndp,prt_wsnow,qi_type,                &
-                    diag_vis,diag_vis1,diag_vis2,diag_vis3,diag_dhmax)
+                    diag_vis,diag_vis1,diag_vis2,diag_vis3,diag_dhmax,timer,              &
+                    timer_description)
 
 !----------------------------------------------------------------------------------------!
 !                                                                                        !
@@ -2007,7 +2008,12 @@ END subroutine p3_init
  real,    intent(in)                                  :: scpf_resfact  ! model resolution factor (SCPF)
  real,    intent(out), dimension(its:ite,kts:kte)     :: SCF_out       ! cloud fraction from SCPF
 
+ real,    intent(out), dimension(20), optional        :: timer    ! CPU time for block of text (timer = timer_end - timer_start)
+ character(len=20), intent(out), dimension(20), optional :: timer_description  ! description of block being timed
+
 !----- Local variables and parameters:  -------------------------------------------------!
+
+ real, dimension(20)              :: timer_start,timer_end
 
  real, dimension(its:ite,kts:kte) :: mu_r  ! shape parameter of rain
  real, dimension(its:ite,kts:kte) :: t     ! temperature at the beginning of the microhpysics step [K]
@@ -2236,6 +2242,16 @@ END subroutine p3_init
 !    !==
 !-----------------------------------------------------------------------------------!
 
+ timer       = 0.
+ timer_start = 0.
+ timer_end   = 0.
+ timer_description = ''
+
+#ifdef timing
+timer_description(1) = 'full p3_main'
+call cpu_time(timer_start(1))
+#endif timing
+
  tmp1 = uzpl(1,1)    !avoids compiler warning for unused variable 'uzpl'
 
  ! direction of vertical leveling:
@@ -2341,6 +2357,11 @@ END subroutine p3_init
  if (.not.log_LiquidFrac) qiliq = 0.
 
 !-----------------------------------------------------------------------------------!
+#ifdef timing
+timer_description(2) = 'i_loop_main'
+call cpu_time(timer_start(2))
+#endif
+
  i_loop_main: do i = its,ite  ! main i-loop (around the entire scheme)
 
     if (nCat.eq.1) then
@@ -2519,6 +2540,11 @@ END subroutine p3_init
 !==
 
 !------------------------------------------------------------------------------------------!
+#ifdef timing
+timer_description(3) = 'k_loop_main (processes)'
+call cpu_time(timer_start(3))
+#endif
+
 !   main k-loop (for processes):
     k_loop_main: do k = kbot,ktop,kdir
 
@@ -4049,6 +4075,11 @@ END subroutine p3_init
        endif
 
 !------------------------------------------------------------------------------------------!
+#ifdef timing
+timer_description(5) = 'update ice reflectivity'
+call cpu_time(timer_start(5))
+#endif
+
 ! Update ice reflectivity
 
 ! At this point, we have the values of prognostic variables at beginning of time step,
@@ -4158,6 +4189,10 @@ END subroutine p3_init
 
       ! at this point, zitot has been completely updated due to all process rates (except sedimentation)
 
+#ifdef timing
+!timer_description(5) = 'update ice reflectivity'
+call cpu_time(timer_end(5))
+#endif timing
 !======================================================================================!
 
 
@@ -4375,6 +4410,11 @@ END subroutine p3_init
 
     enddo k_loop_main
 
+#ifdef timing
+!; timer_description(3) = 'k_loop_main (processes)'
+call cpu_time(timer_end(3))
+#endif
+
 !-- for sedimentation-only tests:
 ! 6969 continue
 ! log_hydrometeorsPresent = .true.
@@ -4426,6 +4466,11 @@ END subroutine p3_init
 !==========================================================================================!
 
 !==========================================================================================!
+#ifdef timing
+timer_description(6) = 'sedimentation'
+call cpu_time(timer_start(6))
+#endif
+
 ! Sedimentation:
 
 !------------------------------------------------------------------------------------------!
@@ -5197,6 +5242,10 @@ END subroutine p3_init
 
 !------------------------------------------------------------------------------------------!
 ! End of sedimentation section
+#ifdef timing
+!  timer_description(6) = 'sedimentation'
+call cpu_time(timer_end(6))
+#endif
 !==========================================================================================!
 
    !third and last call to compute_SCPF
@@ -5795,6 +5844,16 @@ END subroutine p3_init
 
  enddo i_loop_main
 
+#ifdef timing
+! timer_description(2) = 'i_loop_main'
+call cpu_time(timer_end(2))
+#endif
+
+#ifdef timing
+timer_description(8) = 'post i_loop_main'
+call cpu_time(timer_start(8))
+#endif
+
 ! Save final microphysics values of theta and qv as old values for next time step
 !  note: This is not necessary for GEM, which already has these values available
 !        from the beginning of the model time step (TT_moins and HU_moins) when
@@ -5835,6 +5894,11 @@ END subroutine p3_init
 
  endif
 !---
+
+#ifdef timing
+timer_description(9) = 'type_diags'
+call cpu_time(timer_start(9))
+#endif
 
  compute_type_diags: if (log_typeDiags .and. (trim(model)=='GEM'.or.trim(model)=='KIN1D')) then
 
@@ -5995,11 +6059,29 @@ END subroutine p3_init
  endif compute_type_diags
 !=== (end of section for diagnostic hydrometeor/precip types)
 
+#ifdef timing
+timer_description(9) = 'type_diags'
+call cpu_time(timer_end(9))
+#endif
+
  ! convert zitot to advected (dynamics) variable
  if (log_3momentIce) zitot = sqrt(zitot*nitot)
 
-
 ! end of main microphysics routine
+
+#ifdef timing
+! timer_description(8) = 'post i_loop_main'
+call cpu_time(timer_end(8))
+#endif
+
+#ifdef timing
+! for entire call to p3_main
+call cpu_time(timer_end(1))
+#endif
+
+#ifdef timing
+timer(:) = timer_end(:) - timer_start(:)
+#endif
 
 !.....................................................................................
 
