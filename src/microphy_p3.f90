@@ -2174,7 +2174,7 @@ END subroutine p3_init
  real    :: f1pr28   ! shedding of mixed-phase ice
 
 ! quantities related to diagnostic hydrometeor/precipitation types
- real,    parameter                       :: freq3DtypeDiag     =  5.      !frequency (min) for full-column diagnostics
+ real,    parameter                       :: freq3DtypeDiag     = 60.     !frequency (min) for full-column diagnostics
  real,    parameter                       :: thres_raindrop     = 100.e-6 !size threshold for drizzle vs. rain
  real,    dimension(its:ite,kts:kte)      :: Q_drizzle,Q_rain
  real,    dimension(its:ite,kts:kte,nCat) :: Q_crystals,Q_snow,Q_wsnow,Q_grpl,Q_pellets,Q_hail
@@ -5960,23 +5960,27 @@ call cpu_time(timer_start(9))
           !       liquid rain (drizzle) vs. freezing rain (drizzle) based on sfc temp.
           if (qr(i,k).ge.qsmall .and. nr(i,k).ge.nsmall) then
              tmp1 = (6.*qr(i,k)/(pi*rhow*nr(i,k)))**thrd   !mean-mass diameter
-
-            !print*, 'DRZL: ',tmp1,tmp1 < thres_raindrop
-
-             if (tmp1 < thres_raindrop) then
-                Q_drizzle(i,k) = qr(i,k)
-             else
-                Q_rain(i,k)    = qr(i,k)
-             endif
+!              if (tmp1 < thres_raindrop) then
+!                 Q_drizzle(i,k) = qr(i,k)
+!              else
+!                 Q_rain(i,k)    = qr(i,k)
+!              endif
+             tmp2 = merge(1., 0., tmp1 < thres_raindrop) !1. for drizzle, 0. for rain
+             Q_drizzle(i,k) = qr(i,k)*tmp2
+             Q_rain(i,k)    = qr(i,k)*(1.-tmp2)
           endif
 
        enddo k_loop_typdiag_1
 
-       if (Q_drizzle(i,kbot) > 0.) then
-          prt_drzl(i) = prt_liq(i)
-       elseif (Q_rain(i,kbot) > 0.) then
-          prt_rain(i) = prt_liq(i)
-       endif
+!        if (Q_drizzle(i,kbot) > 0.) then
+!           prt_drzl(i) = prt_liq(i)
+!        elseif (Q_rain(i,kbot) > 0.) then
+!           prt_rain(i) = prt_liq(i)
+!        endif
+       tmp1 = merge(1., 0., Q_drizzle(i,kbot) > 0.)
+       prt_drzl(i) = prt_liq(i)*tmp1
+       prt_rain(i) = prt_liq(i)*(1.-tmp1)
+
 
       !-- ice-phase:
       iice_loop_diag: do iice = 1,nCat
@@ -6006,24 +6010,32 @@ call cpu_time(timer_start(9))
                    Q_wsnow(i,k,iice) = qitot(i,k,iice)
                 else
                    if (rimefraction(i,k,iice).lt.0.6) then
-                      if (diag_di(i,k,iice).lt.0.002) then
-                         Q_crystals(i,k,iice) = qitot(i,k,iice)
-                      else
-                         Q_snow(i,k,iice) = qitot(i,k,iice)
-                      endif
+!                       if (diag_di(i,k,iice).lt.0.002) then
+!                          Q_crystals(i,k,iice) = qitot(i,k,iice)
+!                       else
+!                          Q_snow(i,k,iice) = qitot(i,k,iice)
+!                       endif
+                      tmp1 = merge(1., 0., diag_di(i,k,iice).lt.0.002)
+                      Q_crystals(i,k,iice) = qitot(i,k,iice)*tmp1
+                      Q_snow(i,k,iice)     = qitot(i,k,iice)*(1.-tmp1)
+
                    else
                       if (rimedensity(i,k,iice).lt.850) then
                         Q_grpl(i,k,iice) = qitot(i,k,iice)
                       else
-                        if (t_tmp.lt.283.15) then
-                           Q_pellets(i,k,iice) = qitot(i,k,iice)
-                        else
-                           Q_hail(i,k,iice) = qitot(i,k,iice)
-                          !note: The function maxHailSize is very expensive (to be replaced)
-                          !      Use for diagnostics only (uncommment line below)
-                          !if (log_typeDiags) diag_dhmax(i,k,iice) = maxHailSize(rho(i,k),       &
-                          !      nitot(i,k,iice),rhofaci(i,k),arr_lami(i,k,iice),arr_mui(i,k,iice))
-                        endif
+!                         if (t_tmp.lt.283.15) then
+!                            Q_pellets(i,k,iice) = qitot(i,k,iice)
+!                         else
+!                            Q_hail(i,k,iice) = qitot(i,k,iice)
+!                           !note: The function maxHailSize is very expensive (to be replaced)
+!                           !      Use for diagnostics only (uncommment line below)
+!                           !if (log_typeDiags) diag_dhmax(i,k,iice) = maxHailSize(rho(i,k),       &
+!                           !      nitot(i,k,iice),rhofaci(i,k),arr_lami(i,k,iice),arr_mui(i,k,iice))
+!                         endif
+                        !here, surface temperature is a proxy for the likelihood of hail being physically reasonable
+                        tmp1 = merge(1., 0., t_tmp.lt.283.15)
+                        Q_pellets(i,k,iice) = qitot(i,k,iice)*tmp1
+                        Q_hail(i,k,iice)    = qitot(i,k,iice)*(1.-tmp1)
                       endif
                    endif
                 endif
@@ -11721,6 +11733,15 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
  ! Also returns values of dum6 and dumzz which are later used.  This avoids
  ! the need to do an additional call to 'access_lookup_table_3mom_LF' in
  ! the main code.
+ !
+ ! Note, eventually this subroutine will be replaced with a function that
+ ! solves mu_i = f(Qi,Ni,Zi) based on lookup table.  At this point, the
+ ! call to 'find_lookupTable_indices_1c' will need to be put back into
+ ! p3_main since dum6 and dumzz are used is calls to access_lookup_table_3mom_LF
+ ! immediately after.  Presently, rhoi could also be passed back to save
+ ! some calls to access_lookup_table_3mom_LF to obtain f1pr16 (rhoi), which
+ ! have been added to p3_main with the introduction of 'solve_mui'; however,
+ ! this may create confusion later, so for now it will be left as is.
  !
  ! - added April 2025
  !--------------------------------------------------------------------------
