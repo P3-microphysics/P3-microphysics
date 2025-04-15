@@ -5873,32 +5873,28 @@ call cpu_time(timer_start(8))
 !   partition surface precipitation rates into types (and aslo for the
 !   maximum hail size, dhmax).
 
- if (freq3DtypeDiag>0. .and. mod(it*dt,freq3DtypeDiag*60.)==0. .and. trim(model)=='WRF') then
-
-    do i = its,ite
-       do k = ktop,kbot,-kdir
-          do iice = 1,nCat
-             diag_dhmax(i,k,iice) = maxHailSize(rho(i,k),nitot(i,k,iice),rhofaci(i,k),    &
-                                                arr_lami(i,k,iice),arr_mui(i,k,iice))
-          enddo
-          diag_3d(i,k,1) = sum(qitot(i,k,:))
-          diag_3d(i,k,2) = maxval(diag_dhmax(i,k,:))
-       enddo
-    enddo
-
-!-- diagnostic output (for hail study):
-    diag_2d(:,1) = prt_liq(:)
-    diag_2d(:,2) = prt_sol(:)
-!   diag_3d(:,:,1) = qitot(:,:,1)
-!--
-
- endif
-!---
-
 #ifdef timing
 timer_description(9) = 'type_diags'
 call cpu_time(timer_start(9))
 #endif
+
+!--- diagnostics for WRF/CM1 only:
+ if (freq3DtypeDiag>0. .and. mod(it*dt,freq3DtypeDiag*60.)==0. .and. trim(model)=='WRF') then
+    diag_3d(:,:,1) = sum(qitot(:,:,:))
+    diag_2d(:,1)   = prt_liq(:)
+    diag_2d(:,2)   = prt_sol(:)
+   ! note: the function maxHailSize is expensive; uncomment for use in diagnostics
+   !do i = its,ite
+   !   do k = ktop,kbot,-kdir
+   !      do iice = 1,nCat
+   !         diag_dhmax(i,k,iice) = maxHailSize(rho(i,k),nitot(i,k,iice),rhofaci(i,k),    &
+   !                                arr_lami(i,k,iice),arr_mui(i,k,iice))
+   !      enddo
+   !      diag_3d(i,k,2) = maxval(diag_dhmax(i,k,:))
+   !   enddo
+   !enddo
+ endif
+!---
 
  compute_type_diags: if (log_typeDiags .and. (trim(model)=='GEM'.or.trim(model)=='KIN1D')) then
 
@@ -5932,6 +5928,8 @@ call cpu_time(timer_start(9))
        ktop_typeDiag = kbot
     endif
 
+!    print*,' ktop_typeDiag: ',ktop_typeDiag,ktop,mod(it*dt,freq3DtypeDiag*60.)==0.
+
     i_loop_typediag: do i = its,ite
 
       !-- rain vs. drizzle:
@@ -5943,6 +5941,9 @@ call cpu_time(timer_start(9))
           !       liquid rain (drizzle) vs. freezing rain (drizzle) based on sfc temp.
           if (qr(i,k).ge.qsmall .and. nr(i,k).ge.nsmall) then
              tmp1 = (6.*qr(i,k)/(pi*rhow*nr(i,k)))**thrd   !mean-mass diameter
+
+            !print*, 'DRZL: ',tmp1,tmp1 < thres_raindrop
+
              if (tmp1 < thres_raindrop) then
                 Q_drizzle(i,k) = qr(i,k)
              else
@@ -5999,8 +6000,10 @@ call cpu_time(timer_start(9))
                            Q_pellets(i,k,iice) = qitot(i,k,iice)
                         else
                            Q_hail(i,k,iice) = qitot(i,k,iice)
-                           if (log_typeDiags) diag_dhmax(i,k,iice) = maxHailSize(rho(i,k),       &
-                              nitot(i,k,iice),rhofaci(i,k),arr_lami(i,k,iice),arr_mui(i,k,iice))
+                          !note: The function maxHailSize is very expensive (to be replaced)
+                          !      Use for diagnostics only (uncommment line below)
+                          !if (log_typeDiags) diag_dhmax(i,k,iice) = maxHailSize(rho(i,k),       &
+                          !      nitot(i,k,iice),rhofaci(i,k),arr_lami(i,k,iice),arr_mui(i,k,iice))
                         endif
                       endif
                    endif
