@@ -2747,17 +2747,18 @@ call cpu_time(timer_start(3))
              !impose lower limits to prevent taking log of # < 0
                 zitot(i,k,iice) = max(zitot(i,k,iice),zsmall)
 
-                dum1z =  6./(200.*pi)*qitot(i,k,iice)  !estimate of moment3, as starting point use 200 kg m-3 estimate of bulk density
-
-                ! Same comment as before w.r.t scpf_on. Since mu_i is a function of G = M0*M6/M3^2, the multiplication by *iSCF
-                ! is on both the num and the denom and therefore cancel each other.
-                ! Note (OPT): this can be done differently with error computation
-                do imu=1,niter_mui
-                   mu_i = compute_mu_3moment(nitot(i,k,iice),dum1z,zitot(i,k,iice),mu_i_max)
-                   call find_lookupTable_indices_1c(dumzz,dum6,zsize,mu_i)
-                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,f1pr16) ! find actual bulk density
-                   dum1z =  6./(f1pr16*pi)*qitot(i,k,iice)  !estimate of moment3
-                enddo
+! !                 dum1z =  6./(200.*pi)*qitot(i,k,iice)  !estimate of moment3, as starting point use 200 kg m-3 estimate of bulk density
+! !                 ! Same comment as before w.r.t scpf_on. Since mu_i is a function of G = M0*M6/M3^2, the multiplication by *iSCF
+! !                 ! is on both the num and the denom and therefore cancel each other.
+! !                 ! Note (OPT): this can be done differently with error computation
+! !                 do imu=1,niter_mui
+! !                    mu_i = compute_mu_3moment(nitot(i,k,iice),dum1z,zitot(i,k,iice),mu_i_max)
+! !                    call find_lookupTable_indices_1c(dumzz,dum6,zsize,mu_i)
+! !                    call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,f1pr16) ! find actual bulk density
+! !                    dum1z =  6./(f1pr16*pi)*qitot(i,k,iice)  !estimate of moment3
+! !                 enddo
+                call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),zitot(i,k,iice),      &
+                              dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi)
 
              ! call to lookup table interpolation subroutines to get process rates
                if (.not. log_LiquidFrac) then
@@ -4994,14 +4995,15 @@ call cpu_time(timer_start(6))
                     !impose lower limits to prevent taking log of # < 0
                       zitot(i,k,iice) = max(zitot(i,k,iice),zsmall)
 
-                      dum1z =  6./(200.*pi)*qitot(i,k,iice)  !estimate of moment3, as starting point use 200 kg m-3 estimate of bulk density
-
-                      do imu=1,niter_mui
-                         mu_i = compute_mu_3moment(nitot(i,k,iice),dum1z,zitot(i,k,iice),mu_i_max)
-                         call find_lookupTable_indices_1c(dumzz,dum6,zsize,mu_i)
-                         call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,f1pr16) ! find actual bulk density
-                         dum1z =  6./(f1pr16*pi)*qitot(i,k,iice)  !estimate of moment3
-                      enddo
+! !                       dum1z =  6./(200.*pi)*qitot(i,k,iice)  !estimate of moment3, as starting point use 200 kg m-3 estimate of bulk density
+! !                       do imu=1,niter_mui
+! !                          mu_i = compute_mu_3moment(nitot(i,k,iice),dum1z,zitot(i,k,iice),mu_i_max)
+! !                          call find_lookupTable_indices_1c(dumzz,dum6,zsize,mu_i)
+! !                          call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,f1pr16) ! find actual bulk density
+! !                          dum1z =  6./(f1pr16*pi)*qitot(i,k,iice)  !estimate of moment3
+! !                       enddo
+                      call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),zitot(i,k,iice),   &
+                                     dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi)
 
                       call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 1,dum1,dum4,dum5,dum6,f1pr01)
                       call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 2,dum1,dum4,dum5,dum6,f1pr02)
@@ -5112,14 +5114,15 @@ call cpu_time(timer_start(6))
                     !impose lower limits to prevent taking log of # < 0
                       zitot(i,k,iice) = max(zitot(i,k,iice),zsmall)
 
-                      dum1z =  6./(200.*pi)*qitot(i,k,iice)  !estimate of moment3, as starting point use 200 kg m-3 estimate of bulk density
-
-                      do imu=1,niter_mui
-                         mu_i = compute_mu_3moment(nitot(i,k,iice),dum1z,zitot(i,k,iice),mu_i_max)
-                         call find_lookupTable_indices_1c(dumzz,dum6,zsize,mu_i)
-                         call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,f1pr16) ! find actual bulk density
-                         dum1z =  6./(f1pr16*pi)*qitot(i,k,iice)  !estimate of moment3
-                      enddo
+! !                       dum1z =  6./(200.*pi)*qitot(i,k,iice)  !estimate of moment3, as starting point use 200 kg m-3 estimate of bulk density
+! !                       do imu=1,niter_mui
+! !                          mu_i = compute_mu_3moment(nitot(i,k,iice),dum1z,zitot(i,k,iice),mu_i_max)
+! !                          call find_lookupTable_indices_1c(dumzz,dum6,zsize,mu_i)
+! !                          call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,f1pr16) ! find actual bulk density
+! !                          dum1z =  6./(f1pr16*pi)*qitot(i,k,iice)  !estimate of moment3
+! !                       enddo
+                      call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),zitot(i,k,iice),dum1,dum4,dum5,   &
+                                     dum7,dumjj,dumii,dumll,dumi)
 
                       call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi, 1,dum1,dum4,dum5,dum6,dum7,f1pr01)
                       call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi, 2,dum1,dum4,dum5,dum6,dum7,f1pr02)
@@ -5276,13 +5279,17 @@ call cpu_time(timer_end(6))
                endif
              else
                zitot(i,k,iice) = max(zitot(i,k,iice),zsmall)
-               dum1z = 6./(200.*pi)*qitot(i,k,iice)
-               do imu=1,niter_mui
-                  mu_i = compute_mu_3moment(nitot(i,k,iice),dum1z,zitot(i,k,iice),mu_i_max)
-                  call find_lookupTable_indices_1c(dumzz,dum6,zsize,mu_i)
-                  call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,f1pr16)
-                  dum1z =  6./(f1pr16*pi)*qitot(i,k,iice)  !estimate of moment3
-               enddo
+
+! !                dum1z = 6./(200.*pi)*qitot(i,k,iice)
+! !                do imu=1,niter_mui
+! !                   mu_i = compute_mu_3moment(nitot(i,k,iice),dum1z,zitot(i,k,iice),mu_i_max)
+! !                   call find_lookupTable_indices_1c(dumzz,dum6,zsize,mu_i)
+! !                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,f1pr16)
+! !                   dum1z =  6./(f1pr16*pi)*qitot(i,k,iice)  !estimate of moment3
+! !                enddo
+               call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),zitot(i,k,iice),          &
+                              dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi)
+
                if (.not. log_LiquidFrac) then
                   call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,12,dum1,dum4,dum5,dum6,f1pr16)
                else
@@ -5397,21 +5404,29 @@ call cpu_time(timer_end(6))
                 ! impose lower limits to prevent taking log of # < 0
                    zitot(i,k,iice) = max(zitot(i,k,iice),zsmall)
 
-                   dum1z =  6./(200.*pi)*qitot(i,k,iice)  !estimate of moment3, as starting point use 200 kg m-3 estimate of bulk density
-
-                   do imu=1,niter_mui
-                      mu_i = compute_mu_3moment(nitot(i,k,iice),dum1z,zitot(i,k,iice),mu_i_max)
-                      call find_lookupTable_indices_1c(dumzz,dum6,zsize,mu_i)
-                      call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,f1pr16)
-                      dum1z =  6./(f1pr16*pi)*qitot(i,k,iice)  !estimate of moment3
-                   enddo
-
+! !                    dum1z =  6./(200.*pi)*qitot(i,k,iice)  !estimate of moment3, as starting point use 200 kg m-3 estimate of bulk density
+! !                    do imu=1,niter_mui
+! !                       mu_i = compute_mu_3moment(nitot(i,k,iice),dum1z,zitot(i,k,iice),mu_i_max)
+! !                       call find_lookupTable_indices_1c(dumzz,dum6,zsize,mu_i)
+! !                       call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,f1pr16)
+! !                       dum1z =  6./(f1pr16*pi)*qitot(i,k,iice)  !estimate of moment3
+! !                    enddo
+! !                    if (log_LiquidFrac) then
+! !                      call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,11,dum1,dum4,dum5,dum6,dum7,f1pr15)
+! !                    else
+! !                      call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,11,dum1,dum4,dum5,dum6,f1pr15)
+! !                    endif
+                   call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),zitot(i,k,iice),   &
+                                  dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi)
                    if (log_LiquidFrac) then
                      call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,11,dum1,dum4,dum5,dum6,dum7,f1pr15)
+                     call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,f1pr16)
                    else
                      call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,11,dum1,dum4,dum5,dum6,f1pr15)
+                     call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,12,dum1,dum4,dum5,dum6,f1pr16)
                    endif
-                endif
+
+                endif  ! triple moment ice
 
              ! adjust Zitot to make sure mu is in bounds
              ! note that the Zmax and Zmin are normalized and thus need to be multiplied by existing Q
@@ -5603,14 +5618,16 @@ call cpu_time(timer_end(6))
              !impose lower limits to prevent taking log of # < 0
                 zitot(i,k,iice) = max(zitot(i,k,iice),zsmall)
 
-                dum1z =  6./(200.*pi)*qitot(i,k,iice)  !estimate of moment3, as starting point use 200 kg m-3 estimate of bulk density
+! !                 dum1z =  6./(200.*pi)*qitot(i,k,iice)  !estimate of moment3, as starting point use 200 kg m-3 estimate of bulk density
+! !                 do imu=1,niter_mui
+! !                    mu_i = compute_mu_3moment(nitot(i,k,iice),dum1z,zitot(i,k,iice),mu_i_max)
+! !                    call find_lookupTable_indices_1c(dumzz,dum6,zsize,mu_i)
+! !                    call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,f1pr16) ! find actual bulk density
+! !                    dum1z =  6./(f1pr16*pi)*qitot(i,k,iice)  !estimate of moment3
+! !                 enddo
 
-                do imu=1,niter_mui
-                   mu_i = compute_mu_3moment(nitot(i,k,iice),dum1z,zitot(i,k,iice),mu_i_max)
-                   call find_lookupTable_indices_1c(dumzz,dum6,zsize,mu_i)
-                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,f1pr16) ! find actual bulk density
-                   dum1z =  6./(f1pr16*pi)*qitot(i,k,iice)  !estimate of moment3
-                enddo
+                call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),zitot(i,k,iice),                   &
+                               dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi)
 
                 if (log_LiquidFrac) then
                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi, 1,dum1,dum4,dum5,dum6,dum7,f1pr01)
@@ -5620,6 +5637,7 @@ call cpu_time(timer_end(6))
                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi, 8,dum1,dum4,dum5,dum6,dum7,f1pr10)
                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi, 9,dum1,dum4,dum5,dum6,dum7,f1pr13)
                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,11,dum1,dum4,dum5,dum6,dum7,f1pr15)
+                  call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,f1pr16)
                   if (log_typeDiags) then
                      call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,14,dum1,dum4,dum5,dum6,dum7,f1pr22)
                      call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,15,dum1,dum4,dum5,dum6,dum7,f1pr23)
@@ -5633,6 +5651,7 @@ call cpu_time(timer_end(6))
                   call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 8,dum1,dum4,dum5,dum6,f1pr10)
                   call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 9,dum1,dum4,dum5,dum6,f1pr13)
                   call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,11,dum1,dum4,dum5,dum6,f1pr15)
+                  call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,12,dum1,dum4,dum5,dum6,f1pr16)
                   if (log_typeDiags) then
                      call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,14,dum1,dum4,dum5,dum6,f1pr22)
                      call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,15,dum1,dum4,dum5,dum6,f1pr23)
@@ -11695,6 +11714,56 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
  G_of_mu = ((6.+mu)*(5.+mu)*(4.+mu))/((3.+mu)*(2.+mu)*(1.+mu))
 
  end function G_of_mu
+
+!======================================================================================!
+ subroutine solve_mui(mu_i,dum6,dumzz,Qi,Ni,Zi,dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi)
+
+ !--------------------------------------------------------------------------
+ ! Solves for mu_i from qitot, nitot, and zitot.
+ ! Also returns values of dum6 and dumzz which are later used.  This avoids
+ ! the need to do an additional call to 'access_lookup_table_3mom_LF' in
+ ! the main code.
+ !
+ ! - added April 2025
+ !--------------------------------------------------------------------------
+
+!arguments:
+ real,    intent(in)  :: Qi,Ni,Zi,dum1,dum4,dum5,dum7
+ integer, intent(in)  :: dumjj,dumii,dumll,dumi
+ real,    intent(out) :: mu_i,dum6
+ integer, intent(out) :: dumzz
+
+!local:
+ integer             :: ind
+ real                :: mu,mu_old,rhoi,mom3
+ real,    parameter  :: tol = 0.25    !tolerance for convergence
+ integer, parameter  :: max_iterations = 5
+
+!--- original, for testing
+                mom3 =  6./(200.*pi)*Qi
+                do ind=1,5 !niter_mui
+                   mu_i = compute_mu_3moment(Ni,mom3,Zi,mu_i_max)
+                   call find_lookupTable_indices_1c(dumzz,dum6,zsize,mu_i)
+                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,rhoi)
+                   mom3 =  6./(rhoi*pi)*Qi  !estimate of moment3
+                enddo
+!-----
+
+!  rhoi   = 200.   !initial estimate of density
+!  mu_old = 0.5    !initial estimate of mu_i
+!
+!  do ind = 1,max_iterations
+!     call find_lookupTable_indices_1c(dumzz,dum6,zsize,mu_old)
+!     call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,rhoi)
+!     mom3 = 6./(rhoi*pi)*Qi   !estimate of moment3
+!     mu_i = compute_mu_3moment(Ni,mom3,Zi,mu_i_max)
+!     if (abs(mu_old-mu_i) < tol) exit
+!     mu_old = mu_i
+!  enddo
+!
+!  mu_i = min(mu_i,mu_i_max)
+
+ end subroutine solve_mui
 
 !======================================================================================!
 
