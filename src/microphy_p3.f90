@@ -26,7 +26,7 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.4.3                                                                     !
+! Version:       5.4.3 (beta)                                                              !
 ! Last updated:  2025 May                                                                  !
 !__________________________________________________________________________________________!
 
@@ -11662,11 +11662,9 @@ endif
            mu = 5.9070e-1*g2 - 5.7918e+0*G + 1.6919e+1
         elseif (G<2.946.and.G>=1.793) then
            mu = 4.3966e+0*g2 - 2.6659e+1*G + 4.5477e+1
-        elseif (G<1.793.and.G>=1.405) then
+        elseif (G<1.793.and.G>=1.472) then
            mu = 4.7552e+1*g2 - 1.7958e+2*G + 1.8126e+2
-        elseif (G<1.405.and.G>=1.230) then
-           mu = 3.0889e+2*g2 - 9.0854e+2*G + 6.8995e+2
-        elseif (G<1.230) then
+        elseif (G<1.472) then
            mu = mu_max
         endif
      endif
