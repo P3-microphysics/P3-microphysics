@@ -11754,7 +11754,9 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
 
 !local:
  integer             :: ind
- real                :: mu,mu_old,rhoi,mom3
+ real                :: mu,mu_old     !shape parameter
+ real                :: rhoi          !bulk ice density
+ real                :: mom3          !estimate of 3rd moment
  real,    parameter  :: tol = 0.25    !tolerance for convergence
  integer, parameter  :: max_iterations = 5
 
@@ -11768,13 +11770,12 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
 !                 enddo
 ! !-----
 
- rhoi   = 200.   !initial estimate of density
- mu_old = 0.5    !initial estimate of mu_i
+ mu_old = 0.5   !initial estimate of mu_i
 
  do ind = 1,max_iterations
     call find_lookupTable_indices_1c(dumzz,dum6,zsize,mu_old)
     call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,rhoi)
-    mom3 = 6./(rhoi*pi)*Qi   !estimate of moment3
+    mom3 = 6./(rhoi*pi)*Qi
     mu_i = compute_mu_3moment(Ni,mom3,Zi,mu_i_max)
     if (abs(mu_old-mu_i) < tol) exit
     mu_old = mu_i
