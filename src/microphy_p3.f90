@@ -26,8 +26,8 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.4.2+bugfix-LT1NaNs+LTscollrates                                         !
-! Last updated:  2025 Feb                                                                  !
+! Version:       5.4.2-LT1NaNs-LTscollrates-HMchanges                                      !
+! Last updated:  2025 Apr                                                                  !
 !__________________________________________________________________________________________!
 
  MODULE microphy_p3
@@ -146,7 +146,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.4.2+bugfix-LT1NaNs-LTscollrates'
+ character(len=1024), parameter :: version_p3                    = '5.4.2+LT1NaNs-LTscollrates-HMchanges'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.9-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '6.9-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.2'
@@ -309,8 +309,8 @@
  f12     = 0.5*exp(2.5*(log(sig2))**2)
  f22     = 1. + 0.25*log(sig2)
 
- Dmin_HM  = 1000.e-6       ! ice size threshold for rime-splintering (HM)
- Dinit_HM =   10.e-6       ! initial ice diameter for rime splinters
+!Dmin_HM  = 1000.e-6       ! ice size threshold for rime-splintering (HM)
+!Dinit_HM =   10.e-6       ! initial ice diameter for rime splinters
 
  minVIS  =  1.             ! minimum visibility  (m)
  maxVIS  = 99.e+3          ! maximum visibility  (m)
@@ -2082,6 +2082,7 @@ END subroutine p3_init
  real, dimension(nCat) :: nrshdr    ! source for rain number from collision of rain/ice above freezing and shedding
  real, dimension(nCat) :: qcshd     ! source for rain mass due to cloud water/ice collision above freezing and shedding or wet growth and shedding
  real, dimension(nCat) :: qrmul     ! change in q, ice multiplication from rime-splitnering of rain (not included in the paper)
+ real, dimension(nCat) :: qcmul     ! change in q, ice multiplication from rime-splitnering of cloud (not included in the paper)
  real, dimension(nCat) :: nimul     ! change in Ni, ice multiplication from rime-splintering (not included in the paper)
  real, dimension(nCat) :: ncshdc    ! source for rain number due to cloud water/ice collision above freezing  and shedding (combined with NRSHD in the paper)
  real, dimension(nCat) :: rhorime_c ! density of rime (from cloud)
@@ -2384,11 +2385,15 @@ END subroutine p3_init
 
     if (nCat.eq.1) then
        !for nCat = 1, rime-splinter is shut off during the summer (dilution of rimed ice sizes
-       !weakens convection) but on during the winter.  The temperature threshold of +5 C (278 K)
+       !weakens convection) but on during the winter.  The temperature threshold of +9 C (282 K)
        !is used as a proxy for winter/summer
-       log_hmossopOn = t(i,kbot).lt.278.
+       log_hmossopOn = t(i,kbot).lt.282.
+       Dmin_HM       = 250.e-6
+       Dinit_HM      =  10.e-6
     else
        log_hmossopOn = .true.
+       Dmin_HM       = 1000.e-6
+       Dinit_HM      =   10.e-6
     endif
 
     if (debug_on) then
@@ -2590,7 +2595,7 @@ END subroutine p3_init
        nrhetc  = 0.;     ninuc   = 0.;     qidep   = 0.
        nrheti  = 0.;     nisub   = 0.;     qwgrth  = 0.
        qrmul   = 0.;     nimul   = 0.;     qicol   = 0.
-       nicol   = 0.
+       nicol   = 0.;     qcmul   = 0.
 
    ! Liquid fraction microphysical process rates (log_LiquidFrac)
        qrmlt   = 0.;     qifrz    = 0.
@@ -3455,16 +3460,12 @@ END subroutine p3_init
 
           iice_loop_HM:  do iice = 1,nCat
 
-             ice_present:  if (qitot(i,k,iice)-qiliq(i,k,iice) .ge. qsmall) then
+             ice_present:  if (qitot(i,k,iice).ge.qsmall .and. qirim(i,k,iice).ge.qsmall) then
 
-                tmp1 = qirim(i,k,iice)/(qitot(i,k,iice)-qiliq(i,k,iice))  ! rime fraction
-                tmp2 = qiliq(i,k,iice)/qitot(i,k,iice)                    ! liquid fraction
+                tmp1 = qiliq(i,k,iice)/qitot(i,k,iice)                    ! liquid fraction
 
                 HM_conditions_met: if (diam_ice(i,k,iice).ge.Dmin_HM .and.               &
-                                       tmp1.gt.0.5                   .and.               &
-                                       tmp2.lt.0.1                   .and.               &
-!                                      qccol(iice).gt.0.             .and.               &
-                                       qrcol(iice).gt.0.) then
+                                       tmp1.lt.0.1) then
 
                    if (t(i,k).lt.270.15 .and. t(i,k).gt.268.15) then
                       dum = (270.15-t(i,k))*0.5
@@ -3472,33 +3473,34 @@ END subroutine p3_init
                       dum = (t(i,k)-265.15)*thrd
                    endif
 
-                !rime splintering from riming of cloud droplets:
-                !  (commented out to exclude rime splintering from accretion of cloud,
-                !   but code is retained in case of possible future use)
-!                   dum1 = 35.e+4*qccol(iice)*dum*1000. ! 1000 is to convert kg to g
-!                   dum2 = dum1*piov6*900.*Dinit_HM**3
-!                   qccol(iice) = qccol(iice)-dum2      ! subtract splintering from rime mass transfer
-!                   if (qccol(iice) .lt. 0.) then
-!                      dum2 = qccol(iice) + dum2
-!                      qccol(iice) = 0.
-!                   endif
-!                   qcmul(iice_dest) = qcmul(iice_dest) + dum2
-!                   nimul(iice_dest) = nimul(iice_dest) + dum1
+                   HM_cloud: if (qccol(iice).gt.0. .and. nCat.eq.1) then
+                     !rime splintering from riming of cloud droplets:
+                     !  (commented out to exclude rime splintering from accretion of cloud,
+                     !   but code is retained in case of possible future use)
+                     dum1 = 35.e+4*qccol(iice)*dum*1000. ! 1000 is to convert kg to g
+                     dum2 = dum1*piov6*900.*Dinit_HM**3
+                     qccol(iice) = qccol(iice)-dum2      ! subtract splintering from rime mass transfer
+                     if (qccol(iice) .lt. 0.) then
+                        dum2 = qccol(iice) + dum2
+                        qccol(iice) = 0.
+                     endif
+                     qcmul(iice_dest) = qcmul(iice_dest) + dum2
+                     nimul(iice_dest) = nimul(iice_dest) + dum1
+                   endif HM_cloud
 
-                   !rime splintering from riming of rain:
-                   dum1 = 35.e+4*qrcol(iice)*dum*1000.  ! 1000 is to convert kg to g
-                   dum2 = dum1*piov6*900.*Dinit_HM**3
-                   dum3 = (qrcol(iice)-dum2)/qrcol(iice)
-                   qrcol(iice) = qrcol(iice) - dum2     ! subtract splintering from rime mass transfer
-                   if (log_3momentIce) then
-		      zqrcol(iice) = dum3*zqrcol(iice)
-		   endif
-                   if (qrcol(iice) .lt. 0.) then
-                      dum2 = qrcol(iice) + dum2
-                      qrcol(iice) = 0.
-                   endif
-                   qrmul(iice_dest) = qrmul(iice_dest) + dum2
-                   nimul(iice_dest) = nimul(iice_dest) + dum1
+
+                   HM_rain: if (qrcol(iice).gt.0.) then
+                     !rime splintering from riming of rain:
+                     dum1 = 35.e+4*qrcol(iice)*dum*1000.  ! 1000 is to convert kg to g
+                     dum2 = dum1*piov6*900.*Dinit_HM**3
+                     qrcol(iice) = qrcol(iice) - dum2     ! subtract splintering from rime mass transfer
+                     if (qrcol(iice) .lt. 0.) then
+                        dum2 = qrcol(iice) + dum2
+                        qrcol(iice) = 0.
+                     endif
+                     qrmul(iice_dest) = qrmul(iice_dest) + dum2
+                     nimul(iice_dest) = nimul(iice_dest) + dum1
+                   endif HM_rain
 
                 endif HM_conditions_met
 
@@ -3507,7 +3509,6 @@ END subroutine p3_init
           enddo iice_loop_HM
 
        endif calc_HM
-
 
 !....................................................
 ! condensation/evaporation and deposition/sublimation
@@ -4091,7 +4092,7 @@ END subroutine p3_init
 
 ! cloud
        sinks   = (qcaut+qcacc+sum(qccol)+qcevp+sum(qchetc)+sum(qcheti)+sum(qcshd)+   &
-                 sum(qccoll)+sum(qwgrth1c))*dt
+                 sum(qccoll)+sum(qwgrth1c)+sum(qcmul))*dt
        sources = qc(i,k) + (qccon+qcnuc)*dt
        if (sinks.gt.sources .and. sinks.ge.1.e-20) then
           ratio  = sources/sinks
@@ -4101,6 +4102,7 @@ END subroutine p3_init
           qccol  = qccol*ratio
           qcheti = qcheti*ratio
           qcshd  = qcshd*ratio
+          qcmul  = qcmul*ratio
           qwgrth1c = qwgrth1c*ratio
           qccoll = qccoll*ratio
          !qchetc = qchetc*ratio !currently not used
@@ -4141,8 +4143,8 @@ END subroutine p3_init
 ! ice
        do iice = 1,nCat
           sinks   = (qisub(iice)+qrmlt(iice)+qlevp(iice)+qlshd(iice))*dt
-          sources = qitot(i,k,iice) + (qidep(iice)+qinuc(iice)+qrcol(iice)+qccol(iice)+     &
-                    qrhetc(iice)+qrheti(iice)+qchetc(iice)+qcheti(iice)+qrmul(iice)+        &
+          sources = qitot(i,k,iice) + (qidep(iice)+qinuc(iice)+qrcol(iice)+qccol(iice)+          &
+                    qrhetc(iice)+qrheti(iice)+qchetc(iice)+qcheti(iice)+qrmul(iice)+qcmul(iice)+ &
                     qrcoll(iice)+qccoll(iice)+qlcon(iice)+qwgrth1c(iice)+qwgrth1r(iice))*dt
           do catcoll = 1,nCat
             !Note: qicol = 0 if iice=catcoll, optimised to not insert an if (catcoll.ne.iice)
@@ -4264,7 +4266,7 @@ END subroutine p3_init
        iice_loop3: do iice = 1,nCat
 
           qc(i,k) = qc(i,k) + (-qchetc(iice)-qcheti(iice)-qccol(iice)-qcshd(iice)-            &
-                    qccoll(iice)-qwgrth1c(iice))*dt
+                    qccoll(iice)-qwgrth1c(iice)-qcmul(iice))*dt
 
           if (log_predictNc) then
              nc(i,k) = nc(i,k) + (-nccol(iice)-nchetc(iice)-ncheti(iice)-nccoll(iice))*dt
@@ -4294,13 +4296,13 @@ END subroutine p3_init
          ! endif
 
           dum             = (qrcol(iice)+qccol(iice)+qrhetc(iice)+qrheti(iice)+          &
-                            qchetc(iice)+qcheti(iice)+qrmul(iice))*dt
+                            qchetc(iice)+qcheti(iice)+qrmul(iice)+qcmul(iice))*dt
           qitot(i,k,iice) = qitot(i,k,iice) + (qidep(iice)+qinuc(iice)-qlshd(iice)-      &
                             qlevp(iice)+qlcon(iice)+qwgrth1c(iice)+qwgrth1r(iice)+       &
                             qrcoll(iice)+qccoll(iice))*dt + dum
           qirim(i,k,iice) = qirim(i,k,iice) + qifrz(iice)*dt + dum
-          birim(i,k,iice) = birim(i,k,iice) + ((qifrz(iice)+qrcol(iice))*inv_rho_rimeMax+  &
-                            qccol(iice)/rhorime_c(iice)+(qrhetc(iice)+qrheti(iice)+        &
+          birim(i,k,iice) = birim(i,k,iice) + ((qifrz(iice)+qrcol(iice))*inv_rho_rimeMax+         &
+                            (qccol(iice)+qcmul(iice))/rhorime_c(iice)+(qrhetc(iice)+qrheti(iice)+ &
                             qchetc(iice)+qcheti(iice)+qrmul(iice))*inv_rho_rimeMax)*dt
           qiliq(i,k,iice) = qiliq(i,k,iice) + (qrcoll(iice)+qccoll(iice)-qifrz(iice)-    &
                             qlshd(iice)+qlcon(iice)-qlevp(iice)+qwgrth1c(iice)+          &
@@ -4370,7 +4372,7 @@ END subroutine p3_init
         ! very small and the homogeneous temp. freezing threshold is approximate anyway.
           th(i,k) = th(i,k) + invexn(i,k)*((qidep(iice)-qisub(iice)+qinuc(iice))*      &
                               xxls(i,k)*inv_cp +(qrcol(iice)+qccol(iice)+qchetc(iice)+ &
-                              qcheti(iice)+qrhetc(iice)+qrheti(iice)+                  &
+                              qcheti(iice)+qrhetc(iice)+qrheti(iice)+qcmul(iice)+      &
                               qrmul(iice)-qrmlt(iice)-qimlt(iice)+qifrz(iice))*        &
                               xlf(i,k)*inv_cp+(qlcon(iice)-qlevp(iice))*xxlv(i,k)*     &
                               inv_cp)*dt
@@ -4459,15 +4461,16 @@ END subroutine p3_init
 
 ! include all processes **except** group 2 processes which are added later below
 ! thus, all group 2 processes are subtracted from the ice variables below
-          dumqi = qitot(i,k,iice) - (qinuc(iice)+qrhetc(iice)+qrheti(iice)+qchetc(iice)+qcheti(iice))*dt
+          dumqi = qitot(i,k,iice) - (qinuc(iice)+qrhetc(iice)+qrheti(iice)+qchetc(iice)+qcheti(iice)+qrmul(iice)+qcmul(iice))*dt
+          dumql = qiliq(i,k,iice)
 
-          if (dumqi.ge.qsmall) then
+          if ((dumqi-dumql).ge.qsmall) then
 
              dumni = nitot(i,k,iice) - (ninuc(iice)+nrhetc(iice)+nrheti(iice)+nchetc(iice)+ncheti(iice)+nimul(iice))*dt
              dumzi = zitot(i,k,iice)
-             dumqr = qirim(i,k,iice) - (qrhetc(iice)+qrheti(iice)+qchetc(iice)+qcheti(iice)+qrmul(iice))*dt
-             dumbi = birim(i,k,iice) - (qrhetc(iice)+qrheti(iice)+qchetc(iice)+qcheti(iice)+qrmul(iice))*inv_rho_rimeMax*dt
-             dumql = qiliq(i,k,iice)
+             dumqr = qirim(i,k,iice) - (qrhetc(iice)+qrheti(iice)+qchetc(iice)+qcheti(iice)+qrmul(iice)+qcmul(iice))*dt
+             dumbi = birim(i,k,iice) - (qrhetc(iice)+qrheti(iice)+qchetc(iice)+qcheti(iice)+qrmul(iice)+qcmul(iice))*inv_rho_rimeMax*dt
+             !dumql = qiliq(i,k,iice)
 
              dumni = max(dumni,nsmall) ! impose limit on dummy ni
              dumzi = max(dumzi,zsmall) ! impose limit on dummy zi
@@ -4601,6 +4604,14 @@ END subroutine p3_init
           tmp2 = nimul(iice)                                   !moment_0 tendency
           if (tmp2.ge.qsmall) then
              tmp1 = qrmul(iice)*6./(900.*pi)                   !estimate of moment_3 tendency
+             mu_i_new = mu_i_initial                           !estimated assigned value
+             zitot(i,k,iice) = zitot(i,k,iice) + G_of_mu(mu_i_new)*tmp1**2/tmp2*dt
+          endif
+
+        !proceses of rime splintering of cloud droplets
+          tmp2 = nimul(iice)                                   !moment_0 tendency
+          if (tmp2.ge.qsmall) then
+             tmp1 = qcmul(iice)*6./(900.*pi)                   !estimate of moment_3 tendency
              mu_i_new = mu_i_initial                           !estimated assigned value
              zitot(i,k,iice) = zitot(i,k,iice) + G_of_mu(mu_i_new)*tmp1**2/tmp2*dt
           endif
@@ -6211,14 +6222,14 @@ END subroutine p3_init
                 if (liquidfraction(i,k,iice).ge.0.15) then
                    Q_wsnow(i,k,iice) = qitot(i,k,iice)
                 else
-                   if (rimefraction(i,k,iice).lt.0.5) then
+                   if (rimefraction(i,k,iice).lt.0.6) then
                       if (diag_di(i,k,iice).lt.0.002) then
                          Q_crystals(i,k,iice) = qitot(i,k,iice)
                       else
                          Q_snow(i,k,iice) = qitot(i,k,iice)
                       endif
                    else
-                      if (rimedensity(i,k,iice).lt.750) then
+                      if (rimedensity(i,k,iice).lt.850) then
                         Q_grpl(i,k,iice) = qitot(i,k,iice)
                       else
                         if (t_tmp.lt.283.15) then
@@ -11055,7 +11066,7 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
 !             dum1 = (alog10(qitot/nitot)+18.)/(0.1*alog10(261.7))-10.
 ! qitot/nitot=800**((i+10)*0.1)*1.e-18, for lookup table beta >= 9
 !             dum1 = (alog10(qitot/nitot)+18.)/(0.1*alog10(800.))-10.
-             dum1 = (alog10(qitot/nitot)+18.)*3.444606 - 10.  !optimized
+             dum1 = (log10(qitot/nitot)+18.)*3.444606 - 10.  !optimized
              dumi = int(dum1)
              ! set limits (to make sure the calculated index doesn't exceed range of lookup table)
              dum1 = min(dum1,real(isize))
@@ -12195,21 +12206,30 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
 !===========================================================================================
 
   ! Compute total water mass
-  function p3_lwc(F_qltot, F_pvars) result(F_istat)
+  function p3_lwc(F_qltot, F_pvars, F_tminus) result(F_istat)
     use phybusidx
     use phymem, only: phyvar
     use phy_status, only: PHY_OK, PHY_ERROR
     implicit none
     real, dimension(:,:), intent(out) :: F_qltot        !Total water mass (kg/kg)
-    type(phyvar), pointer, contiguous :: F_pvars(:)   !All phy vars (meta + slab data)
+    type(phyvar), pointer, contiguous :: F_pvars(:)     !All phy vars (meta + slab data)
+    logical, intent(in), optional :: F_tminus           !Compute fields at time-minus [false]
     integer :: F_istat                                  !Return status
     integer :: ni, nkm1
-    real, dimension(:,:), pointer :: zqcp, zqrp
+    real, dimension(:,:), pointer, contiguous :: zqc, zqr
+    logical :: my_tminus
     F_istat = PHY_ERROR
+    my_tminus = .false.
+    if (present(F_tminus)) my_tminus = F_tminus
     ni = size(F_qltot, dim=1); nkm1 = size(F_qltot, dim=2)
-    MKPTR2Dm1(zqcp, qcplus, F_pvars)
-    MKPTR2Dm1(zqrp, qrplus, F_pvars)
-    F_qltot(:,:) = zqcp(:,:) + zqrp(:,:)
+    if (my_tminus) then
+       MKPTR2Dm1(zqc, qcmoins, F_pvars)
+       MKPTR2Dm1(zqr, qrmoins, F_pvars)
+    else
+       MKPTR2Dm1(zqc, qcplus, F_pvars)
+       MKPTR2Dm1(zqr, qrplus, F_pvars)
+    endif
+    F_qltot(:,:) = zqc(:,:) + zqr(:,:)
     F_istat = PHY_OK
     return
   end function p3_lwc
@@ -12217,32 +12237,46 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
 !===========================================================================================
 
   ! Compute total ice mass
-  function p3_iwc(F_qitot, F_pvars) result(F_istat)
+  function p3_iwc(F_qitot, F_pvars, F_tminus) result(F_istat)
     use phybusidx
     use phymem, only: phyvar
     use phy_status, only: PHY_OK, PHY_ERROR
     implicit none
     real, dimension(:,:), intent(out) :: F_qitot        !Total ice mass (kg/kg)
-    type(phyvar), pointer, contiguous :: F_pvars(:)   !All phy vars (meta + slab data)
+    type(phyvar), pointer, contiguous :: F_pvars(:)     !All phy vars (meta + slab data)
+    logical, intent(in), optional :: F_tminus           !Compute fields at time-minus [false]
     integer :: F_istat                                  !Return status
     integer :: ni, nkm1
-    real, dimension(:,:), pointer :: zqti1p, zqti2p, zqti3p, zqti4p
+    real, dimension(:,:), pointer, contiguous :: zqti1, zqti2, zqti3, zqti4
+    logical :: my_tminus
     F_istat = PHY_ERROR
+    my_tminus = .false.
+    if (present(F_tminus)) my_tminus = F_tminus
     ni = size(F_qitot, dim=1); nkm1 = size(F_qitot, dim=2)
-    MKPTR2Dm1(zqti1p, qti1plus, F_pvars)
-    MKPTR2Dm1(zqti2p, qti2plus, F_pvars)
-    MKPTR2Dm1(zqti3p, qti3plus, F_pvars)
-    MKPTR2Dm1(zqti4p, qti4plus, F_pvars)
+    if (my_tminus) then
+       MKPTR2Dm1(zqti1, qti1moins, F_pvars)
+       MKPTR2Dm1(zqti2, qti2moins, F_pvars)
+       MKPTR2Dm1(zqti3, qti3moins, F_pvars)
+       MKPTR2Dm1(zqti4, qti4moins, F_pvars)
+    else
+       MKPTR2Dm1(zqti1, qti1plus, F_pvars)
+       MKPTR2Dm1(zqti2, qti2plus, F_pvars)
+       MKPTR2Dm1(zqti3, qti3plus, F_pvars)
+       MKPTR2Dm1(zqti4, qti4plus, F_pvars)
+    endif
     F_qitot = 0.
-    if (associated(zqti1p)) F_qitot = F_qitot + zqti1p
-    if (associated(zqti2p)) F_qitot = F_qitot + zqti2p
-    if (associated(zqti3p)) F_qitot = F_qitot + zqti3p
-    if (associated(zqti4p)) F_qitot = F_qitot + zqti4p
+    if (associated(zqti1)) F_qitot = F_qitot + zqti1
+    if (associated(zqti2)) F_qitot = F_qitot + zqti2
+    if (associated(zqti3)) F_qitot = F_qitot + zqti3
+    if (associated(zqti4)) F_qitot = F_qitot + zqti4
     F_istat = PHY_OK
     return
   end function p3_iwc
 
+
 #endif
+
+!======================================================================================!
 
  subroutine calculate_mu_change(nidum,qidum,zidum,nitend,qitend,zitend,f1pr16,den,dmudt,dt)
 
