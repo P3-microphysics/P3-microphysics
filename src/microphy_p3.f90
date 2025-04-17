@@ -2761,16 +2761,16 @@ call cpu_time(timer_start(3))
                               dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi)
 
              ! call to lookup table interpolation subroutines to get process rates
-               if (.not. log_LiquidFrac) then
-                  call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 2,dum1,dum4,dum5,dum6,f1pr02)
-                  call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 3,dum1,dum4,dum5,dum6,f1pr03)
-                  call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 4,dum1,dum4,dum5,dum6,f1pr04)
-                  call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 5,dum1,dum4,dum5,dum6,f1pr05)
-                  call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 7,dum1,dum4,dum5,dum6,f1pr09)
-                  call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 8,dum1,dum4,dum5,dum6,f1pr10)
-                  call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,10,dum1,dum4,dum5,dum6,f1pr14)
-                  call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,12,dum1,dum4,dum5,dum6,f1pr16)
-                else
+!                if (.not. log_LiquidFrac) then
+!                   call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 2,dum1,dum4,dum5,dum6,f1pr02)
+!                   call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 3,dum1,dum4,dum5,dum6,f1pr03)
+!                   call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 4,dum1,dum4,dum5,dum6,f1pr04)
+!                   call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 5,dum1,dum4,dum5,dum6,f1pr05)
+!                   call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 7,dum1,dum4,dum5,dum6,f1pr09)
+!                   call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 8,dum1,dum4,dum5,dum6,f1pr10)
+!                   call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,10,dum1,dum4,dum5,dum6,f1pr14)
+!                   call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,12,dum1,dum4,dum5,dum6,f1pr16)
+!                 else
                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi, 2,dum1,dum4,dum5,dum6,dum7,f1pr02)
                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi, 3,dum1,dum4,dum5,dum6,dum7,f1pr03)
                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi, 4,dum1,dum4,dum5,dum6,dum7,f1pr04)
@@ -2779,6 +2779,7 @@ call cpu_time(timer_start(3))
                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi, 8,dum1,dum4,dum5,dum6,dum7,f1pr10)
                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,10,dum1,dum4,dum5,dum6,dum7,f1pr14)
                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,f1pr16)
+               if (log_LiquidFrac) then
                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,16,dum1,dum4,dum5,dum6,dum7,f1pr24)
                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,17,dum1,dum4,dum5,dum6,dum7,f1pr25)
                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,18,dum1,dum4,dum5,dum6,dum7,f1pr26)
@@ -5005,11 +5006,16 @@ call cpu_time(timer_start(6))
                       call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),zitot(i,k,iice),   &
                                      dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi)
 
-                      call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 1,dum1,dum4,dum5,dum6,f1pr01)
-                      call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 2,dum1,dum4,dum5,dum6,f1pr02)
-                      call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 7,dum1,dum4,dum5,dum6,f1pr09)
-                      call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 8,dum1,dum4,dum5,dum6,f1pr10)
-                      call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,13,dum1,dum4,dum5,dum6,f1pr19)
+! !                       call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 1,dum1,dum4,dum5,dum6,f1pr01)
+! !                       call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 2,dum1,dum4,dum5,dum6,f1pr02)
+! !                       call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 7,dum1,dum4,dum5,dum6,f1pr09)
+! !                       call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 8,dum1,dum4,dum5,dum6,f1pr10)
+! !                       call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,13,dum1,dum4,dum5,dum6,f1pr19)
+                      call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi, 1,dum1,dum4,dum5,dum6,dum7,f1pr01)
+                      call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi, 2,dum1,dum4,dum5,dum6,dum7,f1pr02)
+                      call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi, 7,dum1,dum4,dum5,dum6,dum7,f1pr09)
+                      call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi, 8,dum1,dum4,dum5,dum6,dum7,f1pr10)
+                      call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,13,dum1,dum4,dum5,dum6,dum7,f1pr19)
 
                     !impose mean ice size bounds (i.e. apply lambda limiters)
                       nitot(i,k,iice) = min(nitot(i,k,iice),f1pr09*qitot(i,k,iice))
@@ -5290,11 +5296,12 @@ call cpu_time(timer_end(6))
                call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),zitot(i,k,iice),          &
                               dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi)
 
-               if (.not. log_LiquidFrac) then
-                  call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,12,dum1,dum4,dum5,dum6,f1pr16)
-               else
-                  call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,f1pr16)
-               endif
+! !                if (.not. log_LiquidFrac) then
+! !                   call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,12,dum1,dum4,dum5,dum6,f1pr16)
+! !                else
+! !                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,f1pr16)
+! !                endif
+               call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,f1pr16)
              endif
              diam_ice(i,k,iice) = ((qitot(i,k,iice)*6.)/(nitot(i,k,iice)*f1pr16*pi))**thrd
           endif
@@ -5418,13 +5425,15 @@ call cpu_time(timer_end(6))
 ! !                    endif
                    call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),zitot(i,k,iice),   &
                                   dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi)
-                   if (log_LiquidFrac) then
-                     call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,11,dum1,dum4,dum5,dum6,dum7,f1pr15)
-                     call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,f1pr16)
-                   else
-                     call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,11,dum1,dum4,dum5,dum6,f1pr15)
-                     call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,12,dum1,dum4,dum5,dum6,f1pr16)
-                   endif
+! !                    if (log_LiquidFrac) then
+! !                      call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,11,dum1,dum4,dum5,dum6,dum7,f1pr15)
+! !                      call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,f1pr16)
+! !                    else
+! !                      call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,11,dum1,dum4,dum5,dum6,f1pr15)
+! !                      call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,12,dum1,dum4,dum5,dum6,f1pr16)
+! !                    endif
+                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,11,dum1,dum4,dum5,dum6,dum7,f1pr15)
+                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,f1pr16)
 
                 endif  ! triple moment ice
 
@@ -5629,35 +5638,47 @@ call cpu_time(timer_end(6))
                 call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),zitot(i,k,iice),                   &
                                dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi)
 
-                if (log_LiquidFrac) then
-                  call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi, 1,dum1,dum4,dum5,dum6,dum7,f1pr01)
-                  call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi, 2,dum1,dum4,dum5,dum6,dum7,f1pr02)
-                  call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi, 6,dum1,dum4,dum5,dum6,dum7,f1pr06)
-                  call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi, 7,dum1,dum4,dum5,dum6,dum7,f1pr09)
-                  call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi, 8,dum1,dum4,dum5,dum6,dum7,f1pr10)
-                  call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi, 9,dum1,dum4,dum5,dum6,dum7,f1pr13)
-                  call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,11,dum1,dum4,dum5,dum6,dum7,f1pr15)
-                  call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,f1pr16)
-                  if (log_typeDiags) then
-                     call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,14,dum1,dum4,dum5,dum6,dum7,f1pr22)
-                     call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,15,dum1,dum4,dum5,dum6,dum7,f1pr23)
-                  endif
-
-                else
-                  call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 1,dum1,dum4,dum5,dum6,f1pr01)
-                  call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 2,dum1,dum4,dum5,dum6,f1pr02)
-                  call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 6,dum1,dum4,dum5,dum6,f1pr06)
-                  call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 7,dum1,dum4,dum5,dum6,f1pr09)
-                  call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 8,dum1,dum4,dum5,dum6,f1pr10)
-                  call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 9,dum1,dum4,dum5,dum6,f1pr13)
-                  call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,11,dum1,dum4,dum5,dum6,f1pr15)
-                  call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,12,dum1,dum4,dum5,dum6,f1pr16)
-                  if (log_typeDiags) then
-                     call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,14,dum1,dum4,dum5,dum6,f1pr22)
-                     call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,15,dum1,dum4,dum5,dum6,f1pr23)
-                  endif
+! !                 if (log_LiquidFrac) then
+! !                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi, 1,dum1,dum4,dum5,dum6,dum7,f1pr01)
+! !                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi, 2,dum1,dum4,dum5,dum6,dum7,f1pr02)
+! !                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi, 6,dum1,dum4,dum5,dum6,dum7,f1pr06)
+! !                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi, 7,dum1,dum4,dum5,dum6,dum7,f1pr09)
+! !                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi, 8,dum1,dum4,dum5,dum6,dum7,f1pr10)
+! !                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi, 9,dum1,dum4,dum5,dum6,dum7,f1pr13)
+! !                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,11,dum1,dum4,dum5,dum6,dum7,f1pr15)
+! !                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,f1pr16)
+! !                   if (log_typeDiags) then
+! !                      call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,14,dum1,dum4,dum5,dum6,dum7,f1pr22)
+! !                      call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,15,dum1,dum4,dum5,dum6,dum7,f1pr23)
+! !                   endif
+! !                 else
+! !                   call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 1,dum1,dum4,dum5,dum6,f1pr01)
+! !                   call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 2,dum1,dum4,dum5,dum6,f1pr02)
+! !                   call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 6,dum1,dum4,dum5,dum6,f1pr06)
+! !                   call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 7,dum1,dum4,dum5,dum6,f1pr09)
+! !                   call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 8,dum1,dum4,dum5,dum6,f1pr10)
+! !                   call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi, 9,dum1,dum4,dum5,dum6,f1pr13)
+! !                   call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,11,dum1,dum4,dum5,dum6,f1pr15)
+! !                   call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,12,dum1,dum4,dum5,dum6,f1pr16)
+! !                   if (log_typeDiags) then
+! !                      call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,14,dum1,dum4,dum5,dum6,f1pr22)
+! !                      call access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,15,dum1,dum4,dum5,dum6,f1pr23)
+! !                   endif
+! !                 endif
+                call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi, 1,dum1,dum4,dum5,dum6,dum7,f1pr01)
+                call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi, 2,dum1,dum4,dum5,dum6,dum7,f1pr02)
+                call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi, 6,dum1,dum4,dum5,dum6,dum7,f1pr06)
+                call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi, 7,dum1,dum4,dum5,dum6,dum7,f1pr09)
+                call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi, 8,dum1,dum4,dum5,dum6,dum7,f1pr10)
+                call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi, 9,dum1,dum4,dum5,dum6,dum7,f1pr13)
+               call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,11,dum1,dum4,dum5,dum6,dum7,f1pr15)
+                call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,f1pr16)
+                if (log_typeDiags) then
+                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,14,dum1,dum4,dum5,dum6,dum7,f1pr22)
+                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,15,dum1,dum4,dum5,dum6,dum7,f1pr23)
                 endif
-             endif
+
+             endif  ! triple moment ice
 
 
           ! impose mean ice size bounds (i.e. apply lambda limiters)
@@ -9633,93 +9654,93 @@ timer(:) = timer_end(:) - timer_start(:)
 
 !==========================================================================================!
 
- SUBROUTINE access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,index,dum1,dum4,dum5,dum6,proc)
-
- implicit none
-
- real    :: dum1,dum4,dum5,dum6,dum7,proc,iproc1,iproc2,gproc1,gproc2,rproc1,rproc2,dproc1,dproc2
- integer :: dumzz,dumjj,dumii,dumi,index,dumll
-
- dumll = 1
- dum7  = 1.
-
-
-! get at current zz
-  ! get at current jj
-
-    ! get current ii
-
-     ! at ll between i and i+1
-     dproc1 = itab_3mom(dumzz,dumjj,dumii,dumll,dumi,index)+(dum1-real(dumi))*(itab_3mom(dumzz,dumjj,dumii,       &
-              dumll,dumi+1,index)-itab_3mom(dumzz,dumjj,dumii,dumll,dumi,index))
-
-    ! get current ii+1
-
-     ! at ll between i and i+1
-     dproc2 = itab_3mom(dumzz,dumjj,dumii+1,dumll,dumi,index)+(dum1-real(dumi))*(itab_3mom(dumzz,dumjj,dumii+1,       &
-              dumll,dumi+1,index)-itab_3mom(dumzz,dumjj,dumii+1,dumll,dumi,index))
-
-     gproc1   = dproc1+(dum4-real(dumii))*(dproc2-dproc1)
-
-  ! get at current jj+1
-
-    ! get current ii
-
-     ! at ll between i and i+1
-     dproc1 = itab_3mom(dumzz,dumjj+1,dumii,dumll,dumi,index)+(dum1-real(dumi))*(itab_3mom(dumzz,dumjj+1,dumii,       &
-              dumll,dumi+1,index)-itab_3mom(dumzz,dumjj+1,dumii,dumll,dumi,index))
-
-    ! get current ii+1
-
-     ! at ll between i and i+1
-     dproc2 = itab_3mom(dumzz,dumjj+1,dumii+1,dumll,dumi,index)+(dum1-real(dumi))*(itab_3mom(dumzz,dumjj+1,dumii+1,       &
-              dumll,dumi+1,index)-itab_3mom(dumzz,dumjj+1,dumii+1,dumll,dumi,index))
-
-     gproc2   = dproc1+(dum4-real(dumii))*(dproc2-dproc1)
-
-     rproc1   = gproc1+(dum5-real(dumjj))*(gproc2-gproc1)
-
-! get at current zz+1
-  ! get at current jj
-
-    ! get current ii
-
-     ! at ll between i and i+1
-     dproc1 = itab_3mom(dumzz+1,dumjj,dumii,dumll,dumi,index)+(dum1-real(dumi))*(itab_3mom(dumzz+1,dumjj,dumii,       &
-              dumll,dumi+1,index)-itab_3mom(dumzz+1,dumjj,dumii,dumll,dumi,index))
-
-    ! get current ii+1
-     ! at ll between i and i+1
-     dproc2 = itab_3mom(dumzz+1,dumjj,dumii+1,dumll,dumi,index)+(dum1-real(dumi))*(itab_3mom(dumzz+1,dumjj,dumii+1,       &
-              dumll,dumi+1,index)-itab_3mom(dumzz+1,dumjj,dumii+1,dumll,dumi,index))
-
-     gproc1   = dproc1+(dum4-real(dumii))*(dproc2-dproc1)
-
-  ! get at current jj+1
-
-    ! get current ii
-
-     ! at ll between i and i+1
-     dproc1 = itab_3mom(dumzz+1,dumjj+1,dumii,dumll,dumi,index)+(dum1-real(dumi))*(itab_3mom(dumzz+1,dumjj+1,dumii,       &
-              dumll,dumi+1,index)-itab_3mom(dumzz+1,dumjj+1,dumii,dumll,dumi,index))
-
-    ! get current ii+1
-
-     ! at ll between i and i+1
-     dproc2 = itab_3mom(dumzz+1,dumjj+1,dumii+1,dumll,dumi,index)+(dum1-real(dumi))*(itab_3mom(dumzz+1,dumjj+1,dumii+1,       &
-              dumll,dumi+1,index)-itab_3mom(dumzz+1,dumjj+1,dumii+1,dumll,dumi,index))
-
-
-     gproc2   = dproc1+(dum4-real(dumii))*(dproc2-dproc1)
-
-     rproc2   = gproc1+(dum5-real(dumjj))*(gproc2-gproc1)
-
-! get final interpolation between rproc1 and rproc2
-
-  proc = rproc1+(dum6-real(dumzz))*(rproc2-rproc1)
-
-
- END SUBROUTINE access_lookup_table_3mom
+! !  SUBROUTINE access_lookup_table_3mom(dumzz,dumjj,dumii,dumi,index,dum1,dum4,dum5,dum6,proc)
+! !
+! !  implicit none
+! !
+! !  real    :: dum1,dum4,dum5,dum6,dum7,proc,iproc1,iproc2,gproc1,gproc2,rproc1,rproc2,dproc1,dproc2
+! !  integer :: dumzz,dumjj,dumii,dumi,index,dumll
+! !
+! !  dumll = 1
+! !  dum7  = 1.
+! !
+! !
+! ! ! get at current zz
+! !   ! get at current jj
+! !
+! !     ! get current ii
+! !
+! !      ! at ll between i and i+1
+! !      dproc1 = itab_3mom(dumzz,dumjj,dumii,dumll,dumi,index)+(dum1-real(dumi))*(itab_3mom(dumzz,dumjj,dumii,       &
+! !               dumll,dumi+1,index)-itab_3mom(dumzz,dumjj,dumii,dumll,dumi,index))
+! !
+! !     ! get current ii+1
+! !
+! !      ! at ll between i and i+1
+! !      dproc2 = itab_3mom(dumzz,dumjj,dumii+1,dumll,dumi,index)+(dum1-real(dumi))*(itab_3mom(dumzz,dumjj,dumii+1,       &
+! !               dumll,dumi+1,index)-itab_3mom(dumzz,dumjj,dumii+1,dumll,dumi,index))
+! !
+! !      gproc1   = dproc1+(dum4-real(dumii))*(dproc2-dproc1)
+! !
+! !   ! get at current jj+1
+! !
+! !     ! get current ii
+! !
+! !      ! at ll between i and i+1
+! !      dproc1 = itab_3mom(dumzz,dumjj+1,dumii,dumll,dumi,index)+(dum1-real(dumi))*(itab_3mom(dumzz,dumjj+1,dumii,       &
+! !               dumll,dumi+1,index)-itab_3mom(dumzz,dumjj+1,dumii,dumll,dumi,index))
+! !
+! !     ! get current ii+1
+! !
+! !      ! at ll between i and i+1
+! !      dproc2 = itab_3mom(dumzz,dumjj+1,dumii+1,dumll,dumi,index)+(dum1-real(dumi))*(itab_3mom(dumzz,dumjj+1,dumii+1,       &
+! !               dumll,dumi+1,index)-itab_3mom(dumzz,dumjj+1,dumii+1,dumll,dumi,index))
+! !
+! !      gproc2   = dproc1+(dum4-real(dumii))*(dproc2-dproc1)
+! !
+! !      rproc1   = gproc1+(dum5-real(dumjj))*(gproc2-gproc1)
+! !
+! ! ! get at current zz+1
+! !   ! get at current jj
+! !
+! !     ! get current ii
+! !
+! !      ! at ll between i and i+1
+! !      dproc1 = itab_3mom(dumzz+1,dumjj,dumii,dumll,dumi,index)+(dum1-real(dumi))*(itab_3mom(dumzz+1,dumjj,dumii,       &
+! !               dumll,dumi+1,index)-itab_3mom(dumzz+1,dumjj,dumii,dumll,dumi,index))
+! !
+! !     ! get current ii+1
+! !      ! at ll between i and i+1
+! !      dproc2 = itab_3mom(dumzz+1,dumjj,dumii+1,dumll,dumi,index)+(dum1-real(dumi))*(itab_3mom(dumzz+1,dumjj,dumii+1,       &
+! !               dumll,dumi+1,index)-itab_3mom(dumzz+1,dumjj,dumii+1,dumll,dumi,index))
+! !
+! !      gproc1   = dproc1+(dum4-real(dumii))*(dproc2-dproc1)
+! !
+! !   ! get at current jj+1
+! !
+! !     ! get current ii
+! !
+! !      ! at ll between i and i+1
+! !      dproc1 = itab_3mom(dumzz+1,dumjj+1,dumii,dumll,dumi,index)+(dum1-real(dumi))*(itab_3mom(dumzz+1,dumjj+1,dumii,       &
+! !               dumll,dumi+1,index)-itab_3mom(dumzz+1,dumjj+1,dumii,dumll,dumi,index))
+! !
+! !     ! get current ii+1
+! !
+! !      ! at ll between i and i+1
+! !      dproc2 = itab_3mom(dumzz+1,dumjj+1,dumii+1,dumll,dumi,index)+(dum1-real(dumi))*(itab_3mom(dumzz+1,dumjj+1,dumii+1,       &
+! !               dumll,dumi+1,index)-itab_3mom(dumzz+1,dumjj+1,dumii+1,dumll,dumi,index))
+! !
+! !
+! !      gproc2   = dproc1+(dum4-real(dumii))*(dproc2-dproc1)
+! !
+! !      rproc2   = gproc1+(dum5-real(dumjj))*(gproc2-gproc1)
+! !
+! ! ! get final interpolation between rproc1 and rproc2
+! !
+! !   proc = rproc1+(dum6-real(dumzz))*(rproc2-rproc1)
+! !
+! !
+! !  END SUBROUTINE access_lookup_table_3mom
 
 !==========================================================================================!
 
@@ -9731,82 +9752,83 @@ timer(:) = timer_end(:) - timer_start(:)
  integer :: dumzz,dumjj,dumii,dumi,index,dumll
 
 
-!if ((dum7-real(dumll)).eq.0.) then
-!
-!! get at current zz
-!  ! get at current jj
-!
-!    ! get current ii
-!
-!     ! at ll between i and i+1
-!     dproc1 = itab_3mom(dumzz,dumjj,dumii,dumll,dumi,index)+(dum1-real(dumi))*(itab_3mom(dumzz,dumjj,dumii,       &
-!              dumll,dumi+1,index)-itab_3mom(dumzz,dumjj,dumii,dumll,dumi,index))
-!
-!    ! get current ii+1
-!
-!     ! at ll between i and i+1
-!     dproc2 = itab_3mom(dumzz,dumjj,dumii+1,dumll,dumi,index)+(dum1-real(dumi))*(itab_3mom(dumzz,dumjj,dumii+1,       &
-!              dumll,dumi+1,index)-itab_3mom(dumzz,dumjj,dumii+1,dumll,dumi,index))
-!
-!     gproc1   = dproc1+(dum4-real(dumii))*(dproc2-dproc1)
-!
-!  ! get at current jj+1
-!
-!    ! get current ii
-!
-!     ! at ll between i and i+1
-!     dproc1 = itab_3mom(dumzz,dumjj+1,dumii,dumll,dumi,index)+(dum1-real(dumi))*(itab_3mom(dumzz,dumjj+1,dumii,       &
-!              dumll,dumi+1,index)-itab_3mom(dumzz,dumjj+1,dumii,dumll,dumi,index))
-!
-!    ! get current ii+1
-!
-!     ! at ll between i and i+1
-!     dproc2 = itab_3mom(dumzz,dumjj+1,dumii+1,dumll,dumi,index)+(dum1-real(dumi))*(itab_3mom(dumzz,dumjj+1,dumii+1,       &
-!              dumll,dumi+1,index)-itab_3mom(dumzz,dumjj+1,dumii+1,dumll,dumi,index))
-!
-!     gproc2   = dproc1+(dum4-real(dumii))*(dproc2-dproc1)
-!
-!     rproc1   = gproc1+(dum5-real(dumjj))*(gproc2-gproc1)
-!
-!! get at current zz+1
-!  ! get at current jj
-!
-!    ! get current ii
-!
-!     ! at ll between i and i+1
-!     dproc1 = itab_3mom(dumzz+1,dumjj,dumii,dumll,dumi,index)+(dum1-real(dumi))*(itab_3mom(dumzz+1,dumjj,dumii,       &
-!              dumll,dumi+1,index)-itab_3mom(dumzz+1,dumjj,dumii,dumll,dumi,index))
-!
-!    ! get current ii+1
-!     ! at ll between i and i+1
-!     dproc2 = itab_3mom(dumzz+1,dumjj,dumii+1,dumll,dumi,index)+(dum1-real(dumi))*(itab_3mom(dumzz+1,dumjj,dumii+1,       &
-!              dumll,dumi+1,index)-itab_3mom(dumzz+1,dumjj,dumii+1,dumll,dumi,index))
-!
-!     gproc1   = dproc1+(dum4-real(dumii))*(dproc2-dproc1)
-!
-!  ! get at current jj+1
-!
-!    ! get current ii
-!
-!     ! at ll between i and i+1
-!     dproc1 = itab_3mom(dumzz+1,dumjj+1,dumii,dumll,dumi,index)+(dum1-real(dumi))*(itab_3mom(dumzz+1,dumjj+1,dumii,       &
-!              dumll,dumi+1,index)-itab_3mom(dumzz+1,dumjj+1,dumii,dumll,dumi,index))
-!
-!    ! get current ii+1
-!
-!     ! at ll between i and i+1
-!     dproc2 = itab_3mom(dumzz+1,dumjj+1,dumii+1,dumll,dumi,index)+(dum1-real(dumi))*(itab_3mom(dumzz+1,dumjj+1,dumii+1,       &
-!              dumll,dumi+1,index)-itab_3mom(dumzz+1,dumjj+1,dumii+1,dumll,dumi,index))
-!
-!     gproc2   = dproc1+(dum4-real(dumii))*(dproc2-dproc1)
-!
-!     rproc2   = gproc1+(dum5-real(dumjj))*(gproc2-gproc1)
-!
-!! get final interpolation between rproc1 and rproc2
-!
-!  proc = rproc1+(dum6-real(dumzz))*(rproc2-rproc1)
-!
-!else
+!if (.false.) then  ! to test old, "full" approach
+ if (dum7 == 1. .and. dumll==1) then  !skip interpolation for liq-frac if qiliq = 0.
+
+! get at current zz
+ ! get at current jj
+
+   ! get current ii
+
+    ! at ll between i and i+1
+    dproc1 = itab_3mom(dumzz,dumjj,dumii,dumll,dumi,index)+(dum1-real(dumi))*(itab_3mom(dumzz,dumjj,dumii,       &
+             dumll,dumi+1,index)-itab_3mom(dumzz,dumjj,dumii,dumll,dumi,index))
+
+   ! get current ii+1
+
+    ! at ll between i and i+1
+    dproc2 = itab_3mom(dumzz,dumjj,dumii+1,dumll,dumi,index)+(dum1-real(dumi))*(itab_3mom(dumzz,dumjj,dumii+1,       &
+             dumll,dumi+1,index)-itab_3mom(dumzz,dumjj,dumii+1,dumll,dumi,index))
+
+    gproc1   = dproc1+(dum4-real(dumii))*(dproc2-dproc1)
+
+ ! get at current jj+1
+
+   ! get current ii
+
+    ! at ll between i and i+1
+    dproc1 = itab_3mom(dumzz,dumjj+1,dumii,dumll,dumi,index)+(dum1-real(dumi))*(itab_3mom(dumzz,dumjj+1,dumii,       &
+             dumll,dumi+1,index)-itab_3mom(dumzz,dumjj+1,dumii,dumll,dumi,index))
+
+   ! get current ii+1
+
+    ! at ll between i and i+1
+    dproc2 = itab_3mom(dumzz,dumjj+1,dumii+1,dumll,dumi,index)+(dum1-real(dumi))*(itab_3mom(dumzz,dumjj+1,dumii+1,       &
+             dumll,dumi+1,index)-itab_3mom(dumzz,dumjj+1,dumii+1,dumll,dumi,index))
+
+    gproc2   = dproc1+(dum4-real(dumii))*(dproc2-dproc1)
+
+    rproc1   = gproc1+(dum5-real(dumjj))*(gproc2-gproc1)
+
+! get at current zz+1
+ ! get at current jj
+
+   ! get current ii
+
+    ! at ll between i and i+1
+    dproc1 = itab_3mom(dumzz+1,dumjj,dumii,dumll,dumi,index)+(dum1-real(dumi))*(itab_3mom(dumzz+1,dumjj,dumii,       &
+             dumll,dumi+1,index)-itab_3mom(dumzz+1,dumjj,dumii,dumll,dumi,index))
+
+   ! get current ii+1
+    ! at ll between i and i+1
+    dproc2 = itab_3mom(dumzz+1,dumjj,dumii+1,dumll,dumi,index)+(dum1-real(dumi))*(itab_3mom(dumzz+1,dumjj,dumii+1,       &
+             dumll,dumi+1,index)-itab_3mom(dumzz+1,dumjj,dumii+1,dumll,dumi,index))
+
+    gproc1   = dproc1+(dum4-real(dumii))*(dproc2-dproc1)
+
+ ! get at current jj+1
+
+   ! get current ii
+
+    ! at ll between i and i+1
+    dproc1 = itab_3mom(dumzz+1,dumjj+1,dumii,dumll,dumi,index)+(dum1-real(dumi))*(itab_3mom(dumzz+1,dumjj+1,dumii,       &
+             dumll,dumi+1,index)-itab_3mom(dumzz+1,dumjj+1,dumii,dumll,dumi,index))
+
+   ! get current ii+1
+
+    ! at ll between i and i+1
+    dproc2 = itab_3mom(dumzz+1,dumjj+1,dumii+1,dumll,dumi,index)+(dum1-real(dumi))*(itab_3mom(dumzz+1,dumjj+1,dumii+1,       &
+             dumll,dumi+1,index)-itab_3mom(dumzz+1,dumjj+1,dumii+1,dumll,dumi,index))
+
+    gproc2   = dproc1+(dum4-real(dumii))*(dproc2-dproc1)
+
+    rproc2   = gproc1+(dum5-real(dumjj))*(gproc2-gproc1)
+
+! get final interpolation between rproc1 and rproc2
+
+ proc = rproc1+(dum6-real(dumzz))*(rproc2-rproc1)
+
+else
 
 ! get at current zz
   ! get at current jj
@@ -9930,7 +9952,7 @@ timer(:) = timer_end(:) - timer_start(:)
 
   proc = rproc1+(dum6-real(dumzz))*(rproc2-rproc1)
 
-!endif
+endif
 
 END SUBROUTINE access_lookup_table_3mom_LF
 
