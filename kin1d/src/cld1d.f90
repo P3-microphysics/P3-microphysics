@@ -47,7 +47,7 @@ subroutine columnmodel
 #endif
 
       integer, parameter :: nCat         =  1
-      logical, parameter :: liqFrac      = .false.    !n/a for v4
+      logical, parameter :: liqFrac      = .true.    !n/a for v4
       logical, parameter :: trplMomIce   = .true.
 
       logical, parameter :: scpf_on      = .false.   ! switch for cloud fraction parameterization (SCPF)
@@ -684,9 +684,9 @@ subroutine columnmodel
       write(55,'(a12,a10)')  'version:  ', version_p3
       write(55,'(1a12,1i1)') 'nCat   :  ', nCat
       write(55,'(1a12,1L)')  'trlMom :  ', trplMomIce
-#ifdef v5
+!#ifdef v5
       write(55,'(1a12,1L)')  'liqFrac:  ', liqFrac
-#endif
+!#endif
       write(55,*)
       write(55,*) 'ACCUMULATED CPU TIMINGS:'
       write(55,*)
