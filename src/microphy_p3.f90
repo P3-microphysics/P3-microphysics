@@ -26,7 +26,7 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.4.3 (beta)                                                              !
+! Version:       5.4.3_beta                                                                !
 ! Last updated:  2025 May                                                                  !
 !__________________________________________________________________________________________!
 
@@ -2798,18 +2798,6 @@ call cpu_time(timer_start(3))
              !impose lower limits to prevent taking log of # < 0
                 zitot(i,k,iice) = max(zitot(i,k,iice),zsmall)
 
-! !                 dum1z =  6./(200.*pi)*qitot(i,k,iice)  !estimate of moment3, as starting point use 200 kg m-3 estimate of bulk density
-! !                 ! Same comment as before w.r.t scpf_on. Since mu_i is a function of G = M0*M6/M3^2, the multiplication by *iSCF
-! !                 ! is on both the num and the denom and therefore cancel each other.
-! !                 ! Note (OPT): this can be done differently with error computation
-! !                 do imu=1,niter_mui
-! !                    mu_i = compute_mu_3moment(nitot(i,k,iice),dum1z,zitot(i,k,iice),mu_i_max)
-! !                    call find_lookupTable_indices_1c(dumzz,dum6,zsize,mu_i)
-! !                    call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,f1pr16) ! find actual bulk density
-! !                    dum1z =  6./(f1pr16*pi)*qitot(i,k,iice)  !estimate of moment3
-! !                 enddo
-! !                 mu_i = compute_mu_3moment(nitot(i,k,iice),dum1z,zitot(i,k,iice),mu_i_max)
-
                 call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),zitot(i,k,iice),      &
                               dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi)
 
@@ -4240,11 +4228,11 @@ call cpu_time(timer_start(3))
               dumden=f1pr16
               dum1 = dumqi*6./(dumden*pi)
 
-              mu_i = compute_mu_3moment(dumni,dum1,zitot(i,k,iice),mu_i_max)
+              mu_i = compute_mu_3moment_1(dumni,dum1,zitot(i,k,iice),mu_i_max)
 ! Uncomment this line and comment line above to do more expensive (and more accurate)
 ! calculation of mu. This is location 1 of 3 that needs to be changed for this.
-! Search for 'compute_mu_3moment1'.
-! mu_i = compute_mu_3moment1(dumni,dum1,zitot(i,k,iice),mu_i_max)
+! Search for 'compute_mu_3moment_2'.
+! mu_i = compute_mu_3moment_2(dumni,dum1,zitot(i,k,iice),mu_i_max)
 
               mu_i_s(iice)=mu_i
 
@@ -4493,11 +4481,11 @@ call cpu_time(timer_start(3))
                ! update density
                 dum1z =  6./(dumden*pi)*dumqi
                 do imu=1,niter_mui
-                   dummu_i = compute_mu_3moment(dumni,dum1z,dumzi,mu_i_max)
+                   dummu_i = compute_mu_3moment_1(dumni,dum1z,dumzi,mu_i_max)
 ! Uncomment this line and comment line above to do more expensive (and more accurate)
 ! calculation of mu. This is location 2 of 3 that needs to be changed for this.
-! Search for 'compute_mu_3moment1'.
-!                   dummu_i = compute_mu_3moment1(dumni,dum1z,dumzi,mu_i_max)
+! Search for 'compute_mu_3moment_2'.
+!                   dummu_i = compute_mu_3moment_2(dumni,dum1z,dumzi,mu_i_max)
                    call find_lookupTable_indices_1c(dumzz,dum6,zsize,dummu_i)
                    call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,dumden)
                    dum1z =  6./(dumden*pi)*dumqi
@@ -4508,7 +4496,7 @@ call cpu_time(timer_start(3))
                 dumzi = max(dumzi,zsmall) ! impose limit on dummy zi
 
                ! calculate new mu, ***DIAGNOSTIC ONLY***
-!                dummu_i = compute_mu_3moment(dumni,dum1z,dumzi,mu_i_max)
+!                dummu_i = compute_mu_3moment_1(dumni,dum1z,dumzi,mu_i_max)
 
              enddo ! iana iterative loop to estimate updated Zitot
 
@@ -4538,11 +4526,11 @@ call cpu_time(timer_start(3))
                 dum1z =  6./(dumden*pi)*dumqi
 
                 do imu=1,niter_mui
-                   dummu_i = compute_mu_3moment(dumni,dum1z,dumzi,mu_i_max)
+                   dummu_i = compute_mu_3moment_1(dumni,dum1z,dumzi,mu_i_max)
 ! Uncomment this line and comment line above to do more expensive (and more accurate)
 ! calculation of mu. This is location 3 of 3 that needs to be changed for this.
-! Search for 'compute_mu_3moment1'.
-!                   dummu_i = compute_mu_3moment1(dumni,dum1z,dumzi,mu_i_max)
+! Search for 'compute_mu_3moment_2'.
+!                   dummu_i = compute_mu_3moment_2(dumni,dum1z,dumzi,mu_i_max)
                    call find_lookupTable_indices_1c(dumzz,dum6,zsize,dummu_i)
                    call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,dumden)
                    dum1z =  6./(dumden*pi)*dumqi
@@ -5204,13 +5192,6 @@ call cpu_time(timer_start(6))
                     !impose lower limits to prevent taking log of # < 0
                       zitot(i,k,iice) = max(zitot(i,k,iice),zsmall)
 
-! !                       dum1z =  6./(200.*pi)*qitot(i,k,iice)  !estimate of moment3, as starting point use 200 kg m-3 estimate of bulk density
-! !                       do imu=1,niter_mui
-! !                          mu_i = compute_mu_3moment(nitot(i,k,iice),dum1z,zitot(i,k,iice),mu_i_max)
-! !                          call find_lookupTable_indices_1c(dumzz,dum6,zsize,mu_i)
-! !                          call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,f1pr16) ! find actual bulk density
-! !                          dum1z =  6./(f1pr16*pi)*qitot(i,k,iice)  !estimate of moment3
-! !                       enddo
                       call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),zitot(i,k,iice),dum1,dum4,dum5,   &
                                      dum7,dumjj,dumii,dumll,dumi)
 
@@ -5332,13 +5313,6 @@ call cpu_time(timer_start(6))
                     !impose lower limits to prevent taking log of # < 0
                       zitot(i,k,iice) = max(zitot(i,k,iice),zsmall)
 
-! !                       dum1z =  6./(200.*pi)*qitot(i,k,iice)  !estimate of moment3, as starting point use 200 kg m-3 estimate of bulk density
-! !                       do imu=1,niter_mui
-! !                          mu_i = compute_mu_3moment(nitot(i,k,iice),dum1z,zitot(i,k,iice),mu_i_max)
-! !                          call find_lookupTable_indices_1c(dumzz,dum6,zsize,mu_i)
-! !                          call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,f1pr16) ! find actual bulk density
-! !                          dum1z =  6./(f1pr16*pi)*qitot(i,k,iice)  !estimate of moment3
-! !                       enddo
                       call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),zitot(i,k,iice),dum1,dum4,dum5,   &
                                      dum7,dumjj,dumii,dumll,dumi)
 
@@ -5512,13 +5486,6 @@ call cpu_time(timer_end(6))
                 else
                    zitot(i,k,iice) = max(zitot(i,k,iice),zsmall)
 
-! !                    dum1z = 6./(200.*pi)*qitot(i,k,iice)
-! !                    do imu=1,niter_mui
-! !                       mu_i = compute_mu_3moment(nitot(i,k,iice),dum1z,zitot(i,k,iice),mu_i_max)
-! !                       call find_lookupTable_indices_1c(dumzz,dum6,zsize,mu_i)
-! !                       call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,f1pr16)
-! !                       dum1z =  6./(f1pr16*pi)*qitot(i,k,iice)  !estimate of moment3
-! !                    enddo
                    call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),zitot(i,k,iice),          &
                               dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi)
 
@@ -5634,13 +5601,6 @@ call cpu_time(timer_end(6))
                 ! impose lower limits to prevent taking log of # < 0
                    zitot(i,k,iice) = max(zitot(i,k,iice),zsmall)
 
-! !                    dum1z =  6./(200.*pi)*qitot(i,k,iice)  !estimate of moment3, as starting point use 200 kg m-3 estimate of bulk density
-! !                    do imu=1,niter_mui
-! !                       mu_i = compute_mu_3moment(nitot(i,k,iice),dum1z,zitot(i,k,iice),mu_i_max)
-! !                       call find_lookupTable_indices_1c(dumzz,dum6,zsize,mu_i)
-! !                       call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,f1pr16)
-! !                       dum1z =  6./(f1pr16*pi)*qitot(i,k,iice)  !estimate of moment3
-! !                    enddo
                    call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),zitot(i,k,iice),          &
                                   dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi)
 
@@ -5839,13 +5799,6 @@ call cpu_time(timer_end(6))
              !impose lower limits to prevent taking log of # < 0
                 zitot(i,k,iice) = max(zitot(i,k,iice),zsmall)
 
-! !                 dum1z =  6./(200.*pi)*qitot(i,k,iice)  !estimate of moment3, as starting point use 200 kg m-3 estimate of bulk density
-! !                 do imu=1,niter_mui
-! !                    mu_i = compute_mu_3moment(nitot(i,k,iice),dum1z,zitot(i,k,iice),mu_i_max)
-! !                    call find_lookupTable_indices_1c(dumzz,dum6,zsize,mu_i)
-! !                    call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,f1pr16) ! find actual bulk density
-! !                    dum1z =  6./(f1pr16*pi)*qitot(i,k,iice)  !estimate of moment3
-! !                 enddo
                 call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),zitot(i,k,iice),          &
                                dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi)
 
@@ -5890,12 +5843,12 @@ call cpu_time(timer_end(6))
 
 !              dum1z =  6./(200.*pi)*qitot(i,k,iice)
 !              do imu=1,niter_mui
-!                 dummu_i = compute_mu_3moment1(nitot(i,k,iice),dum1z,zitot(i,k,iice),mu_i_max)
+!                 dummu_i = compute_mu_3moment_2(nitot(i,k,iice),dum1z,zitot(i,k,iice),mu_i_max)
 !                 call find_lookupTable_indices_1c(dumzz,dum6,zsize,dummu_i)
 !                 call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,dumden)
 !                 dum1z =  6./(dumden*pi)*qitot(i,k,iice)
 !              end do
-!              dummu_i = compute_mu_3moment1(nitot(i,k,iice),dum1z,zitot(i,k,iice),mu_i_max)
+!              dummu_i = compute_mu_3moment_2(nitot(i,k,iice),dum1z,zitot(i,k,iice),mu_i_max)
 
 !              diag_3d(i,k,3) = dummu_i
 
@@ -5984,7 +5937,7 @@ call cpu_time(timer_end(6))
 !           do k = kbot,ktop,kdir
 !    if (qitot(i,k,iice).ge.qsmall) then
 !       dum1 =  6./(f1pr16*pi)*qitot(i,k,iice)  !estimate of moment3
-!       mu_i = compute_mu_3moment(nitot(i,k,iice),dum1,zitot(i,k,iice),mu_i_max)
+!       mu_i = compute_mu_3moment_1(nitot(i,k,iice),dum1,zitot(i,k,iice),mu_i_max)
 !       print*,'after sed',k,mu_i
 !    endif
 !           enddo
@@ -11593,15 +11546,19 @@ endif
  end subroutine check_values
 
 !==========================================================================================!
- real function compute_mu_3moment(mom0,mom3,mom6,mu_max)
+ real function compute_mu_3moment_1(mom0,mom3,mom6,mu_max)
 
  !--------------------------------------------------------------------------
  ! Computes mu as a function of moments 0, 3, and 6 of the size distribution
  ! represented by N(D) = No*D^mu*e(-lambda*D).
  !
- ! Note:  moment 3 is not equal to the mass mixing ratio (due to variable density)
+ ! * solution is done using a piecewise polynomial approximation *
  !
- ! G(mu)= mom0*mom6/mom3^2 = [(6+mu)(5+mu)(4+mu)]/[(3+mu)(2+mu)(1+mu)]
+ ! For analytic cubic root solution, use 'compute_mu_3moment_2'
+ ! (This is coded as seperate subroutines, rather than a single function with an option,
+ ! to avoid a IF/THEN block since this is used in loops.)
+ !
+ ! note: moment 3 is not equal to the mass mixing ratio (due to variable density)
  !--------------------------------------------------------------------------
 
  implicit none
@@ -11613,39 +11570,22 @@ endif
  real, intent(in) :: mu_max  !maximum allowable value of mu
 
 ! Local variables:
- real             :: mu   ! shape parameter in gamma distribution
- double precision :: G    ! function of mu (see comments above)
+ real             :: mu      !shape parameter in gamma distribution
+ double precision :: G       !function of mu (see comments above)
  double precision :: g2,x1,x2,x3
-!real             :: a1,g1
-!real, parameter  :: eps_m0 = 1.e-20
  real, parameter  :: eps_m3 = 1.e-20
- real, parameter  :: eps_m6 = 1.e-35
 
  real :: dum,c1,c2,c3,Q,R,aa,bb
 
  if (mom3>eps_m3) then
 
     !G = (mom0*mom6)/(mom3**2)
-    !To avoid very small values of mom3**2 (not enough)
-    !G = (mom0/mom3)*(mom6/mom3)
+    !To avoid very small values of mom3**2 (not enough),
+    !reformulated as: G = (mom0/mom3)*(mom6/mom3)
      x1 = 1./mom3
      x2 = mom0*x1
      x3 = mom6*x1
      G  = x2*x3
-
-!----------------------------------------------------------!
-! !Solve alpha numerically: (brute-force)
-!      mu= 0.
-!      g2= 999.
-!      do i=0,4000
-!         a1= i*0.01
-!         g1= (6.+a1)*(5.+a1)*(4.+a1)/((3.+a1)*(2.+a1)*(1.+a1))
-!         if(abs(g-g1)<abs(g-g2)) then
-!            mu = a1
-!            g2= g1
-!         endif
-!      enddo
-!----------------------------------------------------------!
 
 !Piecewise-polynomial approximation of G(mu) to solve for mu:
      if (G>=20.) then
@@ -11673,7 +11613,7 @@ endif
 
      mu = min(mu,mu_max)
 
-     compute_mu_3moment = mu
+     compute_mu_3moment_1 = mu
 
  else
 
@@ -11685,18 +11625,22 @@ endif
 
  endif
 
- end function compute_mu_3moment
+ end function compute_mu_3moment_1
 
 !==========================================================================================!
- real function compute_mu_3moment1(mom0,mom3,mom6,mu_max)
+ real function compute_mu_3moment_2(mom0,mom3,mom6,mu_max)
 
  !--------------------------------------------------------------------------
  ! Computes mu as a function of moments 0, 3, and 6 of the size distribution
  ! represented by N(D) = No*D^mu*e(-lambda*D).
  !
- ! Note:  moment 3 is not equal to the mass mixing ratio (due to variable density)
+ ! * solution is done using an analytic cubic root *
  !
- ! G(mu)= mom0*mom6/mom3^2 = [(6+mu)(5+mu)(4+mu)]/[(3+mu)(2+mu)(1+mu)]
+ ! For piecewise polynomial approximation solution, use 'compute_mu_3moment_1'
+ ! (This is coded as seperate subroutines, rather than a single function with an option,
+ ! to avoid a IF/THEN block since this is used in loops.)
+ !
+ ! note: moment 3 is not equal to the mass mixing ratio (due to variable density)
  !--------------------------------------------------------------------------
 
  implicit none
@@ -11711,86 +11655,41 @@ endif
  real             :: mu   ! shape parameter in gamma distribution
  double precision :: G    ! function of mu (see comments above)
  double precision :: g2,x1,x2,x3
-!real             :: a1,g1
-!real, parameter  :: eps_m0 = 1.e-20
  real, parameter  :: eps_m3 = 1.e-20
- real, parameter  :: eps_m6 = 1.e-35
 
  real :: dum,c1,c2,c3,Q,R,aa,bb
 
  if (mom3>eps_m3) then
 
     !G = (mom0*mom6)/(mom3**2)
-    !To avoid very small values of mom3**2 (not enough)
-    !G = (mom0/mom3)*(mom6/mom3)
+    !To avoid very small values of mom3**2 (not enough),
+    !reformulated as: G = (mom0/mom3)*(mom6/mom3)
      x1 = 1./mom3
      x2 = mom0*x1
      x3 = mom6*x1
      G  = x2*x3
 
      ! set minimum on G, below this the analytic solution breaks down
-     g=max(1.3,g)
+     G = max(1.3, G)
 
-!----------------------------------------------------------!
-! !Solve alpha numerically: (brute-force)
-!      mu= 0.
-!      g2= 999.
-!      do i=0,4000
-!         a1= i*0.01
-!         g1= (6.+a1)*(5.+a1)*(4.+a1)/((3.+a1)*(2.+a1)*(1.+a1))
-!         if(abs(g-g1)<abs(g-g2)) then
-!            mu = a1
-!            g2= g1
-!         endif
-!      enddo
-!----------------------------------------------------------!
 
-!Piecewise-polynomial approximation of G(mu) to solve for mu:
-!     if (G>=20.) then
-!        mu = 0.
-!     else
-!        g2 = G**2
-!        if (G<20.  .and.G>=13.31) then
-!           mu = 3.3638e-3*g2 - 1.7152e-1*G + 2.0857e+0
-!        elseif (G<13.31.and.G>=7.123) then
-!           mu = 1.5900e-2*g2 - 4.8202e-1*G + 4.0108e+0
-!        elseif (G<7.123.and.G>=4.200) then
-!           mu = 1.0730e-1*g2 - 1.7481e+0*G + 8.4246e+0
-!        elseif (G<4.200.and.G>=2.946) then
-!           mu = 5.9070e-1*g2 - 5.7918e+0*G + 1.6919e+1
-!        elseif (G<2.946.and.G>=1.793) then
-!           mu = 4.3966e+0*g2 - 2.6659e+1*G + 4.5477e+1
-!        elseif (G<1.793.and.G>=1.405) then
-!           mu = 4.7552e+1*g2 - 1.7958e+2*G + 1.8126e+2
-!        elseif (G<1.405.and.G>=1.230) then
-!           mu = 3.0889e+2*g2 - 9.0854e+2*G + 6.8995e+2
-!        elseif (G<1.230) then
-!           mu = mu_max
-!        endif
-!     endif
-
-! HM 4/26/24, replace with analytic cubic root formula
-     dum=1./(1.-G)
-     c1=(15.-6.*G)*dum
-     c2=(74.-11.*G)*dum
-     c3=(120.-6.*G)*dum
-
-     Q=(c1**2-3.*c2)/9.
-     R=(2.*c1**3-9.*c1*c2+27.*c3)/54.
+    !analytic cubic root solution:
+     dum = 1./(1.-G)
+     c1  = (15.-6.*G)*dum
+     c2  = (74.-11.*G)*dum
+     c3  = (120.-6.*G)*dum
+     Q   = (c1**2-3.*c2)/9.
+     R   = (2.*c1**3-9.*c1*c2+27.*c3)/54.
 
      ! NOTE: R is always < 0, thus we take the following:
 
-     aa=(abs(R)+sqrt(R**2-Q**3))**0.333333333333
-     bb=Q/aa
+     aa = (abs(R)+sqrt(R**2-Q**3))**0.333333333333
+     bb = Q/aa
 
-     mu=aa+bb-c1/3.
+     mu = aa+bb-c1/3.
+     mu = min(max(mu,0.),mu_max)
 
-     mu = max(mu,0.)
-!...................................................
-
-     mu = min(mu,mu_max)
-
-     compute_mu_3moment1 = mu
+     compute_mu_3moment_2 = mu
 
  else
 
@@ -11802,7 +11701,7 @@ endif
 
  endif
 
- end function compute_mu_3moment1
+ end function compute_mu_3moment_2
 
 !======================================================================================!
  real function G_of_mu(mu)
@@ -11852,7 +11751,7 @@ endif
 ! ! !--- original, for testing
 ! !                 mom3 =  6./(200.*pi)*Qi
 ! !                 do ind=1,5 !niter_mui
-! !                    mu_i = compute_mu_3moment(Ni,mom3,Zi,mu_i_max)
+! !                    mu_i = compute_mu_3moment_1(Ni,mom3,Zi,mu_i_max)
 ! !                    call find_lookupTable_indices_1c(dumzz,dum6,zsize,mu_i)
 ! !                    call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,rhoi)
 ! !                    mom3 =  6./(rhoi*pi)*Qi  !estimate of moment3
@@ -11865,7 +11764,8 @@ endif
     call find_lookupTable_indices_1c(dumzz,dum6,zsize,mu_old)
     call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,rhoi)
     mom3 = 6./(rhoi*pi)*Qi
-    mu_i = compute_mu_3moment(Ni,mom3,Zi,mu_i_max)
+   !mu_i = compute_mu_3moment_1(Ni,mom3,Zi,mu_i_max)   ! piecewise polynomial approximation (fast)
+    mu_i = compute_mu_3moment_2(Ni,mom3,Zi,mu_i_max)   ! analytic cubic root (slow, more accurate)
     if (abs(mu_old-mu_i) < tol) exit
     mu_old = mu_i
  enddo
@@ -12123,7 +12023,7 @@ endif
    real :: nitend,qitend,zitend
 
       dum3mom =  6./(f1pr16*pi)*qidum
-      mu_old = compute_mu_3moment(nidum,dum3mom,zidum,mu_i_max)
+      mu_old = compute_mu_3moment_1(nidum,dum3mom,zidum,mu_i_max)
 
      ! update with process rate
       ninew=nidum+nitend*dt
@@ -12131,7 +12031,7 @@ endif
       zinew=zidum+zitend*dt
 
       dum3mom =  6./(den*pi)*qinew
-      mu_new = compute_mu_3moment(ninew,dum3mom,zinew,mu_i_max)
+      mu_new = compute_mu_3moment_1(ninew,dum3mom,zinew,mu_i_max)
 
       dmudt=(mu_new-mu_old)/dt
 
