@@ -2143,7 +2143,8 @@ END subroutine p3_init
             tmp2,inv_dum3,odt,oxx,oabi,fluxdiv_qit,fluxdiv_nit,fluxdiv_qir,fluxdiv_bir,  &
             prt_accum,fluxdiv_qx,fluxdiv_nx,Co_max,dt_sub,fluxdiv_zit,D_new,Q_nuc,N_nuc, &
             deltaD_init,dum1c,dum4c,dum5c,dumt,qcon_satadj,qdep_satadj,sources,sinks,    &
-            timeScaleFactor,dt_left,qv_tmp,t_tmp,dum1z,dum7c,dum7,fluxdiv_qil,epsiw_tot
+            timeScaleFactor,dt_left,qv_tmp,t_tmp,dum1z,dum7c,dum7,fluxdiv_qil,epsiw_tot, &
+            tmp3
 
  double precision :: tmpdbl1,tmpdbl2,tmpdbl3
 
@@ -2855,8 +2856,9 @@ call cpu_time(timer_start(3))
                 dum1 =  6./(f1pr16*pi)*qitot(i,k,iice)  !estimate of moment3
                 tmp1 = G_of_mu(0.)
                 tmp2 = G_of_mu(20.)
-                zitot(i,k,iice) = min(zitot(i,k,iice),tmp1*dum1**2/nitot(i,k,iice))
-                zitot(i,k,iice) = max(zitot(i,k,iice),tmp2*dum1**2/nitot(i,k,iice))
+                tmp3 = dum1**2/nitot(i,k,iice)
+                zitot(i,k,iice) = min(zitot(i,k,iice),tmp1*tmp3)
+                zitot(i,k,iice) = max(zitot(i,k,iice),tmp2*tmp3)
              endif
 
 !.......................
@@ -11652,8 +11654,8 @@ endif
  real, intent(in) :: mu_max  !maximum allowable value of mu
 
 ! Local variables:
- real             :: mu   ! shape parameter in gamma distribution
- double precision :: G    ! function of mu (see comments above)
+ real             :: mu      !shape parameter in gamma distribution
+ double precision :: G       !function of mu (see comments above)
  double precision :: g2,x1,x2,x3
  real, parameter  :: eps_m3 = 1.e-20
 
@@ -11683,10 +11685,10 @@ endif
 
      ! NOTE: R is always < 0, thus we take the following:
 
-     aa = (abs(R)+sqrt(R**2-Q**3))**0.333333333333
+     aa = (abs(R)+sqrt(R**2-Q**3))**thrd
      bb = Q/aa
 
-     mu = aa+bb-c1/3.
+     mu = aa+bb-c1*thrd
      mu = min(max(mu,0.),mu_max)
 
      compute_mu_3moment_2 = mu
