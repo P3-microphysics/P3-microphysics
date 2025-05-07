@@ -26,7 +26,7 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.4.3_beta                                                                !
+! Version:       5.4.3                                                                     !
 ! Last updated:  2025 May                                                                  !
 !__________________________________________________________________________________________!
 
@@ -4222,22 +4222,12 @@ call cpu_time(timer_start(3))
        ! calculate current mu_i (before updated from processes) which is used later to update mu_i
         if (log_3momentIce) then
 
-           mu_i_s(iice)=mu_i_initial
+           mu_i_s(iice) = mu_i_initial
 
            if (qitot(i,k,iice).ge.qsmall) then
-              dumqi=qitot(i,k,iice)
-              dumni=nitot(i,k,iice)
-              dumden=f1pr16
-              dum1 = dumqi*6./(dumden*pi)
-
-              mu_i = compute_mu_3moment_1(dumni,dum1,zitot(i,k,iice),mu_i_max)
-! Uncomment this line and comment line above to do more expensive (and more accurate)
-! calculation of mu. This is location 1 of 3 that needs to be changed for this.
-! Search for 'compute_mu_3moment_2'.
-! mu_i = compute_mu_3moment_2(dumni,dum1,zitot(i,k,iice),mu_i_max)
-
-              mu_i_s(iice)=mu_i
-
+              dum1 = qitot(i,k,iice)*6./(f1pr16*pi)  !estimate of 3rd moment
+              mu_i_s(iice) = compute_mu_3moment_1(nitot(i,k,iice),dum1,zitot(i,k,iice),mu_i_max)  !polynomial approximation
+            ! mu_i_s(iice) = compute_mu_3moment_2(nitot(i,k,iice),dum1,zitot(i,k,iice),mu_i_max)  !analytic cubic root
            endif
          endif
 
@@ -4472,37 +4462,28 @@ call cpu_time(timer_start(3))
              call calc_bulkRhoRime(dumqi,dumqr,dumql,dumbi,rhop)
 
              call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,dum7,isize,         &
-                     rimsize,liqsize,densize,dumqi,dumni,dumqr,        &
-                     dumql,rhop)
+                     rimsize,liqsize,densize,dumqi,dumni,dumqr,dumql,rhop)
 
             ! apply iteration to find updated zitot consistent with updated G and dumqi, dumni, etc.
-             do iana=1,niter_mui
+             do iana = 1,niter_mui
 
-                dumden=200. ! initialize density for iteration
-
-               ! update density
-                dum1z =  6./(dumden*pi)*dumqi
-                do imu=1,niter_mui
-                   dummu_i = compute_mu_3moment_1(dumni,dum1z,dumzi,mu_i_max)
-! Uncomment this line and comment line above to do more expensive (and more accurate)
-! calculation of mu. This is location 2 of 3 that needs to be changed for this.
-! Search for 'compute_mu_3moment_2'.
-!                   dummu_i = compute_mu_3moment_2(dumni,dum1z,dumzi,mu_i_max)
+                dumden = 200. ! initialial guess of density for iteration
+                dum3   =  6./(dumden*pi)*dumqi  !estimate of 3rd moment
+                do imu = 1,niter_mui
+                   dummu_i = compute_mu_3moment_1(dumni,dum3,dumzi,mu_i_max)   !polynomical approximation
+                 ! dummu_i = compute_mu_3moment_2(dumni,dum3,dumzi,mu_i_max)   !analytic cubic root
                    call find_lookupTable_indices_1c(dumzz,dum6,zsize,dummu_i)
                    call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,dumden)
-                   dum1z =  6./(dumden*pi)*dumqi
-                end do
-               ! update dummy zi based on updated density
-                G_new = G_of_mu(mu_i_s(iice)) + G_rate_tot*dt
-                dumzi = G_new*dum1z**2/dumni
-                dumzi = max(dumzi,zsmall) ! impose limit on dummy zi
+                   dum3 =  6./(dumden*pi)*dumqi  !estimate of 3rd moment
+                enddo
 
-               ! calculate new mu, ***DIAGNOSTIC ONLY***
-!                dummu_i = compute_mu_3moment_1(dumni,dum1z,dumzi,mu_i_max)
+               ! update dummy zi based on updated density (and thus 3rd moment):
+                G_new = G_of_mu(mu_i_s(iice)) + G_rate_tot*dt
+                dumzi = G_new*dum3**2/dumni
+                dumzi = max(dumzi,zsmall)
 
              enddo ! iana iterative loop to estimate updated Zitot
 
-! update zitot
              zitot(i,k,iice) = dumzi
 
 !..............................
@@ -4520,27 +4501,22 @@ call cpu_time(timer_start(3))
                      dumql,rhop)
 
              ! apply iteration to find updated zitot consistent with updated G and dumqi, dumni, etc.
-             do iana=1,niter_mui
+             do iana = 1,niter_mui
 
-                dumden=200. ! initial density for iteration
-
-                ! update density
-                dum1z =  6./(dumden*pi)*dumqi
-
-                do imu=1,niter_mui
-                   dummu_i = compute_mu_3moment_1(dumni,dum1z,dumzi,mu_i_max)
-! Uncomment this line and comment line above to do more expensive (and more accurate)
-! calculation of mu. This is location 3 of 3 that needs to be changed for this.
-! Search for 'compute_mu_3moment_2'.
-!                   dummu_i = compute_mu_3moment_2(dumni,dum1z,dumzi,mu_i_max)
+                dumden = 200. ! initialial guess of density for iteration
+                dum3   =  6./(dumden*pi)*dumqi  !estimate of 3rd moment
+                do imu = 1,niter_mui
+                   dummu_i = compute_mu_3moment_1(dumni,dum3,dumzi,mu_i_max)   !polynomical approximation
+                 ! dummu_i = compute_mu_3moment_2(dumni,dum3,dumzi,mu_i_max)   !analytic cubic root
                    call find_lookupTable_indices_1c(dumzz,dum6,zsize,dummu_i)
                    call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,dumden)
-                   dum1z =  6./(dumden*pi)*dumqi
-                end do
-                ! update dummy zi based on updated density
-                G_new = G_of_mu(mu_i_s(iice))
-                dumzi = G_new*dum1z**2/dumni
-                dumzi = max(dumzi,zsmall) ! impose limit on dummy zi
+                   dum3 =  6./(dumden*pi)*dumqi  !estimate of 3rd moment
+                enddo
+
+               ! update dummy zi based on updated density (and thus 3rd moment):
+                G_new = G_of_mu(mu_i_s(iice)) + G_rate_tot*dt
+                dumzi = G_new*dum3**2/dumni
+                dumzi = max(dumzi,zsmall)
 
              enddo ! iana iterative loop to estimate updated Zitot
 
@@ -5826,38 +5802,11 @@ call cpu_time(timer_end(6))
           ! adjust Zitot to make sure mu is in bounds
           ! note that the Zmax and Zmin are normalized and thus need to be multiplied by existing Q
              if (log_3momentIce) then
-                dum1 =  6./(f1pr16*pi)*qitot(i,k,iice)  !estimate of moment3
+                dum1 = 6./(f1pr16*pi)*qitot(i,k,iice)  !estimate of moment3
                 tmp1 = G_of_mu(0.)
                 tmp2 = G_of_mu(20.)
                 zitot(i,k,iice) = min(zitot(i,k,iice),tmp1*dum1**2/nitot(i,k,iice))
                 zitot(i,k,iice) = max(zitot(i,k,iice),tmp2*dum1**2/nitot(i,k,iice))
-
-!......................
-
-! mu diagnostics
-!          if (qitot(i,k,iice).ge.qsmall) then
-
-!             call calc_bulkRhoRime(qitot(i,k,iice),qirim(i,k,iice),qiliq(i,k,iice),birim(i,k,iice),rhop)
-
-!             call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,dum7,isize,         &
-!                        rimsize,liqsize,densize,qitot(i,k,iice),nitot(i,k,iice),qirim(i,k,iice),        &
-!                        qiliq(i,k,iice),rhop)
-
-!              dum1z =  6./(200.*pi)*qitot(i,k,iice)
-!              do imu=1,niter_mui
-!                 dummu_i = compute_mu_3moment_2(nitot(i,k,iice),dum1z,zitot(i,k,iice),mu_i_max)
-!                 call find_lookupTable_indices_1c(dumzz,dum6,zsize,dummu_i)
-!                 call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,dumden)
-!                 dum1z =  6./(dumden*pi)*qitot(i,k,iice)
-!              end do
-!              dummu_i = compute_mu_3moment_2(nitot(i,k,iice),dum1z,zitot(i,k,iice),mu_i_max)
-
-!              diag_3d(i,k,3) = dummu_i
-
-!           endif ! qitot > qsmall
-
-!......................
-
              endif
 
   !--this should already be done in s/r 'calc_bulkRhoRime'
@@ -5865,12 +5814,12 @@ call cpu_time(timer_end(6))
                 qirim(i,k,iice) = 0.
                 birim(i,k,iice) = 0.
              endif
+
              if (qiliq(i,k,iice).lt.qsmall) qiliq(i,k,iice) = 0.
   !==
 
   ! note that reflectivity from lookup table is normalized, so we need to multiply by N
-             diag_vmi(i,k,iice)  = f1pr02*rhofaci(i,k)! real :: tmp1,tmp2,tmp3,tmp4,tmp5
-
+             diag_vmi(i,k,iice)  = f1pr02*rhofaci(i,k)
              diag_effi(i,k,iice) = f1pr06 ! units are in m
              diag_di(i,k,iice)   = f1pr15
              diag_rhoi(i,k,iice) = f1pr16
@@ -5900,7 +5849,6 @@ call cpu_time(timer_end(6))
        enddo iice_loop_final_diagnostics
 
      ! sum ze components and convert to dBZ
-     ! for reflectivity paper
        diag_ze(i,k) = 10.*log10((ze_ice(i,k)+ze_rain(i,k))*1.e+18)
 
      ! if qr is very small then set Nr to 0 (needs to be done here after call
@@ -5931,21 +5879,9 @@ call cpu_time(timer_end(6))
 
 333 continue
 
-!......................................
-! zero out zitot if there is no qitot for triple moment
     if (log_3momentIce) then
        where (qitot(i,:,:).lt.qsmall) zitot(i,:,:) = 0.
-!        do iice = 1,nCat
-!           do k = kbot,ktop,kdir
-!    if (qitot(i,k,iice).ge.qsmall) then
-!       dum1 =  6./(f1pr16*pi)*qitot(i,k,iice)  !estimate of moment3
-!       mu_i = compute_mu_3moment_1(nitot(i,k,iice),dum1,zitot(i,k,iice),mu_i_max)
-!       print*,'after sed',k,mu_i
-!    endif
-!           enddo
-!        enddo
     endif
-!.......................................
 
     if (log_predictSsat) then
    ! recalculate supersaturation from T and qv
@@ -11647,13 +11583,13 @@ endif
 
  implicit none
 
-! Arguments passed:
+! arguments:
  real, intent(in) :: mom0    !0th moment
  real, intent(in) :: mom3    !3th moment  (note, not normalized)
  real, intent(in) :: mom6    !6th moment  (note, not normalized)
  real, intent(in) :: mu_max  !maximum allowable value of mu
 
-! Local variables:
+! local:
  real             :: mu      !shape parameter in gamma distribution
  double precision :: G       !function of mu (see comments above)
  double precision :: g2,x1,x2,x3
@@ -11673,7 +11609,6 @@ endif
 
      ! set minimum on G, below this the analytic solution breaks down
      G = max(1.3, G)
-
 
     !analytic cubic root solution:
      dum = 1./(1.-G)
