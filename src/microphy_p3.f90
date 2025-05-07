@@ -26,7 +26,7 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.4.3                                                                     !
+! Version:       5.4.3 + optimization                                                      !
 ! Last updated:  2025 May                                                                  !
 !__________________________________________________________________________________________!
 
@@ -146,7 +146,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.4.3'
+ character(len=1024), parameter :: version_p3                    = '5.4.3 + optimization'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.9-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '6.9-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.2'
@@ -2226,17 +2226,11 @@ END subroutine p3_init
 
  integer, parameter :: niter_satadj = 5 ! number of iterations for saturation adj. (testing only)
 
-! mu analysis for full 3-moment
- real :: dmudt
- real :: dumni,dumqi,dumzi,dumqr,dumbi,dumql,dumden,dumnitend,dumqitend,dumzitend
- real :: G_new
+ real    :: dumni,dumqi,dumzi,dumqr,dumbi,dumql,dumden,dmudt,dummu_i,dumnitend,dumqitend,dumzitend
+ real    :: G_new,G_rate_tot,ziold
  integer :: iana
- real :: dummu_i,G_rate_tot,ziold
-! real, dimension(kts:kte) :: mu_i_old,mutend1,mutend2,mutend3,mutend4,mutend5,mutend0,mu_i_old2,mutend6
-! real, dimension(kts:kte) :: mu1,mu2,mu3,mu4,mu5,mu6,mu7
-! logical, parameter                :: log_muDiagnostics   = .true.   ! switch to turn on mu_i budget analysis (not in current version)
- logical, parameter                :: log_ModAdvZitot     = .true.   ! switch to use scaled Zitot advection and mixing (Zitot*Nitot)^(1/2)
- logical, parameter                :: log_full3Mom        = .true.   ! switch to turn on fully 3-moment ice
+ logical, parameter :: log_full3Mom = .false.   ! switch to turn on full 3-moment ice
+
 !-----------------------------------------------------------------------------------!
 !  End of variables/parameters declarations
 !-----------------------------------------------------------------------------------!
@@ -2309,13 +2303,11 @@ call cpu_time(timer_start(1))
  !   This is done to preserve appropriate ratios between prognostic
  !   moments; for details, see Morrison et al. (2016), MWR
  if (log_3momentIce) then
- if (log_ModAdvZitot) then
     where (nitot>0.)
        zitot = zitot**2/nitot
     elsewhere
        zitot = 0.
     endwhere
- endif
  endif
 
 ! Determine threshold size difference [m] as a function of nCat
@@ -2743,11 +2735,6 @@ call cpu_time(timer_start(3))
                         rimsize,liqsize,densize,qitot(i,k,iice),nitot(i,k,iice),qirim(i,k,iice),        &
                         qiliq(i,k,iice),rhop)
 
-!             print*,'qr,ql',qirim(i,k,iice),qiliq(i,k,iice)
-!             print*,'indices'
-!             print*,dumi,dumii,dumll,dumjj
-!             print*,'&&&&&&'
-
              call find_lookupTable_indices_1b(dumj,dum3,rcollsize,qr(i,k),nr(i,k))
 
              if (.not. log_3momentIce) then
@@ -2939,6 +2926,7 @@ call cpu_time(timer_start(3))
 
           ! for T > 273.15, assume cloud water is collected and shed as rain drops
           if (log_LiquidFrac) then
+
           ! assume cloud water is collected by qiliq
              if (qitot(i,k,iice).ge.qsmall .and. qc(i,k).ge.qsmall .and. t(i,k).gt.273.15) then
                 qccoll(iice) = rhofaci(i,k)*f1pr04*qc(i,k)*eci*rho(i,k)*nitot(i,k,iice)*iSCF(k)
@@ -2949,14 +2937,16 @@ call cpu_time(timer_start(3))
              endif
              ! assume collected rain by qiliq
              if (qitot(i,k,iice).ge.qsmall .and. qr(i,k).ge.qsmall .and. t(i,k).gt.273.15) then
-             ! note: f1pr08 and logn0r are already calculated as log_10
-                 qrcoll(iice) = 10.**(f1pr08+logn0r(i,k))*rho(i,k)*rhofaci(i,k)*eri*nitot(i,k,iice)*iSCF(k)*(SPF(k)-SPF_clr(k))
-                 nrcoll(iice) = 10.**(f1pr07+logn0r(i,k))*rho(i,k)*rhofaci(i,k)*eri*nitot(i,k,iice)*iSCF(k)*(SPF(k)-SPF_clr(k))
-             if (log_3momentIce) then
-                 zqrcol(iice) = 10.**(logn0r(i,k))*f1pr36*rho(i,k)*rhofaci(i,k)*eri*iSCF(k)*(SPF(k)-SPF_clr(k))
+                ! note: f1pr08 and logn0r are already calculated as log_10
+                    qrcoll(iice) = 10.**(f1pr08+logn0r(i,k))*rho(i,k)*rhofaci(i,k)*eri*nitot(i,k,iice)*iSCF(k)*(SPF(k)-SPF_clr(k))
+                    nrcoll(iice) = 10.**(f1pr07+logn0r(i,k))*rho(i,k)*rhofaci(i,k)*eri*nitot(i,k,iice)*iSCF(k)*(SPF(k)-SPF_clr(k))
+                if (log_3momentIce) then
+                    zqrcol(iice) = 10.**(logn0r(i,k))*f1pr36*rho(i,k)*rhofaci(i,k)*eri*iSCF(k)*(SPF(k)-SPF_clr(k))
+                endif
              endif
-             endif
+
           else
+
           ! assume cloud water is collected and shed as rain drops (original code)
              if (qitot(i,k,iice).ge.qsmall .and. qc(i,k).ge.qsmall .and. t(i,k).gt.273.15) then
              ! sink for cloud water mass and number, note qcshed is source for rain mass
@@ -2980,7 +2970,8 @@ call cpu_time(timer_start(3))
              ! expected to lead to shedding)
              !    nrshdr(iice) = dum*1.923e+6   ! 1./5.2e-7, 5.2e-7 is the mass of a 1 mm raindrop
              endif
-          endif
+
+          endif   ! log_LiquidFrac
 !...................................
 ! collection between ice categories
 
@@ -3164,43 +3155,43 @@ call cpu_time(timer_start(3))
                           nitot(i,k,iice)
              qwgrth(iice) = max(qwgrth(iice),0.)
 
-          if (log_LiquidFrac) then
-              ! Densification from wet growth turn off as it is now contained into qiliq
-              ! log_wetgrowth(iice) = .false. ! set to false at beginning of subroutine
-              ! NOTE: change variable name from log_wetgrowth to log_densify
-              dum = max(0.,(qccol(iice)+qrcol(iice))-qwgrth(iice))
-              if (dum.ge.1.e-10) then
-              !   qwgrth1(iice)  = qrcol(iice)+qccol(iice) ! not used anymore
-                 ! note: For full 3-moment ice, do not adjust zqccol and zqrcol from wet growth
-                 !       because both ice riming and retention of liquid increase in zitot.
-                 !       The difference in density between rime and collected liquid is neglected for zitot.
-                 qwgrth1c(iice) = qccol(iice)
-                 qwgrth1r(iice) = qrcol(iice)
-                 qrcol(iice)    = 0.
-                 qccol(iice)    = 0.
-              endif
-          else
-             !calculate shedding for wet growth
-             dum    = max(0.,(qccol(iice)+qrcol(iice))-qwgrth(iice))
-             if (dum.ge.1.e-10) then
-                nrshdr(iice) = nrshdr(iice) + dum*1.923e+6   ! 1/5.2e-7, 5.2e-7 is the mass of a 1 mm raindrop
-                if ((qccol(iice)+qrcol(iice)).ge.1.e-10) then
-                   dum1  = 1./(qccol(iice)+qrcol(iice))
-                   qcshd(iice) = qcshd(iice) + dum*qccol(iice)*dum1
-                   qccol(iice) = qccol(iice) - dum*qccol(iice)*dum1
-                   qrcol(iice) = qrcol(iice) - dum*qrcol(iice)*dum1
-                  ! adjust zqccol and zqrcol to account for wet growth and resulting shedding of collected liquid
-                   if (log_3momentIce) then
-                      zqccol(iice) = zqccol(iice) - dum*zqccol(iice)*dum1
-                      zqrcol(iice) = zqrcol(iice) - dum*zqrcol(iice)*dum1
-                   endif
-               endif
-             ! densify due to wet growth
-               log_wetgrowth(iice) = .true.
-             endif
+             if (log_LiquidFrac) then
+                 ! Densification from wet growth turn off as it is now contained into qiliq
+                 ! log_wetgrowth(iice) = .false. ! set to false at beginning of subroutine
+                 ! NOTE: change variable name from log_wetgrowth to log_densify
+                 dum = max(0.,(qccol(iice)+qrcol(iice))-qwgrth(iice))
+                 if (dum.ge.1.e-10) then
+                 !   qwgrth1(iice)  = qrcol(iice)+qccol(iice) ! not used anymore
+                    ! note: For full 3-moment ice, do not adjust zqccol and zqrcol from wet growth
+                    !       because both ice riming and retention of liquid increase in zitot.
+                    !       The difference in density between rime and collected liquid is neglected for zitot.
+                    qwgrth1c(iice) = qccol(iice)
+                    qwgrth1r(iice) = qrcol(iice)
+                    qrcol(iice)    = 0.
+                    qccol(iice)    = 0.
+                 endif
+             else
+                !calculate shedding for wet growth
+                dum    = max(0.,(qccol(iice)+qrcol(iice))-qwgrth(iice))
+                if (dum.ge.1.e-10) then
+                   nrshdr(iice) = nrshdr(iice) + dum*1.923e+6   ! 1/5.2e-7, 5.2e-7 is the mass of a 1 mm raindrop
+                   if ((qccol(iice)+qrcol(iice)).ge.1.e-10) then
+                      dum1  = 1./(qccol(iice)+qrcol(iice))
+                      qcshd(iice) = qcshd(iice) + dum*qccol(iice)*dum1
+                      qccol(iice) = qccol(iice) - dum*qccol(iice)*dum1
+                      qrcol(iice) = qrcol(iice) - dum*qrcol(iice)*dum1
+                     ! adjust zqccol and zqrcol to account for wet growth and resulting shedding of collected liquid
+                      if (log_3momentIce) then
+                         zqccol(iice) = zqccol(iice) - dum*zqccol(iice)*dum1
+                         zqrcol(iice) = zqrcol(iice) - dum*zqrcol(iice)*dum1
+                      endif
+                  endif
+                ! densify due to wet growth
+                  log_wetgrowth(iice) = .true.
+                endif
+             endif ! log_LiquidFrac
 
-          endif ! log_LiquidFrac
-          endif
+          endif  !if qitot>qsmall, qc+qr>1.e-6, T<273.
 
 
 !-----------------------------
@@ -3236,15 +3227,6 @@ call cpu_time(timer_start(3))
              epsiz(iice) = 0.
              epsizsb(iice) = 0.
           endif
-        !else
-        !  if (qitot(i,k,iice).ge.qsmall .and. t(i,k).lt.273.15) then
-        !     epsi(iice) = ((f1pr05+f1pr14*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*2.*pi* &
-        !                  rho(i,k)*dv)*nitot(i,k,iice)
-        !     epsi_tot   = epsi_tot + epsi(iice)
-        !  else
-        !     epsi(iice) = 0.
-        !  endif
-        !endif
 
 !............................................................
 ! refreezing of mixed-phase ice particles
@@ -3256,6 +3238,7 @@ call cpu_time(timer_start(3))
 !............................................................
 
        if (log_LiquidFrac) then
+
           if (qiliq(i,k,iice).ge.qsmall .and. qitot(i,k,iice).ge.qsmall) then
           ! Refreezing
              if (t(i,k).lt.273.15) then
@@ -3276,7 +3259,8 @@ call cpu_time(timer_start(3))
                 zishd(iice) = -tmp1*f1pr35*qiliq(i,k,iice)/qitot(i,k,iice)
              endif
           endif
-       endif
+
+       endif  ! log_LiquidFrac
 
 !.........................
 ! calculate rime density
@@ -3835,7 +3819,6 @@ call cpu_time(timer_start(3))
           endif
        endif
 
-
 !................................................................
 ! saturation adjustment to get initial cloud water
 
@@ -3851,7 +3834,6 @@ call cpu_time(timer_start(3))
           qccon  = max(0.,qccon)
           if (qccon.le.1.e-7) qccon = 0.
        endif
-
 
 !................................................................
 ! autoconversion
@@ -4455,78 +4437,77 @@ call cpu_time(timer_start(3))
 ! in effect G_rate = 0 for category collection.
 
 ! sum of all G rates
-             G_rate_tot = zqccol(iice)+zidep(iice)+zisub(iice)+zishd(iice)+zimlt(iice)+zislf(iice)+zqrcol(iice)
+                G_rate_tot = zqccol(iice)+zidep(iice)+zisub(iice)+zishd(iice)+zimlt(iice)+zislf(iice)+zqrcol(iice)
 
 ! get updated density to estimate M3 from Qitot
 
-             call calc_bulkRhoRime(dumqi,dumqr,dumql,dumbi,rhop)
+                call calc_bulkRhoRime(dumqi,dumqr,dumql,dumbi,rhop)
 
-             call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,dum7,isize,         &
-                     rimsize,liqsize,densize,dumqi,dumni,dumqr,dumql,rhop)
+                call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,dum7,isize,         &
+                                                 rimsize,liqsize,densize,dumqi,dumni,dumqr,dumql,rhop)
 
             ! apply iteration to find updated zitot consistent with updated G and dumqi, dumni, etc.
-             do iana = 1,niter_mui
+                do iana = 1,niter_mui
 
-                dumden = 200. ! initialial guess of density for iteration
-                dum3   =  6./(dumden*pi)*dumqi  !estimate of 3rd moment
-                do imu = 1,niter_mui
-                   dummu_i = compute_mu_3moment_1(dumni,dum3,dumzi,mu_i_max)   !polynomical approximation
-                 ! dummu_i = compute_mu_3moment_2(dumni,dum3,dumzi,mu_i_max)   !analytic cubic root
-                   call find_lookupTable_indices_1c(dumzz,dum6,zsize,dummu_i)
-                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,dumden)
-                   dum3 =  6./(dumden*pi)*dumqi  !estimate of 3rd moment
-                enddo
+                   dumden = 200. ! initialial guess of density for iteration
+                   dum3   =  6./(dumden*pi)*dumqi  !estimate of 3rd moment
+                   do imu = 1,niter_mui
+                      dummu_i = compute_mu_3moment_1(dumni,dum3,dumzi,mu_i_max)   !polynomical approximation
+                    ! dummu_i = compute_mu_3moment_2(dumni,dum3,dumzi,mu_i_max)   !analytic cubic root
+                      call find_lookupTable_indices_1c(dumzz,dum6,zsize,dummu_i)
+                      call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,dumden)
+                      dum3 =  6./(dumden*pi)*dumqi  !estimate of 3rd moment
+                   enddo
 
-               ! update dummy zi based on updated density (and thus 3rd moment):
-                G_new = G_of_mu(mu_i_s(iice)) + G_rate_tot*dt
-                dumzi = G_new*dum3**2/dumni
-                dumzi = max(dumzi,zsmall)
+                  ! update dummy zi based on updated density (and thus 3rd moment):
+                   G_new = G_of_mu(mu_i_s(iice)) + G_rate_tot*dt
+                   dumzi = G_new*dum3**2/dumni
+                   dumzi = max(dumzi,zsmall)
 
-             enddo ! iana iterative loop to estimate updated Zitot
+                enddo ! iana iterative loop to estimate updated Zitot
 
-             zitot(i,k,iice) = dumzi
+                zitot(i,k,iice) = dumzi
 
+             else   ! if log_full3Mom
 !..............................
 ! use older method with group 1 processes
-             else
 
 ! get updated Zitot using old mu
 
 ! get updated density to estimate M3 from Qitot
 
-             call calc_bulkRhoRime(dumqi,dumqr,dumql,dumbi,rhop)
+                call calc_bulkRhoRime(dumqi,dumqr,dumql,dumbi,rhop)
 
-             call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,dum7,isize,         &
-                     rimsize,liqsize,densize,dumqi,dumni,dumqr,        &
-                     dumql,rhop)
+                call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,dum7,isize,         &
+                                                 rimsize,liqsize,densize,dumqi,dumni,dumqr,dumql,rhop)
 
-             ! apply iteration to find updated zitot consistent with updated G and dumqi, dumni, etc.
-             do iana = 1,niter_mui
+                ! apply iteration to find updated zitot consistent with updated G and dumqi, dumni, etc.
+                do iana = 1,niter_mui
 
-                dumden = 200. ! initialial guess of density for iteration
-                dum3   =  6./(dumden*pi)*dumqi  !estimate of 3rd moment
-                do imu = 1,niter_mui
-                   dummu_i = compute_mu_3moment_1(dumni,dum3,dumzi,mu_i_max)   !polynomical approximation
-                 ! dummu_i = compute_mu_3moment_2(dumni,dum3,dumzi,mu_i_max)   !analytic cubic root
-                   call find_lookupTable_indices_1c(dumzz,dum6,zsize,dummu_i)
-                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,dumden)
-                   dum3 =  6./(dumden*pi)*dumqi  !estimate of 3rd moment
-                enddo
+                   dumden = 200. ! initialial guess of density for iteration
+                   dum3   = 6./(dumden*pi)*dumqi  !estimate of 3rd moment
+                   do imu = 1,niter_mui
+                      dummu_i = compute_mu_3moment_1(dumni,dum3,dumzi,mu_i_max)   !polynomical approximation
+                    ! dummu_i = compute_mu_3moment_2(dumni,dum3,dumzi,mu_i_max)   !analytic cubic root
+                      call find_lookupTable_indices_1c(dumzz,dum6,zsize,dummu_i)
+                      call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,dumden)
+                      dum3 =  6./(dumden*pi)*dumqi  !estimate of 3rd moment
+                   enddo
 
-               ! update dummy zi based on updated density (and thus 3rd moment):
-                G_new = G_of_mu(mu_i_s(iice)) + G_rate_tot*dt
-                dumzi = G_new*dum3**2/dumni
-                dumzi = max(dumzi,zsmall)
+                  ! update dummy zi based on updated density (and thus 3rd moment):
+                   G_new = G_of_mu(mu_i_s(iice)) + G_rate_tot*dt
+                   dumzi = G_new*dum3**2/dumni
+                   dumzi = max(dumzi,zsmall)
 
-             enddo ! iana iterative loop to estimate updated Zitot
+                enddo ! iana iterative loop to estimate updated Zitot
 
-             zitot(i,k,iice) = dumzi
+                zitot(i,k,iice) = dumzi
 
              endif ! log_full3Mom
 
 !......................................................
 
-       endif ! dumqi > qsmall
+          endif ! dumqi > qsmall
 
 !...........................................................................................
        !----  Group 2 (initiation processes, where mu_i for the new ice resulting from that process (only) is assigned
@@ -4596,16 +4577,9 @@ call cpu_time(timer_end(3))
 ! log_hydrometeorsPresent = .true.
 !==
 
-!......................................
-! zero out zitot if there is no qitot for triple moment
     if (log_3momentIce) then
-       do iice = 1,nCat
-          do k = kbot,ktop,kdir
-             if (qitot(i,k,iice).lt.qsmall) zitot(i,k,iice) = 0.
-          enddo
-       enddo
+       where (qitot(:,:,:).lt.qsmall) zitot(:,:,:) = 0.
     endif
-!.......................................
 
 
     !NOTE: At this point, it is possible to have negative (but small) nc, nr, nitot.  This is not
@@ -5576,8 +5550,7 @@ call cpu_time(timer_end(6))
 
                 ! get Znorm indices
 
-                ! impose lower limits to prevent taking log of # < 0
-                   zitot(i,k,iice) = max(zitot(i,k,iice),zsmall)
+                   zitot(i,k,iice) = max(zitot(i,k,iice),zsmall)   ! to prevent taking log of # < 0
 
                    call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),zitot(i,k,iice),          &
                                   dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi)
@@ -5585,16 +5558,15 @@ call cpu_time(timer_end(6))
                    call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,11,dum1,dum4,dum5,dum6,dum7,f1pr15)
                    call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,f1pr16)
 
-                endif
-
-             ! adjust Zitot to make sure mu is in bounds
-             ! note that the Zmax and Zmin are normalized and thus need to be multiplied by existing Q
-                if (log_3momentIce) then
-                   dum1 =  6./(f1pr16*pi)*qitot(i,k,iice)  !estimate of moment3
+                ! adjust Zitot to make sure mu is in bounds
+                ! note that the Zmax and Zmin are normalized and thus need to be multiplied by existing Q
+                   dum1 = 6./(f1pr16*pi)*qitot(i,k,iice)  !estimate of moment3
                    tmp1 = G_of_mu(0.)
                    tmp2 = G_of_mu(20.)
-                   zitot(i,k,iice) = min(zitot(i,k,iice),tmp1*dum1**2/nitot(i,k,iice))
-                   zitot(i,k,iice) = max(zitot(i,k,iice),tmp2*dum1**2/nitot(i,k,iice))
+                   tmp3 = dum1**2/nitot(i,k,iice)
+                   zitot(i,k,iice) = min(zitot(i,k,iice),tmp1*tmp3)
+                   zitot(i,k,iice) = max(zitot(i,k,iice),tmp2*tmp3)
+
                 endif
 
               !--this should already be done in s/r 'calc_bulkRhoRime'
@@ -5750,7 +5722,6 @@ call cpu_time(timer_end(6))
                      call access_lookup_table_LF(dumjj,dumii,dumll,dumi,13,dum1,dum4,dum5,dum7,f1pr22)
                      call access_lookup_table_LF(dumjj,dumii,dumll,dumi,14,dum1,dum4,dum5,dum7,f1pr23)
                   endif
-
                 else
                   call access_lookup_table(dumjj,dumii,dumi, 1,dum1,dum4,dum5,f1pr01)
                   call access_lookup_table(dumjj,dumii,dumi, 2,dum1,dum4,dum5,f1pr02)
@@ -5764,7 +5735,7 @@ call cpu_time(timer_end(6))
                      call access_lookup_table(dumjj,dumii,dumi,13,dum1,dum4,dum5,f1pr22)
                      call access_lookup_table(dumjj,dumii,dumi,14,dum1,dum4,dum5,f1pr23)
                   endif
-                endif
+                endif   ! log_LiquidFrac
 
              else ! triple moment ice
 
@@ -5805,8 +5776,9 @@ call cpu_time(timer_end(6))
                 dum1 = 6./(f1pr16*pi)*qitot(i,k,iice)  !estimate of moment3
                 tmp1 = G_of_mu(0.)
                 tmp2 = G_of_mu(20.)
-                zitot(i,k,iice) = min(zitot(i,k,iice),tmp1*dum1**2/nitot(i,k,iice))
-                zitot(i,k,iice) = max(zitot(i,k,iice),tmp2*dum1**2/nitot(i,k,iice))
+                tmp3 = dum1**2/nitot(i,k,iice)
+                zitot(i,k,iice) = min(zitot(i,k,iice),tmp1*tmp3)
+                zitot(i,k,iice) = max(zitot(i,k,iice),tmp2*tmp3)
              endif
 
   !--this should already be done in s/r 'calc_bulkRhoRime'
@@ -5853,10 +5825,7 @@ call cpu_time(timer_end(6))
 
      ! if qr is very small then set Nr to 0 (needs to be done here after call
      ! to ice lookup table because a minimum Nr of nsmall will be set otherwise even if qr=0)
-!Note (OPT) I think this is not needed
-       if (qr(i,k).lt.qsmall) then
-          nr(i,k) = 0.
-       endif
+       where(qr(:,:).lt.qsmall) nr(:,:) = 0.
 
     enddo k_loop_final_diagnostics
 
@@ -6215,11 +6184,7 @@ call cpu_time(timer_end(9))
 #endif
 
  ! convert zitot to advected (dynamics) variable
- if (log_3momentIce) then
- if (log_ModAdvZitot) then
-    zitot = sqrt(zitot*nitot)
- endif
- endif
+ if (log_3momentIce) zitot = sqrt(zitot*nitot)
 
 ! end of main microphysics routine
 
