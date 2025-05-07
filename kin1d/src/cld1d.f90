@@ -31,7 +31,7 @@ subroutine columnmodel
 !
 !--------------------------------------------------------------------------!
 !  Author:         Jason Milbrandt
-!  Last modified:  2025-03-28
+!  Last modified:  2025 April
 !--------------------------------------------------------------------------!
 
       use subs_cld1d
@@ -39,15 +39,15 @@ subroutine columnmodel
 
       implicit none
 
-! This is for testing P3 v4 along side v5:
-#ifdef v4
-      character(len=10), parameter :: version_p3 = 'v4.5.1'
-#else
-      character(len=10), parameter :: version_p3 = 'v5.3.14'
-#endif
+! ! This is for testing P3 v4 along side v5:
+! #ifdef v4
+!       character(len=10), parameter :: version_p3 = 'v4.5.1'
+! #else
+!       character(len=10), parameter :: version_p3 = 'v5.3.14'
+! #endif
 
       integer, parameter :: nCat         =  1
-      logical, parameter :: liqFrac      = .true.    !n/a for v4
+      logical, parameter :: liqFrac      = .true.    !for v5+ only
       logical, parameter :: trplMomIce   = .true.
 
       logical, parameter :: scpf_on      = .false.   ! switch for cloud fraction parameterization (SCPF)
@@ -203,6 +203,7 @@ subroutine columnmodel
       PR    = 0. ! accumulated precipitation
       time3 = 0. ! for total timing test
       timer_accum = 0.
+      timer_txt = ''
 
 !------- INITIALIZE w, tt, td, p AND Q[x]  PROFILES: -------
 
@@ -659,12 +660,12 @@ subroutine columnmodel
       print*
       print*, 'P3 CONFIGURATION:'
       print*
-      write(*,'(a12,a10)')  'version:  ', version_p3
+!     write(*,'(a12,a10)')  'version:  ', version_p3
       write(*,'(1a12,1i1)') 'nCat   :  ', nCat
       write(*,'(1a12,1L)')  'trlMom :  ', trplMomIce
-#ifdef v5
+!#ifdef v5
       write(*,'(1a12,1L)')  'liqFrac:  ', liqFrac
-#endif
+!#endif
       print*
       print*, 'ACCUMULATED CPU TIMINGS:'
       print*
@@ -681,7 +682,7 @@ subroutine columnmodel
       write(55,*)
       write(55,*) 'P3 CONFIGURATION:'
       write(55,*)
-      write(55,'(a12,a10)')  'version:  ', version_p3
+!     write(55,'(a12,a10)')  'version:  ', version_p3
       write(55,'(1a12,1i1)') 'nCat   :  ', nCat
       write(55,'(1a12,1L)')  'trlMom :  ', trplMomIce
 !#ifdef v5
