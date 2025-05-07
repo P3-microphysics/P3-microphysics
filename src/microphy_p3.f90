@@ -11701,8 +11701,8 @@ endif
     call find_lookupTable_indices_1c(dumzz,dum6,zsize,mu_old)
     call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,rhoi)
     mom3 = 6./(rhoi*pi)*Qi
-   !mu_i = compute_mu_3moment_1(Ni,mom3,Zi,mu_i_max)   ! piecewise polynomial approximation (fast)
-    mu_i = compute_mu_3moment_2(Ni,mom3,Zi,mu_i_max)   ! analytic cubic root (slow, more accurate)
+    mu_i = compute_mu_3moment_1(Ni,mom3,Zi,mu_i_max)   ! piecewise polynomial approximation (fast)
+  ! mu_i = compute_mu_3moment_2(Ni,mom3,Zi,mu_i_max)   ! analytic cubic root (slow, more accurate)
     if (abs(mu_old-mu_i) < tol) exit
     mu_old = mu_i
  enddo
