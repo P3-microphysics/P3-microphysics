@@ -16,6 +16,7 @@
 !   Jouan et al. (2020)           [W. Forecasting, 35, 2541-2565]  - cloud fraction        !
 !   Milbrandt et al. (2021)       [J. Atmos. Sci., 78, 439-458]    - triple-moment ice     !
 !   Cholette et al. (2023)        [J.A.M.E.S, 15(4), e2022MS003328 - trplMomIce + liqFrac  !
+!   Morrison et al. (2025         [J.A.M.E.S, 17, e2024MS004644    - full trplMomIce
 !                                                                                          !
 ! For questions or bug reports, please contact:                                            !
 !    Hugh Morrison   (morrison@ucar.edu), or                                               !
@@ -4203,13 +4204,12 @@ call cpu_time(timer_start(3))
 
        ! calculate current mu_i (before updated from processes) which is used later to update mu_i
         if (log_3momentIce) then
-
-           mu_i_s(iice) = mu_i_initial
-
            if (qitot(i,k,iice).ge.qsmall) then
               dum1 = qitot(i,k,iice)*6./(f1pr16*pi)  !estimate of 3rd moment
               mu_i_s(iice) = compute_mu_3moment_1(nitot(i,k,iice),dum1,zitot(i,k,iice),mu_i_max)  !polynomial approximation
             ! mu_i_s(iice) = compute_mu_3moment_2(nitot(i,k,iice),dum1,zitot(i,k,iice),mu_i_max)  !analytic cubic root
+           else
+              mu_i_s(iice) = mu_i_initial
            endif
          endif
 
@@ -4422,35 +4422,31 @@ call cpu_time(timer_start(3))
              dumzi = zitot(i,k,iice)
              dumqr = qirim(i,k,iice) - (qrhetc(iice)+qrheti(iice)+qchetc(iice)+qcheti(iice)+qrmul(iice)+qcmul(iice))*dt
              dumbi = birim(i,k,iice) - (qrhetc(iice)+qrheti(iice)+qchetc(iice)+qcheti(iice)+qrmul(iice)+qcmul(iice))*inv_rho_rimeMax*dt
-             !dumql = qiliq(i,k,iice)
 
              dumni = max(dumni,nsmall) ! impose limit on dummy ni
              dumzi = max(dumzi,zsmall) ! impose limit on dummy zi
 
+             if (log_full3Mom) then
 !.......................
 ! use full-3 moment method
-
-             if (log_full3Mom) then
 
 ! NOTE: for ice-ice category collection with nCat > 1, for simplicity it is assumed that
 ! mu does change change from this process. This is implicitly accounted for in the code below since
 ! in effect G_rate = 0 for category collection.
 
-! sum of all G rates
-                G_rate_tot = zqccol(iice)+zidep(iice)+zisub(iice)+zishd(iice)+zimlt(iice)+zislf(iice)+zqrcol(iice)
+                G_rate_tot = zqccol(iice) + zidep(iice) + zisub(iice) + zishd(iice) + zimlt(iice)  &
+                            + zislf(iice) + zqrcol(iice)
 
-! get updated density to estimate M3 from Qitot
-
+            ! get updated density to estimate M3 from Qitot
                 call calc_bulkRhoRime(dumqi,dumqr,dumql,dumbi,rhop)
-
-                call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,dum7,isize,         &
-                                                 rimsize,liqsize,densize,dumqi,dumni,dumqr,dumql,rhop)
+                call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,dum7,isize,  &
+                                             rimsize,liqsize,densize,dumqi,dumni,dumqr,dumql,rhop)
 
             ! apply iteration to find updated zitot consistent with updated G and dumqi, dumni, etc.
                 do iana = 1,niter_mui
 
-                   dumden = 200. ! initialial guess of density for iteration
-                   dum3   =  6./(dumden*pi)*dumqi  !estimate of 3rd moment
+                   dumden = 200.                  !initialial guess of density for iteration
+                   dum3   = 6./(dumden*pi)*dumqi  !estimate of 3rd moment
                    do imu = 1,niter_mui
                       dummu_i = compute_mu_3moment_1(dumni,dum3,dumzi,mu_i_max)   !polynomical approximation
                     ! dummu_i = compute_mu_3moment_2(dumni,dum3,dumzi,mu_i_max)   !analytic cubic root
@@ -4470,38 +4466,20 @@ call cpu_time(timer_start(3))
 
              else   ! if log_full3Mom
 !..............................
-! use older method with group 1 processes
+! old (simplified) method with group 1 processes (assumming mu_i does not change due to these processes)
 
-! get updated Zitot using old mu
-
-! get updated density to estimate M3 from Qitot
-
+              !get updated density to estimate M3 from Qitot
                 call calc_bulkRhoRime(dumqi,dumqr,dumql,dumbi,rhop)
 
                 call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,dum7,isize,         &
                                                  rimsize,liqsize,densize,dumqi,dumni,dumqr,dumql,rhop)
+                call find_lookupTable_indices_1c(dumzz,dum6,zsize,dummu_i)
+                call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,dumden)
 
-                ! apply iteration to find updated zitot consistent with updated G and dumqi, dumni, etc.
-                do iana = 1,niter_mui
-
-                   dumden = 200. ! initialial guess of density for iteration
-                   dum3   = 6./(dumden*pi)*dumqi  !estimate of 3rd moment
-                   do imu = 1,niter_mui
-                      dummu_i = compute_mu_3moment_1(dumni,dum3,dumzi,mu_i_max)   !polynomical approximation
-                    ! dummu_i = compute_mu_3moment_2(dumni,dum3,dumzi,mu_i_max)   !analytic cubic root
-                      call find_lookupTable_indices_1c(dumzz,dum6,zsize,dummu_i)
-                      call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,dumden)
-                      dum3 =  6./(dumden*pi)*dumqi  !estimate of 3rd moment
-                   enddo
-
-                  ! update dummy zi based on updated density (and thus 3rd moment):
-                   G_new = G_of_mu(mu_i_s(iice)) + G_rate_tot*dt
-                   dumzi = G_new*dum3**2/dumni
-                   dumzi = max(dumzi,zsmall)
-
-                enddo ! iana iterative loop to estimate updated Zitot
-
-                zitot(i,k,iice) = dumzi
+                dum3 =  6./(dumden*pi)*dumqi      !estimate of 3rd moment (new, after group 1 processes only)
+                zitot(i,k,iice) = G_of_mu(mu_i_s(iice))*dum3**2/dumni
+                zitot(i,k,iice) = max(zsmall,zitot(i,k,iice))
+!===
 
              endif ! log_full3Mom
 
