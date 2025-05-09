@@ -2839,15 +2839,8 @@ call cpu_time(timer_start(3))
              nitot(i,k,iice) = min(nitot(i,k,iice),f1pr09*qitot(i,k,iice))
              nitot(i,k,iice) = max(nitot(i,k,iice),f1pr10*qitot(i,k,iice))
 
-          ! adjust Zitot to make sure mu is in bounds
-          ! note that the Zmax and Zmin are normalized and thus need to be multiplied by existing Q
              if (log_3momentIce) then
-                dum1 =  6./(f1pr16*pi)*qitot(i,k,iice)  !estimate of moment3
-                tmp1 = G_of_mu(0.)
-                tmp2 = G_of_mu(20.)
-                tmp3 = dum1**2/nitot(i,k,iice)
-                zitot(i,k,iice) = min(zitot(i,k,iice),tmp1*tmp3)
-                zitot(i,k,iice) = max(zitot(i,k,iice),tmp2*tmp3)
+                call apply_mui_bounds_to_zi(zitot(i,k,iice),qitot(i,k,iice),nitot(i,k,iice),f1pr16)
              endif
 
 !.......................
@@ -5111,20 +5104,15 @@ call cpu_time(timer_start(6))
                       call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi, 2,dum1,dum4,dum5,dum6,dum7,f1pr02)
                       call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi, 7,dum1,dum4,dum5,dum6,dum7,f1pr09)
                       call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi, 8,dum1,dum4,dum5,dum6,dum7,f1pr10)
-                      call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,f1pr16) ! find actual bulk density
+                      call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,f1pr16)
                       call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,13,dum1,dum4,dum5,dum6,dum7,f1pr19)
 
                     !impose mean ice size bounds (i.e. apply lambda limiters)
-                      nitot(i,k,iice) = min(nitot(i,k,iice),f1pr09*qitot(i,k,iice))
-                      nitot(i,k,iice) = max(nitot(i,k,iice),f1pr10*qitot(i,k,iice))
+                      nitot(i,k,iice) = min(nitot(i,k,iice), f1pr09*qitot(i,k,iice))
+                      nitot(i,k,iice) = max(nitot(i,k,iice), f1pr10*qitot(i,k,iice))
 
                     !impose limiter on zitot to make sure mu_i is in bounds
-                      dum1 = 6./(f1pr16*pi)*qitot(i,k,iice)
-                      tmp1 = G_of_mu(0.)
-                      tmp2 = G_of_mu(20.)
-                      zitot(i,k,iice) = min(zitot(i,k,iice),tmp1*dum1**2/nitot(i,k,iice))
-                      zitot(i,k,iice) = max(zitot(i,k,iice),tmp2*dum1**2/nitot(i,k,iice))
-                    !.............
+                      call apply_mui_bounds_to_zi(zitot(i,k,iice),qitot(i,k,iice),nitot(i,k,iice),f1pr16)
 
                       V_qit(k) = f1pr02*rhofaci(i,k)     !mass-weighted fall speed (with density factor)
                       V_nit(k) = f1pr01*rhofaci(i,k)     !number-weighted fall speed (with density factor)
@@ -5518,14 +5506,9 @@ call cpu_time(timer_end(6))
                    call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,11,dum1,dum4,dum5,dum6,dum7,f1pr15)
                    call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,f1pr16)
 
-                ! adjust Zitot to make sure mu is in bounds
-                ! note that the Zmax and Zmin are normalized and thus need to be multiplied by existing Q
-                   dum1 = 6./(f1pr16*pi)*qitot(i,k,iice)  !estimate of moment3
-                   tmp1 = G_of_mu(0.)
-                   tmp2 = G_of_mu(20.)
-                   tmp3 = dum1**2/nitot(i,k,iice)
-                   zitot(i,k,iice) = min(zitot(i,k,iice),tmp1*tmp3)
-                   zitot(i,k,iice) = max(zitot(i,k,iice),tmp2*tmp3)
+                   if (log_3momentIce) then
+                      call apply_mui_bounds_to_zi(zitot(i,k,iice),qitot(i,k,iice),nitot(i,k,iice),f1pr16)
+                   endif
 
                 endif
 
@@ -5663,7 +5646,7 @@ call cpu_time(timer_end(6))
 
              call calc_bulkRhoRime(qitot(i,k,iice),qirim(i,k,iice),qiliq(i,k,iice),birim(i,k,iice),rhop)
 
-             if (.not. log_3momentIce) then
+             trplmomice_3: if (.not. log_3momentIce) then
 
                 call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,dum7,isize,   &
                        rimsize,liqsize,densize,qitot(i,k,iice),nitot(i,k,iice),qirim(i,k,iice),      &
@@ -5697,7 +5680,7 @@ call cpu_time(timer_end(6))
                   endif
                 endif   ! log_LiquidFrac
 
-             else ! triple moment ice
+             else ! trplmomice_3
 
                 call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,dum7,isize,                &
                        rimsize,liqsize,densize,qitot(i,k,iice),nitot(i,k,iice),qirim(i,k,iice),qiliq(i,k,iice),   &
@@ -5724,21 +5707,14 @@ call cpu_time(timer_end(6))
                    call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,15,dum1,dum4,dum5,dum6,dum7,f1pr23)
                 endif
 
-             endif ! triple moment ice
+             endif trplmomice_3
 
           ! impose mean ice size bounds (i.e. apply lambda limiters)
              nitot(i,k,iice) = min(nitot(i,k,iice),f1pr09*qitot(i,k,iice))
              nitot(i,k,iice) = max(nitot(i,k,iice),f1pr10*qitot(i,k,iice))
 
-          ! adjust Zitot to make sure mu is in bounds
-          ! note that the Zmax and Zmin are normalized and thus need to be multiplied by existing Q
              if (log_3momentIce) then
-                dum1 = 6./(f1pr16*pi)*qitot(i,k,iice)  !estimate of moment3
-                tmp1 = G_of_mu(0.)
-                tmp2 = G_of_mu(20.)
-                tmp3 = dum1**2/nitot(i,k,iice)
-                zitot(i,k,iice) = min(zitot(i,k,iice),tmp1*tmp3)
-                zitot(i,k,iice) = max(zitot(i,k,iice),tmp2*tmp3)
+                call apply_mui_bounds_to_zi(zitot(i,k,iice),qitot(i,k,iice),nitot(i,k,iice),f1pr16)
              endif
 
   !--this should already be done in s/r 'calc_bulkRhoRime'
@@ -11635,6 +11611,34 @@ endif
  mu_i = min(mu_i,mu_i_max)
 
  end subroutine solve_mui
+
+!======================================================================================!
+
+ subroutine apply_mui_bounds_to_zi(zit,qit,nit,rhoi)
+
+ !---------------------------------------------------------------------------
+ ! mu_i is constrained to be within upper and lower bounds by adjusting zitot
+ ! if mu_i is outside of the bounds.
+ !---------------------------------------------------------------------------
+
+!arguments:
+ real, intent(inout) :: zit   !6th moment
+ real, intent(in)    :: qit   !total mass
+ real, intent(in)    :: nit   !total number (equal to 0th moment)
+ real, intent(in)    :: rhoi  !bulk density
+
+!local:
+ real, parameter     :: mu_min =  0.
+ real, parameter     :: mu_max = 20.
+ real                :: mom3  !3rd moment
+ real                :: tmp
+
+ mom3 = 6./(pi*rhoi)*qit
+ tmp  = mom3**2/nit
+ zit = min(zit, G_of_mu(mu_min)*tmp)
+ zit = max(zit, G_of_mu(mu_max)*tmp)
+
+ end subroutine apply_mui_bounds_to_zi
 
 !======================================================================================!
 
