@@ -10,7 +10,8 @@ FC=gfortran
 ##FFLAGS=-fdefault-real-8 -Wno-line-truncation -fbounds-check -finit-real=nan -Wall -Wno-conversion -Wno-unused-dummy-argument -std=f2008 -Wunused-parameter
 #FFLAGS=-fdefault-real-8 -Wno-line-truncation -fbounds-check -finit-real=nan -Wall -Wno-unused-dummy-argument -std=f2008 -Wno-intrinsics-std -Wunused-parameter
 
-FFLAGS=-fbounds-check -cpp -Dtiming
+#FFLAGS=-fbounds-check -cpp 
+FFLAGS=-fbounds-check -cpp -DTIMING_P3
 LDFLAGS=
 LIBS=
 

@@ -2282,10 +2282,10 @@ END subroutine p3_init
  timer_end   = 0.
  timer_description = ''
 
-#ifdef timing
+#ifdef TIMING_P3
 timer_description(1) = 'full p3_main'
 call cpu_time(timer_start(1))
-#endif timing
+#endif
 
  tmp1 = uzpl(1,1)    !avoids compiler warning for unused variable 'uzpl'
 
@@ -2391,7 +2391,7 @@ call cpu_time(timer_start(1))
  if (.not.log_LiquidFrac) qiliq = 0.
 
 !-----------------------------------------------------------------------------------!
-#ifdef timing
+#ifdef TIMING_P3
 timer_description(2) = 'i_loop_main'
 call cpu_time(timer_start(2))
 #endif
@@ -2575,7 +2575,7 @@ call cpu_time(timer_start(2))
 !==
 
 !------------------------------------------------------------------------------------------!
-#ifdef timing
+#ifdef TIMING_P3
 timer_description(3) = 'k_loop_main (processes)'
 call cpu_time(timer_start(3))
 #endif
@@ -4520,7 +4520,7 @@ call cpu_time(timer_start(3))
 
     enddo k_loop_main
 
-#ifdef timing
+#ifdef TIMING_P3
 !timer_description(3) = 'k_loop_main (processes)'
 call cpu_time(timer_end(3))
 #endif
@@ -4569,7 +4569,7 @@ call cpu_time(timer_end(3))
 !==========================================================================================!
 
 !==========================================================================================!
-#ifdef timing
+#ifdef TIMING_P3
 timer_description(6) = 'sedimentation'
 call cpu_time(timer_start(6))
 #endif
@@ -4665,7 +4665,7 @@ call cpu_time(timer_start(6))
 
           enddo substep_sedi_c2
 
-       else  !1-moment cloud:
+       else  !1-moment cloud:  (two_moment label)
 
           substep_sedi_c1: do while (dt_left.gt.1.e-4)
 
@@ -4716,7 +4716,7 @@ call cpu_time(timer_start(6))
 
           enddo substep_sedi_c1
 
-       ENDIF two_moment
+       endif two_moment
 
        prt_liq(i) = prt_accum*inv_rhow*odt  !note, contribution from rain is added below
 
@@ -4789,7 +4789,6 @@ call cpu_time(timer_start(6))
              endif qr_not_small_1
 
              Co_max = max(Co_max, V_qr(k)*dt_left*inv_dzq(i,k))
-!            Co_max = max(Co_max, max(V_nr(k),V_qr(k))*dt_left*inv_dzq(i,k))
 
           enddo kloop_sedi_r1
 
@@ -5350,7 +5349,7 @@ call cpu_time(timer_start(6))
 !------------------------------------------------------------------------------------------!
 ! End of sedimentation section
 
-#ifdef timing
+#ifdef TIMING_P3
 !timer_description(6) = 'sedimentation'
 call cpu_time(timer_end(6))
 #endif
@@ -5894,7 +5893,7 @@ call cpu_time(timer_end(6))
 
  enddo i_loop_main
 
-#ifdef timing
+#ifdef TIMING_P3
 !timer_description(2) = 'i_loop_main'
 call cpu_time(timer_end(2))
 #endif
@@ -5918,7 +5917,7 @@ call cpu_time(timer_end(2))
 !   partition surface precipitation rates into types (and aslo for the
 !   maximum hail size, dhmax).
 
-#ifdef timing
+#ifdef TIMING_P3
 timer_description(9) = 'type_diags'
 call cpu_time(timer_start(9))
 #endif
@@ -6114,7 +6113,7 @@ call cpu_time(timer_start(9))
  endif compute_type_diags
 !=== (end of section for diagnostic hydrometeor/precip types)
 
-#ifdef timing
+#ifdef TIMING_P3
 timer_description(9) = 'type_diags'
 call cpu_time(timer_end(9))
 #endif
@@ -6124,12 +6123,12 @@ call cpu_time(timer_end(9))
 
 ! end of main microphysics routine
 
-#ifdef timing
+#ifdef TIMING_P3
 ! for entire call to p3_main
 call cpu_time(timer_end(1))
 #endif
 
-#ifdef timing
+#ifdef TIMING_P3
 timer(:) = timer_end(:) - timer_start(:)
 #endif
 
