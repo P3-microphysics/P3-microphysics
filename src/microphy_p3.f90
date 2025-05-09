@@ -4488,48 +4488,33 @@ call cpu_time(timer_start(3))
           endif ! dumqi > qsmall
 
 !...........................................................................................
-       !----  Group 2 (initiation processes, where mu_i for the new ice resulting from that process (only) is assigned
-       !              note: mu_i_new is the mu_i associated with the new added ice for that process
+       !---  Group 2 (initiation processes, where mu_i is specified for the new ice
+       !              resulting from that specific process)
 
         !proceses with rain freezing:
-          tmp2 =  nrhetc(iice) + nrheti(iice)                  !moment_0 tendency
-          if (tmp2.ge.qsmall) then
-             tmp1 = (qrhetc(iice) + qrheti(iice))*6./(900.*pi) !estimate of moment_3 tendency
-             mu_i_new = mu_r(i,k)
-             zitot(i,k,iice) = zitot(i,k,iice) + G_of_mu(mu_i_new)*tmp1**2/tmp2*dt
-          endif
+          tmp1 = qrhetc(iice) + qrheti(iice)   !qitot tendency
+          tmp2 = nrhetc(iice) + nrheti(iice)   !moment_0 tendency
+          call update_zi_proc2(zitot(i,k,iice),tmp2,tmp1,mu_r(i,k),dt)
 
         !proceses with cloud freezing:
-          tmp2 =  nchetc(iice) + ncheti(iice)                  !moment_0 tendency
-          if (tmp2.ge.qsmall) then
-             tmp1 = (qchetc(iice) + qcheti(iice))*6./(900.*pi) !estimate of moment_3 tendency
-             mu_i_new = mu_c(i,k)
-             zitot(i,k,iice) = zitot(i,k,iice) + G_of_mu(mu_i_new)*tmp1**2/tmp2*dt
-          endif
+          tmp1 = qchetc(iice) + qcheti(iice)   !qitot tendency
+          tmp2 = nchetc(iice) + ncheti(iice)   !moment_0 tendency
+          call update_zi_proc2(zitot(i,k,iice),tmp2,tmp1,mu_r(i,k),dt)
 
         !proceses of deposition nucleation
-          tmp2 = ninuc(iice)                                   !moment_0 tendency
-          if (tmp2.ge.qsmall) then
-             tmp1 = qinuc(iice)*6./(900.*pi)                   !estimate of moment_3 tendency
-             mu_i_new = mu_i_initial                           !estimated assigned value
-             zitot(i,k,iice) = zitot(i,k,iice) + G_of_mu(mu_i_new)*tmp1**2/tmp2*dt
-          endif
+          tmp1 = qinuc(iice)                   !qitot tendency
+          tmp2 = ninuc(iice)                   !moment_0 tendency
+          call update_zi_proc2(zitot(i,k,iice),tmp2,tmp1,mu_r(i,k),dt)
 
         !proceses of ice multiplication
-          tmp2 = nimul(iice)                                   !moment_0 tendency
-          if (tmp2.ge.qsmall) then
-             tmp1 = qrmul(iice)*6./(900.*pi)                   !estimate of moment_3 tendency
-             mu_i_new = mu_i_initial                           !estimated assigned value
-             zitot(i,k,iice) = zitot(i,k,iice) + G_of_mu(mu_i_new)*tmp1**2/tmp2*dt
-          endif
+          tmp1 = qrmul(iice)                   !qitot tendency
+          tmp2 = nimul(iice)                   !moment_0 tendency
+          call update_zi_proc2(zitot(i,k,iice),tmp2,tmp1,mu_r(i,k),dt)
 
         !proceses of rime splintering of cloud droplets
-          tmp2 = nimul(iice)                                   !moment_0 tendency
-          if (tmp2.ge.qsmall) then
-             tmp1 = qcmul(iice)*6./(900.*pi)                   !estimate of moment_3 tendency
-             mu_i_new = mu_i_initial                           !estimated assigned value
-             zitot(i,k,iice) = zitot(i,k,iice) + G_of_mu(mu_i_new)*tmp1**2/tmp2*dt
-          endif
+          tmp1 = qcmul(iice)                   !qitot tendency
+          tmp2 = nimul(iice)                   !moment_0 tendency
+          call update_zi_proc2(zitot(i,k,iice),tmp2,tmp1,mu_r(i,k),dt)
 
        !====
 
@@ -11653,6 +11638,33 @@ endif
  mu_i = min(mu_i,mu_i_max)
 
  end subroutine solve_mui
+
+!======================================================================================!
+
+ subroutine update_zi_proc2(zit,mom0_tend,qit_tend,mu_i_new,dt)
+
+ !--------------------------------------------------------------------------
+ ! Updates zitot for "group 2" processes, where new ice is initiated and
+ ! has a prescribed mu_i and density.
+ !--------------------------------------------------------------------------
+
+!arguments:
+ real, intent(inout) :: zit          !zitot
+ real, intent(in)    :: mom0_tend    !tendency for 0th moment
+ real, intent(in)    :: qit_tend     !tendency for qitot
+ real, intent(in)    :: mu_i_new     !mu_i for the new ice
+ real, intent(in)    :: dt           !time step
+
+ !local:
+ real                :: mom3_tend    !tendency for 3rd moment
+ real, parameter     :: rho_i = 900. !density of new ice
+
+ if (qit_tend.ge.qsmall) then
+    mom3_tend = qit_tend*6./(rho_i*pi)
+    zit = zit + G_of_mu(mu_i_new)*mom3_tend**2/mom0_tend*dt
+ endif
+
+ end subroutine update_zi_proc2
 
 !======================================================================================!
 
