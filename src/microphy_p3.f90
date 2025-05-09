@@ -2188,7 +2188,7 @@ END subroutine p3_init
  real    :: f1pr27   ! melting staying on ice (ventilation term)
  real    :: f1pr28   ! shedding of mixed-phase ice
 
-! new 3-moment quantities from lookup table
+! full 3-moment quantities from lookup table
  real    :: f1pr29   ! zi tendency riming
  real    :: f1pr30   ! zi tendency vapor deposition term 1
  real    :: f1pr31   ! zi tendency vapor deposition term 2
@@ -2230,7 +2230,7 @@ END subroutine p3_init
  real    :: dumni,dumqi,dumzi,dumqr,dumbi,dumql,dumden,dmudt,dummu_i,dumnitend,dumqitend,dumzitend
  real    :: G_new,G_rate_tot,ziold
  integer :: iana
- logical, parameter :: log_full3Mom = .false.   ! switch to turn on full 3-moment ice
+ logical, parameter :: log_full3mom = .false.   ! switch to turn on full 3-moment ice
 
 !-----------------------------------------------------------------------------------!
 !  End of variables/parameters declarations
@@ -2738,7 +2738,7 @@ call cpu_time(timer_start(3))
 
              call find_lookupTable_indices_1b(dumj,dum3,rcollsize,qr(i,k),nr(i,k))
 
-             if (.not. log_3momentIce) then
+             trplmomice_1: if (.not. log_3momentIce) then
 
              ! call to lookup table interpolation subroutines to get process rates
                if (.not. log_LiquidFrac) then
@@ -2780,7 +2780,7 @@ call cpu_time(timer_start(3))
                    f1pr08 = -99. ! log space
                 endif
 
-             else ! 3-moment ice
+             else ! trplmomice_1
 
              ! get G indices
 
@@ -2798,22 +2798,23 @@ call cpu_time(timer_start(3))
                 call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi, 8,dum1,dum4,dum5,dum6,dum7,f1pr10)
                 call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,10,dum1,dum4,dum5,dum6,dum7,f1pr14)
                 call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,f1pr16)
-                call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,21,dum1,dum4,dum5,dum6,dum7,f1pr29)
-                call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,22,dum1,dum4,dum5,dum6,dum7,f1pr30)
-                call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,23,dum1,dum4,dum5,dum6,dum7,f1pr31)
-                call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,24,dum1,dum4,dum5,dum6,dum7,f1pr32)
-                call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,25,dum1,dum4,dum5,dum6,dum7,f1pr33)
-                call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,26,dum1,dum4,dum5,dum6,dum7,f1pr34)
-                call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,28,dum1,dum4,dum5,dum6,dum7,f1pr37)
-                call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,29,dum1,dum4,dum5,dum6,dum7,f1pr38)
-
+                if (log_full3mom) then
+                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,21,dum1,dum4,dum5,dum6,dum7,f1pr29)
+                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,22,dum1,dum4,dum5,dum6,dum7,f1pr30)
+                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,23,dum1,dum4,dum5,dum6,dum7,f1pr31)
+                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,24,dum1,dum4,dum5,dum6,dum7,f1pr32)
+                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,25,dum1,dum4,dum5,dum6,dum7,f1pr33)
+                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,26,dum1,dum4,dum5,dum6,dum7,f1pr34)
+                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,28,dum1,dum4,dum5,dum6,dum7,f1pr37)
+                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,29,dum1,dum4,dum5,dum6,dum7,f1pr38)
+                endif
                 if (log_LiquidFrac) then
-                  call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,16,dum1,dum4,dum5,dum6,dum7,f1pr24)
-                  call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,17,dum1,dum4,dum5,dum6,dum7,f1pr25)
-                  call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,18,dum1,dum4,dum5,dum6,dum7,f1pr26)
-                  call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,19,dum1,dum4,dum5,dum6,dum7,f1pr27)
-                  call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,20,dum1,dum4,dum5,dum6,dum7,f1pr28)
-                  call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,27,dum1,dum4,dum5,dum6,dum7,f1pr35)
+                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,16,dum1,dum4,dum5,dum6,dum7,f1pr24)
+                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,17,dum1,dum4,dum5,dum6,dum7,f1pr25)
+                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,18,dum1,dum4,dum5,dum6,dum7,f1pr26)
+                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,19,dum1,dum4,dum5,dum6,dum7,f1pr27)
+                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,20,dum1,dum4,dum5,dum6,dum7,f1pr28)
+                   call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,27,dum1,dum4,dum5,dum6,dum7,f1pr35)
                 endif
 
           ! ice-rain collection processes
@@ -2827,7 +2828,7 @@ call cpu_time(timer_start(3))
                    f1pr36 = 0.
                 endif
 
-             endif  !if log_3momentIce
+             endif  trplmomice_1
 
           ! Compute ice diameter (volume equivalent -- for multi-cat)
              diam_ice(i,k,iice) = ((qitot(i,k,iice)*6.)/(nitot(i,k,iice)*f1pr16*pi))**thrd
@@ -2901,7 +2902,7 @@ call cpu_time(timer_start(3))
              qccol(iice) = rhofaci(i,k)*f1pr04*qc(i,k)*eci*rho(i,k)*nitot(i,k,iice)*iSCF(k)
              nccol(iice) = rhofaci(i,k)*f1pr04*nc(i,k)*eci*rho(i,k)*nitot(i,k,iice)*iSCF(k)
 
-             if (log_3momentIce) then
+             if (log_3momentIce .and. log_full3mom) then
                 zqccol(iice) = rhofaci(i,k)*f1pr29*qc(i,k)*eci*rho(i,k)*iSCF(k)
              endif
 
@@ -2915,7 +2916,7 @@ call cpu_time(timer_start(3))
              qrcol(iice) = 10.**(f1pr08+logn0r(i,k))*rho(i,k)*rhofaci(i,k)*eri*nitot(i,k,iice)*iSCF(k)*(SPF(k)-SPF_clr(k))
              nrcol(iice) = 10.**(f1pr07+logn0r(i,k))*rho(i,k)*rhofaci(i,k)*eri*nitot(i,k,iice)*iSCF(k)*(SPF(k)-SPF_clr(k))
 
-             if (log_3momentIce) then
+             if (log_3momentIce .and. log_full3mom) then
                 zqrcol(iice) = 10.**(logn0r(i,k))*f1pr36*rho(i,k)*rhofaci(i,k)*eri*iSCF(k)*(SPF(k)-SPF_clr(k))
              endif
 
@@ -2932,7 +2933,7 @@ call cpu_time(timer_start(3))
              if (qitot(i,k,iice).ge.qsmall .and. qc(i,k).ge.qsmall .and. t(i,k).gt.273.15) then
                 qccoll(iice) = rhofaci(i,k)*f1pr04*qc(i,k)*eci*rho(i,k)*nitot(i,k,iice)*iSCF(k)
                 nccoll(iice) = rhofaci(i,k)*f1pr04*nc(i,k)*eci*rho(i,k)*nitot(i,k,iice)*iSCF(k)
-                if(log_3momentIce) then
+                if(log_3momentIce .and. log_full3mom) then
                    zqccol(iice) = rhofaci(i,k)*f1pr29*qc(i,k)*eci*rho(i,k)*iSCF(k)
                 endif
              endif
@@ -2941,7 +2942,7 @@ call cpu_time(timer_start(3))
                 ! note: f1pr08 and logn0r are already calculated as log_10
                     qrcoll(iice) = 10.**(f1pr08+logn0r(i,k))*rho(i,k)*rhofaci(i,k)*eri*nitot(i,k,iice)*iSCF(k)*(SPF(k)-SPF_clr(k))
                     nrcoll(iice) = 10.**(f1pr07+logn0r(i,k))*rho(i,k)*rhofaci(i,k)*eri*nitot(i,k,iice)*iSCF(k)*(SPF(k)-SPF_clr(k))
-                if (log_3momentIce) then
+                if (log_3momentIce .and. log_full3mom) then
                     zqrcol(iice) = 10.**(logn0r(i,k))*f1pr36*rho(i,k)*rhofaci(i,k)*eri*iSCF(k)*(SPF(k)-SPF_clr(k))
                 endif
              endif
@@ -3078,7 +3079,7 @@ call cpu_time(timer_start(3))
 
           if (qitot(i,k,iice).ge.qsmall) then
              nislf(iice) = f1pr03*rho(i,k)*eii*Eii_fact(iice)*rhofaci(i,k)*nitot(i,k,iice)*nitot(i,k,iice)*iSCF(k)
-             if (log_3momentIce) then
+             if (log_3momentIce .and. log_full3mom) then
                ! NOTE: already correct sign from lookup table, thus not multiplied by -1
                 zislf(iice) = f1pr34*rho(i,k)*eii*Eii_fact(iice)*rhofaci(i,k)*nitot(i,k,iice)*iSCF(k)
              endif
@@ -3134,10 +3135,9 @@ call cpu_time(timer_start(3))
                           dum)*nitot(i,k,iice)
              qrmlt(iice) = max(qrmlt(iice),0.)
              nimlt(iice) = qrmlt(iice)*(nitot(i,k,iice)/qitot(i,k,iice))
-             if (log_3momentIce) then
+             if (log_3momentIce .and. log_full3mom) then
                 zimlt(iice) = -((f1pr05*f1pr30+f1pr14*f1pr31*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*((t(i,k)-   &
-                             273.15)*kap-rho(i,k)*xxlv(i,k)*dv*(qsat0-Qv_cld(k)))*2.*pi/xlf(i,k)+   &
-                             dum)
+                             273.15)*kap-rho(i,k)*xxlv(i,k)*dv*(qsat0-Qv_cld(k)))*2.*pi/xlf(i,k)+dum)
              endif
           endif
        endif
@@ -3182,7 +3182,7 @@ call cpu_time(timer_start(3))
                       qccol(iice) = qccol(iice) - dum*qccol(iice)*dum1
                       qrcol(iice) = qrcol(iice) - dum*qrcol(iice)*dum1
                      ! adjust zqccol and zqrcol to account for wet growth and resulting shedding of collected liquid
-                      if (log_3momentIce) then
+                      if (log_3momentIce .and. log_full3mom) then
                          zqccol(iice) = zqccol(iice) - dum*zqccol(iice)*dum1
                          zqrcol(iice) = zqrcol(iice) - dum*zqrcol(iice)*dum1
                       endif
@@ -3256,7 +3256,7 @@ call cpu_time(timer_start(3))
              qlshd(iice) = tmp1*f1pr28*nitot(i,k,iice)*qiliq(i,k,iice)/qitot(i,k,iice)
              qlshd(iice) = min(max(0.,qlshd(iice)),qiliq(i,k,iice)*odt)
              nlshd(iice) = qlshd(iice)*1.928e+6
-             if (log_3momentIce) then
+             if (log_3momentIce .and. log_full3mom) then
                 zishd(iice) = -tmp1*f1pr35*qiliq(i,k,iice)/qitot(i,k,iice)
              endif
           endif
@@ -3642,19 +3642,15 @@ call cpu_time(timer_start(3))
                  qisub(iice) = min(qisub(iice), (qitot(i,k,iice)-qiliq(i,k,iice))*odt)
                  nisub(iice) = qisub(iice)*(nitot(i,k,iice)/(qitot(i,k,iice)-qiliq(i,k,iice)))
                  qidep(iice) = 0.
-
-                 if (log_3momentIce.and.epsi(iice).gt.0.) then
+                 if (log_3momentIce .and. log_full3mom .and. epsi(iice).gt.0.) then
                     zisub(iice) = -epsizsb(iice)/epsi(iice)*qisub(iice)
                  endif
-
               else
                  qidep(iice) = qidep(iice)*clbfact_dep
                  qidep(iice) = min(qidep(iice), qv(i,k)*odt)
-
-                 if (log_3momentIce.and.epsi(iice).gt.0.) then
+                 if (log_3momentIce .and. log_full3mom .and. epsi(iice).gt.0.) then
                     zidep(iice) = epsiz(iice)/epsi(iice)*qidep(iice)
                  endif
-
               endif
 
               if (qitot(i,k,iice).ge.qsmall .and. (qiliq(i,k,iice)/qitot(i,k,iice)).ge.0.01) then
@@ -4407,7 +4403,7 @@ call cpu_time(timer_start(3))
 
 !---------------------------------------------------------------------------------
 
-       if (log_3momentIce) then
+       trplmomice_2: if (log_3momentIce) then
 
           do iice = 1,nCat
 
@@ -4426,7 +4422,7 @@ call cpu_time(timer_start(3))
              dumni = max(dumni,nsmall) ! impose limit on dummy ni
              dumzi = max(dumzi,zsmall) ! impose limit on dummy zi
 
-             if (log_full3Mom) then
+             full3mom_1: if (log_full3mom) then
 !.......................
 ! use full-3 moment method
 
@@ -4464,24 +4460,25 @@ call cpu_time(timer_start(3))
 
                 zitot(i,k,iice) = dumzi
 
-             else   ! if log_full3Mom
+             else  ! full_3mom_1
 !..............................
-! old (simplified) method with group 1 processes (assumming mu_i does not change due to these processes)
+! old (simplified) method with group 1 processes (where mu_i does not change due to these processes)
 
               !get updated density to estimate M3 from Qitot
                 call calc_bulkRhoRime(dumqi,dumqr,dumql,dumbi,rhop)
 
-                call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,dum7,isize,         &
+                call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,dum7,isize,     &
                                                  rimsize,liqsize,densize,dumqi,dumni,dumqr,dumql,rhop)
                 call find_lookupTable_indices_1c(dumzz,dum6,zsize,dummu_i)
-                call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,dum6,dum7,dumden)
+                call access_lookup_table_3mom_LF(dumzz,dumjj,dumii,dumll,dumi,12,dum1,dum4,dum5,       &
+                                                 dum6,dum7,dumden)
 
                 dum3 =  6./(dumden*pi)*dumqi      !estimate of 3rd moment (new, after group 1 processes only)
                 zitot(i,k,iice) = G_of_mu(mu_i_s(iice))*dum3**2/dumni
                 zitot(i,k,iice) = max(zsmall,zitot(i,k,iice))
 !===
 
-             endif ! log_full3Mom
+             endif full3mom_1
 
 !......................................................
 
@@ -4522,7 +4519,7 @@ call cpu_time(timer_start(3))
 
           enddo ! iice loop
 
-       endif ! log_3momentIce
+       endif trplmomice_2
 
 !................................................................................
 
