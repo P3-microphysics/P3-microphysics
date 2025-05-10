@@ -2230,10 +2230,10 @@ END subroutine p3_init
  real    :: dumni,dumqi,dumzi,dumqr,dumbi,dumql,dumden,dmudt,dummu_i,dumnitend,dumqitend,dumzitend
  real    :: G_new,G_rate_tot,ziold
  integer :: iana
- logical, parameter :: log_full3mom = .false.   ! switch to turn on full 3-moment ice
+ logical, parameter :: log_full3mom = .true.   ! switch to turn on full 3-moment ice
 
- real,    dimension(5) :: args_LUT_r
- integer, dimension(5) :: args_LUT_i
+ real,    dimension(5) :: args_r
+ integer, dimension(5) :: args_i
 
 !-----------------------------------------------------------------------------------!
 !  End of variables/parameters declarations
@@ -2533,8 +2533,7 @@ call cpu_time(timer_start(2))
              birim(i,k,iice) = 0.
           endif
 
-    ! ensure qiliq >= 0
-          qiliq(i,i,iice)=max(qiliq(i,i,iice),0.)
+          qiliq(i,i,iice) = max(0., qiliq(i,i,iice))
 
        enddo  !iice-loop
 
@@ -2698,7 +2697,7 @@ call cpu_time(timer_start(3))
        if (t(i,k).lt.253.15) then
           eii = 0.001
        else if (t(i,k).ge.253.15.and.t(i,k).lt.273.15) then
-          eii = 0.001+(t(i,k)-253.15)*(0.3-0.001)/20.
+          eii = 0.001+(t(i,k)-253.15)*(0.3-0.001)*0.05
        else if (t(i,k).ge.273.15) then
           eii = 0.3
        endif
@@ -2793,33 +2792,33 @@ call cpu_time(timer_start(3))
                 call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),zitot(i,k,iice),      &
                               dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi)
 
-                call get_LUT_args(args_LUT_r,args_LUT_i,dumzz,dumjj,dumii,dumll,dumi,dum1,dum4,dum5,dum6,dum7)
+                call combine_LUT_args(args_r,args_i,dumzz,dumjj,dumii,dumll,dumi,dum1,dum4,dum5,dum6,dum7)
 
-                f1pr02 = proc_from_LUT_3momLF( 2,args_LUT_r,args_LUT_i)
-                f1pr03 = proc_from_LUT_3momLF( 3,args_LUT_r,args_LUT_i)
-                f1pr04 = proc_from_LUT_3momLF( 4,args_LUT_r,args_LUT_i)
-                f1pr05 = proc_from_LUT_3momLF( 5,args_LUT_r,args_LUT_i)
-                f1pr09 = proc_from_LUT_3momLF( 7,args_LUT_r,args_LUT_i)
-                f1pr10 = proc_from_LUT_3momLF( 8,args_LUT_r,args_LUT_i)
-                f1pr14 = proc_from_LUT_3momLF(10,args_LUT_r,args_LUT_i)
-                f1pr16 = proc_from_LUT_3momLF(12,args_LUT_r,args_LUT_i)
+                f1pr02 = proc_from_LUT_3momLF( 2,args_r,args_i)
+                f1pr03 = proc_from_LUT_3momLF( 3,args_r,args_i)
+                f1pr04 = proc_from_LUT_3momLF( 4,args_r,args_i)
+                f1pr05 = proc_from_LUT_3momLF( 5,args_r,args_i)
+                f1pr09 = proc_from_LUT_3momLF( 7,args_r,args_i)
+                f1pr10 = proc_from_LUT_3momLF( 8,args_r,args_i)
+                f1pr14 = proc_from_LUT_3momLF(10,args_r,args_i)
+                f1pr16 = proc_from_LUT_3momLF(12,args_r,args_i)
                 if (log_full3mom) then
-                   f1pr29 = proc_from_LUT_3momLF(21,args_LUT_r,args_LUT_i)
-                   f1pr30 = proc_from_LUT_3momLF(22,args_LUT_r,args_LUT_i)
-                   f1pr31 = proc_from_LUT_3momLF(23,args_LUT_r,args_LUT_i)
-                   f1pr32 = proc_from_LUT_3momLF(24,args_LUT_r,args_LUT_i)
-                   f1pr33 = proc_from_LUT_3momLF(25,args_LUT_r,args_LUT_i)
-                   f1pr34 = proc_from_LUT_3momLF(26,args_LUT_r,args_LUT_i)
-                   f1pr37 = proc_from_LUT_3momLF(28,args_LUT_r,args_LUT_i)
-                   f1pr38 = proc_from_LUT_3momLF(29,args_LUT_r,args_LUT_i)
+                   f1pr29 = proc_from_LUT_3momLF(21,args_r,args_i)
+                   f1pr30 = proc_from_LUT_3momLF(22,args_r,args_i)
+                   f1pr31 = proc_from_LUT_3momLF(23,args_r,args_i)
+                   f1pr32 = proc_from_LUT_3momLF(24,args_r,args_i)
+                   f1pr33 = proc_from_LUT_3momLF(25,args_r,args_i)
+                   f1pr34 = proc_from_LUT_3momLF(26,args_r,args_i)
+                   f1pr37 = proc_from_LUT_3momLF(28,args_r,args_i)
+                   f1pr38 = proc_from_LUT_3momLF(29,args_r,args_i)
                 endif
                 if (log_LiquidFrac) then
-                   f1pr24 = proc_from_LUT_3momLF(16,args_LUT_r,args_LUT_i)
-                   f1pr25 = proc_from_LUT_3momLF(17,args_LUT_r,args_LUT_i)
-                   f1pr26 = proc_from_LUT_3momLF(18,args_LUT_r,args_LUT_i)
-                   f1pr27 = proc_from_LUT_3momLF(19,args_LUT_r,args_LUT_i)
-                   f1pr28 = proc_from_LUT_3momLF(20,args_LUT_r,args_LUT_i)
-                   f1pr35 = proc_from_LUT_3momLF(27,args_LUT_r,args_LUT_i)
+                   f1pr24 = proc_from_LUT_3momLF(16,args_r,args_i)
+                   f1pr25 = proc_from_LUT_3momLF(17,args_r,args_i)
+                   f1pr26 = proc_from_LUT_3momLF(18,args_r,args_i)
+                   f1pr27 = proc_from_LUT_3momLF(19,args_r,args_i)
+                   f1pr28 = proc_from_LUT_3momLF(20,args_r,args_i)
+                   f1pr35 = proc_from_LUT_3momLF(27,args_r,args_i)
                 endif
 
           ! ice-rain collection processes
@@ -2897,61 +2896,61 @@ call cpu_time(timer_start(3))
 ! (qc*iSCF*nitot*iSCF)*SCF = (qc*nitot)*iSCF to obtain grid-mean qccol
 
           if (qitot(i,k,iice).ge.qsmall .and. qc(i,k).ge.qsmall .and. t(i,k).le.273.15) then
-             qccol(iice) = rhofaci(i,k)*f1pr04*qc(i,k)*eci*rho(i,k)*nitot(i,k,iice)*iSCF(k)
-             nccol(iice) = rhofaci(i,k)*f1pr04*nc(i,k)*eci*rho(i,k)*nitot(i,k,iice)*iSCF(k)
-
+             tmp1 = eci*rho(i,k)*iSCF(k)
+             qccol(iice) = rhofaci(i,k)*f1pr04*qc(i,k)*nitot(i,k,iice)*tmp1
+             nccol(iice) = rhofaci(i,k)*f1pr04*nc(i,k)*nitot(i,k,iice)*tmp1
              if (log_3momentIce .and. log_full3mom) then
-                zqccol(iice) = rhofaci(i,k)*f1pr29*qc(i,k)*eci*rho(i,k)*iSCF(k)
+                zqccol(iice) = rhofaci(i,k)*f1pr29*qc(i,k)*tmp1
              endif
-
           endif
 
           if (qitot(i,k,iice).ge.qsmall .and. qr(i,k).ge.qsmall .and. t(i,k).le.273.15) then
-           ! qrcol(iice)=f1pr08*logn0r(i,k)*rho(i,k)*rhofaci(i,k)*eri*nitot(i,k,iice)
-           ! nrcol(iice)=f1pr07*logn0r(i,k)*rho(i,k)*rhofaci(i,k)*eri*nitot(i,k,iice)
            ! note: f1pr08 and logn0r are already calculated as log_10 (in-precip)
            ! note: (SPF(k)-SPF_clr(k)) is SPF_cld(k)
-             qrcol(iice) = 10.**(f1pr08+logn0r(i,k))*rho(i,k)*rhofaci(i,k)*eri*nitot(i,k,iice)*iSCF(k)*(SPF(k)-SPF_clr(k))
-             nrcol(iice) = 10.**(f1pr07+logn0r(i,k))*rho(i,k)*rhofaci(i,k)*eri*nitot(i,k,iice)*iSCF(k)*(SPF(k)-SPF_clr(k))
-
+             tmp1 = rho(i,k)*rhofaci(i,k)*eri*iSCF(k)*(SPF(k)-SPF_clr(k))
+             qrcol(iice) = 10.**(f1pr08+logn0r(i,k))*nitot(i,k,iice)*tmp1
+             nrcol(iice) = 10.**(f1pr07+logn0r(i,k))*nitot(i,k,iice)*tmp1
              if (log_3momentIce .and. log_full3mom) then
-                zqrcol(iice) = 10.**(logn0r(i,k))*f1pr36*rho(i,k)*rhofaci(i,k)*eri*iSCF(k)*(SPF(k)-SPF_clr(k))
+                zqrcol(iice) = 10.**(logn0r(i,k))*f1pr36*tmp1
              endif
-
           endif
+
 
 !.......................
 ! collection of liquid phases (cloud and rain) at T>0
 !.......................
 
           ! for T > 273.15, assume cloud water is collected and shed as rain drops
-          if (log_LiquidFrac) then
+          liqfrac_1: if (log_LiquidFrac) then
 
           ! assume cloud water is collected by qiliq
              if (qitot(i,k,iice).ge.qsmall .and. qc(i,k).ge.qsmall .and. t(i,k).gt.273.15) then
-                qccoll(iice) = rhofaci(i,k)*f1pr04*qc(i,k)*eci*rho(i,k)*nitot(i,k,iice)*iSCF(k)
-                nccoll(iice) = rhofaci(i,k)*f1pr04*nc(i,k)*eci*rho(i,k)*nitot(i,k,iice)*iSCF(k)
+                tmp1 = eci*rho(i,k)*iSCF(k)
+                qccoll(iice) = rhofaci(i,k)*f1pr04*qc(i,k)*nitot(i,k,iice)*tmp1
+                nccoll(iice) = rhofaci(i,k)*f1pr04*nc(i,k)*nitot(i,k,iice)*tmp1
                 if(log_3momentIce .and. log_full3mom) then
-                   zqccol(iice) = rhofaci(i,k)*f1pr29*qc(i,k)*eci*rho(i,k)*iSCF(k)
+                   zqccol(iice) = rhofaci(i,k)*f1pr29*qc(i,k)*tmp1
                 endif
              endif
              ! assume collected rain by qiliq
              if (qitot(i,k,iice).ge.qsmall .and. qr(i,k).ge.qsmall .and. t(i,k).gt.273.15) then
                 ! note: f1pr08 and logn0r are already calculated as log_10
-                    qrcoll(iice) = 10.**(f1pr08+logn0r(i,k))*rho(i,k)*rhofaci(i,k)*eri*nitot(i,k,iice)*iSCF(k)*(SPF(k)-SPF_clr(k))
-                    nrcoll(iice) = 10.**(f1pr07+logn0r(i,k))*rho(i,k)*rhofaci(i,k)*eri*nitot(i,k,iice)*iSCF(k)*(SPF(k)-SPF_clr(k))
+                    tmp1 = rho(i,k)*rhofaci(i,k)*eri*iSCF(k)*(SPF(k)-SPF_clr(k))
+                    qrcoll(iice) = 10.**(f1pr08+logn0r(i,k))*nitot(i,k,iice)*tmp1
+                    nrcoll(iice) = 10.**(f1pr07+logn0r(i,k))*nitot(i,k,iice)*tmp1
                 if (log_3momentIce .and. log_full3mom) then
-                    zqrcol(iice) = 10.**(logn0r(i,k))*f1pr36*rho(i,k)*rhofaci(i,k)*eri*iSCF(k)*(SPF(k)-SPF_clr(k))
+                    zqrcol(iice) = 10.**(logn0r(i,k))*f1pr36*tmp1
                 endif
              endif
 
-          else
+          else  ! liqfrac_1
 
           ! assume cloud water is collected and shed as rain drops (original code)
              if (qitot(i,k,iice).ge.qsmall .and. qc(i,k).ge.qsmall .and. t(i,k).gt.273.15) then
              ! sink for cloud water mass and number, note qcshed is source for rain mass
-                qcshd(iice) = rhofaci(i,k)*f1pr04*qc(i,k)*eci*rho(i,k)*nitot(i,k,iice)*iSCF(k)
-                nccol(iice) = rhofaci(i,k)*f1pr04*nc(i,k)*eci*rho(i,k)*nitot(i,k,iice)*iSCF(k)
+                tmp1 = eci*rho(i,k)*nitot(i,k,iice)*iSCF(k)
+                qcshd(iice) = rhofaci(i,k)*f1pr04*qc(i,k)*tmp1
+                nccol(iice) = rhofaci(i,k)*f1pr04*nc(i,k)*tmp1
              ! source for rain number, assume 1 mm drops are shed
                 ncshdc(iice) = qcshd(iice)*1.923e+6
              ! note: for full 3-moment, there is no impact of shedding on zitot when liquid fraction is off
@@ -2961,7 +2960,8 @@ call cpu_time(timer_start(3))
              ! collection of rain above freezing does not impact total rain mass
              if (qitot(i,k,iice).ge.qsmall .and. qr(i,k).ge.qsmall .and. t(i,k).gt.273.15) then
              ! rain number sink due to collection
-                nrcol(iice)  = 10.**(f1pr07 + logn0r(i,k))*rho(i,k)*rhofaci(i,k)*eri*nitot(i,k,iice)*iSCF(k)*(SPF(k)-SPF_clr(k))
+                nrcol(iice)  = 10.**(f1pr07 + logn0r(i,k))*rho(i,k)*rhofaci(i,k)*eri*    &
+                               nitot(i,k,iice)*iSCF(k)*(SPF(k)-SPF_clr(k))
              ! rain number source due to shedding = collected rain mass/mass of 1 mm drop
              ! for opt comment dum (since it is not used)
              !   dum    = 10.**(f1pr08 + logn0r(i,k))*rho(i,k)*rhofaci(i,k)*eri*nitot(i,k,iice)*iSCF(k)*(SPF(k)-SPF_clr(k))
@@ -2971,7 +2971,7 @@ call cpu_time(timer_start(3))
              !    nrshdr(iice) = dum*1.923e+6   ! 1./5.2e-7, 5.2e-7 is the mass of a 1 mm raindrop
              endif
 
-          endif   ! log_LiquidFrac
+          endif liqfrac_1
 !...................................
 ! collection between ice categories
 
@@ -3066,7 +3066,6 @@ call cpu_time(timer_start(3))
 
           endif iceice_interaction1
 
-
 !.............................................
 ! self-collection of ice (in a given category)
 
@@ -3090,55 +3089,58 @@ call cpu_time(timer_start(3))
     ! need to add back accelerated melting due to collection of ice mass by rain (pracsw1)
     ! note 'f1pr' values are normalized, so we need to multiply by N
 
-      if (log_LiquidFrac) then
+          liqfrac_2: if (log_LiquidFrac) then
           ! some portion of the melted water stays into qiliq --> qimlt(iice) (D>Dth)
           ! the other portion melts into rain --> qrmlt(iice) (D<=Dth)
-         if ((qitot(i,k,iice)-qiliq(i,k,iice)).ge.qsmall .and. t(i,k).gt.273.15) then
-             qsat0 = 0.622*e0/(pres(i,k)-e0)
-             dum = 0.
-             qrmlt(iice) = ((f1pr24+f1pr25*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*((t(i,k)-   &
-                            273.15)*kap-rho(i,k)*xxlv(i,k)*dv*(qsat0-Qv_cld(k)))*2.*pi/xlf(i,k)+   &
-                            dum)*nitot(i,k,iice)
-             qimlt(iice) = ((f1pr26+f1pr27*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*((t(i,k)-   &
-                            273.15)*kap-rho(i,k)*xxlv(i,k)*dv*(qsat0-Qv_cld(k)))*2.*pi/xlf(i,k)+   &
-                            dum)*nitot(i,k,iice)
-             qrmlt(iice) = max(qrmlt(iice),0.)
-             qimlt(iice) = max(qimlt(iice),0.)
-             ! Make sure both terms are bounded (necessary for conservation check)
-             sinks = qimlt(iice)+qrmlt(iice)
-             if (sinks.gt.0. .and. sinks .gt. (qitot(i,k,iice)-qiliq(i,k,iice))*odt) then
-                 ratio = (qitot(i,k,iice)-qiliq(i,k,iice))*odt/sinks
-                 qrmlt(iice) = qrmlt(iice)*ratio
-                 qimlt(iice) = qimlt(iice)*ratio
+             if ((qitot(i,k,iice)-qiliq(i,k,iice)).ge.qsmall .and. t(i,k).gt.273.15) then
+                qsat0 = 0.622*e0/(pres(i,k)-e0)
+                tmp1 = 0.
+                qrmlt(iice) = ((f1pr24+f1pr25*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*((t(i,k)-     &
+                               273.15)*kap-rho(i,k)*xxlv(i,k)*dv*(qsat0-Qv_cld(k)))*2.*pi/xlf(i,k)+   &
+                               tmp1)*nitot(i,k,iice)
+                qimlt(iice) = ((f1pr26+f1pr27*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*((t(i,k)-     &
+                               273.15)*kap-rho(i,k)*xxlv(i,k)*dv*(qsat0-Qv_cld(k)))*2.*pi/xlf(i,k)+   &
+                               tmp1)*nitot(i,k,iice)
+                qrmlt(iice) = max(qrmlt(iice),0.)
+                qimlt(iice) = max(qimlt(iice),0.)
+                ! Make sure both terms are bounded (necessary for conservation check)
+                sinks = qimlt(iice)+qrmlt(iice)
+                if (sinks.gt.0. .and. sinks .gt. (qitot(i,k,iice)-qiliq(i,k,iice))*odt) then
+                    ratio = (qitot(i,k,iice)-qiliq(i,k,iice))*odt/sinks
+                    qrmlt(iice) = qrmlt(iice)*ratio
+                    qimlt(iice) = qimlt(iice)*ratio
+                endif
+                nimlt(iice) = qrmlt(iice)*(nitot(i,k,iice)/(qitot(i,k,iice)-qiliq(i,k,iice)))
+                if (log_3momentIce) then
+                   zimlt(iice) = -((f1pr24*f1pr32+f1pr25*f1pr33*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)  &
+                                  *((t(i,k)-273.15)*kap-rho(i,k)*xxlv(i,k)*dv*(qsat0-Qv_cld(k)))*2.        &
+                                  *pi/xlf(i,k)+tmp1)
+                endif
              endif
-             nimlt(iice) = qrmlt(iice)*(nitot(i,k,iice)/(qitot(i,k,iice)-qiliq(i,k,iice)))
-             if (log_3momentIce) then
-                zimlt(iice) = -((f1pr24*f1pr32+f1pr25*f1pr33*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*((t(i,k)-   &
-                            273.15)*kap-rho(i,k)*xxlv(i,k)*dv*(qsat0-Qv_cld(k)))*2.*pi/xlf(i,k)+   &
-                            dum)
+
+          else   !liqfrac_2
+
+             if (qitot(i,k,iice).ge.qsmall .and. t(i,k).gt.273.15) then
+                qsat0 = 0.622*e0/(pres(i,k)-e0)
+           !  tmp1=cpw/xlf(i,k)*(t(i,k)-273.15)*(pracsw1+qcshd(iice))
+           ! currently enhanced melting from collision is neglected
+           ! tmp1=cpw/xlf(i,k)*(t(i,k)-273.15)*(pracsw1)
+                tmp1 = 0.
+           ! qrmlt(iice)=(f1pr05+f1pr14*sc**0.3333*(rhofaci(i,k)*rho(i,k)/mu)**0.5)* &
+           !       (t(i,k)-273.15)*2.*pi*kap/xlf(i,k)+tmp1
+           ! include RH dependence
+                qrmlt(iice) = ((f1pr05+f1pr14*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*((t(i,k)-    &
+                              273.15)*kap-rho(i,k)*xxlv(i,k)*dv*(qsat0-Qv_cld(k)))*2.*pi/xlf(i,k)+   &
+                              tmp1)*nitot(i,k,iice)
+                qrmlt(iice) = max(qrmlt(iice),0.)
+                nimlt(iice) = qrmlt(iice)*(nitot(i,k,iice)/qitot(i,k,iice))
+                if (log_3momentIce .and. log_full3mom) then
+                   zimlt(iice) = -((f1pr05*f1pr30+f1pr14*f1pr31*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*((t(i,k)-   &
+                                 273.15)*kap-rho(i,k)*xxlv(i,k)*dv*(qsat0-Qv_cld(k)))*2.*pi/xlf(i,k)+tmp1)
+               endif
              endif
-          endif
-       else
-          if (qitot(i,k,iice).ge.qsmall .and. t(i,k).gt.273.15) then
-             qsat0 = 0.622*e0/(pres(i,k)-e0)
-          !  dum=cpw/xlf(i,k)*(t(i,k)-273.15)*(pracsw1+qcshd(iice))
-          ! currently enhanced melting from collision is neglected
-          ! dum=cpw/xlf(i,k)*(t(i,k)-273.15)*(pracsw1)
-             dum = 0.
-          ! qrmlt(iice)=(f1pr05+f1pr14*sc**0.3333*(rhofaci(i,k)*rho(i,k)/mu)**0.5)* &
-          !       (t(i,k)-273.15)*2.*pi*kap/xlf(i,k)+dum
-          ! include RH dependence
-             qrmlt(iice) = ((f1pr05+f1pr14*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*((t(i,k)-   &
-                          273.15)*kap-rho(i,k)*xxlv(i,k)*dv*(qsat0-Qv_cld(k)))*2.*pi/xlf(i,k)+   &
-                          dum)*nitot(i,k,iice)
-             qrmlt(iice) = max(qrmlt(iice),0.)
-             nimlt(iice) = qrmlt(iice)*(nitot(i,k,iice)/qitot(i,k,iice))
-             if (log_3momentIce .and. log_full3mom) then
-                zimlt(iice) = -((f1pr05*f1pr30+f1pr14*f1pr31*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*((t(i,k)-   &
-                             273.15)*kap-rho(i,k)*xxlv(i,k)*dv*(qsat0-Qv_cld(k)))*2.*pi/xlf(i,k)+dum)
-             endif
-          endif
-       endif
+
+          endif liqfrac_2
 
 !............................................................
 ! calculate wet growth
@@ -3149,17 +3151,17 @@ call cpu_time(timer_start(3))
           if (qitot(i,k,iice).ge.qsmall .and. (qc(i,k)+qr(i,k)).ge.1.e-6 .and. t(i,k).lt.273.15) then
 
              qsat0  = 0.622*e0/(pres(i,k)-e0)
-             qwgrth(iice) = ((f1pr05+f1pr14*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*((t(i,k)-   &
-                           273.15)*(-kap)+rho(i,k)*xxls(i,k)*dv*(qsat0-Qv_cld(k))*2.*pi/xlf(i,k)))*   &
-                          nitot(i,k,iice)
+             qwgrth(iice) = ((f1pr05+f1pr14*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*((t(i,k)-       &
+                            273.15)*(-kap)+rho(i,k)*xxls(i,k)*dv*(qsat0-Qv_cld(k))*2.*pi/xlf(i,k)))*  &
+                           nitot(i,k,iice)
              qwgrth(iice) = max(qwgrth(iice),0.)
 
              if (log_LiquidFrac) then
                  ! Densification from wet growth turn off as it is now contained into qiliq
                  ! log_wetgrowth(iice) = .false. ! set to false at beginning of subroutine
                  ! NOTE: change variable name from log_wetgrowth to log_densify
-                 dum = max(0.,(qccol(iice)+qrcol(iice))-qwgrth(iice))
-                 if (dum.ge.1.e-10) then
+                 tmp1 = max(0.,(qccol(iice)+qrcol(iice))-qwgrth(iice))
+                 if (tmp1.ge.1.e-10) then
                  !   qwgrth1(iice)  = qrcol(iice)+qccol(iice) ! not used anymore
                     ! note: For full 3-moment ice, do not adjust zqccol and zqrcol from wet growth
                     !       because both ice riming and retention of liquid increase in zitot.
@@ -3169,20 +3171,22 @@ call cpu_time(timer_start(3))
                     qrcol(iice)    = 0.
                     qccol(iice)    = 0.
                  endif
+
              else
+
                 !calculate shedding for wet growth
-                dum    = max(0.,(qccol(iice)+qrcol(iice))-qwgrth(iice))
-                if (dum.ge.1.e-10) then
-                   nrshdr(iice) = nrshdr(iice) + dum*1.923e+6   ! 1/5.2e-7, 5.2e-7 is the mass of a 1 mm raindrop
+                tmp1    = max(0.,(qccol(iice)+qrcol(iice))-qwgrth(iice))
+                if (tmp1.ge.1.e-10) then
+                   nrshdr(iice) = nrshdr(iice) + tmp1*1.923e+6   ! 1/5.2e-7, 5.2e-7 is the mass of a 1 mm raindrop
                    if ((qccol(iice)+qrcol(iice)).ge.1.e-10) then
-                      dum1  = 1./(qccol(iice)+qrcol(iice))
-                      qcshd(iice) = qcshd(iice) + dum*qccol(iice)*dum1
-                      qccol(iice) = qccol(iice) - dum*qccol(iice)*dum1
-                      qrcol(iice) = qrcol(iice) - dum*qrcol(iice)*dum1
+                      tmp2  = 1./(qccol(iice)+qrcol(iice))
+                      qcshd(iice) = qcshd(iice) + tmp1*qccol(iice)*tmp2
+                      qccol(iice) = qccol(iice) - tmp1*qccol(iice)*tmp2
+                      qrcol(iice) = qrcol(iice) - tmp1*qrcol(iice)*tmp2
                      ! adjust zqccol and zqrcol to account for wet growth and resulting shedding of collected liquid
                       if (log_3momentIce .and. log_full3mom) then
-                         zqccol(iice) = zqccol(iice) - dum*zqccol(iice)*dum1
-                         zqrcol(iice) = zqrcol(iice) - dum*zqrcol(iice)*dum1
+                         zqccol(iice) = zqccol(iice) - tmp1*zqccol(iice)*tmp2
+                         zqrcol(iice) = zqrcol(iice) - tmp1*zqrcol(iice)*tmp2
                       endif
                   endif
                 ! densify due to wet growth
@@ -3201,29 +3205,27 @@ call cpu_time(timer_start(3))
 
         !if (log_LiquidFrac) then
           if (qitot(i,k,iice).ge.qsmall) then
+             tmp1 = sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5
+             tmp2 = 2.*pi*rho(i,k)*dv
              if ((qiliq(i,k,iice)/qitot(i,k,iice)).lt.0.01) then
-                 epsi(iice)  = ((f1pr05+f1pr14*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*2.*pi* &
-                               rho(i,k)*dv)*nitot(i,k,iice)
+                 epsi(iice)  = ((f1pr05+f1pr14*tmp1)*tmp2)*nitot(i,k,iice)
                  epsi_tot    = epsi_tot + epsi(iice)
                  epsiw(iice) = 0.
              else
-                 epsiw(iice) = ((f1pr05+f1pr14*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*2.*pi* &
-                               rho(i,k)*dv)*nitot(i,k,iice)
+                 epsiw(iice) = ((f1pr05+f1pr14*tmp1)*tmp2)*nitot(i,k,iice)
                  epsiw_tot   = epsiw_tot + epsiw(iice)
                  epsi(iice)  = 0.
              endif
 
              if (log_3momentIce) then
-                epsiz(iice) = ((f1pr30+f1pr31*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*2.*pi* &
-                              rho(i,k)*dv)
-                epsizsb(iice) = ((f1pr37+f1pr38*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*2.*pi* &
-                              rho(i,k)*dv)
+                epsiz(iice)   = (f1pr30+f1pr31*tmp1)*tmp2
+                epsizsb(iice) = (f1pr37+f1pr38*tmp1)*tmp2
              endif
 
           else
-             epsi(iice)  = 0.
-             epsiw(iice) = 0.
-             epsiz(iice) = 0.
+             epsi(iice)    = 0.
+             epsiw(iice)   = 0.
+             epsiz(iice)   = 0.
              epsizsb(iice) = 0.
           endif
 
@@ -3242,7 +3244,7 @@ call cpu_time(timer_start(3))
           ! Refreezing
              if (t(i,k).lt.273.15) then
                qsat0  = 0.622*e0/(pres(i,k)-e0)
-               qifrz(iice) = ((f1pr05+f1pr14*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*((t(i,k)-   &
+               qifrz(iice) = ((f1pr05+f1pr14*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*((t(i,k)-        &
                              273.15)*(-kap)+rho(i,k)*xxls(i,k)*dv*(qsat0-Qv_cld(k))*2.*pi/xlf(i,k)))*   &
                              nitot(i,k,iice)
                qifrz(iice) = min(max(qifrz(iice),0.),qiliq(i,k,iice)*odt)
@@ -3740,8 +3742,8 @@ call cpu_time(timer_start(3))
           sup_cld  = sup(i,k)
           supi_cld = supi(i,k)
        else
-          supi_cld= Qv_cld(k)/qvi(i,k)-1.!in-cloud  sub/sur-saturation w.r.t. ice in %
-          sup_cld = Qv_cld(k)/qvs(i,k)-1.!in-cloud  sub/sur-saturation w.r.t. liq in %
+          supi_cld= Qv_cld(k)/qvi(i,k)-1.!in-cloud sub/suoer-saturation w.r.t. ice in %
+          sup_cld = Qv_cld(k)/qvs(i,k)-1.!in-cloud sub/super-saturation w.r.t. liq in %
        endif
 
        if (t(i,k).lt.258.15 .and. supi_cld.ge.0.05) then
@@ -3804,7 +3806,7 @@ call cpu_time(timer_start(3))
              dum2  = (dum2-nc(i,k)*iSCF(k))*odt*SCF(k)
              dum2  = max(0.,dum2)
              ncnuc = dum2
-           ! don't include mass increase from droplet activation during first time step
+           ! do not include mass increase from droplet activation during first time step
            ! since this is already accounted for by saturation adjustment below
              if (it.le.1) then
                 qcnuc = 0.
@@ -4076,10 +4078,8 @@ call cpu_time(timer_start(3))
        endif
 
 ! rain
-       sinks   = (qrevp+sum(qrcol)+sum(qrhetc)+sum(qrheti)+sum(qrmul)+    &
-                 sum(qrcoll)+sum(qwgrth1r))*dt
-       sources = qr(i,k) + (qrcon+qcaut+qcacc+sum(qrmlt)+sum(qcshd)+      &
-                 sum(qlshd))*dt
+       sinks   = (qrevp+sum(qrcol)+sum(qrhetc)+sum(qrheti)+sum(qrmul)+sum(qrcoll)+sum(qwgrth1r))*dt
+       sources = qr(i,k) + (qrcon+qcaut+qcacc+sum(qrmlt)+sum(qcshd)+sum(qlshd))*dt
        if (sinks.gt.sources .and. sinks.ge.1.e-20) then
           ratio  = sources/sinks
           qrevp  = qrevp*ratio
@@ -4259,36 +4259,30 @@ call cpu_time(timer_start(3))
                             ncheti(iice)+nimul(iice)-nlevp(iice))*dt
 
           if (nCat.gt.1) then
-           interactions_loop: do catcoll = 1,nCat
-            diff_categories:     if (iice.ne.catcoll) then
-           ! add ice-ice category interaction collection tendencies
-           ! note: nicol is a sink for the collectee category, but NOT a source for collector
+             interactions_loop: do catcoll = 1,nCat
+                diff_categories: if (iice.ne.catcoll) then
+
+             ! add ice-ice category interaction collection tendencies
+             ! note: nicol is a sink for the collectee category, but NOT a source for collector
 
              ! now modify rime mass and density, assume collection does not modify rime or liquid mass
              ! fractions or density of the collectee, consistent with the assumption that
              ! these are constant over the PSD
-             ! if ((qitot(i,k,catcoll)-qiliq(i,k,catcoll)).ge.qsmall) then ! not needed in 5.1.1.4.1
               !source for collector category
-                qirim(i,k,iice) = qirim(i,k,iice)+qicol(catcoll,iice)*dt*                    &
-                                  rimefraction(i,k,catcoll)
-                birim(i,k,iice) = birim(i,k,iice)+qicol(catcoll,iice)*dt*                    &
-                                  rimevolume(i,k,catcoll)
+                qirim(i,k,iice) = qirim(i,k,iice)+qicol(catcoll,iice)*dt*rimefraction(i,k,catcoll)
+                birim(i,k,iice) = birim(i,k,iice)+qicol(catcoll,iice)*dt*rimevolume(i,k,catcoll)
                 qiliq(i,k,iice) = qiliq(i,k,iice)+qicol(catcoll,iice)*dt*                    &
                                   liquidfraction(i,k,catcoll)
               !sink for collectee category
-                qirim(i,k,catcoll) = qirim(i,k,catcoll)-qicol(catcoll,iice)*dt*                 &
-                                     rimefraction(i,k,catcoll)
-                birim(i,k,catcoll) = birim(i,k,catcoll)-qicol(catcoll,iice)*dt*                 &
-                                     rimevolume(i,k,catcoll)
-                qiliq(i,k,catcoll) = qiliq(i,k,catcoll)-qicol(catcoll,iice)*dt*                 &
-                                     liquidfraction(i,k,catcoll)
-             ! endif
-             qitot(i,k,catcoll) = qitot(i,k,catcoll) - qicol(catcoll,iice)*dt
-             nitot(i,k,catcoll) = nitot(i,k,catcoll) - nicol(catcoll,iice)*dt
-             qitot(i,k,iice)    = qitot(i,k,iice)    + qicol(catcoll,iice)*dt
+                qirim(i,k,catcoll) = qirim(i,k,catcoll)-qicol(catcoll,iice)*dt*rimefraction(i,k,catcoll)
+                birim(i,k,catcoll) = birim(i,k,catcoll)-qicol(catcoll,iice)*dt*rimevolume(i,k,catcoll)
+                qiliq(i,k,catcoll) = qiliq(i,k,catcoll)-qicol(catcoll,iice)*dt*liquidfraction(i,k,catcoll)
+                qitot(i,k,catcoll) = qitot(i,k,catcoll) - qicol(catcoll,iice)*dt
+                nitot(i,k,catcoll) = nitot(i,k,catcoll) - nicol(catcoll,iice)*dt
+                qitot(i,k,iice)    = qitot(i,k,iice)    + qicol(catcoll,iice)*dt
 
-            endif diff_categories
-           enddo interactions_loop ! catcoll loop
+                endif diff_categories
+             enddo interactions_loop
           endif
 
           if (qirim(i,k,iice).lt.0.) then
@@ -4445,8 +4439,8 @@ call cpu_time(timer_start(3))
                       dummu_i = compute_mu_3moment_1(dumni,dum3,dumzi,mu_i_max)   !polynomical approximation
                     ! dummu_i = compute_mu_3moment_2(dumni,dum3,dumzi,mu_i_max)   !analytic cubic root
                       call find_lookupTable_indices_1c(dumzz,dum6,zsize,dummu_i)
-                      call get_LUT_args(args_LUT_r,args_LUT_i,dumzz,dumjj,dumii,dumll,dumi,dum1,dum4,dum5,dum6,dum7)
-                      dumden = proc_from_LUT_3momLF(12,args_LUT_r,args_LUT_i)
+                      call combine_LUT_args(args_r,args_i,dumzz,dumjj,dumii,dumll,dumi,dum1,dum4,dum5,dum6,dum7)
+                      dumden = proc_from_LUT_3momLF(12,args_r,args_i)
                       dum3 =  6./(dumden*pi)*dumqi  !estimate of 3rd moment
                    enddo
 
@@ -4468,8 +4462,8 @@ call cpu_time(timer_start(3))
                 call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,dum7,isize,     &
                                                  rimsize,liqsize,densize,dumqi,dumni,dumqr,dumql,rhop)
                 call find_lookupTable_indices_1c(dumzz,dum6,zsize,mu_i_s(iice))
-                call get_LUT_args(args_LUT_r,args_LUT_i,dumzz,dumjj,dumii,dumll,dumi,dum1,dum4,dum5,dum6,dum7)
-                dumden = proc_from_LUT_3momLF(12,args_LUT_r,args_LUT_i)
+                call combine_LUT_args(args_r,args_i,dumzz,dumjj,dumii,dumll,dumi,dum1,dum4,dum5,dum6,dum7)
+                dumden = proc_from_LUT_3momLF(12,args_r,args_i)
 
                 dum3 =  6./(dumden*pi)*dumqi      !estimate of 3rd moment (new, after group 1 processes only)
                 zitot(i,k,iice) = G_of_mu(mu_i_s(iice))*dum3**2/dumni
@@ -5104,14 +5098,14 @@ call cpu_time(timer_start(6))
                       call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),zitot(i,k,iice),dum1,dum4,dum5,   &
                                      dum7,dumjj,dumii,dumll,dumi)
 
-                      call get_LUT_args(args_LUT_r,args_LUT_i,dumzz,dumjj,dumii,dumll,dumi,dum1,dum4,dum5,dum6,dum7)
+                      call combine_LUT_args(args_r,args_i,dumzz,dumjj,dumii,dumll,dumi,dum1,dum4,dum5,dum6,dum7)
 
-                      f1pr01 = proc_from_LUT_3momLF( 1,args_LUT_r,args_LUT_i)
-                      f1pr02 = proc_from_LUT_3momLF( 2,args_LUT_r,args_LUT_i)
-                      f1pr09 = proc_from_LUT_3momLF( 7,args_LUT_r,args_LUT_i)
-                      f1pr10 = proc_from_LUT_3momLF( 8,args_LUT_r,args_LUT_i)
-                      f1pr16 = proc_from_LUT_3momLF(12,args_LUT_r,args_LUT_i)
-                      f1pr19 = proc_from_LUT_3momLF(13,args_LUT_r,args_LUT_i)
+                      f1pr01 = proc_from_LUT_3momLF( 1,args_r,args_i)
+                      f1pr02 = proc_from_LUT_3momLF( 2,args_r,args_i)
+                      f1pr09 = proc_from_LUT_3momLF( 7,args_r,args_i)
+                      f1pr10 = proc_from_LUT_3momLF( 8,args_r,args_i)
+                      f1pr16 = proc_from_LUT_3momLF(12,args_r,args_i)
+                      f1pr19 = proc_from_LUT_3momLF(13,args_r,args_i)
 
                     !impose mean ice size bounds (i.e. apply lambda limiters)
                       nitot(i,k,iice) = min(nitot(i,k,iice), f1pr09*qitot(i,k,iice))
@@ -5222,14 +5216,14 @@ call cpu_time(timer_start(6))
                       call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),zitot(i,k,iice),dum1,dum4,dum5,   &
                                      dum7,dumjj,dumii,dumll,dumi)
 
-                      call get_LUT_args(args_LUT_r,args_LUT_i,dumzz,dumjj,dumii,dumll,dumi,dum1,dum4,dum5,dum6,dum7)
+                      call combine_LUT_args(args_r,args_i,dumzz,dumjj,dumii,dumll,dumi,dum1,dum4,dum5,dum6,dum7)
 
-                      f1pr01 = proc_from_LUT_3momLF( 1,args_LUT_r,args_LUT_i)
-                      f1pr02 = proc_from_LUT_3momLF( 2,args_LUT_r,args_LUT_i)
-                      f1pr09 = proc_from_LUT_3momLF( 7,args_LUT_r,args_LUT_i)
-                      f1pr10 = proc_from_LUT_3momLF( 8,args_LUT_r,args_LUT_i)
-                      f1pr16 = proc_from_LUT_3momLF(12,args_LUT_r,args_LUT_i)
-                      f1pr19 = proc_from_LUT_3momLF(13,args_LUT_r,args_LUT_i)
+                      f1pr01 = proc_from_LUT_3momLF( 1,args_r,args_i)
+                      f1pr02 = proc_from_LUT_3momLF( 2,args_r,args_i)
+                      f1pr09 = proc_from_LUT_3momLF( 7,args_r,args_i)
+                      f1pr10 = proc_from_LUT_3momLF( 8,args_r,args_i)
+                      f1pr16 = proc_from_LUT_3momLF(12,args_r,args_i)
+                      f1pr19 = proc_from_LUT_3momLF(13,args_r,args_i)
 
                     !impose mean ice size bounds (i.e. apply lambda limiters)
                       nitot(i,k,iice) = min(nitot(i,k,iice),f1pr09*qitot(i,k,iice))
@@ -5397,8 +5391,8 @@ call cpu_time(timer_end(6))
                    call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),zitot(i,k,iice),          &
                               dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi)
 
-                   call get_LUT_args(args_LUT_r,args_LUT_i,dumzz,dumjj,dumii,dumll,dumi,dum1,dum4,dum5,dum6,dum7)
-                   f1pr16 = proc_from_LUT_3momLF(12,args_LUT_r,args_LUT_i)
+                   call combine_LUT_args(args_r,args_i,dumzz,dumjj,dumii,dumll,dumi,dum1,dum4,dum5,dum6,dum7)
+                   f1pr16 = proc_from_LUT_3momLF(12,args_r,args_i)
                 endif
                 diam_ice(i,k,iice) = ((qitot(i,k,iice)*6.)/(nitot(i,k,iice)*f1pr16*pi))**thrd
              endif
@@ -5512,9 +5506,9 @@ call cpu_time(timer_end(6))
                    call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),zitot(i,k,iice),          &
                                   dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi)
 
-                   call get_LUT_args(args_LUT_r,args_LUT_i,dumzz,dumjj,dumii,dumll,dumi,dum1,dum4,dum5,dum6,dum7)
-                   f1pr15 = proc_from_LUT_3momLF(11,args_LUT_r,args_LUT_i)
-                   f1pr16 = proc_from_LUT_3momLF(12,args_LUT_r,args_LUT_i)
+                   call combine_LUT_args(args_r,args_i,dumzz,dumjj,dumii,dumll,dumi,dum1,dum4,dum5,dum6,dum7)
+                   f1pr15 = proc_from_LUT_3momLF(11,args_r,args_i)
+                   f1pr16 = proc_from_LUT_3momLF(12,args_r,args_i)
 
                    if (log_3momentIce) then
                       call apply_mui_bounds_to_zi(zitot(i,k,iice),qitot(i,k,iice),nitot(i,k,iice),f1pr16)
@@ -5704,19 +5698,19 @@ call cpu_time(timer_end(6))
                 call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),zitot(i,k,iice),          &
                                dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi)
 
-                call get_LUT_args(args_LUT_r,args_LUT_i,dumzz,dumjj,dumii,dumll,dumi,dum1,dum4,dum5,dum6,dum7)
+                call combine_LUT_args(args_r,args_i,dumzz,dumjj,dumii,dumll,dumi,dum1,dum4,dum5,dum6,dum7)
 
-                f1pr01 = proc_from_LUT_3momLF( 1,args_LUT_r,args_LUT_i)
-                f1pr02 = proc_from_LUT_3momLF( 2,args_LUT_r,args_LUT_i)
-                f1pr06 = proc_from_LUT_3momLF( 6,args_LUT_r,args_LUT_i)
-                f1pr09 = proc_from_LUT_3momLF( 7,args_LUT_r,args_LUT_i)
-                f1pr10 = proc_from_LUT_3momLF( 8,args_LUT_r,args_LUT_i)
-                f1pr13 = proc_from_LUT_3momLF( 9,args_LUT_r,args_LUT_i)
-                f1pr15 = proc_from_LUT_3momLF(11,args_LUT_r,args_LUT_i)
-                f1pr16 = proc_from_LUT_3momLF(12,args_LUT_r,args_LUT_i)
+                f1pr01 = proc_from_LUT_3momLF( 1,args_r,args_i)
+                f1pr02 = proc_from_LUT_3momLF( 2,args_r,args_i)
+                f1pr06 = proc_from_LUT_3momLF( 6,args_r,args_i)
+                f1pr09 = proc_from_LUT_3momLF( 7,args_r,args_i)
+                f1pr10 = proc_from_LUT_3momLF( 8,args_r,args_i)
+                f1pr13 = proc_from_LUT_3momLF( 9,args_r,args_i)
+                f1pr15 = proc_from_LUT_3momLF(11,args_r,args_i)
+                f1pr16 = proc_from_LUT_3momLF(12,args_r,args_i)
                 if (log_typeDiags) then
-                   f1pr22 = proc_from_LUT_3momLF(14,args_LUT_r,args_LUT_i)
-                   f1pr23 = proc_from_LUT_3momLF(15,args_LUT_r,args_LUT_i)
+                   f1pr22 = proc_from_LUT_3momLF(14,args_r,args_i)
+                   f1pr23 = proc_from_LUT_3momLF(15,args_r,args_i)
                 endif
 
              endif trplmomice_3
@@ -6398,77 +6392,77 @@ timer(:) = timer_end(:) - timer_start(:)
 
 !==========================================================================================!
 
- SUBROUTINE access_lookup_table_coll_LF(dumjj,dumii,dumll,dumj,dumi,index,dum1,dum3,          &
+ SUBROUTINE access_lookup_table_coll_LF(dumjj,dumii,dumll,dumj,dumi,ind,dum1,dum3,          &
                                     dum4,dum5,dum7,proc)
 
  implicit none
 
  real    :: dum1,dum3,dum4,dum5,proc,dproc1,dproc2,iproc1,tmp1,tmp2, &
             dum7,iproc3,iproc4,iproc2
- integer :: dumjj,dumii,dumj,dumi,index,dumll
+ integer :: dumjj,dumii,dumj,dumi,ind,dumll
 
 !if ((dum7-real(dumll)).eq.0.) then
 !
-! current density index jj
+! current density ind jj
 !
-!     ! current rime fraction index ii
+!     ! current rime fraction ind ii
 !
 !	! interpolate for j between i and i+1
-!         dproc1  = itabcoll(dumjj,dumii,dumll,dumi,dumj,index)+(dum1-real(dumi))*                    &
-!             (itabcoll(dumjj,dumii,dumll,dumi+1,dumj,index)-itabcoll(dumjj,dumii,dumll,dumi,         &
-!             dumj,index))
+!         dproc1  = itabcoll(dumjj,dumii,dumll,dumi,dumj,ind)+(dum1-real(dumi))*                    &
+!             (itabcoll(dumjj,dumii,dumll,dumi+1,dumj,ind)-itabcoll(dumjj,dumii,dumll,dumi,         &
+!             dumj,ind))
 !
 !	! interpolate for j+1 between i and i+1
-!         dproc2  = itabcoll(dumjj,dumii,dumll,dumi,dumj+1,index)+(dum1-real(dumi))*                  &
-!             (itabcoll(dumjj,dumii,dumll,dumi+1,dumj+1,index)-itabcoll(dumjj,dumii,dumll,dumi,       &
-!             dumj+1,index))
+!         dproc2  = itabcoll(dumjj,dumii,dumll,dumi,dumj+1,ind)+(dum1-real(dumi))*                  &
+!             (itabcoll(dumjj,dumii,dumll,dumi+1,dumj+1,ind)-itabcoll(dumjj,dumii,dumll,dumi,       &
+!             dumj+1,ind))
 !
 !         iproc1 = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
 !
-!     ! current rime fraction index+1 ii+1
+!     ! current rime fraction ind+1 ii+1
 !
 !	! interpolate for j between i and i+1
-!         dproc1  = itabcoll(dumjj,dumii+1,dumll,dumi,dumj,index)+(dum1-real(dumi))*                  &
-!             (itabcoll(dumjj,dumii+1,dumll,dumi+1,dumj,index)-itabcoll(dumjj,dumii+1,dumll,dumi,     &
-!             dumj,index))
+!         dproc1  = itabcoll(dumjj,dumii+1,dumll,dumi,dumj,ind)+(dum1-real(dumi))*                  &
+!             (itabcoll(dumjj,dumii+1,dumll,dumi+1,dumj,ind)-itabcoll(dumjj,dumii+1,dumll,dumi,     &
+!             dumj,ind))
 !
 !	! interpolate for j+1 between i and i+1
-!         dproc2  = itabcoll(dumjj,dumii+1,dumll,dumi,dumj+1,index)+(dum1-real(dumi))*                &
-!             (itabcoll(dumjj,dumii+1,dumll,dumi+1,dumj+1,index)-itabcoll(dumjj,dumii+1,dumll,dumi,   &
-!             dumj+1,index))
+!         dproc2  = itabcoll(dumjj,dumii+1,dumll,dumi,dumj+1,ind)+(dum1-real(dumi))*                &
+!             (itabcoll(dumjj,dumii+1,dumll,dumi+1,dumj+1,ind)-itabcoll(dumjj,dumii+1,dumll,dumi,   &
+!             dumj+1,ind))
 !
 !         iproc2 = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
 !
 !         tmp1 = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
 !
 !
-!! current density index+1 jj+1
+!! current density ind+1 jj+1
 !
-!     ! current rime fraction index ii
+!     ! current rime fraction ind ii
 !
 !	! interpolate for j between i and i+1
-!         dproc1  = itabcoll(dumjj+1,dumii,dumll,dumi,dumj,index)+(dum1-real(dumi))*                 &
-!             (itabcoll(dumjj+1,dumii,dumll,dumi+1,dumj,index)-itabcoll(dumjj+1,dumii,dumll,dumi,    &
-!             dumj,index))
+!         dproc1  = itabcoll(dumjj+1,dumii,dumll,dumi,dumj,ind)+(dum1-real(dumi))*                 &
+!             (itabcoll(dumjj+1,dumii,dumll,dumi+1,dumj,ind)-itabcoll(dumjj+1,dumii,dumll,dumi,    &
+!             dumj,ind))
 !
 !	! interpolate for j+1 between i and i+1
-!         dproc2  = itabcoll(dumjj+1,dumii,dumll,dumi,dumj+1,index)+(dum1-real(dumi))*               &
-!             (itabcoll(dumjj+1,dumii,dumll,dumi+1,dumj+1,index)-itabcoll(dumjj+1,dumii,dumll,dumi,  &
-!             dumj+1,index))
+!         dproc2  = itabcoll(dumjj+1,dumii,dumll,dumi,dumj+1,ind)+(dum1-real(dumi))*               &
+!             (itabcoll(dumjj+1,dumii,dumll,dumi+1,dumj+1,ind)-itabcoll(dumjj+1,dumii,dumll,dumi,  &
+!             dumj+1,ind))
 !
 !         iproc1 = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
 !
-!     ! current rime fraction index+1 ii+1
+!     ! current rime fraction ind+1 ii+1
 !
 !	! interpolate for j between i and i+1
-!         dproc1  = itabcoll(dumjj+1,dumii+1,dumll,dumi,dumj,index)+(dum1-real(dumi))*                   &
-!             (itabcoll(dumjj+1,dumii+1,dumll,dumi+1,dumj,index)-itabcoll(dumjj+1,dumii+1,dumll,dumi,    &
-!             dumj,index))
+!         dproc1  = itabcoll(dumjj+1,dumii+1,dumll,dumi,dumj,ind)+(dum1-real(dumi))*                   &
+!             (itabcoll(dumjj+1,dumii+1,dumll,dumi+1,dumj,ind)-itabcoll(dumjj+1,dumii+1,dumll,dumi,    &
+!             dumj,ind))
 !
 !	! interpolate for j+1 between i and i+1
-!         dproc2  = itabcoll(dumjj+1,dumii+1,dumll,dumi,dumj+1,index)+(dum1-real(dumi))*                 &
-!             (itabcoll(dumjj+1,dumii+1,dumll,dumi+1,dumj+1,index)-itabcoll(dumjj+1,dumii+1,dumll,dumi,  &
-!             dumj+1,index))
+!         dproc2  = itabcoll(dumjj+1,dumii+1,dumll,dumi,dumj+1,ind)+(dum1-real(dumi))*                 &
+!             (itabcoll(dumjj+1,dumii+1,dumll,dumi+1,dumj+1,ind)-itabcoll(dumjj+1,dumii+1,dumll,dumi,  &
+!             dumj+1,ind))
 !
 !         iproc2 = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
 !
@@ -6479,67 +6473,67 @@ timer(:) = timer_end(:) - timer_start(:)
 !
 !else
 
-! current density index jj
+! current density ind jj
 
-     ! current rime fraction index ii
+     ! current rime fraction ind ii
 
-	! current liquid fraction index ll
+	! current liquid fraction ind ll
 
 	! interpolate for j between i and i+1
-         dproc1  = itabcoll(dumjj,dumii,dumll,dumi,dumj,index)+(dum1-real(dumi))*                    &
-             (itabcoll(dumjj,dumii,dumll,dumi+1,dumj,index)-itabcoll(dumjj,dumii,dumll,dumi,         &
-             dumj,index))
+         dproc1  = itabcoll(dumjj,dumii,dumll,dumi,dumj,ind)+(dum1-real(dumi))*                    &
+             (itabcoll(dumjj,dumii,dumll,dumi+1,dumj,ind)-itabcoll(dumjj,dumii,dumll,dumi,         &
+             dumj,ind))
 
 	! interpolate for j+1 between i and i+1
-         dproc2  = itabcoll(dumjj,dumii,dumll,dumi,dumj+1,index)+(dum1-real(dumi))*                  &
-             (itabcoll(dumjj,dumii,dumll,dumi+1,dumj+1,index)-itabcoll(dumjj,dumii,dumll,dumi,       &
-             dumj+1,index))
+         dproc2  = itabcoll(dumjj,dumii,dumll,dumi,dumj+1,ind)+(dum1-real(dumi))*                  &
+             (itabcoll(dumjj,dumii,dumll,dumi+1,dumj+1,ind)-itabcoll(dumjj,dumii,dumll,dumi,       &
+             dumj+1,ind))
 
          iproc1 = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
 
-	! current liquid fraction index+1 ll+1
+	! current liquid fraction ind+1 ll+1
 
 	! interpolate for j between i and i+1
-         dproc1  = itabcoll(dumjj,dumii,dumll+1,dumi,dumj,index)+(dum1-real(dumi))*                  &
-             (itabcoll(dumjj,dumii,dumll+1,dumi+1,dumj,index)-itabcoll(dumjj,dumii,dumll+1,dumi,     &
-             dumj,index))
+         dproc1  = itabcoll(dumjj,dumii,dumll+1,dumi,dumj,ind)+(dum1-real(dumi))*                  &
+             (itabcoll(dumjj,dumii,dumll+1,dumi+1,dumj,ind)-itabcoll(dumjj,dumii,dumll+1,dumi,     &
+             dumj,ind))
 
 	! interpolate for j+1 between i and i+1
-         dproc2  = itabcoll(dumjj,dumii,dumll+1,dumi,dumj+1,index)+(dum1-real(dumi))*                &
-             (itabcoll(dumjj,dumii,dumll+1,dumi+1,dumj+1,index)-itabcoll(dumjj,dumii,dumll+1,dumi,   &
-             dumj+1,index))
+         dproc2  = itabcoll(dumjj,dumii,dumll+1,dumi,dumj+1,ind)+(dum1-real(dumi))*                &
+             (itabcoll(dumjj,dumii,dumll+1,dumi+1,dumj+1,ind)-itabcoll(dumjj,dumii,dumll+1,dumi,   &
+             dumj+1,ind))
 
          iproc2 = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
 
          iproc3 = iproc1+(dum7-real(dumll))*(iproc2-iproc1)
 
-     ! current rime fraction index+1 ii+1
+     ! current rime fraction ind+1 ii+1
 
-	! current liquid fraction index ll
+	! current liquid fraction ind ll
 
 	! interpolate for j between i and i+1
-         dproc1  = itabcoll(dumjj,dumii+1,dumll,dumi,dumj,index)+(dum1-real(dumi))*                  &
-             (itabcoll(dumjj,dumii+1,dumll,dumi+1,dumj,index)-itabcoll(dumjj,dumii+1,dumll,dumi,     &
-             dumj,index))
+         dproc1  = itabcoll(dumjj,dumii+1,dumll,dumi,dumj,ind)+(dum1-real(dumi))*                  &
+             (itabcoll(dumjj,dumii+1,dumll,dumi+1,dumj,ind)-itabcoll(dumjj,dumii+1,dumll,dumi,     &
+             dumj,ind))
 
 	! interpolate for j+1 between i and i+1
-         dproc2  = itabcoll(dumjj,dumii+1,dumll,dumi,dumj+1,index)+(dum1-real(dumi))*                &
-             (itabcoll(dumjj,dumii+1,dumll,dumi+1,dumj+1,index)-itabcoll(dumjj,dumii+1,dumll,dumi,   &
-             dumj+1,index))
+         dproc2  = itabcoll(dumjj,dumii+1,dumll,dumi,dumj+1,ind)+(dum1-real(dumi))*                &
+             (itabcoll(dumjj,dumii+1,dumll,dumi+1,dumj+1,ind)-itabcoll(dumjj,dumii+1,dumll,dumi,   &
+             dumj+1,ind))
 
          iproc1 = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
 
-	! current liquid fraction index+1 ll+1
+	! current liquid fraction ind+1 ll+1
 
 	! interpolate for j between i and i+1
-         dproc1  = itabcoll(dumjj,dumii+1,dumll+1,dumi,dumj,index)+(dum1-real(dumi))*                &
-             (itabcoll(dumjj,dumii+1,dumll+1,dumi+1,dumj,index)-itabcoll(dumjj,dumii+1,dumll+1,dumi, &
-             dumj,index))
+         dproc1  = itabcoll(dumjj,dumii+1,dumll+1,dumi,dumj,ind)+(dum1-real(dumi))*                &
+             (itabcoll(dumjj,dumii+1,dumll+1,dumi+1,dumj,ind)-itabcoll(dumjj,dumii+1,dumll+1,dumi, &
+             dumj,ind))
 
 	! interpolate for j+1 between i and i+1
-         dproc2  = itabcoll(dumjj,dumii+1,dumll+1,dumi,dumj+1,index)+(dum1-real(dumi))*                 &
-             (itabcoll(dumjj,dumii+1,dumll+1,dumi+1,dumj+1,index)-itabcoll(dumjj,dumii+1,dumll+1,dumi,  &
-             dumj+1,index))
+         dproc2  = itabcoll(dumjj,dumii+1,dumll+1,dumi,dumj+1,ind)+(dum1-real(dumi))*                 &
+             (itabcoll(dumjj,dumii+1,dumll+1,dumi+1,dumj+1,ind)-itabcoll(dumjj,dumii+1,dumll+1,dumi,  &
+             dumj+1,ind))
 
          iproc2 = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
 
@@ -6547,67 +6541,67 @@ timer(:) = timer_end(:) - timer_start(:)
 
          tmp1 = iproc3+(dum4-real(dumii))*(iproc4-iproc3)
 
-! current density index+1 jj+1
+! current density ind+1 jj+1
 
-     ! current rime fraction index ii
+     ! current rime fraction ind ii
 
-	! current liquid fraction index ll
+	! current liquid fraction ind ll
 
 	! interpolate for j between i and i+1
-         dproc1  = itabcoll(dumjj+1,dumii,dumll,dumi,dumj,index)+(dum1-real(dumi))*                 &
-             (itabcoll(dumjj+1,dumii,dumll,dumi+1,dumj,index)-itabcoll(dumjj+1,dumii,dumll,dumi,    &
-             dumj,index))
+         dproc1  = itabcoll(dumjj+1,dumii,dumll,dumi,dumj,ind)+(dum1-real(dumi))*                 &
+             (itabcoll(dumjj+1,dumii,dumll,dumi+1,dumj,ind)-itabcoll(dumjj+1,dumii,dumll,dumi,    &
+             dumj,ind))
 
 	! interpolate for j+1 between i and i+1
-         dproc2  = itabcoll(dumjj+1,dumii,dumll,dumi,dumj+1,index)+(dum1-real(dumi))*               &
-             (itabcoll(dumjj+1,dumii,dumll,dumi+1,dumj+1,index)-itabcoll(dumjj+1,dumii,dumll,dumi,  &
-             dumj+1,index))
+         dproc2  = itabcoll(dumjj+1,dumii,dumll,dumi,dumj+1,ind)+(dum1-real(dumi))*               &
+             (itabcoll(dumjj+1,dumii,dumll,dumi+1,dumj+1,ind)-itabcoll(dumjj+1,dumii,dumll,dumi,  &
+             dumj+1,ind))
 
          iproc1 = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
 
-	! current liquid fraction index+1 ll+1
+	! current liquid fraction ind+1 ll+1
 
 	! interpolate for j between i and i+1
-         dproc1  = itabcoll(dumjj+1,dumii,dumll+1,dumi,dumj,index)+(dum1-real(dumi))*                 &
-             (itabcoll(dumjj+1,dumii,dumll+1,dumi+1,dumj,index)-itabcoll(dumjj+1,dumii,dumll+1,dumi,  &
-             dumj,index))
+         dproc1  = itabcoll(dumjj+1,dumii,dumll+1,dumi,dumj,ind)+(dum1-real(dumi))*                 &
+             (itabcoll(dumjj+1,dumii,dumll+1,dumi+1,dumj,ind)-itabcoll(dumjj+1,dumii,dumll+1,dumi,  &
+             dumj,ind))
 
 	! interpolate for j+1 between i and i+1
-         dproc2  = itabcoll(dumjj+1,dumii,dumll+1,dumi,dumj+1,index)+(dum1-real(dumi))*                 &
-             (itabcoll(dumjj+1,dumii,dumll+1,dumi+1,dumj+1,index)-itabcoll(dumjj+1,dumii,dumll+1,dumi,  &
-             dumj+1,index))
+         dproc2  = itabcoll(dumjj+1,dumii,dumll+1,dumi,dumj+1,ind)+(dum1-real(dumi))*                 &
+             (itabcoll(dumjj+1,dumii,dumll+1,dumi+1,dumj+1,ind)-itabcoll(dumjj+1,dumii,dumll+1,dumi,  &
+             dumj+1,ind))
 
          iproc2 = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
 
          iproc3 = iproc1+(dum7-real(dumll))*(iproc2-iproc1)
 
-     ! current rime fraction index+1 ii+1
+     ! current rime fraction ind+1 ii+1
 
-	! current liquid fraction index ll
+	! current liquid fraction ind ll
 
 	! interpolate for j between i and i+1
-         dproc1  = itabcoll(dumjj+1,dumii+1,dumll,dumi,dumj,index)+(dum1-real(dumi))*                   &
-             (itabcoll(dumjj+1,dumii+1,dumll,dumi+1,dumj,index)-itabcoll(dumjj+1,dumii+1,dumll,dumi,    &
-             dumj,index))
+         dproc1  = itabcoll(dumjj+1,dumii+1,dumll,dumi,dumj,ind)+(dum1-real(dumi))*                   &
+             (itabcoll(dumjj+1,dumii+1,dumll,dumi+1,dumj,ind)-itabcoll(dumjj+1,dumii+1,dumll,dumi,    &
+             dumj,ind))
 
 	! interpolate for j+1 between i and i+1
-         dproc2  = itabcoll(dumjj+1,dumii+1,dumll,dumi,dumj+1,index)+(dum1-real(dumi))*                 &
-             (itabcoll(dumjj+1,dumii+1,dumll,dumi+1,dumj+1,index)-itabcoll(dumjj+1,dumii+1,dumll,dumi,  &
-             dumj+1,index))
+         dproc2  = itabcoll(dumjj+1,dumii+1,dumll,dumi,dumj+1,ind)+(dum1-real(dumi))*                 &
+             (itabcoll(dumjj+1,dumii+1,dumll,dumi+1,dumj+1,ind)-itabcoll(dumjj+1,dumii+1,dumll,dumi,  &
+             dumj+1,ind))
 
          iproc1 = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
 
-	! current liquid fraction index+1 ll+1
+	! current liquid fraction ind+1 ll+1
 
 	! interpolate for j between i and i+1
-         dproc1  = itabcoll(dumjj+1,dumii+1,dumll+1,dumi,dumj,index)+(dum1-real(dumi))*                   &
-             (itabcoll(dumjj+1,dumii+1,dumll+1,dumi+1,dumj,index)-itabcoll(dumjj+1,dumii+1,dumll+1,dumi,  &
-             dumj,index))
+         dproc1  = itabcoll(dumjj+1,dumii+1,dumll+1,dumi,dumj,ind)+(dum1-real(dumi))*                   &
+             (itabcoll(dumjj+1,dumii+1,dumll+1,dumi+1,dumj,ind)-itabcoll(dumjj+1,dumii+1,dumll+1,dumi,  &
+             dumj,ind))
 
 	! interpolate for j+1 between i and i+1
-         dproc2  = itabcoll(dumjj+1,dumii+1,dumll+1,dumi,dumj+1,index)+(dum1-real(dumi))*                   &
-             (itabcoll(dumjj+1,dumii+1,dumll+1,dumi+1,dumj+1,index)-itabcoll(dumjj+1,dumii+1,dumll+1,dumi,  &
-             dumj+1,index))
+         dproc2  = itabcoll(dumjj+1,dumii+1,dumll+1,dumi,dumj+1,ind)+(dum1-real(dumi))*                   &
+             (itabcoll(dumjj+1,dumii+1,dumll+1,dumi+1,dumj+1,ind)-itabcoll(dumjj+1,dumii+1,dumll+1,dumi,  &
+             dumj+1,ind))
 
          iproc2 = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
 
@@ -6624,26 +6618,26 @@ timer(:) = timer_end(:) - timer_start(:)
 
 !==========================================================================================!
 
- SUBROUTINE access_lookup_table_colli(dumjjc,dumiic,dumic,dumjj,dumii,dumi,index,   &
+ SUBROUTINE access_lookup_table_colli(dumjjc,dumiic,dumic,dumjj,dumii,dumi,ind,   &
                                       dum1c,dum4c,dum5c,dum1,dum4,dum5,proc)
 
  implicit none
 
  real    :: dum1,dum4,dum5,dum1c,dum4c,dum5c,proc,iproc1,iproc2,       &
             gproc1,gproc2,rproc1,rproc2,tmp1,tmp2,dproc11,dproc12
- integer :: dumjj,dumii,dumi,index,dumjjc,dumiic,dumic
+ integer :: dumjj,dumii,dumi,ind,dumjjc,dumiic,dumic
 
 ! This subroutine interpolates lookup table values for rain/ice collection processes
 
-! current density index collectee category
+! current density ind collectee category
 
-! current rime fraction index for collectee category
+! current rime fraction ind for collectee category
 
-! current density index collector category
+! current density ind collector category
 
-! current rime fraction index for collector category
+! current rime fraction ind for collector category
 
-  if (index.eq.1) then
+  if (ind.eq.1) then
 
    dproc11 = itabcolli001(dumic,dumiic,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*    &
              (itabcolli001(dumic+1,dumiic,dumjjc,dumi,dumii,dumjj)-                     &
@@ -6656,7 +6650,7 @@ timer(:) = timer_end(:) - timer_start(:)
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
 
-! collector rime fraction index + 1
+! collector rime fraction ind + 1
 
    dproc11 = itabcolli001(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
              (itabcolli001(dumic+1,dumiic,dumjjc,dumi,dumii+1,dumjj)-                   &
@@ -6670,7 +6664,7 @@ timer(:) = timer_end(:) - timer_start(:)
 
    tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
 
-! collector density index + 1
+! collector density ind + 1
 
    dproc11 = itabcolli001(dumic,dumiic,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
              (itabcolli001(dumic+1,dumiic,dumjjc,dumi,dumii,dumjj+1)-                   &
@@ -6682,7 +6676,7 @@ timer(:) = timer_end(:) - timer_start(:)
 
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1
+! collector rime fraction ind + 1
 
    dproc11 = itabcolli001(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))*   &
              (itabcolli001(dumic+1,dumiic,dumjjc,dumi,dumii+1,dumjj+1)-                    &
@@ -6711,7 +6705,7 @@ timer(:) = timer_end(:) - timer_start(:)
 
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1
+! collector rime fraction ind + 1
 
    dproc11 = itabcolli001(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
              (itabcolli001(dumic+1,dumiic+1,dumjjc,dumi,dumii+1,dumjj)-                   &
@@ -6725,7 +6719,7 @@ timer(:) = timer_end(:) - timer_start(:)
 
    tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
 
-! collector density index + 1
+! collector density ind + 1
 
    dproc11 = itabcolli001(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
              (itabcolli001(dumic+1,dumiic+1,dumjjc,dumi,dumii,dumjj+1)-                  &
@@ -6737,7 +6731,7 @@ timer(:) = timer_end(:) - timer_start(:)
 
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1
+! collector rime fraction ind + 1
 
    dproc11 = itabcolli001(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
              (itabcolli001(dumic+1,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1)-                  &
@@ -6756,7 +6750,7 @@ timer(:) = timer_end(:) - timer_start(:)
    rproc1  = gproc1+(dum4c-real(dumiic))*(gproc2-gproc1)
 
 !............................................................................................................
-! collectee density index + 1
+! collectee density ind + 1
 
    dproc11 = itabcolli001(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj)+(dum1c-real(dumic))*  &
              (itabcolli001(dumic+1,dumiic,dumjjc+1,dumi,dumii,dumjj)-                   &
@@ -6768,7 +6762,7 @@ timer(:) = timer_end(:) - timer_start(:)
 
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1
+! collector rime fraction ind + 1
 
    dproc11 = itabcolli001(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
              (itabcolli001(dumic+1,dumiic,dumjjc+1,dumi,dumii+1,dumjj)-                  &
@@ -6782,7 +6776,7 @@ timer(:) = timer_end(:) - timer_start(:)
 
    tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
 
-! collector density index + 1
+! collector density ind + 1
 
    dproc11 = itabcolli001(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
              (itabcolli001(dumic+1,dumiic,dumjjc+1,dumi,dumii,dumjj+1)-                   &
@@ -6794,7 +6788,7 @@ timer(:) = timer_end(:) - timer_start(:)
 
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1
+! collector rime fraction ind + 1
 
    dproc11 = itabcolli001(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
              (itabcolli001(dumic+1,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1)-                  &
@@ -6823,7 +6817,7 @@ timer(:) = timer_end(:) - timer_start(:)
 
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1
+! collector rime fraction ind + 1
 
    dproc11 = itabcolli001(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
              (itabcolli001(dumic+1,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj)-                  &
@@ -6837,7 +6831,7 @@ timer(:) = timer_end(:) - timer_start(:)
 
    tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
 
-! collector density index + 1
+! collector density ind + 1
 
    dproc11 = itabcolli001(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
              (itabcolli001(dumic+1,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1)-                  &
@@ -6849,7 +6843,7 @@ timer(:) = timer_end(:) - timer_start(:)
 
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1
+! collector rime fraction ind + 1
 
    dproc11 = itabcolli001(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
              (itabcolli001(dumic+1,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1)-                  &
@@ -6873,7 +6867,7 @@ timer(:) = timer_end(:) - timer_start(:)
    proc    = rproc1+(dum5c-real(dumjjc))*(rproc2-rproc1)
 
 
- else if (index.eq.2) then
+ else if (ind.eq.2) then
 
    dproc11 = itabcolli002(dumic,dumiic,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*    &
              (itabcolli002(dumic+1,dumiic,dumjjc,dumi,dumii,dumjj)-                     &
@@ -6885,7 +6879,7 @@ timer(:) = timer_end(:) - timer_start(:)
 
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1
+! collector rime fraction ind + 1
 
    dproc11 = itabcolli002(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
              (itabcolli002(dumic+1,dumiic,dumjjc,dumi,dumii+1,dumjj)-                   &
@@ -6899,7 +6893,7 @@ timer(:) = timer_end(:) - timer_start(:)
 
    tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
 
-! collector density index + 1
+! collector density ind + 1
 
    dproc11 = itabcolli002(dumic,dumiic,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
              (itabcolli002(dumic+1,dumiic,dumjjc,dumi,dumii,dumjj+1)-                   &
@@ -6911,7 +6905,7 @@ timer(:) = timer_end(:) - timer_start(:)
 
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1
+! collector rime fraction ind + 1
 
    dproc11 = itabcolli002(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
              (itabcolli002(dumic+1,dumiic,dumjjc,dumi,dumii+1,dumjj+1)-                  &
@@ -6940,7 +6934,7 @@ timer(:) = timer_end(:) - timer_start(:)
 
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1
+! collector rime fraction ind + 1
 
    dproc11 = itabcolli002(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
              (itabcolli002(dumic+1,dumiic+1,dumjjc,dumi,dumii+1,dumjj)-                   &
@@ -6954,7 +6948,7 @@ timer(:) = timer_end(:) - timer_start(:)
 
    tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
 
-! collector density index + 1
+! collector density ind + 1
 
    dproc11 = itabcolli002(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
              (itabcolli002(dumic+1,dumiic+1,dumjjc,dumi,dumii,dumjj+1)-                  &
@@ -6966,7 +6960,7 @@ timer(:) = timer_end(:) - timer_start(:)
 
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1
+! collector rime fraction ind + 1
 
    dproc11 = itabcolli002(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
              (itabcolli002(dumic+1,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1)-                  &
@@ -6986,7 +6980,7 @@ timer(:) = timer_end(:) - timer_start(:)
 
 
 !............................................................................................................
-! collectee density index + 1
+! collectee density ind + 1
 
    dproc11 = itabcolli002(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj)+(dum1c-real(dumic))*  &
              (itabcolli002(dumic+1,dumiic,dumjjc+1,dumi,dumii,dumjj)-                   &
@@ -6998,7 +6992,7 @@ timer(:) = timer_end(:) - timer_start(:)
 
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1
+! collector rime fraction ind + 1
 
    dproc11 = itabcolli002(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
              (itabcolli002(dumic+1,dumiic,dumjjc+1,dumi,dumii+1,dumjj)-                  &
@@ -7012,7 +7006,7 @@ timer(:) = timer_end(:) - timer_start(:)
 
    tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
 
-! collector density index + 1
+! collector density ind + 1
 
    dproc11 = itabcolli002(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
              (itabcolli002(dumic+1,dumiic,dumjjc+1,dumi,dumii,dumjj+1)-                  &
@@ -7024,7 +7018,7 @@ timer(:) = timer_end(:) - timer_start(:)
 
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1
+! collector rime fraction ind + 1
 
    dproc11 = itabcolli002(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
              (itabcolli002(dumic+1,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1)-                  &
@@ -7053,7 +7047,7 @@ timer(:) = timer_end(:) - timer_start(:)
 
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1
+! collector rime fraction ind + 1
 
    dproc11 = itabcolli002(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
              (itabcolli002(dumic+1,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj)-                  &
@@ -7067,7 +7061,7 @@ timer(:) = timer_end(:) - timer_start(:)
 
    tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
 
-! collector density index + 1
+! collector density ind + 1
 
    dproc11 = itabcolli002(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
              (itabcolli002(dumic+1,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1)-                  &
@@ -7079,7 +7073,7 @@ timer(:) = timer_end(:) - timer_start(:)
 
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1
+! collector rime fraction ind + 1
 
    dproc11 = itabcolli002(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
              (itabcolli002(dumic+1,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1)-                  &
@@ -7102,14 +7096,14 @@ timer(:) = timer_end(:) - timer_start(:)
 
    proc    = rproc1+(dum5c-real(dumjjc))*(rproc2-rproc1)
 
-  endif ! index =1 or 2
+  endif ! ind =1 or 2
 
  END SUBROUTINE access_lookup_table_colli
 
 !==========================================================================================!
 !NOTE: optimisation can be made here if filiq=0
 
- SUBROUTINE access_lookup_table_colli_LF(dumjjc,dumiic,dumic,dumjj,dumii,dumi,index,     &
+ SUBROUTINE access_lookup_table_colli_LF(dumjjc,dumiic,dumic,dumjj,dumii,dumi,ind,     &
                                       dum1c,dum4c,dum5c,dum7c,dum1,dum4,dum5,dum7,proc)
 
  implicit none
@@ -7118,21 +7112,21 @@ timer(:) = timer_end(:) - timer_start(:)
             gproc1,gproc2,rproc1,rproc2,tmp1,tmp2,dproc11,dproc12,     &
             dum7,dum7c,proc001,proc101,proc002,proc102,procll1,procll2, &
             proc011,proc111,proc012,proc112
- integer :: dumjj,dumii,dumi,index,dumjjc,dumiic,dumic
+ integer :: dumjj,dumii,dumi,ind,dumjjc,dumiic,dumic
 
 ! This subroutine interpolates lookup table values for rain/ice collection processes
 
-  if (index.eq.1) then
+  if (ind.eq.1) then
 
 ! collectee liquid fraction (llc) at collector liquid fraction (ll) [00]
 
-! current density index collectee category (jjc)
+! current density ind collectee category (jjc)
 
-! current rime fraction index for collectee category (iic)
+! current rime fraction ind for collectee category (iic)
 
-! current density index collector category (jj)
+! current density ind collector category (jj)
 
-! current rime fraction index for collector category (ii)
+! current rime fraction ind for collector category (ii)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli001(dumic,dumiic,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*    &
@@ -7147,7 +7141,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli001(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
@@ -7165,9 +7159,9 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between ii and ii+1
    tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
 
-! collector density index + 1 (jj+1)
+! collector density ind + 1 (jj+1)
 
-! current rime fraction index for collector category (ii)
+! current rime fraction ind for collector category (ii)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli001(dumic,dumiic,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
@@ -7182,7 +7176,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli001(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))*   &
@@ -7207,9 +7201,9 @@ timer(:) = timer_end(:) - timer_start(:)
 !.......................................................................................................
 ! collectee rime fraction + 1 (iic+1)
 
-! current density index collector category (jj)
+! current density ind collector category (jj)
 
-! current rime fraction index for collector category (ii)
+! current rime fraction ind for collector category (ii)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli001(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*   &
@@ -7224,7 +7218,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli001(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
@@ -7242,7 +7236,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between ii and ii+1
    tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
 
-! collector density index + 1 (jj+1)
+! collector density ind + 1 (jj+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli001(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
@@ -7257,7 +7251,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli001(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
@@ -7282,13 +7276,13 @@ timer(:) = timer_end(:) - timer_start(:)
    rproc1  = gproc1+(dum4c-real(dumiic))*(gproc2-gproc1)
 
 !............................................................................................................
-! collectee density index + 1 (jjc+1)
+! collectee density ind + 1 (jjc+1)
 
-! current rime fraction index for collectee category (iic)
+! current rime fraction ind for collectee category (iic)
 
-! current density index collector category (jj)
+! current density ind collector category (jj)
 
-! current rime fraction index for collector category (ii)
+! current rime fraction ind for collector category (ii)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli001(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj)+(dum1c-real(dumic))*  &
@@ -7303,7 +7297,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli001(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
@@ -7321,7 +7315,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between ii and ii+1
    tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
 
-! collector density index + 1 (jj+1)
+! collector density ind + 1 (jj+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli001(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
@@ -7336,7 +7330,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli001(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
@@ -7373,7 +7367,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli001(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
@@ -7391,7 +7385,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between ii and ii+1
    tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
 
-! collector density index + 1 (jj+1)
+! collector density ind + 1 (jj+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli001(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
@@ -7406,7 +7400,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli001(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
@@ -7439,13 +7433,13 @@ timer(:) = timer_end(:) - timer_start(:)
 
 ! collectee liquid fraction (llc) at collector liquid fraction + 1 (ll+1) [01]
 
-! current density index collectee category (jjc)
+! current density ind collectee category (jjc)
 
-! current rime fraction index for collectee category (iic)
+! current rime fraction ind for collectee category (iic)
 
-! current density index collector category (jj)
+! current density ind collector category (jj)
 
-! current rime fraction index for collector category (ii)
+! current rime fraction ind for collector category (ii)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli011(dumic,dumiic,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*    &
@@ -7460,7 +7454,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli011(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
@@ -7478,9 +7472,9 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between ii and ii+1
    tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
 
-! collector density index + 1 (jj+1)
+! collector density ind + 1 (jj+1)
 
-! current rime fraction index for collector category (ii)
+! current rime fraction ind for collector category (ii)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli011(dumic,dumiic,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
@@ -7495,7 +7489,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli011(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))*   &
@@ -7520,9 +7514,9 @@ timer(:) = timer_end(:) - timer_start(:)
 !.......................................................................................................
 ! collectee rime fraction + 1 (iic+1)
 
-! current density index collector category (jj)
+! current density ind collector category (jj)
 
-! current rime fraction index for collector category (ii)
+! current rime fraction ind for collector category (ii)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli011(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*   &
@@ -7537,7 +7531,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli011(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
@@ -7555,7 +7549,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between ii and ii+1
    tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
 
-! collector density index + 1 (jj+1)
+! collector density ind + 1 (jj+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli011(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
@@ -7570,7 +7564,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli011(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
@@ -7595,13 +7589,13 @@ timer(:) = timer_end(:) - timer_start(:)
    rproc1  = gproc1+(dum4c-real(dumiic))*(gproc2-gproc1)
 
 !............................................................................................................
-! collectee density index + 1 (jjc+1)
+! collectee density ind + 1 (jjc+1)
 
-! current rime fraction index for collectee category (iic)
+! current rime fraction ind for collectee category (iic)
 
-! current density index collector category (jj)
+! current density ind collector category (jj)
 
-! current rime fraction index for collector category (ii)
+! current rime fraction ind for collector category (ii)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli011(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj)+(dum1c-real(dumic))*  &
@@ -7616,7 +7610,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli011(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
@@ -7634,7 +7628,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between ii and ii+1
    tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
 
-! collector density index + 1 (jj+1)
+! collector density ind + 1 (jj+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli011(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
@@ -7649,7 +7643,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli011(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
@@ -7686,7 +7680,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli011(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
@@ -7704,7 +7698,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between ii and ii+1
    tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
 
-! collector density index + 1 (jj+1)
+! collector density ind + 1 (jj+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli011(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
@@ -7719,7 +7713,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli011(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
@@ -7756,13 +7750,13 @@ timer(:) = timer_end(:) - timer_start(:)
 
 ! collectee liquid fraction +1 (llc+1) at collector liquid fraction (ll) [10]
 
-! current density index collectee category (jjc)
+! current density ind collectee category (jjc)
 
-! current rime fraction index for collectee category (iic)
+! current rime fraction ind for collectee category (iic)
 
-! current density index collector category (jj)
+! current density ind collector category (jj)
 
-! current rime fraction index for collector category (ii)
+! current rime fraction ind for collector category (ii)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli101(dumic,dumiic,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*    &
@@ -7777,7 +7771,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli101(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
@@ -7795,9 +7789,9 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between ii and ii+1
    tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
 
-! collector density index + 1 (jj+1)
+! collector density ind + 1 (jj+1)
 
-! current rime fraction index for collector category (ii)
+! current rime fraction ind for collector category (ii)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli101(dumic,dumiic,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
@@ -7812,7 +7806,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli101(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))*   &
@@ -7837,9 +7831,9 @@ timer(:) = timer_end(:) - timer_start(:)
 !.......................................................................................................
 ! collectee rime fraction + 1 (iic+1)
 
-! current density index collector category (jj)
+! current density ind collector category (jj)
 
-! current rime fraction index for collector category (ii)
+! current rime fraction ind for collector category (ii)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli101(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*   &
@@ -7854,7 +7848,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli101(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
@@ -7872,7 +7866,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between ii and ii+1
    tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
 
-! collector density index + 1 (jj+1)
+! collector density ind + 1 (jj+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli101(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
@@ -7887,7 +7881,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli101(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
@@ -7912,13 +7906,13 @@ timer(:) = timer_end(:) - timer_start(:)
    rproc1  = gproc1+(dum4c-real(dumiic))*(gproc2-gproc1)
 
 !............................................................................................................
-! collectee density index + 1 (jjc+1)
+! collectee density ind + 1 (jjc+1)
 
-! current rime fraction index for collectee category (iic)
+! current rime fraction ind for collectee category (iic)
 
-! current density index collector category (jj)
+! current density ind collector category (jj)
 
-! current rime fraction index for collector category (ii)
+! current rime fraction ind for collector category (ii)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli101(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj)+(dum1c-real(dumic))*  &
@@ -7933,7 +7927,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli101(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
@@ -7951,7 +7945,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between ii and ii+1
    tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
 
-! collector density index + 1 (jj+1)
+! collector density ind + 1 (jj+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli101(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
@@ -7966,7 +7960,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli101(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
@@ -8003,7 +7997,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli101(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
@@ -8021,7 +8015,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between ii and ii+1
    tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
 
-! collector density index + 1 (jj+1)
+! collector density ind + 1 (jj+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli101(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
@@ -8036,7 +8030,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli101(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
@@ -8070,13 +8064,13 @@ timer(:) = timer_end(:) - timer_start(:)
 
 ! collectee liquid fraction +1 (llc+1) at collector liquid fraction +1 (ll+1) [11]
 
-! current density index collectee category (jjc)
+! current density ind collectee category (jjc)
 
-! current rime fraction index for collectee category (iic)
+! current rime fraction ind for collectee category (iic)
 
-! current density index collector category (jj)
+! current density ind collector category (jj)
 
-! current rime fraction index for collector category (ii)
+! current rime fraction ind for collector category (ii)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli111(dumic,dumiic,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*    &
@@ -8091,7 +8085,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli111(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
@@ -8109,9 +8103,9 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between ii and ii+1
    tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
 
-! collector density index + 1 (jj+1)
+! collector density ind + 1 (jj+1)
 
-! current rime fraction index for collector category (ii)
+! current rime fraction ind for collector category (ii)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli111(dumic,dumiic,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
@@ -8126,7 +8120,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli111(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))*   &
@@ -8151,9 +8145,9 @@ timer(:) = timer_end(:) - timer_start(:)
 !.......................................................................................................
 ! collectee rime fraction + 1 (iic+1)
 
-! current density index collector category (jj)
+! current density ind collector category (jj)
 
-! current rime fraction index for collector category (ii)
+! current rime fraction ind for collector category (ii)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli111(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*   &
@@ -8168,7 +8162,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli111(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
@@ -8186,7 +8180,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between ii and ii+1
    tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
 
-! collector density index + 1 (jj+1)
+! collector density ind + 1 (jj+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli111(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
@@ -8201,7 +8195,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli111(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
@@ -8226,13 +8220,13 @@ timer(:) = timer_end(:) - timer_start(:)
    rproc1  = gproc1+(dum4c-real(dumiic))*(gproc2-gproc1)
 
 !............................................................................................................
-! collectee density index + 1 (jjc+1)
+! collectee density ind + 1 (jjc+1)
 
-! current rime fraction index for collectee category (iic)
+! current rime fraction ind for collectee category (iic)
 
-! current density index collector category (jj)
+! current density ind collector category (jj)
 
-! current rime fraction index for collector category (ii)
+! current rime fraction ind for collector category (ii)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli111(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj)+(dum1c-real(dumic))*  &
@@ -8247,7 +8241,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli111(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
@@ -8265,7 +8259,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between ii and ii+1
    tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
 
-! collector density index + 1 (jj+1)
+! collector density ind + 1 (jj+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli111(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
@@ -8280,7 +8274,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli111(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
@@ -8317,7 +8311,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli111(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
@@ -8335,7 +8329,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between ii and ii+1
    tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
 
-! collector density index + 1 (jj+1)
+! collector density ind + 1 (jj+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli111(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
@@ -8350,7 +8344,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli111(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
@@ -8389,17 +8383,17 @@ timer(:) = timer_end(:) - timer_start(:)
    proc = (1.-dum7c)*procll1 + dum7c*procll2
 
 
- else if (index.eq.2) then
+ else if (ind.eq.2) then
 
 ! collectee liquid fraction (llc) at collector liquid fraction (ll) [00]
 
-! current density index collectee category (jjc)
+! current density ind collectee category (jjc)
 
-! current rime fraction index for collectee category (iic)
+! current rime fraction ind for collectee category (iic)
 
-! current density index collector category (jj)
+! current density ind collector category (jj)
 
-! current rime fraction index for collector category (ii)
+! current rime fraction ind for collector category (ii)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli002(dumic,dumiic,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*    &
@@ -8414,7 +8408,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli002(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
@@ -8432,9 +8426,9 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between ii and ii+1
    tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
 
-! collector density index + 1 (jj+1)
+! collector density ind + 1 (jj+1)
 
-! current rime fraction index for collector category (ii)
+! current rime fraction ind for collector category (ii)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli002(dumic,dumiic,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
@@ -8449,7 +8443,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli002(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))*   &
@@ -8474,9 +8468,9 @@ timer(:) = timer_end(:) - timer_start(:)
 !.......................................................................................................
 ! collectee rime fraction + 1 (iic+1)
 
-! current density index collector category (jj)
+! current density ind collector category (jj)
 
-! current rime fraction index for collector category (ii)
+! current rime fraction ind for collector category (ii)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli002(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*   &
@@ -8491,7 +8485,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli002(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
@@ -8509,7 +8503,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between ii and ii+1
    tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
 
-! collector density index + 1 (jj+1)
+! collector density ind + 1 (jj+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli002(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
@@ -8524,7 +8518,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli002(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
@@ -8549,13 +8543,13 @@ timer(:) = timer_end(:) - timer_start(:)
    rproc1  = gproc1+(dum4c-real(dumiic))*(gproc2-gproc1)
 
 !............................................................................................................
-! collectee density index + 1 (jjc+1)
+! collectee density ind + 1 (jjc+1)
 
-! current rime fraction index for collectee category (iic)
+! current rime fraction ind for collectee category (iic)
 
-! current density index collector category (jj)
+! current density ind collector category (jj)
 
-! current rime fraction index for collector category (ii)
+! current rime fraction ind for collector category (ii)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli002(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj)+(dum1c-real(dumic))*  &
@@ -8570,7 +8564,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli002(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
@@ -8588,7 +8582,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between ii and ii+1
    tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
 
-! collector density index + 1 (jj+1)
+! collector density ind + 1 (jj+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli002(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
@@ -8603,7 +8597,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli002(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
@@ -8640,7 +8634,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli002(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
@@ -8658,7 +8652,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between ii and ii+1
    tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
 
-! collector density index + 1 (jj+1)
+! collector density ind + 1 (jj+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli002(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
@@ -8673,7 +8667,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli002(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
@@ -8706,13 +8700,13 @@ timer(:) = timer_end(:) - timer_start(:)
 
 ! collectee liquid fraction (llc) at collector liquid fraction + 1 (ll+1) [01]
 
-! current density index collectee category (jjc)
+! current density ind collectee category (jjc)
 
-! current rime fraction index for collectee category (iic)
+! current rime fraction ind for collectee category (iic)
 
-! current density index collector category (jj)
+! current density ind collector category (jj)
 
-! current rime fraction index for collector category (ii)
+! current rime fraction ind for collector category (ii)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli012(dumic,dumiic,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*    &
@@ -8727,7 +8721,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli012(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
@@ -8745,9 +8739,9 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between ii and ii+1
    tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
 
-! collector density index + 1 (jj+1)
+! collector density ind + 1 (jj+1)
 
-! current rime fraction index for collector category (ii)
+! current rime fraction ind for collector category (ii)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli012(dumic,dumiic,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
@@ -8762,7 +8756,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli012(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))*   &
@@ -8787,9 +8781,9 @@ timer(:) = timer_end(:) - timer_start(:)
 !.......................................................................................................
 ! collectee rime fraction + 1 (iic+1)
 
-! current density index collector category (jj)
+! current density ind collector category (jj)
 
-! current rime fraction index for collector category (ii)
+! current rime fraction ind for collector category (ii)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli012(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*   &
@@ -8804,7 +8798,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli012(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
@@ -8822,7 +8816,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between ii and ii+1
    tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
 
-! collector density index + 1 (jj+1)
+! collector density ind + 1 (jj+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli012(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
@@ -8837,7 +8831,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli012(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
@@ -8862,13 +8856,13 @@ timer(:) = timer_end(:) - timer_start(:)
    rproc1  = gproc1+(dum4c-real(dumiic))*(gproc2-gproc1)
 
 !............................................................................................................
-! collectee density index + 1 (jjc+1)
+! collectee density ind + 1 (jjc+1)
 
-! current rime fraction index for collectee category (iic)
+! current rime fraction ind for collectee category (iic)
 
-! current density index collector category (jj)
+! current density ind collector category (jj)
 
-! current rime fraction index for collector category (ii)
+! current rime fraction ind for collector category (ii)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli012(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj)+(dum1c-real(dumic))*  &
@@ -8883,7 +8877,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli012(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
@@ -8901,7 +8895,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between ii and ii+1
    tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
 
-! collector density index + 1 (jj+1)
+! collector density ind + 1 (jj+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli012(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
@@ -8916,7 +8910,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli012(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
@@ -8953,7 +8947,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli012(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
@@ -8971,7 +8965,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between ii and ii+1
    tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
 
-! collector density index + 1 (jj+1)
+! collector density ind + 1 (jj+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli012(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
@@ -8986,7 +8980,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli012(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
@@ -9023,13 +9017,13 @@ timer(:) = timer_end(:) - timer_start(:)
 
 ! collectee liquid fraction +1 (llc+1) at collector liquid fraction (ll) [10]
 
-! current density index collectee category (jjc)
+! current density ind collectee category (jjc)
 
-! current rime fraction index for collectee category (iic)
+! current rime fraction ind for collectee category (iic)
 
-! current density index collector category (jj)
+! current density ind collector category (jj)
 
-! current rime fraction index for collector category (ii)
+! current rime fraction ind for collector category (ii)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli102(dumic,dumiic,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*    &
@@ -9044,7 +9038,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli102(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
@@ -9062,9 +9056,9 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between ii and ii+1
    tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
 
-! collector density index + 1 (jj+1)
+! collector density ind + 1 (jj+1)
 
-! current rime fraction index for collector category (ii)
+! current rime fraction ind for collector category (ii)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli102(dumic,dumiic,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
@@ -9079,7 +9073,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli102(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))*   &
@@ -9104,9 +9098,9 @@ timer(:) = timer_end(:) - timer_start(:)
 !.......................................................................................................
 ! collectee rime fraction + 1 (iic+1)
 
-! current density index collector category (jj)
+! current density ind collector category (jj)
 
-! current rime fraction index for collector category (ii)
+! current rime fraction ind for collector category (ii)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli102(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*   &
@@ -9121,7 +9115,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli102(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
@@ -9139,7 +9133,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between ii and ii+1
    tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
 
-! collector density index + 1 (jj+1)
+! collector density ind + 1 (jj+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli102(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
@@ -9154,7 +9148,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli102(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
@@ -9179,13 +9173,13 @@ timer(:) = timer_end(:) - timer_start(:)
    rproc1  = gproc1+(dum4c-real(dumiic))*(gproc2-gproc1)
 
 !............................................................................................................
-! collectee density index + 1 (jjc+1)
+! collectee density ind + 1 (jjc+1)
 
-! current rime fraction index for collectee category (iic)
+! current rime fraction ind for collectee category (iic)
 
-! current density index collector category (jj)
+! current density ind collector category (jj)
 
-! current rime fraction index for collector category (ii)
+! current rime fraction ind for collector category (ii)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli102(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj)+(dum1c-real(dumic))*  &
@@ -9200,7 +9194,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli102(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
@@ -9218,7 +9212,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between ii and ii+1
    tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
 
-! collector density index + 1 (jj+1)
+! collector density ind + 1 (jj+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli102(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
@@ -9233,7 +9227,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli102(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
@@ -9270,7 +9264,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli102(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
@@ -9288,7 +9282,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between ii and ii+1
    tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
 
-! collector density index + 1 (jj+1)
+! collector density ind + 1 (jj+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli102(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
@@ -9303,7 +9297,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli102(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
@@ -9337,13 +9331,13 @@ timer(:) = timer_end(:) - timer_start(:)
 
 ! collectee liquid fraction +1 (llc+1) at collector liquid fraction +1 (ll+1) [11]
 
-! current density index collectee category (jjc)
+! current density ind collectee category (jjc)
 
-! current rime fraction index for collectee category (iic)
+! current rime fraction ind for collectee category (iic)
 
-! current density index collector category (jj)
+! current density ind collector category (jj)
 
-! current rime fraction index for collector category (ii)
+! current rime fraction ind for collector category (ii)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli112(dumic,dumiic,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*    &
@@ -9358,7 +9352,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli112(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
@@ -9376,9 +9370,9 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between ii and ii+1
    tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
 
-! collector density index + 1 (jj+1)
+! collector density ind + 1 (jj+1)
 
-! current rime fraction index for collector category (ii)
+! current rime fraction ind for collector category (ii)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli112(dumic,dumiic,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
@@ -9393,7 +9387,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli112(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))*   &
@@ -9418,9 +9412,9 @@ timer(:) = timer_end(:) - timer_start(:)
 !.......................................................................................................
 ! collectee rime fraction + 1 (iic+1)
 
-! current density index collector category (jj)
+! current density ind collector category (jj)
 
-! current rime fraction index for collector category (ii)
+! current rime fraction ind for collector category (ii)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli112(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*   &
@@ -9435,7 +9429,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli112(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
@@ -9453,7 +9447,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between ii and ii+1
    tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
 
-! collector density index + 1 (jj+1)
+! collector density ind + 1 (jj+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli112(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
@@ -9468,7 +9462,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli112(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
@@ -9493,13 +9487,13 @@ timer(:) = timer_end(:) - timer_start(:)
    rproc1  = gproc1+(dum4c-real(dumiic))*(gproc2-gproc1)
 
 !............................................................................................................
-! collectee density index + 1 (jjc+1)
+! collectee density ind + 1 (jjc+1)
 
-! current rime fraction index for collectee category (iic)
+! current rime fraction ind for collectee category (iic)
 
-! current density index collector category (jj)
+! current density ind collector category (jj)
 
-! current rime fraction index for collector category (ii)
+! current rime fraction ind for collector category (ii)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli112(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj)+(dum1c-real(dumic))*  &
@@ -9514,7 +9508,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli112(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
@@ -9532,7 +9526,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between ii and ii+1
    tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
 
-! collector density index + 1 (jj+1)
+! collector density ind + 1 (jj+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli112(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
@@ -9547,7 +9541,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli112(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
@@ -9584,7 +9578,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli112(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
@@ -9602,7 +9596,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between ii and ii+1
    tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
 
-! collector density index + 1 (jj+1)
+! collector density ind + 1 (jj+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli112(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
@@ -9617,7 +9611,7 @@ timer(:) = timer_end(:) - timer_start(:)
 ! between i and i+1
    iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
 
-! collector rime fraction index + 1 (ii+1)
+! collector rime fraction ind + 1 (ii+1)
 
 ! i collector (between ic and ic+1)
    dproc11 = itabcolli112(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
@@ -9655,12 +9649,12 @@ timer(:) = timer_end(:) - timer_start(:)
 
    proc = (1.-dum7c)*procll1 + dum7c*procll2
 
- endif ! index =1 or 2
+ endif ! ind =1 or 2
 
  END SUBROUTINE access_lookup_table_colli_LF
 
 !==========================================================================================!
- subroutine get_LUT_args(args_LUT_r,args_LUT_i,dumzz,dumjj,dumii,dumll,dumi,dum1,dum4,dum5,dum6,dum7)
+ subroutine combine_LUT_args(args_r,args_i,dumzz,dumjj,dumii,dumll,dumi,dum1,dum4,dum5,dum6,dum7)
 
  !--------------------------------------------------------------------------------
  ! Consolidates individual real and integer values, used to access the LUT,
@@ -9669,27 +9663,27 @@ timer(:) = timer_end(:) - timer_start(:)
  !--------------------------------------------------------------------------------
 
 !arguments:
- real,    dimension(5), intent(out) :: args_LUT_r
- integer, dimension(5), intent(out) :: args_LUT_i
+ real,    dimension(5), intent(out) :: args_r
+ integer, dimension(5), intent(out) :: args_i
  integer,               intent(in)  :: dumzz,dumjj,dumii,dumll,dumi
  real,                  intent(in)  :: dum1,dum4,dum5,dum6,dum7
 
- args_LUT_r(1) = dum1
- args_LUT_r(2) = dum4
- args_LUT_r(3) = dum5
- args_LUT_r(4) = dum6
- args_LUT_r(5) = dum7
+ args_r(1) = dum1
+ args_r(2) = dum4
+ args_r(3) = dum5
+ args_r(4) = dum6
+ args_r(5) = dum7
 
- args_LUT_i(1) = dumzz
- args_LUT_i(2) = dumjj
- args_LUT_i(3) = dumii
- args_LUT_i(4) = dumll
- args_LUT_i(5) = dumi
+ args_i(1) = dumzz
+ args_i(2) = dumjj
+ args_i(3) = dumii
+ args_i(4) = dumll
+ args_i(5) = dumi
 
- end subroutine get_LUT_args
+ end subroutine combine_LUT_args
 !==========================================================================================!
 
- real function proc_from_LUT_3momLF(ind,args_LUT_r,args_LUT_i)
+ real function proc_from_LUT_3momLF(ind,args_r,args_i)
 
  !--------------------------------------------------------------------------------
  ! Obtains process rate (or other quantity) from LUT by accessing values from the
@@ -9702,25 +9696,25 @@ timer(:) = timer_end(:) - timer_start(:)
 
 !argmuents:
  integer,               intent(in) :: ind
- real,    dimension(5), intent(in) :: args_LUT_r
- integer, dimension(5), intent(in) :: args_LUT_i
+ real,    dimension(5), intent(in) :: args_r
+ integer, dimension(5), intent(in) :: args_i
 
 !local:
  integer :: dumzz,dumjj,dumii,dumi,dumll
  real    :: dum1,dum4,dum5,dum6,dum7
  real    :: iproc1,iproc2,gproc1,gproc2,rproc1,rproc2,dproc1,dproc2,proc
 
- dum1 = args_LUT_r(1)
- dum4 = args_LUT_r(2)
- dum5 = args_LUT_r(3)
- dum6 = args_LUT_r(4)
- dum7 = args_LUT_r(5)
+ dum1 = args_r(1)
+ dum4 = args_r(2)
+ dum5 = args_r(3)
+ dum6 = args_r(4)
+ dum7 = args_r(5)
 
- dumzz = args_LUT_i(1)
- dumjj = args_LUT_i(2)
- dumii = args_LUT_i(3)
- dumll = args_LUT_i(4)
- dumi  = args_LUT_i(5)
+ dumzz = args_i(1)
+ dumjj = args_i(2)
+ dumii = args_i(3)
+ dumll = args_i(4)
+ dumi  = args_i(5)
 
 if (dum7 == 1. .and. dumll==1) then  !skip interpolation for liq-frac if qiliq = 0.
 
@@ -10589,7 +10583,7 @@ else
  subroutine icecat_destination(Qi,Di,D_nuc,deltaD_init,iice_dest)
 
  !--------------------------------------------------------------------------------------!
- ! Returns the index of the destination ice category into which new ice is nucleated.
+ ! Returns the ind of the destination ice category into which new ice is nucleated.
  !
  ! New ice will be nucleated into the category in which the existing ice is
  ! closest in size to the ice being nucleated.  The exception is that if the
@@ -11257,20 +11251,20 @@ else
 
 !===========================================================================================
 
- real function qv_sat(t_atm,p_atm,i_wrt)
+ real function qv_sat(t_atm,p_atm,ind_wrt)
 
 !------------------------------------------------------------------------------------
 ! Calls polysvp1 to obtain the saturation vapor pressure, and then computes
 ! and returns the saturation mixing ratio, with respect to either liquid or ice,
-! depending on value of 'i_wrt'
+! depending on value of 'ind_wrt'
 !------------------------------------------------------------------------------------
 
  implicit none
 
  !Calling parameters:
- real    :: t_atm  !temperature [K]
- real    :: p_atm  !pressure    [Pa]
- integer :: i_wrt  !index, 0 = w.r.t. liquid, 1 = w.r.t. ice
+ real    :: t_atm    !temperature [K]
+ real    :: p_atm    !pressure    [Pa]
+ integer :: ind_wrt  !index, 0 = w.r.t. liquid, 1 = w.r.t. ice
 
  !Local variables:
  real    :: e_pres         !saturation vapor pressure [Pa]
@@ -11278,11 +11272,11 @@ else
  !------------------
 
 #ifdef ECCCGEM
-  if (i_wrt.eq.1) e_pres = foew(t_atm)
-  if (i_wrt.eq.0) e_pres = foewa(t_atm)
+  if (ind_wrt.eq.1) e_pres = foew(t_atm)
+  if (ind_wrt.eq.0) e_pres = foewa(t_atm)
   qv_sat = ep_2*e_pres/max(1.e-3,(p_atm-e_pres))
 #else
-  e_pres = polysvp1(t_atm,i_wrt)
+  e_pres = polysvp1(t_atm,ind_wrt)
   qv_sat = ep_2*e_pres/max(1.e-3,(p_atm-e_pres))
 #endif
 
@@ -11662,16 +11656,16 @@ else
  real                 :: mom3          !estimate of 3rd moment
  real,    parameter   :: tol = 0.25    !tolerance for convergence
  integer, parameter   :: max_iterations = 5
- real,    dimension(5) :: args_LUT_r
- integer, dimension(5) :: args_LUT_i
+ real,    dimension(5) :: args_r
+ integer, dimension(5) :: args_i
 
 ! ! !--- original, for testing
 ! !                 mom3 =  6./(200.*pi)*Qi
 ! !                 do ind=1,5 !niter_mui
 ! !                    mu_i = compute_mu_3moment_1(Ni,mom3,Zi,mu_i_max)
 ! !                    call find_lookupTable_indices_1c(dumzz,dum6,zsize,mu_i)
-! !                    call get_LUT_args(args_LUT_r,args_LUT_i,dumzz,dumjj,dumii,dumll,dumi,dum1,dum4,dum5,dum6,dum7)
-! !                    rhoi = proc_from_LUT_3momLF(12,args_LUT_r,args_LUT_i)
+! !                    call combine_LUT_args(args_r,args_i,dumzz,dumjj,dumii,dumll,dumi,dum1,dum4,dum5,dum6,dum7)
+! !                    rhoi = proc_from_LUT_3momLF(12,args_r,args_i)
 ! !                    mom3 =  6./(rhoi*pi)*Qi  !estimate of moment3
 ! !                 enddo
 ! ! !-----
@@ -11680,8 +11674,8 @@ else
 
  do ind = 1,max_iterations
     call find_lookupTable_indices_1c(dumzz,dum6,zsize,mu_old)
-    call get_LUT_args(args_LUT_r,args_LUT_i,dumzz,dumjj,dumii,dumll,dumi,dum1,dum4,dum5,dum6,dum7)
-    rhoi = proc_from_LUT_3momLF(12,args_LUT_r,args_LUT_i)
+    call combine_LUT_args(args_r,args_i,dumzz,dumjj,dumii,dumll,dumi,dum1,dum4,dum5,dum6,dum7)
+    rhoi = proc_from_LUT_3momLF(12,args_r,args_i)
     mom3 = 6./(rhoi*pi)*Qi
     mu_i = compute_mu_3moment_1(Ni,mom3,Zi,mu_i_max)   ! piecewise polynomial approximation (fast)
   ! mu_i = compute_mu_3moment_2(Ni,mom3,Zi,mu_i_max)   ! analytic cubic root (slow, more accurate)
