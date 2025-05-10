@@ -2824,9 +2824,9 @@ call cpu_time(timer_start(3))
 
           ! ice-rain collection processes
                 if (qr(i,k).ge.qsmall) then
-                   call access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,1,dum1,dum3,dum4,dum5,dum6,dum7,f1pr07)
-                   call access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,2,dum1,dum3,dum4,dum5,dum6,dum7,f1pr08)
-                   call access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,3,dum1,dum3,dum4,dum5,dum6,dum7,f1pr36)
+                   f1pr07 = proc_from_LUT_coll3momLF(1,dumzz,dumjj,dumii,dumll,dumj,dumi,dum1,dum3,dum4,dum5,dum6,dum7)
+                   f1pr08 = proc_from_LUT_coll3momLF(2,dumzz,dumjj,dumii,dumll,dumj,dumi,dum1,dum3,dum4,dum5,dum6,dum7)
+                   f1pr36 = proc_from_LUT_coll3momLF(3,dumzz,dumjj,dumii,dumll,dumj,dumi,dum1,dum3,dum4,dum5,dum6,dum7)
                 else
                    f1pr07 = -99. ! log space
                    f1pr08 = -99. ! log space
@@ -9663,7 +9663,7 @@ timer(:) = timer_end(:) - timer_start(:)
  subroutine get_LUT_args(args_LUT_r,args_LUT_i,dumzz,dumjj,dumii,dumll,dumi,dum1,dum4,dum5,dum6,dum7)
 
  !--------------------------------------------------------------------------------
- ! Consolidates individual real and integer values that used to access the LUT
+ ! Consolidates individual real and integer values, used to access the LUT,
  ! into arrays.  This is just to simplify the appearance of the code in p3_main.
  ! (This function replaces the old subroutine 'access_lookup_table_3mom_LF')
  !--------------------------------------------------------------------------------
@@ -9692,8 +9692,10 @@ timer(:) = timer_end(:) - timer_start(:)
  real function proc_from_LUT_3momLF(ind,args_LUT_r,args_LUT_i)
 
  !--------------------------------------------------------------------------------
- ! Obtains process rate (or other quantity) from LUT by reading and interpolation.
- ! This applies for for the 3-moment + LF LUT.
+ ! Obtains process rate (or other quantity) from LUT by accessing values from the
+ ! LUT and performing the necessary interpolation.
+ !
+ ! This applies for the main LUT for 3-moment + LF.
  !--------------------------------------------------------------------------------
 
  implicit none
@@ -9927,17 +9929,26 @@ end function proc_from_LUT_3momLF
 
 !==========================================================================================!
 
-SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,index,dum1,dum3,          &
-                                    dum4,dum5,dum6,dum7,proc)
+ real function proc_from_LUT_coll3momLF(ind,dumzz,dumjj,dumii,dumll,dumj,dumi,          &
+                                        dum1,dum3,dum4,dum5,dum6,dum7)
+
+ !--------------------------------------------------------------------------------
+ ! Obtains process rate (or other quantity) from LUT by accessing values from the
+ ! LUT and performing the necessary interpolation.
+ !
+ ! This applies for the ice-ice collection LUT for 3-moment + LF.
+ !--------------------------------------------------------------------------------
 
  implicit none
 
- real    :: dum1,dum3,dum4,dum5,dum6,dum7,proc,dproc1,dproc2,iproc1,iproc2,gproc1,gproc2,  &
-            rproc1,rproc2,zproc1,zproc2
- integer :: dumzz,dumjj,dumii,dumj,dumi,dumll,index
+!arguments:
+ real,    intent(in)  :: dum1,dum3,dum4,dum5,dum6,dum7
+ integer, intent(in)  :: dumzz,dumjj,dumii,dumj,dumi,dumll,ind
+!local:
+ real                 :: dproc1,dproc2,iproc1,iproc2,gproc1,gproc2,rproc1,rproc2,       &
+                         zproc1,zproc2,proc
 
 
-!if (.false.) then  ! to test old, "full" approach
  if (dum7 == 1. .and. dumll==1) then  !skip interpolation for liq-frac if qiliq = 0.
 !
 ! get at current zz
@@ -9948,14 +9959,14 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
     ! get current ll
 
     ! at j between i and i+1
-     dproc1  = itabcoll_3mom(dumzz,dumjj,dumii,dumll,dumi,dumj,index)+(dum1-real(dumi))*                &
-               (itabcoll_3mom(dumzz,dumjj,dumii,dumll,dumi+1,dumj,index)-itabcoll_3mom(dumzz,dumjj,     &
-               dumii,dumll,dumi,dumj,index))
+     dproc1  = itabcoll_3mom(dumzz,dumjj,dumii,dumll,dumi,dumj,ind)+(dum1-real(dumi))*                &
+               (itabcoll_3mom(dumzz,dumjj,dumii,dumll,dumi+1,dumj,ind)-itabcoll_3mom(dumzz,dumjj,     &
+               dumii,dumll,dumi,dumj,ind))
 
     ! at j+1 between i and i+1
-     dproc2  = itabcoll_3mom(dumzz,dumjj,dumii,dumll,dumi,dumj+1,index)+(dum1-real(dumi))*                &
-               (itabcoll_3mom(dumzz,dumjj,dumii,dumll,dumi+1,dumj+1,index)-itabcoll_3mom(dumzz,dumjj,     &
-               dumii,dumll,dumi,dumj+1,index))
+     dproc2  = itabcoll_3mom(dumzz,dumjj,dumii,dumll,dumi,dumj+1,ind)+(dum1-real(dumi))*                &
+               (itabcoll_3mom(dumzz,dumjj,dumii,dumll,dumi+1,dumj+1,ind)-itabcoll_3mom(dumzz,dumjj,     &
+               dumii,dumll,dumi,dumj+1,ind))
 
      iproc1  = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
 
@@ -9964,14 +9975,14 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
     ! get current ll
 
     ! at j between i and i+1
-     dproc1  = itabcoll_3mom(dumzz,dumjj,dumii+1,dumll,dumi,dumj,index)+(dum1-real(dumi))*                &
-               (itabcoll_3mom(dumzz,dumjj,dumii+1,dumll,dumi+1,dumj,index)-itabcoll_3mom(dumzz,dumjj,     &
-               dumii+1,dumll,dumi,dumj,index))
+     dproc1  = itabcoll_3mom(dumzz,dumjj,dumii+1,dumll,dumi,dumj,ind)+(dum1-real(dumi))*                &
+               (itabcoll_3mom(dumzz,dumjj,dumii+1,dumll,dumi+1,dumj,ind)-itabcoll_3mom(dumzz,dumjj,     &
+               dumii+1,dumll,dumi,dumj,ind))
 
     ! at j+1 between i and i+1
-     dproc2  = itabcoll_3mom(dumzz,dumjj,dumii+1,dumll,dumi,dumj+1,index)+(dum1-real(dumi))*                &
-               (itabcoll_3mom(dumzz,dumjj,dumii+1,dumll,dumi+1,dumj+1,index)-itabcoll_3mom(dumzz,dumjj,     &
-               dumii+1,dumll,dumi,dumj+1,index))
+     dproc2  = itabcoll_3mom(dumzz,dumjj,dumii+1,dumll,dumi,dumj+1,ind)+(dum1-real(dumi))*                &
+               (itabcoll_3mom(dumzz,dumjj,dumii+1,dumll,dumi+1,dumj+1,ind)-itabcoll_3mom(dumzz,dumjj,     &
+               dumii+1,dumll,dumi,dumj+1,ind))
 
      iproc2  = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
 
@@ -9984,14 +9995,14 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
     ! get current ll
 
     ! at j between i and i+1
-     dproc1  = itabcoll_3mom(dumzz,dumjj+1,dumii,dumll,dumi,dumj,index)+(dum1-real(dumi))*                  &
-               (itabcoll_3mom(dumzz,dumjj+1,dumii,dumll,dumi+1,dumj,index)-itabcoll_3mom(dumzz,dumjj+1,     &
-               dumii,dumll,dumi,dumj,index))
+     dproc1  = itabcoll_3mom(dumzz,dumjj+1,dumii,dumll,dumi,dumj,ind)+(dum1-real(dumi))*                  &
+               (itabcoll_3mom(dumzz,dumjj+1,dumii,dumll,dumi+1,dumj,ind)-itabcoll_3mom(dumzz,dumjj+1,     &
+               dumii,dumll,dumi,dumj,ind))
 
     ! at j+1 between i and i+1
-     dproc2  = itabcoll_3mom(dumzz,dumjj+1,dumii,dumll,dumi,dumj+1,index)+(dum1-real(dumi))*                  &
-               (itabcoll_3mom(dumzz,dumjj+1,dumii,dumll,dumi+1,dumj+1,index)-itabcoll_3mom(dumzz,dumjj+1,     &
-               dumii,dumll,dumi,dumj+1,index))
+     dproc2  = itabcoll_3mom(dumzz,dumjj+1,dumii,dumll,dumi,dumj+1,ind)+(dum1-real(dumi))*                  &
+               (itabcoll_3mom(dumzz,dumjj+1,dumii,dumll,dumi+1,dumj+1,ind)-itabcoll_3mom(dumzz,dumjj+1,     &
+               dumii,dumll,dumi,dumj+1,ind))
 
      iproc1  = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
 
@@ -10000,14 +10011,14 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
     ! get current ll
 
     ! at j between i and i+1
-     dproc1  = itabcoll_3mom(dumzz,dumjj+1,dumii+1,dumll,dumi,dumj,index)+(dum1-real(dumi))*                  &
-               (itabcoll_3mom(dumzz,dumjj+1,dumii+1,dumll,dumi+1,dumj,index)-itabcoll_3mom(dumzz,dumjj+1,     &
-               dumii+1,dumll,dumi,dumj,index))
+     dproc1  = itabcoll_3mom(dumzz,dumjj+1,dumii+1,dumll,dumi,dumj,ind)+(dum1-real(dumi))*                  &
+               (itabcoll_3mom(dumzz,dumjj+1,dumii+1,dumll,dumi+1,dumj,ind)-itabcoll_3mom(dumzz,dumjj+1,     &
+               dumii+1,dumll,dumi,dumj,ind))
 
     ! at j+1 between i and i+1
-     dproc2  = itabcoll_3mom(dumzz,dumjj+1,dumii+1,dumll,dumi,dumj+1,index)+(dum1-real(dumi))*                  &
-               (itabcoll_3mom(dumzz,dumjj+1,dumii+1,dumll,dumi+1,dumj+1,index)-itabcoll_3mom(dumzz,dumjj+1,     &
-               dumii+1,dumll,dumi,dumj+1,index))
+     dproc2  = itabcoll_3mom(dumzz,dumjj+1,dumii+1,dumll,dumi,dumj+1,ind)+(dum1-real(dumi))*                  &
+               (itabcoll_3mom(dumzz,dumjj+1,dumii+1,dumll,dumi+1,dumj+1,ind)-itabcoll_3mom(dumzz,dumjj+1,     &
+               dumii+1,dumll,dumi,dumj+1,ind))
 
      iproc2  = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
 
@@ -10023,14 +10034,14 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
     ! get current ll
 
     ! at j between i and i+1
-     dproc1  = itabcoll_3mom(dumzz+1,dumjj,dumii,dumll,dumi,dumj,index)+(dum1-real(dumi))*                  &
-               (itabcoll_3mom(dumzz+1,dumjj,dumii,dumll,dumi+1,dumj,index)-itabcoll_3mom(dumzz+1,dumjj,     &
-               dumii,dumll,dumi,dumj,index))
+     dproc1  = itabcoll_3mom(dumzz+1,dumjj,dumii,dumll,dumi,dumj,ind)+(dum1-real(dumi))*                  &
+               (itabcoll_3mom(dumzz+1,dumjj,dumii,dumll,dumi+1,dumj,ind)-itabcoll_3mom(dumzz+1,dumjj,     &
+               dumii,dumll,dumi,dumj,ind))
 
     ! at j+1 between i and i+1
-     dproc2  = itabcoll_3mom(dumzz+1,dumjj,dumii,dumll,dumi,dumj+1,index)+(dum1-real(dumi))*                  &
-               (itabcoll_3mom(dumzz+1,dumjj,dumii,dumll,dumi+1,dumj+1,index)-itabcoll_3mom(dumzz+1,dumjj,     &
-               dumii,dumll,dumi,dumj+1,index))
+     dproc2  = itabcoll_3mom(dumzz+1,dumjj,dumii,dumll,dumi,dumj+1,ind)+(dum1-real(dumi))*                  &
+               (itabcoll_3mom(dumzz+1,dumjj,dumii,dumll,dumi+1,dumj+1,ind)-itabcoll_3mom(dumzz+1,dumjj,     &
+               dumii,dumll,dumi,dumj+1,ind))
 
      iproc1  = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
 
@@ -10039,14 +10050,14 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
     ! get current ll
 
     ! at j between i and i+1
-     dproc1  = itabcoll_3mom(dumzz+1,dumjj,dumii+1,dumll,dumi,dumj,index)+(dum1-real(dumi))*                  &
-               (itabcoll_3mom(dumzz+1,dumjj,dumii+1,dumll,dumi+1,dumj,index)-itabcoll_3mom(dumzz+1,dumjj,     &
-               dumii+1,dumll,dumi,dumj,index))
+     dproc1  = itabcoll_3mom(dumzz+1,dumjj,dumii+1,dumll,dumi,dumj,ind)+(dum1-real(dumi))*                  &
+               (itabcoll_3mom(dumzz+1,dumjj,dumii+1,dumll,dumi+1,dumj,ind)-itabcoll_3mom(dumzz+1,dumjj,     &
+               dumii+1,dumll,dumi,dumj,ind))
 
     ! at j+1 between i and i+1
-     dproc2  = itabcoll_3mom(dumzz+1,dumjj,dumii+1,dumll,dumi,dumj+1,index)+(dum1-real(dumi))*                  &
-               (itabcoll_3mom(dumzz+1,dumjj,dumii+1,dumll,dumi+1,dumj+1,index)-itabcoll_3mom(dumzz+1,dumjj,     &
-               dumii+1,dumll,dumi,dumj+1,index))
+     dproc2  = itabcoll_3mom(dumzz+1,dumjj,dumii+1,dumll,dumi,dumj+1,ind)+(dum1-real(dumi))*                  &
+               (itabcoll_3mom(dumzz+1,dumjj,dumii+1,dumll,dumi+1,dumj+1,ind)-itabcoll_3mom(dumzz+1,dumjj,     &
+               dumii+1,dumll,dumi,dumj+1,ind))
 
      iproc2  = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
 
@@ -10059,14 +10070,14 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
     ! get current ll
 
     ! at j between i and i+1
-     dproc1  = itabcoll_3mom(dumzz+1,dumjj+1,dumii,dumll,dumi,dumj,index)+(dum1-real(dumi))*                    &
-               (itabcoll_3mom(dumzz+1,dumjj+1,dumii,dumll,dumi+1,dumj,index)-itabcoll_3mom(dumzz+1,dumjj+1,     &
-               dumii,dumll,dumi,dumj,index))
+     dproc1  = itabcoll_3mom(dumzz+1,dumjj+1,dumii,dumll,dumi,dumj,ind)+(dum1-real(dumi))*                    &
+               (itabcoll_3mom(dumzz+1,dumjj+1,dumii,dumll,dumi+1,dumj,ind)-itabcoll_3mom(dumzz+1,dumjj+1,     &
+               dumii,dumll,dumi,dumj,ind))
 
     ! at j+1 between i and i+1
-     dproc2  = itabcoll_3mom(dumzz+1,dumjj+1,dumii,dumll,dumi,dumj+1,index)+(dum1-real(dumi))*                    &
-               (itabcoll_3mom(dumzz+1,dumjj+1,dumii,dumll,dumi+1,dumj+1,index)-itabcoll_3mom(dumzz+1,dumjj+1,     &
-               dumii,dumll,dumi,dumj+1,index))
+     dproc2  = itabcoll_3mom(dumzz+1,dumjj+1,dumii,dumll,dumi,dumj+1,ind)+(dum1-real(dumi))*                    &
+               (itabcoll_3mom(dumzz+1,dumjj+1,dumii,dumll,dumi+1,dumj+1,ind)-itabcoll_3mom(dumzz+1,dumjj+1,     &
+               dumii,dumll,dumi,dumj+1,ind))
 
      iproc1  = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
 
@@ -10075,14 +10086,14 @@ SUBROUTINE access_lookup_table_coll_3mom_LF(dumzz,dumjj,dumii,dumll,dumj,dumi,in
     ! get current ll
 
     ! at j between i and i+1
-     dproc1  = itabcoll_3mom(dumzz+1,dumjj+1,dumii+1,dumll,dumi,dumj,index)+(dum1-real(dumi))*                    &
-               (itabcoll_3mom(dumzz+1,dumjj+1,dumii+1,dumll,dumi+1,dumj,index)-itabcoll_3mom(dumzz+1,dumjj+1,     &
-               dumii+1,dumll,dumi,dumj,index))
+     dproc1  = itabcoll_3mom(dumzz+1,dumjj+1,dumii+1,dumll,dumi,dumj,ind)+(dum1-real(dumi))*                    &
+               (itabcoll_3mom(dumzz+1,dumjj+1,dumii+1,dumll,dumi+1,dumj,ind)-itabcoll_3mom(dumzz+1,dumjj+1,     &
+               dumii+1,dumll,dumi,dumj,ind))
 
     ! at j+1 between i and i+1
-     dproc2  = itabcoll_3mom(dumzz+1,dumjj+1,dumii+1,dumll,dumi,dumj+1,index)+(dum1-real(dumi))*                    &
-               (itabcoll_3mom(dumzz+1,dumjj+1,dumii+1,dumll,dumi+1,dumj+1,index)-itabcoll_3mom(dumzz+1,dumjj+1,     &
-               dumii+1,dumll,dumi,dumj+1,index))
+     dproc2  = itabcoll_3mom(dumzz+1,dumjj+1,dumii+1,dumll,dumi,dumj+1,ind)+(dum1-real(dumi))*                    &
+               (itabcoll_3mom(dumzz+1,dumjj+1,dumii+1,dumll,dumi+1,dumj+1,ind)-itabcoll_3mom(dumzz+1,dumjj+1,     &
+               dumii+1,dumll,dumi,dumj+1,ind))
 
      iproc2  = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
 
@@ -10104,27 +10115,27 @@ else
      ! get current ll
 
      ! at j between i and i+1
-      dproc1  = itabcoll_3mom(dumzz,dumjj,dumii,dumll,dumi,dumj,index)+(dum1-real(dumi))*                &
-                (itabcoll_3mom(dumzz,dumjj,dumii,dumll,dumi+1,dumj,index)-itabcoll_3mom(dumzz,dumjj,     &
-                dumii,dumll,dumi,dumj,index))
+      dproc1  = itabcoll_3mom(dumzz,dumjj,dumii,dumll,dumi,dumj,ind)+(dum1-real(dumi))*                &
+                (itabcoll_3mom(dumzz,dumjj,dumii,dumll,dumi+1,dumj,ind)-itabcoll_3mom(dumzz,dumjj,     &
+                dumii,dumll,dumi,dumj,ind))
 
      ! at j+1 between i and i+1
-      dproc2  = itabcoll_3mom(dumzz,dumjj,dumii,dumll,dumi,dumj+1,index)+(dum1-real(dumi))*                &
-                (itabcoll_3mom(dumzz,dumjj,dumii,dumll,dumi+1,dumj+1,index)-itabcoll_3mom(dumzz,dumjj,     &
-                dumii,dumll,dumi,dumj+1,index))
+      dproc2  = itabcoll_3mom(dumzz,dumjj,dumii,dumll,dumi,dumj+1,ind)+(dum1-real(dumi))*                &
+                (itabcoll_3mom(dumzz,dumjj,dumii,dumll,dumi+1,dumj+1,ind)-itabcoll_3mom(dumzz,dumjj,     &
+                dumii,dumll,dumi,dumj+1,ind))
 
       iproc1  = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
 
      ! get current ll+1
      ! at j between i and i+1
-      dproc1  = itabcoll_3mom(dumzz,dumjj,dumii,dumll+1,dumi,dumj,index)+(dum1-real(dumi))*                &
-                (itabcoll_3mom(dumzz,dumjj,dumii,dumll+1,dumi+1,dumj,index)-itabcoll_3mom(dumzz,dumjj,     &
-                dumii,dumll+1,dumi,dumj,index))
+      dproc1  = itabcoll_3mom(dumzz,dumjj,dumii,dumll+1,dumi,dumj,ind)+(dum1-real(dumi))*                &
+                (itabcoll_3mom(dumzz,dumjj,dumii,dumll+1,dumi+1,dumj,ind)-itabcoll_3mom(dumzz,dumjj,     &
+                dumii,dumll+1,dumi,dumj,ind))
 
      ! at j+1 between i and i+1
-      dproc2  = itabcoll_3mom(dumzz,dumjj,dumii,dumll+1,dumi,dumj+1,index)+(dum1-real(dumi))*                &
-                (itabcoll_3mom(dumzz,dumjj,dumii,dumll+1,dumi+1,dumj+1,index)-itabcoll_3mom(dumzz,dumjj,     &
-                dumii,dumll+1,dumi,dumj+1,index))
+      dproc2  = itabcoll_3mom(dumzz,dumjj,dumii,dumll+1,dumi,dumj+1,ind)+(dum1-real(dumi))*                &
+                (itabcoll_3mom(dumzz,dumjj,dumii,dumll+1,dumi+1,dumj+1,ind)-itabcoll_3mom(dumzz,dumjj,     &
+                dumii,dumll+1,dumi,dumj+1,ind))
 
       iproc2  = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
 
@@ -10135,27 +10146,27 @@ else
      ! get current ll
 
      ! at j between i and i+1
-      dproc1  = itabcoll_3mom(dumzz,dumjj,dumii+1,dumll,dumi,dumj,index)+(dum1-real(dumi))*                &
-                (itabcoll_3mom(dumzz,dumjj,dumii+1,dumll,dumi+1,dumj,index)-itabcoll_3mom(dumzz,dumjj,     &
-                dumii+1,dumll,dumi,dumj,index))
+      dproc1  = itabcoll_3mom(dumzz,dumjj,dumii+1,dumll,dumi,dumj,ind)+(dum1-real(dumi))*                &
+                (itabcoll_3mom(dumzz,dumjj,dumii+1,dumll,dumi+1,dumj,ind)-itabcoll_3mom(dumzz,dumjj,     &
+                dumii+1,dumll,dumi,dumj,ind))
 
      ! at j+1 between i and i+1
-      dproc2  = itabcoll_3mom(dumzz,dumjj,dumii+1,dumll,dumi,dumj+1,index)+(dum1-real(dumi))*                &
-                (itabcoll_3mom(dumzz,dumjj,dumii+1,dumll,dumi+1,dumj+1,index)-itabcoll_3mom(dumzz,dumjj,     &
-                dumii+1,dumll,dumi,dumj+1,index))
+      dproc2  = itabcoll_3mom(dumzz,dumjj,dumii+1,dumll,dumi,dumj+1,ind)+(dum1-real(dumi))*                &
+                (itabcoll_3mom(dumzz,dumjj,dumii+1,dumll,dumi+1,dumj+1,ind)-itabcoll_3mom(dumzz,dumjj,     &
+                dumii+1,dumll,dumi,dumj+1,ind))
 
       iproc1  = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
 
      ! get current ll+1
      ! at j between i and i+1
-      dproc1  = itabcoll_3mom(dumzz,dumjj,dumii+1,dumll+1,dumi,dumj,index)+(dum1-real(dumi))*                &
-                (itabcoll_3mom(dumzz,dumjj,dumii+1,dumll+1,dumi+1,dumj,index)-itabcoll_3mom(dumzz,dumjj,     &
-                dumii+1,dumll+1,dumi,dumj,index))
+      dproc1  = itabcoll_3mom(dumzz,dumjj,dumii+1,dumll+1,dumi,dumj,ind)+(dum1-real(dumi))*                &
+                (itabcoll_3mom(dumzz,dumjj,dumii+1,dumll+1,dumi+1,dumj,ind)-itabcoll_3mom(dumzz,dumjj,     &
+                dumii+1,dumll+1,dumi,dumj,ind))
 
      ! at j+1 between i and i+1
-      dproc2  = itabcoll_3mom(dumzz,dumjj,dumii+1,dumll+1,dumi,dumj+1,index)+(dum1-real(dumi))*                &
-                (itabcoll_3mom(dumzz,dumjj,dumii+1,dumll+1,dumi+1,dumj+1,index)-itabcoll_3mom(dumzz,dumjj,     &
-                dumii+1,dumll+1,dumi,dumj+1,index))
+      dproc2  = itabcoll_3mom(dumzz,dumjj,dumii+1,dumll+1,dumi,dumj+1,ind)+(dum1-real(dumi))*                &
+                (itabcoll_3mom(dumzz,dumjj,dumii+1,dumll+1,dumi+1,dumj+1,ind)-itabcoll_3mom(dumzz,dumjj,     &
+                dumii+1,dumll+1,dumi,dumj+1,ind))
 
       iproc2  = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
 
@@ -10170,27 +10181,27 @@ else
      ! get current ll
 
      ! at j between i and i+1
-      dproc1  = itabcoll_3mom(dumzz,dumjj+1,dumii,dumll,dumi,dumj,index)+(dum1-real(dumi))*                  &
-                (itabcoll_3mom(dumzz,dumjj+1,dumii,dumll,dumi+1,dumj,index)-itabcoll_3mom(dumzz,dumjj+1,     &
-                dumii,dumll,dumi,dumj,index))
+      dproc1  = itabcoll_3mom(dumzz,dumjj+1,dumii,dumll,dumi,dumj,ind)+(dum1-real(dumi))*                  &
+                (itabcoll_3mom(dumzz,dumjj+1,dumii,dumll,dumi+1,dumj,ind)-itabcoll_3mom(dumzz,dumjj+1,     &
+                dumii,dumll,dumi,dumj,ind))
 
      ! at j+1 between i and i+1
-      dproc2  = itabcoll_3mom(dumzz,dumjj+1,dumii,dumll,dumi,dumj+1,index)+(dum1-real(dumi))*                  &
-                (itabcoll_3mom(dumzz,dumjj+1,dumii,dumll,dumi+1,dumj+1,index)-itabcoll_3mom(dumzz,dumjj+1,     &
-                dumii,dumll,dumi,dumj+1,index))
+      dproc2  = itabcoll_3mom(dumzz,dumjj+1,dumii,dumll,dumi,dumj+1,ind)+(dum1-real(dumi))*                  &
+                (itabcoll_3mom(dumzz,dumjj+1,dumii,dumll,dumi+1,dumj+1,ind)-itabcoll_3mom(dumzz,dumjj+1,     &
+                dumii,dumll,dumi,dumj+1,ind))
 
       iproc1  = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
 
      ! get current ll+1
      ! at j between i and i+1
-      dproc1  = itabcoll_3mom(dumzz,dumjj+1,dumii,dumll+1,dumi,dumj,index)+(dum1-real(dumi))*                  &
-                (itabcoll_3mom(dumzz,dumjj+1,dumii,dumll+1,dumi+1,dumj,index)-itabcoll_3mom(dumzz,dumjj+1,     &
-                dumii,dumll+1,dumi,dumj,index))
+      dproc1  = itabcoll_3mom(dumzz,dumjj+1,dumii,dumll+1,dumi,dumj,ind)+(dum1-real(dumi))*                  &
+                (itabcoll_3mom(dumzz,dumjj+1,dumii,dumll+1,dumi+1,dumj,ind)-itabcoll_3mom(dumzz,dumjj+1,     &
+                dumii,dumll+1,dumi,dumj,ind))
 
      ! at j+1 between i and i+1
-      dproc2  = itabcoll_3mom(dumzz,dumjj+1,dumii,dumll+1,dumi,dumj+1,index)+(dum1-real(dumi))*                  &
-                (itabcoll_3mom(dumzz,dumjj+1,dumii,dumll+1,dumi+1,dumj+1,index)-itabcoll_3mom(dumzz,dumjj+1,     &
-                dumii,dumll+1,dumi,dumj+1,index))
+      dproc2  = itabcoll_3mom(dumzz,dumjj+1,dumii,dumll+1,dumi,dumj+1,ind)+(dum1-real(dumi))*                  &
+                (itabcoll_3mom(dumzz,dumjj+1,dumii,dumll+1,dumi+1,dumj+1,ind)-itabcoll_3mom(dumzz,dumjj+1,     &
+                dumii,dumll+1,dumi,dumj+1,ind))
 
       iproc2  = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
 
@@ -10201,27 +10212,27 @@ else
      ! get current ll
 
      ! at j between i and i+1
-      dproc1  = itabcoll_3mom(dumzz,dumjj+1,dumii+1,dumll,dumi,dumj,index)+(dum1-real(dumi))*                  &
-                (itabcoll_3mom(dumzz,dumjj+1,dumii+1,dumll,dumi+1,dumj,index)-itabcoll_3mom(dumzz,dumjj+1,     &
-                dumii+1,dumll,dumi,dumj,index))
+      dproc1  = itabcoll_3mom(dumzz,dumjj+1,dumii+1,dumll,dumi,dumj,ind)+(dum1-real(dumi))*                  &
+                (itabcoll_3mom(dumzz,dumjj+1,dumii+1,dumll,dumi+1,dumj,ind)-itabcoll_3mom(dumzz,dumjj+1,     &
+                dumii+1,dumll,dumi,dumj,ind))
 
      ! at j+1 between i and i+1
-      dproc2  = itabcoll_3mom(dumzz,dumjj+1,dumii+1,dumll,dumi,dumj+1,index)+(dum1-real(dumi))*                  &
-                (itabcoll_3mom(dumzz,dumjj+1,dumii+1,dumll,dumi+1,dumj+1,index)-itabcoll_3mom(dumzz,dumjj+1,     &
-                dumii+1,dumll,dumi,dumj+1,index))
+      dproc2  = itabcoll_3mom(dumzz,dumjj+1,dumii+1,dumll,dumi,dumj+1,ind)+(dum1-real(dumi))*                  &
+                (itabcoll_3mom(dumzz,dumjj+1,dumii+1,dumll,dumi+1,dumj+1,ind)-itabcoll_3mom(dumzz,dumjj+1,     &
+                dumii+1,dumll,dumi,dumj+1,ind))
 
       iproc1  = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
 
      ! get current ll+1
      ! at j between i and i+1
-      dproc1  = itabcoll_3mom(dumzz,dumjj+1,dumii+1,dumll+1,dumi,dumj,index)+(dum1-real(dumi))*                  &
-                (itabcoll_3mom(dumzz,dumjj+1,dumii+1,dumll+1,dumi+1,dumj,index)-itabcoll_3mom(dumzz,dumjj+1,     &
-                dumii+1,dumll+1,dumi,dumj,index))
+      dproc1  = itabcoll_3mom(dumzz,dumjj+1,dumii+1,dumll+1,dumi,dumj,ind)+(dum1-real(dumi))*                  &
+                (itabcoll_3mom(dumzz,dumjj+1,dumii+1,dumll+1,dumi+1,dumj,ind)-itabcoll_3mom(dumzz,dumjj+1,     &
+                dumii+1,dumll+1,dumi,dumj,ind))
 
      ! at j+1 between i and i+1
-      dproc2  = itabcoll_3mom(dumzz,dumjj+1,dumii+1,dumll+1,dumi,dumj+1,index)+(dum1-real(dumi))*                  &
-                (itabcoll_3mom(dumzz,dumjj+1,dumii+1,dumll+1,dumi+1,dumj+1,index)-itabcoll_3mom(dumzz,dumjj+1,     &
-                dumii+1,dumll+1,dumi,dumj+1,index))
+      dproc2  = itabcoll_3mom(dumzz,dumjj+1,dumii+1,dumll+1,dumi,dumj+1,ind)+(dum1-real(dumi))*                  &
+                (itabcoll_3mom(dumzz,dumjj+1,dumii+1,dumll+1,dumi+1,dumj+1,ind)-itabcoll_3mom(dumzz,dumjj+1,     &
+                dumii+1,dumll+1,dumi,dumj+1,ind))
 
       iproc2  = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
 
@@ -10239,27 +10250,27 @@ else
      ! get current ll
 
      ! at j between i and i+1
-      dproc1  = itabcoll_3mom(dumzz+1,dumjj,dumii,dumll,dumi,dumj,index)+(dum1-real(dumi))*                  &
-                (itabcoll_3mom(dumzz+1,dumjj,dumii,dumll,dumi+1,dumj,index)-itabcoll_3mom(dumzz+1,dumjj,     &
-                dumii,dumll,dumi,dumj,index))
+      dproc1  = itabcoll_3mom(dumzz+1,dumjj,dumii,dumll,dumi,dumj,ind)+(dum1-real(dumi))*                  &
+                (itabcoll_3mom(dumzz+1,dumjj,dumii,dumll,dumi+1,dumj,ind)-itabcoll_3mom(dumzz+1,dumjj,     &
+                dumii,dumll,dumi,dumj,ind))
 
      ! at j+1 between i and i+1
-      dproc2  = itabcoll_3mom(dumzz+1,dumjj,dumii,dumll,dumi,dumj+1,index)+(dum1-real(dumi))*                  &
-                (itabcoll_3mom(dumzz+1,dumjj,dumii,dumll,dumi+1,dumj+1,index)-itabcoll_3mom(dumzz+1,dumjj,     &
-                dumii,dumll,dumi,dumj+1,index))
+      dproc2  = itabcoll_3mom(dumzz+1,dumjj,dumii,dumll,dumi,dumj+1,ind)+(dum1-real(dumi))*                  &
+                (itabcoll_3mom(dumzz+1,dumjj,dumii,dumll,dumi+1,dumj+1,ind)-itabcoll_3mom(dumzz+1,dumjj,     &
+                dumii,dumll,dumi,dumj+1,ind))
 
       iproc1  = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
 
      ! get current ll+1
      ! at j between i and i+1
-      dproc1  = itabcoll_3mom(dumzz+1,dumjj,dumii,dumll+1,dumi,dumj,index)+(dum1-real(dumi))*                  &
-                (itabcoll_3mom(dumzz+1,dumjj,dumii,dumll+1,dumi+1,dumj,index)-itabcoll_3mom(dumzz+1,dumjj,     &
-                dumii,dumll+1,dumi,dumj,index))
+      dproc1  = itabcoll_3mom(dumzz+1,dumjj,dumii,dumll+1,dumi,dumj,ind)+(dum1-real(dumi))*                  &
+                (itabcoll_3mom(dumzz+1,dumjj,dumii,dumll+1,dumi+1,dumj,ind)-itabcoll_3mom(dumzz+1,dumjj,     &
+                dumii,dumll+1,dumi,dumj,ind))
 
      ! at j+1 between i and i+1
-      dproc2  = itabcoll_3mom(dumzz+1,dumjj,dumii,dumll+1,dumi,dumj+1,index)+(dum1-real(dumi))*                  &
-                (itabcoll_3mom(dumzz+1,dumjj,dumii,dumll+1,dumi+1,dumj+1,index)-itabcoll_3mom(dumzz+1,dumjj,     &
-                dumii,dumll+1,dumi,dumj+1,index))
+      dproc2  = itabcoll_3mom(dumzz+1,dumjj,dumii,dumll+1,dumi,dumj+1,ind)+(dum1-real(dumi))*                  &
+                (itabcoll_3mom(dumzz+1,dumjj,dumii,dumll+1,dumi+1,dumj+1,ind)-itabcoll_3mom(dumzz+1,dumjj,     &
+                dumii,dumll+1,dumi,dumj+1,ind))
 
       iproc2  = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
 
@@ -10270,27 +10281,27 @@ else
      ! get current ll
 
      ! at j between i and i+1
-      dproc1  = itabcoll_3mom(dumzz+1,dumjj,dumii+1,dumll,dumi,dumj,index)+(dum1-real(dumi))*                  &
-                (itabcoll_3mom(dumzz+1,dumjj,dumii+1,dumll,dumi+1,dumj,index)-itabcoll_3mom(dumzz+1,dumjj,     &
-                dumii+1,dumll,dumi,dumj,index))
+      dproc1  = itabcoll_3mom(dumzz+1,dumjj,dumii+1,dumll,dumi,dumj,ind)+(dum1-real(dumi))*                  &
+                (itabcoll_3mom(dumzz+1,dumjj,dumii+1,dumll,dumi+1,dumj,ind)-itabcoll_3mom(dumzz+1,dumjj,     &
+                dumii+1,dumll,dumi,dumj,ind))
 
      ! at j+1 between i and i+1
-      dproc2  = itabcoll_3mom(dumzz+1,dumjj,dumii+1,dumll,dumi,dumj+1,index)+(dum1-real(dumi))*                  &
-                (itabcoll_3mom(dumzz+1,dumjj,dumii+1,dumll,dumi+1,dumj+1,index)-itabcoll_3mom(dumzz+1,dumjj,     &
-                dumii+1,dumll,dumi,dumj+1,index))
+      dproc2  = itabcoll_3mom(dumzz+1,dumjj,dumii+1,dumll,dumi,dumj+1,ind)+(dum1-real(dumi))*                  &
+                (itabcoll_3mom(dumzz+1,dumjj,dumii+1,dumll,dumi+1,dumj+1,ind)-itabcoll_3mom(dumzz+1,dumjj,     &
+                dumii+1,dumll,dumi,dumj+1,ind))
 
       iproc1  = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
 
      ! get current ll+1
      ! at j between i and i+1
-      dproc1  = itabcoll_3mom(dumzz+1,dumjj,dumii+1,dumll+1,dumi,dumj,index)+(dum1-real(dumi))*                  &
-                (itabcoll_3mom(dumzz+1,dumjj,dumii+1,dumll+1,dumi+1,dumj,index)-itabcoll_3mom(dumzz+1,dumjj,     &
-                dumii+1,dumll+1,dumi,dumj,index))
+      dproc1  = itabcoll_3mom(dumzz+1,dumjj,dumii+1,dumll+1,dumi,dumj,ind)+(dum1-real(dumi))*                  &
+                (itabcoll_3mom(dumzz+1,dumjj,dumii+1,dumll+1,dumi+1,dumj,ind)-itabcoll_3mom(dumzz+1,dumjj,     &
+                dumii+1,dumll+1,dumi,dumj,ind))
 
      ! at j+1 between i and i+1
-      dproc2  = itabcoll_3mom(dumzz+1,dumjj,dumii+1,dumll+1,dumi,dumj+1,index)+(dum1-real(dumi))*                  &
-                (itabcoll_3mom(dumzz+1,dumjj,dumii+1,dumll+1,dumi+1,dumj+1,index)-itabcoll_3mom(dumzz+1,dumjj,     &
-                dumii+1,dumll+1,dumi,dumj+1,index))
+      dproc2  = itabcoll_3mom(dumzz+1,dumjj,dumii+1,dumll+1,dumi,dumj+1,ind)+(dum1-real(dumi))*                  &
+                (itabcoll_3mom(dumzz+1,dumjj,dumii+1,dumll+1,dumi+1,dumj+1,ind)-itabcoll_3mom(dumzz+1,dumjj,     &
+                dumii+1,dumll+1,dumi,dumj+1,ind))
 
       iproc2  = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
 
@@ -10305,27 +10316,27 @@ else
      ! get current ll
 
      ! at j between i and i+1
-      dproc1  = itabcoll_3mom(dumzz+1,dumjj+1,dumii,dumll,dumi,dumj,index)+(dum1-real(dumi))*                    &
-                (itabcoll_3mom(dumzz+1,dumjj+1,dumii,dumll,dumi+1,dumj,index)-itabcoll_3mom(dumzz+1,dumjj+1,     &
-                dumii,dumll,dumi,dumj,index))
+      dproc1  = itabcoll_3mom(dumzz+1,dumjj+1,dumii,dumll,dumi,dumj,ind)+(dum1-real(dumi))*                    &
+                (itabcoll_3mom(dumzz+1,dumjj+1,dumii,dumll,dumi+1,dumj,ind)-itabcoll_3mom(dumzz+1,dumjj+1,     &
+                dumii,dumll,dumi,dumj,ind))
 
      ! at j+1 between i and i+1
-      dproc2  = itabcoll_3mom(dumzz+1,dumjj+1,dumii,dumll,dumi,dumj+1,index)+(dum1-real(dumi))*                    &
-                (itabcoll_3mom(dumzz+1,dumjj+1,dumii,dumll,dumi+1,dumj+1,index)-itabcoll_3mom(dumzz+1,dumjj+1,     &
-                dumii,dumll,dumi,dumj+1,index))
+      dproc2  = itabcoll_3mom(dumzz+1,dumjj+1,dumii,dumll,dumi,dumj+1,ind)+(dum1-real(dumi))*                    &
+                (itabcoll_3mom(dumzz+1,dumjj+1,dumii,dumll,dumi+1,dumj+1,ind)-itabcoll_3mom(dumzz+1,dumjj+1,     &
+                dumii,dumll,dumi,dumj+1,ind))
 
       iproc1  = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
 
      ! get current ll+1
      ! at j between i and i+1
-      dproc1  = itabcoll_3mom(dumzz+1,dumjj+1,dumii,dumll+1,dumi,dumj,index)+(dum1-real(dumi))*                    &
-                (itabcoll_3mom(dumzz+1,dumjj+1,dumii,dumll+1,dumi+1,dumj,index)-itabcoll_3mom(dumzz+1,dumjj+1,     &
-                dumii,dumll+1,dumi,dumj,index))
+      dproc1  = itabcoll_3mom(dumzz+1,dumjj+1,dumii,dumll+1,dumi,dumj,ind)+(dum1-real(dumi))*                    &
+                (itabcoll_3mom(dumzz+1,dumjj+1,dumii,dumll+1,dumi+1,dumj,ind)-itabcoll_3mom(dumzz+1,dumjj+1,     &
+                dumii,dumll+1,dumi,dumj,ind))
 
      ! at j+1 between i and i+1
-      dproc2  = itabcoll_3mom(dumzz+1,dumjj+1,dumii,dumll+1,dumi,dumj+1,index)+(dum1-real(dumi))*                    &
-                (itabcoll_3mom(dumzz+1,dumjj+1,dumii,dumll+1,dumi+1,dumj+1,index)-itabcoll_3mom(dumzz+1,dumjj+1,     &
-                dumii,dumll+1,dumi,dumj+1,index))
+      dproc2  = itabcoll_3mom(dumzz+1,dumjj+1,dumii,dumll+1,dumi,dumj+1,ind)+(dum1-real(dumi))*                    &
+                (itabcoll_3mom(dumzz+1,dumjj+1,dumii,dumll+1,dumi+1,dumj+1,ind)-itabcoll_3mom(dumzz+1,dumjj+1,     &
+                dumii,dumll+1,dumi,dumj+1,ind))
 
       iproc2  = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
 
@@ -10336,27 +10347,27 @@ else
      ! get current ll
 
      ! at j between i and i+1
-      dproc1  = itabcoll_3mom(dumzz+1,dumjj+1,dumii+1,dumll,dumi,dumj,index)+(dum1-real(dumi))*                    &
-                (itabcoll_3mom(dumzz+1,dumjj+1,dumii+1,dumll,dumi+1,dumj,index)-itabcoll_3mom(dumzz+1,dumjj+1,     &
-                dumii+1,dumll,dumi,dumj,index))
+      dproc1  = itabcoll_3mom(dumzz+1,dumjj+1,dumii+1,dumll,dumi,dumj,ind)+(dum1-real(dumi))*                    &
+                (itabcoll_3mom(dumzz+1,dumjj+1,dumii+1,dumll,dumi+1,dumj,ind)-itabcoll_3mom(dumzz+1,dumjj+1,     &
+                dumii+1,dumll,dumi,dumj,ind))
 
      ! at j+1 between i and i+1
-      dproc2  = itabcoll_3mom(dumzz+1,dumjj+1,dumii+1,dumll,dumi,dumj+1,index)+(dum1-real(dumi))*                    &
-                (itabcoll_3mom(dumzz+1,dumjj+1,dumii+1,dumll,dumi+1,dumj+1,index)-itabcoll_3mom(dumzz+1,dumjj+1,     &
-                dumii+1,dumll,dumi,dumj+1,index))
+      dproc2  = itabcoll_3mom(dumzz+1,dumjj+1,dumii+1,dumll,dumi,dumj+1,ind)+(dum1-real(dumi))*                    &
+                (itabcoll_3mom(dumzz+1,dumjj+1,dumii+1,dumll,dumi+1,dumj+1,ind)-itabcoll_3mom(dumzz+1,dumjj+1,     &
+                dumii+1,dumll,dumi,dumj+1,ind))
 
       iproc1  = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
 
      ! get current ll+1
      ! at j between i and i+1
-      dproc1  = itabcoll_3mom(dumzz+1,dumjj+1,dumii+1,dumll+1,dumi,dumj,index)+(dum1-real(dumi))*                    &
-                (itabcoll_3mom(dumzz+1,dumjj+1,dumii+1,dumll+1,dumi+1,dumj,index)-itabcoll_3mom(dumzz+1,dumjj+1,     &
-                dumii+1,dumll+1,dumi,dumj,index))
+      dproc1  = itabcoll_3mom(dumzz+1,dumjj+1,dumii+1,dumll+1,dumi,dumj,ind)+(dum1-real(dumi))*                    &
+                (itabcoll_3mom(dumzz+1,dumjj+1,dumii+1,dumll+1,dumi+1,dumj,ind)-itabcoll_3mom(dumzz+1,dumjj+1,     &
+                dumii+1,dumll+1,dumi,dumj,ind))
 
      ! at j+1 between i and i+1
-      dproc2  = itabcoll_3mom(dumzz+1,dumjj+1,dumii+1,dumll+1,dumi,dumj+1,index)+(dum1-real(dumi))*                    &
-                (itabcoll_3mom(dumzz+1,dumjj+1,dumii+1,dumll+1,dumi+1,dumj+1,index)-itabcoll_3mom(dumzz+1,dumjj+1,     &
-                dumii+1,dumll+1,dumi,dumj+1,index))
+      dproc2  = itabcoll_3mom(dumzz+1,dumjj+1,dumii+1,dumll+1,dumi,dumj+1,ind)+(dum1-real(dumi))*                    &
+                (itabcoll_3mom(dumzz+1,dumjj+1,dumii+1,dumll+1,dumi+1,dumj+1,ind)-itabcoll_3mom(dumzz+1,dumjj+1,     &
+                dumii+1,dumll+1,dumi,dumj+1,ind))
 
       iproc2  = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
 
@@ -10370,9 +10381,11 @@ else
 
   proc = zproc1+(dum6-real(dumzz))*(zproc2-zproc1)
 
-endif
+ endif
 
- END SUBROUTINE access_lookup_table_coll_3mom_LF
+ proc_from_LUT_coll3momLF = proc
+
+ end function proc_from_LUT_coll3momLF
 
 !==========================================================================================!
 
