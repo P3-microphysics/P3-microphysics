@@ -1,0 +1,44 @@
+#!/bin/bash
+
+# Define root directory.  For normal testing prior to commit changes,
+# this should be the main directory of the reposity.
+rootdir=".."
+#rootdir="."
+
+# Compile kin1D
+#make clean
+#make execld
+
+rm -rf ${rootdir}/tests_kin1D/results-previous_commit
+mv ${rootdir}/tests_kin1d/results ${rootdir}/tests_kin1d/results-previous_commit
+mkdir -p ${rootdir}/tests_kin1d/results
+
+# Loop through all p3_config-*.txt files
+for config in p3_config-*.txt; do
+    # Extract the identifier from the filename (e.g., "1TF" from "p3_config-1TF.txt")
+    id=$(echo $config | sed 's/p3_config-\(.*\)\.txt/\1/')
+    
+    echo "Running configuration $id..."
+    
+    # Copy the config file to p3_config.txt
+    cp "$config" p3_config.txt
+    
+    # Run the model
+    ./execld
+    # Make plot for last case
+    python plot_1col_full.py -i out_p3.dat -t "P3_v5, ${id}"
+
+    # Rename the output files to include the configuration identifier
+    mv out_p3.dat "${rootdir}/tests_kin1d/results/out_p3_${id}.dat"
+    mv timing.txt "${rootdir}/tests_kin1d/results/timing_${id}.txt"
+    mv fig.png    "${rootdir}/tests_kin1d/results/fig_${id}.png"
+    #mv "${rootdir}/tests_kin1d/results/out_p3_${id}.dat" "${rootdir}/tests_kin1d/results/timing_${id}.txt" "fig_${id}.png" ${rootdir}/tests_kin1d/results
+    
+    echo "Completed configuration $id"
+    echo "----------------------------------------"
+    echo
+done
+
+cp microphy_p3.f90 cld1d.f90 plot_1col_full.py ${rootdir}/tests_kin1D/results
+
+echo "All configurations completed!"

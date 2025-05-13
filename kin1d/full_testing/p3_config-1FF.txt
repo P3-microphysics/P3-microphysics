@@ -1,0 +1,6 @@
+# P3 configuration for kin1D
+
+1		! nCat
+.false.		! trplMomIce
+.false.		! liqFrac
+

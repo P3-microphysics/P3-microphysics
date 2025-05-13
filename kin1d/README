@@ -28,3 +28,8 @@ or add the title as a command line argument when running the script:
 To remove all .o files and output:
 % make clean
 
+
+To automatically run a full set of tests (with various configurations of nCat, log_trplMomIce, and log_liqFrac),
+generate plots, and store everything in a 'tests_kin1D' directory (to be done in development mode before each
+commit), copy contents of './full_testing' to the kin1D work directory.  The script ./run_full_tests does everything.
+
