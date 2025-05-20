@@ -3,6 +3,4 @@ attic
 attic/*
 attic
 work*
-
-
-
+.vscode
