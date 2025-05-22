@@ -65,6 +65,8 @@
  integer, parameter :: colltabsize  =  2  ! number of ice-rain collection  quantities used from lookup table
  integer, parameter :: colltabsize_3mom  =  3  ! number of ice-rain collection  quantities used from 3-mom lookup table
  integer, parameter :: collitabsize =  2  ! number of ice-ice collection  quantities used from lookup table
+ integer, parameter :: n_args_r     = 8   ! array size for args_r (passed to functions to access LUTs
+ integer, parameter :: n_args_i     = 6   ! array size for args_i (passed to functions to access LUTs
 
  real, parameter    :: real_rcollsize = real(rcollsize)
 
@@ -2232,8 +2234,8 @@ END subroutine p3_init
  integer :: iana
  logical, parameter :: log_full3mom = .true.   ! switch to turn on full 3-moment ice
 
- real,    dimension(5) :: args_r
- integer, dimension(5) :: args_i
+ real,    dimension(n_args_r) :: args_r
+ integer, dimension(n_args_i) :: args_i
 
 !-----------------------------------------------------------------------------------!
 !  End of variables/parameters declarations
@@ -2743,7 +2745,7 @@ call cpu_time(timer_start(3))
              trplmomice_1: if (.not. log_3momentIce) then
 
              ! call to lookup table interpolation subroutines to get process rates
-               call args_for_LUT_main(args_r,args_i,dum1,dum4,dum5,dum7,-1.,dumjj,dumii,dumll,dumi,-1)
+               call args_for_LUT_main(args_r,args_i,dum1,dum4,dum5,dum7,0.,0.,0.,0.,dumjj,dumii,dumll,dumi,0,0)
 
                f1pr02 = proc_from_LUT_main2mom( 2,args_r,args_i)
                f1pr03 = proc_from_LUT_main2mom( 3,args_r,args_i)
@@ -2763,8 +2765,9 @@ call cpu_time(timer_start(3))
 
           ! ice-rain collection processes
                 if (qr(i,k).ge.qsmall) then
-                  f1pr07 = proc_from_LUT_ir2mom(1,dumjj,dumii,dumll,dumj,dumi,dum1,dum3,dum4,dum5,dum7)
-                  f1pr08 = proc_from_LUT_ir2mom(2,dumjj,dumii,dumll,dumj,dumi,dum1,dum3,dum4,dum5,dum7)
+                  call args_for_LUT_main(args_r,args_i,dum1,dum3,dum4,dum5,dum7,0.,0.,0.,dumjj,dumii,dumll,dumj,dumi,0)
+                  f1pr07 = proc_from_LUT_ir2mom(1,args_r,args_i) !dumjj,dumii,dumll,dumj,dumi,dum1,dum3,dum4,dum5,dum7)
+                  f1pr08 = proc_from_LUT_ir2mom(2,args_r,args_i) !dumjj,dumii,dumll,dumj,dumi,dum1,dum3,dum4,dum5,dum7)
                 else
                    f1pr07 = -99. ! log space
                    f1pr08 = -99. ! log space
@@ -2780,7 +2783,7 @@ call cpu_time(timer_start(3))
                 call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),zitot(i,k,iice),      &
                                dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi)
 
-                call args_for_LUT_main(args_r,args_i,dum1,dum4,dum5,dum6,dum7,dumzz,dumjj,dumii,dumll,dumi)
+                call args_for_LUT_main(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0.,dumzz,dumjj,dumii,dumll,dumi,0)
 
                 f1pr02 = proc_from_LUT_main3mom( 2,args_r,args_i)
                 f1pr03 = proc_from_LUT_main3mom( 3,args_r,args_i)
@@ -2811,9 +2814,10 @@ call cpu_time(timer_start(3))
 
           ! ice-rain collection processes
                 if (qr(i,k).ge.qsmall) then
-                   f1pr07 = proc_from_LUT_ir3mom(1,dumzz,dumjj,dumii,dumll,dumj,dumi,dum1,dum3,dum4,dum5,dum6,dum7)
-                   f1pr08 = proc_from_LUT_ir3mom(2,dumzz,dumjj,dumii,dumll,dumj,dumi,dum1,dum3,dum4,dum5,dum6,dum7)
-                   f1pr36 = proc_from_LUT_ir3mom(3,dumzz,dumjj,dumii,dumll,dumj,dumi,dum1,dum3,dum4,dum5,dum6,dum7)
+                   call args_for_LUT_main(args_r,args_i,dum1,dum3,dum4,dum5,dum6,dum7,0.,0.,dumzz,dumjj,dumii,dumll,dumj,dumi)
+                   f1pr07 = proc_from_LUT_ir3mom(1,args_r,args_i)
+                   f1pr08 = proc_from_LUT_ir3mom(2,args_r,args_i)
+                   f1pr36 = proc_from_LUT_ir3mom(3,args_r,args_i)
                 else
                    f1pr07 = -99. ! log space
                    f1pr08 = -99. ! log space
@@ -2989,10 +2993,9 @@ call cpu_time(timer_start(3))
                                  birim(i,k,iice),birim(i,k,catcoll),qiliq(i,k,iice),     &
                                  qiliq(i,k,catcoll))
 
-                      f1pr17 = proc_from_LUT_ii(1,dumjjc,dumiic,dumic,dumjj,dumii,    &
-                                    dumi,dum1c,dum4c,dum5c,dum7c,dum1,dum4,dum5,dum7)
-                      f1pr18 = proc_from_LUT_ii(2,dumjjc,dumiic,dumic,dumjj,dumii,    &
-                                    dumi,dum1c,dum4c,dum5c,dum7c,dum1,dum4,dum5,dum7)
+                      call args_for_LUT_main(args_r,args_i,dum1c,dum4c,dum5c,dum7c,dum1,dum4,dum5,dum7,dumjjc,dumiic,dumic,dumjj,dumii,dumi)
+                      f1pr17 = proc_from_LUT_ii(1,args_r,args_i) !dumjjc,dumiic,dumic,dumjj,dumii,dumi,dum1c,dum4c,dum5c,dum7c,dum1,dum4,dum5,dum7)
+                      f1pr18 = proc_from_LUT_ii(2,args_r,args_i) !dumjjc,dumiic,dumic,dumjj,dumii,dumi,dum1c,dum4c,dum5c,dum7c,dum1,dum4,dum5,dum7)
 
                     ! note: need to multiply by air density, air density fallspeed correction factor,
                     !       and N of the collectee and collector categories for process rates nicol and qicol,
@@ -3021,10 +3024,9 @@ call cpu_time(timer_start(3))
                                  birim(i,k,catcoll),birim(i,k,iice),qiliq(i,k,catcoll),  &
                                  qiliq(i,k,iice))
 
-                      f1pr17 = proc_from_LUT_ii(1,dumjjc,dumiic,dumic,dumjj,dumii,    &
-                                    dumi,dum1c,dum4c,dum5c,dum7c,dum1,dum4,dum5,dum7)
-                      f1pr18 = proc_from_LUT_ii(2,dumjjc,dumiic,dumic,dumjj,dumii,    &
-                                    dumi,dum1c,dum4c,dum5c,dum7c,dum1,dum4,dum5,dum7)
+                      call args_for_LUT_main(args_r,args_i,dum1c,dum4c,dum5c,dum7c,dum1,dum4,dum5,dum7,dumjjc,dumiic,dumic,dumjj,dumii,dumi)
+                      f1pr17 = proc_from_LUT_ii(1,args_r,args_i) !dumjjc,dumiic,dumic,dumjj,dumii,dumi,dum1c,dum4c,dum5c,dum7c,dum1,dum4,dum5,dum7)
+                      f1pr18 = proc_from_LUT_ii(2,args_r,args_i) !dumjjc,dumiic,dumic,dumjj,dumii,dumi,dum1c,dum4c,dum5c,dum7c,dum1,dum4,dum5,dum7)
 
                       nicol(iice,catcoll) = f1pr17*rhofaci(i,k)*rho(i,k)*                &
                                             nitot(i,k,iice)*nitot(i,k,catcoll)*iSCF(k)
@@ -4416,7 +4418,7 @@ call cpu_time(timer_start(3))
                       dummu_i = compute_mu_3moment_1(dumni,dum3,dumzi,mu_i_max)   !polynomical approximation
                     ! dummu_i = compute_mu_3moment_2(dumni,dum3,dumzi,mu_i_max)   !analytic cubic root
                       call find_lookupTable_indices_1c(dumzz,dum6,zsize,dummu_i)
-                      call args_for_LUT_main(args_r,args_i,dum1,dum4,dum5,dum6,dum7,dumzz,dumjj,dumii,dumll,dumi)
+                      call args_for_LUT_main(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0.,dumzz,dumjj,dumii,dumll,dumi,0)
                       dumden = proc_from_LUT_main3mom(12,args_r,args_i)
                       dum3 =  6./(dumden*pi)*dumqi  !estimate of 3rd moment
                    enddo
@@ -4439,7 +4441,7 @@ call cpu_time(timer_start(3))
                 call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,dum7,isize,     &
                                                  rimsize,liqsize,densize,dumqi,dumni,dumqr,dumql,rhop)
                 call find_lookupTable_indices_1c(dumzz,dum6,zsize,mu_i_s(iice))
-                call args_for_LUT_main(args_r,args_i,dum1,dum4,dum5,dum6,dum7,dumzz,dumjj,dumii,dumll,dumi)
+                call args_for_LUT_main(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0.,dumzz,dumjj,dumii,dumll,dumi,0)
                 dumden = proc_from_LUT_main3mom(12,args_r,args_i)
 
                 dum3 =  6./(dumden*pi)*dumqi      !estimate of 3rd moment (new, after group 1 processes only)
@@ -4871,7 +4873,7 @@ call cpu_time(timer_start(6))
                                 isize,rimsize,liqsize,densize,qitot(i,k,iice),nitot(i,k,iice),      &
                                 qirim(i,k,iice),qiliq(i,k,iice),rhop)
 
-                     call args_for_LUT_main(args_r,args_i,dum1,dum4,dum5,dum7,-1.,dumjj,dumii,dumll,dumi,-1)
+                     call args_for_LUT_main(args_r,args_i,dum1,dum4,dum5,dum7,0.,0.,0.,0.,dumjj,dumii,dumll,dumi,0,0)
                       f1pr01 = proc_from_LUT_main2mom(1,args_r,args_i)
                       f1pr02 = proc_from_LUT_main2mom(2,args_r,args_i)
                       f1pr09 = proc_from_LUT_main2mom(7,args_r,args_i)
@@ -4964,7 +4966,7 @@ call cpu_time(timer_start(6))
                       call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,dum7,  &
                                 isize,rimsize,liqsize,densize,qitot(i,k,iice),nitot(i,k,iice),      &
                                 qirim(i,k,iice),qiliq(i,k,iice),rhop)
-                      call args_for_LUT_main(args_r,args_i,dum1,dum4,dum5,dum7,-1.,dumjj,dumii,dumll,dumi,-1)
+                      call args_for_LUT_main(args_r,args_i,dum1,dum4,dum5,dum7,0.,0.,0.,0.,dumjj,dumii,dumll,dumi,0,0)
                       f1pr01 = proc_from_LUT_main2mom(1,args_r,args_i)
                       f1pr02 = proc_from_LUT_main2mom(2,args_r,args_i)
                       f1pr09 = proc_from_LUT_main2mom(7,args_r,args_i)
@@ -5078,7 +5080,7 @@ call cpu_time(timer_start(6))
                       call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),zitot(i,k,iice),dum1,dum4,dum5,   &
                                      dum7,dumjj,dumii,dumll,dumi)
 
-                      call args_for_LUT_main(args_r,args_i,dum1,dum4,dum5,dum6,dum7,dumzz,dumjj,dumii,dumll,dumi)
+                      call args_for_LUT_main(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0.,dumzz,dumjj,dumii,dumll,dumi,0)
 
                       f1pr01 = proc_from_LUT_main3mom( 1,args_r,args_i)
                       f1pr02 = proc_from_LUT_main3mom( 2,args_r,args_i)
@@ -5196,7 +5198,7 @@ call cpu_time(timer_start(6))
                       call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),zitot(i,k,iice),dum1,dum4,dum5,   &
                                      dum7,dumjj,dumii,dumll,dumi)
 
-                      call args_for_LUT_main(args_r,args_i,dum1,dum4,dum5,dum6,dum7,dumzz,dumjj,dumii,dumll,dumi)
+                      call args_for_LUT_main(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0.,dumzz,dumjj,dumii,dumll,dumi,0)
 
                       f1pr01 = proc_from_LUT_main3mom( 1,args_r,args_i)
                       f1pr02 = proc_from_LUT_main3mom( 2,args_r,args_i)
@@ -5360,7 +5362,7 @@ call cpu_time(timer_end(6))
                            qiliq(i,k,iice),rhop)
 
                 if (.not. log_3momentIce) then
-                   call args_for_LUT_main(args_r,args_i,dum1,dum4,dum5,dum7,-1.,dumjj,dumii,dumll,dumi,-1)
+                   call args_for_LUT_main(args_r,args_i,dum1,dum4,dum5,dum7,0.,0.,0.,0.,dumjj,dumii,dumll,dumi,0,0)
                    f1pr16 = proc_from_LUT_main2mom(12,args_r,args_i)
                 else
                    zitot(i,k,iice) = max(zitot(i,k,iice),zsmall)
@@ -5368,7 +5370,7 @@ call cpu_time(timer_end(6))
                    call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),zitot(i,k,iice),          &
                               dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi)
 
-                   call args_for_LUT_main(args_r,args_i,dum1,dum4,dum5,dum6,dum7,dumzz,dumjj,dumii,dumll,dumi)
+                   call args_for_LUT_main(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0.,dumzz,dumjj,dumii,dumll,dumi,0)
                    f1pr16 = proc_from_LUT_main3mom(12,args_r,args_i)
                 endif
                 diam_ice(i,k,iice) = ((qitot(i,k,iice)*6.)/(nitot(i,k,iice)*f1pr16*pi))**thrd
@@ -5468,7 +5470,7 @@ call cpu_time(timer_end(6))
 
                 if (.not. log_3momentIce) then
 
-                  call args_for_LUT_main(args_r,args_i,dum1,dum4,dum5,dum7,-1.,dumjj,dumii,dumll,dumi,-1)
+                  call args_for_LUT_main(args_r,args_i,dum1,dum4,dum5,dum7,0.,0.,0.,0.,dumjj,dumii,dumll,dumi,0,0)
                   f1pr15 = proc_from_LUT_main2mom(11,args_r,args_i)
 
                 else ! triple moment ice
@@ -5480,7 +5482,7 @@ call cpu_time(timer_end(6))
                    call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),zitot(i,k,iice),          &
                                   dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi)
 
-                   call args_for_LUT_main(args_r,args_i,dum1,dum4,dum5,dum6,dum7,dumzz,dumjj,dumii,dumll,dumi)
+                   call args_for_LUT_main(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0.,dumzz,dumjj,dumii,dumll,dumi,0)
                    f1pr15 = proc_from_LUT_main3mom(11,args_r,args_i)
                    f1pr16 = proc_from_LUT_main3mom(12,args_r,args_i)
 
@@ -5630,7 +5632,7 @@ call cpu_time(timer_end(6))
                        rimsize,liqsize,densize,qitot(i,k,iice),nitot(i,k,iice),qirim(i,k,iice),      &
                        qiliq(i,k,iice),rhop)
 
-                call args_for_LUT_main(args_r,args_i,dum1,dum4,dum5,dum7,-1.,dumjj,dumii,dumll,dumi,-1)
+                call args_for_LUT_main(args_r,args_i,dum1,dum4,dum5,dum7,0.,0.,0.,0.,dumjj,dumii,dumll,dumi,0,0)
                 f1pr01 = proc_from_LUT_main2mom( 1,args_r,args_i)
                 f1pr02 = proc_from_LUT_main2mom( 2,args_r,args_i)
                 f1pr06 = proc_from_LUT_main2mom( 6,args_r,args_i)
@@ -5654,7 +5656,7 @@ call cpu_time(timer_end(6))
                 call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),zitot(i,k,iice),          &
                                dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi)
 
-                call args_for_LUT_main(args_r,args_i,dum1,dum4,dum5,dum6,dum7,dumzz,dumjj,dumii,dumll,dumi)
+                call args_for_LUT_main(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0.,dumzz,dumjj,dumii,dumll,dumi,0)
 
                 f1pr01 = proc_from_LUT_main3mom( 1,args_r,args_i)
                 f1pr02 = proc_from_LUT_main3mom( 2,args_r,args_i)
@@ -6115,9 +6117,9 @@ timer(:) = timer_end(:) - timer_start(:)
  implicit none
 
 !arguments:
- integer                           :: ind
- real,    dimension(5), intent(in) :: args_r
- integer, dimension(5), intent(in) :: args_i
+ integer, intent(in) :: ind
+ real,    dimension(n_args_r), intent(in) :: args_r
+ integer, dimension(n_args_i), intent(in) :: args_i
 !local:
  real    :: iproc1,iproc2,iproc3,iproc4,tmp1,tmp2,tmp3,tmp4
  real    :: dum1,dum4,dum5,dum7
@@ -6239,18 +6241,40 @@ else
  end function proc_from_LUT_main2mom
 !==========================================================================================!
 
- real function proc_from_LUT_ir2mom(ind,dumjj,dumii,dumll,dumj,dumi,dum1,dum3,dum4,dum5,dum7)
+ real function proc_from_LUT_ir2mom(ind,args_r,args_i)
+
+ !--------------------------------------------------------------------------------
+ ! Returns process rate (or other quantity) from LUT by accessing values from the
+ ! LUT and performing the necessary interpolation.
+ !
+ ! This applies for the ice-rain collection LUT for 2-moment.
+ !--------------------------------------------------------------------------------
 
  implicit none
 
 !arguments:
- real,    intent(in) :: dum1,dum3,dum4,dum5,dum7
- integer, intent(in) :: dumjj,dumii,dumj,dumi,dumll,ind
-
+ integer, intent(in) :: ind
+ real,    dimension(n_args_r), intent(in) :: args_r
+ integer, dimension(n_args_i), intent(in) :: args_i
 !local:
  real    :: dproc1,dproc2,iproc1,tmp1,tmp2,iproc3,iproc4,iproc2
+ real    :: dum1,dum3,dum4,dum5,dum7
+ integer :: dumjj,dumii,dumj,dumi,dumll
 
-if (dum7 == 1. .and. dumll==1) then  !skip interpolation for liq-frac if qiliq = 0.
+
+ dum1 = args_r(1)
+ dum3 = args_r(2)
+ dum4 = args_r(3)
+ dum5 = args_r(4)
+ dum7 = args_r(5)
+
+ dumjj = args_i(1)
+ dumii = args_i(2)
+ dumll = args_i(3)
+ dumj  = args_i(4)
+ dumi  = args_i(5)
+
+ if (dum7 == 1. .and. dumll==1) then  !skip interpolation for liq-frac if qiliq = 0.
 
 ! current density ind jj
 
@@ -6950,22 +6974,40 @@ end function proc_from_LUT_ir2mom
  END SUBROUTINE access_lookup_table_colli
 
 !==========================================================================================!
-!NOTE: optimisation can be made here if filiq=0
 
-!  SUBROUTINE access_lookup_table_colli_LF(ind,dumjjc,dumiic,dumic,dumjj,dumii,dumi, &
-!                                          dum1c,dum4c,dum5c,dum7c,dum1,dum4,dum5,dum7)
- real function proc_from_LUT_ii(ind,dumjjc,dumiic,dumic,dumjj,dumii,dumi,      &
-                                   dum1c,dum4c,dum5c,dum7c,dum1,dum4,dum5,dum7)
+!**** NOTE: optimization can be made here if filiq=0 ****
+
+ real function proc_from_LUT_ii(ind,args_r,args_i)
 
  implicit none
 
 !arguments:
- real,    intent(in) :: dum1c,dum4c,dum5c,dum7c,dum1,dum4,dum5,dum7
- integer, intent(in) :: dumjjc,dumiic,dumic,dumjj,dumii,dumi,ind
+ integer, intent(in) :: ind
+ real,    dimension(n_args_r), intent(in) :: args_r
+ integer, dimension(n_args_i), intent(in) :: args_i
 !local:
  real    :: gproc1,gproc2,rproc1,rproc2,tmp1,tmp2,dproc11,dproc12,      &
             proc001,proc101,proc002,proc102,procll1,procll2,proc011,    &
             proc111,proc012,proc112,iproc1,iproc2,proc
+ real    :: dum1c,dum4c,dum5c,dum7c,dum1,dum4,dum5,dum7
+ integer :: dumjjc,dumiic,dumic,dumjj,dumii,dumi
+
+
+ dum1c = args_r(1)
+ dum4c = args_r(2)
+ dum5c = args_r(3)
+ dum7c = args_r(4)
+ dum1  = args_r(5)
+ dum4  = args_r(6)
+ dum5  = args_r(7)
+ dum7  = args_r(8)
+
+ dumjjc = args_i(1)
+ dumiic = args_i(2)
+ dumic  = args_i(3)
+ dumjj  = args_i(4)
+ dumii  = args_i(5)
+ dumi   = args_i(6)
 
 !--- optimize for log_liqFrac .false. or Fliq=0
 ! - code pieces to be consolidated later into a single funcion, and then
@@ -9521,8 +9563,9 @@ end function proc_from_LUT_ir2mom
  end function proc_from_LUT_ii
 
 !==========================================================================================!
- subroutine args_for_LUT_main(args_r,args_i,arg_r_1,arg_r_2,arg_r_3,arg_r_4,arg_r_5,  &
-                                            arg_i_1,arg_i_2,arg_i_3,arg_i_4,arg_i_5)
+ subroutine args_for_LUT_main(args_r,args_i,                                                    &
+                              arg_r_1,arg_r_2,arg_r_3,arg_r_4,arg_r_5,arg_r_6,arg_r_7,arg_r_8,  &
+                              arg_i_1,arg_i_2,arg_i_3,arg_i_4,arg_i_5,arg_i_6)
 
  !--------------------------------------------------------------------------------
  ! Consolidates individual real and integer values, used to access the LUT,
@@ -9532,22 +9575,26 @@ end function proc_from_LUT_ir2mom
  !--------------------------------------------------------------------------------
 
 !arguments:
- real,    dimension(5), intent(out) :: args_r
- integer, dimension(5), intent(out) :: args_i
- real,                  intent(in)  :: arg_r_1,arg_r_2,arg_r_3,arg_r_4,arg_r_5
- integer,               intent(in)  :: arg_i_1,arg_i_2,arg_i_3,arg_i_4,arg_i_5
+ real,    dimension(n_args_r), intent(out) :: args_r
+ integer, dimension(n_args_i), intent(out) :: args_i
+ real,    intent(in)  :: arg_r_1,arg_r_2,arg_r_3,arg_r_4,arg_r_5,arg_r_6,arg_r_7,arg_r_8
+ integer, intent(in)  :: arg_i_1,arg_i_2,arg_i_3,arg_i_4,arg_i_5,arg_i_6
 
  args_r(1) = arg_r_1
  args_r(2) = arg_r_2
  args_r(3) = arg_r_3
  args_r(4) = arg_r_4
  args_r(5) = arg_r_5
+ args_r(6) = arg_r_6
+ args_r(7) = arg_r_7
+ args_r(8) = arg_r_8
 
  args_i(1) = arg_i_1
  args_i(2) = arg_i_2
  args_i(3) = arg_i_3
  args_i(4) = arg_i_4
  args_i(5) = arg_i_5
+ args_i(6) = arg_i_6
 
  end subroutine args_for_LUT_main
 !==========================================================================================!
@@ -9564,9 +9611,9 @@ end function proc_from_LUT_ir2mom
  implicit none
 
 !argmuents:
- integer,               intent(in) :: ind
- real,    dimension(5), intent(in) :: args_r
- integer, dimension(5), intent(in) :: args_i
+ integer, intent(in) :: ind
+ real,    dimension(n_args_r), intent(in) :: args_r
+ integer, dimension(n_args_i), intent(in) :: args_i
 
 !local:
  integer :: dumzz,dumjj,dumii,dumi,dumll
@@ -9792,25 +9839,40 @@ end function proc_from_LUT_main3mom
 
 !==========================================================================================!
 
- real function proc_from_LUT_ir3mom(ind,dumzz,dumjj,dumii,dumll,dumj,dumi,          &
-                                        dum1,dum3,dum4,dum5,dum6,dum7)
+ real function proc_from_LUT_ir3mom(ind,args_r,args_i)
 
  !--------------------------------------------------------------------------------
- ! Obtains process rate (or other quantity) from LUT by accessing values from the
+ ! Returns process rate (or other quantity) from LUT by accessing values from the
  ! LUT and performing the necessary interpolation.
  !
- ! This applies for the ice-ice collection LUT for 3-moment + LF.
+ ! This applies for the ice-rain collection LUT for 3-moment.
  !--------------------------------------------------------------------------------
 
  implicit none
 
 !arguments:
- real,    intent(in)  :: dum1,dum3,dum4,dum5,dum6,dum7
- integer, intent(in)  :: dumzz,dumjj,dumii,dumj,dumi,dumll,ind
+ integer, intent(in) :: ind
+ real,    dimension(n_args_r), intent(in) :: args_r
+ integer, dimension(n_args_i), intent(in) :: args_i
 !local:
- real                 :: dproc1,dproc2,iproc1,iproc2,gproc1,gproc2,rproc1,rproc2,       &
-                         zproc1,zproc2,proc
+ real    :: dproc1,dproc2,iproc1,iproc2,gproc1,gproc2,rproc1,rproc2,zproc1,zproc2,proc
+ real    :: dum1,dum3,dum4,dum5,dum6,dum7
+ integer :: dumzz,dumjj,dumii,dumj,dumi,dumll
 
+
+ dum1 = args_r(1)
+ dum3 = args_r(2)
+ dum4 = args_r(3)
+ dum5 = args_r(4)
+ dum6 = args_r(5)
+ dum7 = args_r(6)
+
+ dumzz = args_i(1)
+ dumjj = args_i(2)
+ dumii = args_i(3)
+ dumll = args_i(4)
+ dumj  = args_i(5)
+ dumi  = args_i(6)
 
  if (dum7 == 1. .and. dumll==1) then  !skip interpolation for liq-frac if qiliq = 0.
 !
@@ -11524,15 +11586,15 @@ else
  real                 :: mom3          !estimate of 3rd moment
  real,    parameter   :: tol = 0.25    !tolerance for convergence
  integer, parameter   :: max_iterations = 5
- real,    dimension(5) :: args_r
- integer, dimension(5) :: args_i
+ real,    dimension(n_args_r) :: args_r
+ integer, dimension(n_args_i) :: args_i
 
 ! ! !--- original, for testing
 ! !                 mom3 =  6./(200.*pi)*Qi
 ! !                 do ind=1,5 !niter_mui
 ! !                    mu_i = compute_mu_3moment_1(Ni,mom3,Zi,mu_i_max)
 ! !                    call find_lookupTable_indices_1c(dumzz,dum6,zsize,mu_i)
-! !                    call args_for_LUT_main(args_r,args_i,dum1,dum4,dum5,dum6,dum7,dumzz,dumjj,dumii,dumll,dumi)
+! !                    call args_for_LUT_main(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0.,dumzz,dumjj,dumii,dumll,dumi,0)
 ! !                    rhoi = proc_from_LUT_main3mom(12,args_r,args_i)
 ! !                    mom3 =  6./(rhoi*pi)*Qi  !estimate of moment3
 ! !                 enddo
@@ -11542,7 +11604,7 @@ else
 
  do ind = 1,max_iterations
     call find_lookupTable_indices_1c(dumzz,dum6,zsize,mu_old)
-    call args_for_LUT_main(args_r,args_i,dum1,dum4,dum5,dum6,dum7,dumzz,dumjj,dumii,dumll,dumi)
+    call args_for_LUT_main(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0.,dumzz,dumjj,dumii,dumll,dumi,0)
     rhoi = proc_from_LUT_main3mom(12,args_r,args_i)
     mom3 = 6./(rhoi*pi)*Qi
     mu_i = compute_mu_3moment_1(Ni,mom3,Zi,mu_i_max)   ! piecewise polynomial approximation (fast)
