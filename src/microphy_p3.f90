@@ -110,10 +110,10 @@
  ! physical and mathematical constants
  real           :: rhosur,rhosui,ar,br,f1r,f2r,ecr,rhow,kr,kc,bimm,aimm,rin,mi0,nccnst,  &
                    eci,eri,bcn,cpw,e0,cons1,cons2,cons3,cons4,cons5,cons6,cons7,cons8,   &
-                   inv_rhow,qsmall,nsmall,bsmall,zsmall,cp,g,rd,rv,ep_2,inv_cp,mw,osm,   &
+                   i_rhow,qsmall,nsmall,bsmall,zsmall,cp,g,rd,rv,ep_2,inv_cp,mw,osm,   &
                    vi,epsm,rhoa,map,ma,rr,bact,inv_rm1,inv_rm2,sig1,nanew1,f11,f21,sig2, &
                    nanew2,f12,f22,pi,thrd,sxth,piov3,piov6,rho_rimeMin,                  &
-                   rho_rimeMax,inv_rho_rimeMax,max_total_Ni,dbrk,nmltratio,minVIS,       &
+                   rho_rimeMax,i_rho_rimeMax,max_total_Ni,dbrk,nmltratio,minVIS,       &
                    maxVIS,mu_i_initial,mu_r_constant,inv_Drmax,Dmin_HM,Dinit_HM
 
  integer :: n_iceCat = -1   !used for GEM interface
@@ -233,7 +233,7 @@
  ecr    = 1.
  rhow   = 1000.
  cpw    = 4218.
- inv_rhow = 1./rhow  !inverse of (max.) density of liquid water
+ i_rhow = 1./rhow  !inverse of (max.) density of liquid water
  mu_r_constant = 0.  !fixed shape parameter for mu_r
 
 ! inv_Drmax = 1./0.0008 ! inverse of maximum allowed rain number-weighted mean diameter (old value)
@@ -242,12 +242,12 @@
 ! limits for rime density [kg m-3]
  rho_rimeMin     =  50.
  rho_rimeMax     = 900.
- inv_rho_rimeMax = 1./rho_rimeMax
+ i_rho_rimeMax = 1./rho_rimeMax
 
 ! minium allowable prognostic variables
  qsmall = 1.e-14
  nsmall = 1.e-16
- bsmall = qsmall*inv_rho_rimeMax
+ bsmall = qsmall*i_rho_rimeMax
  zsmall = 1.e-35
 
 ! Bigg (1953)
@@ -2130,7 +2130,7 @@ END subroutine p3_init
  real, dimension(its:ite,kts:kte,nCat) :: diam_ice,liquidfraction,rimefraction,          &
             rimevolume,arr_lami,arr_mui,rimedensity
 
- real, dimension(its:ite,kts:kte)      :: inv_dzq,inv_rho,ze_ice,ze_rain,prec,acn,rho,   &
+ real, dimension(its:ite,kts:kte)      :: i_dzq,i_rho,ze_ice,ze_rain,prec,acn,rho,   &
             rhofacr,rhofaci,xxls,xxlv,xlf,qvs,qvi,sup,supi,vtrmi1,tmparr1,mflux_r,       &
             mflux_i,invexn
 
@@ -2343,7 +2343,7 @@ call cpu_time(timer_start(1))
 
  log_typeDiags  = .true.
 
- inv_dzq    = 1./dzq  ! inverse of thickness of layers
+ i_dzq    = 1./dzq  ! inverse of thickness of layers
  odt        = 1./dt   ! inverse model time step
 
 ! Compute time scale factor over which to apply soft rain lambda limiter
@@ -2438,7 +2438,7 @@ call cpu_time(timer_start(2))
 
      !calculate some time-varying atmospheric variables
        rho(i,k)     = pres(i,k)/(rd*t(i,k))
-       inv_rho(i,k) = 1./rho(i,k)
+       i_rho(i,k) = 1./rho(i,k)
        xxlv(i,k)    = 3.1484e6-2370.*273.15 !t(i,k), use constant Lv
        xxls(i,k)    = xxlv(i,k)+0.3337e6
        xlf(i,k)     = xxls(i,k)-xxlv(i,k)
@@ -2457,14 +2457,14 @@ call cpu_time(timer_start(2))
           supi(i,k)    = (ssat(i,k)+qvs(i,k)-qvi(i,k))/qvi(i,k)
        endif
 
-       rhofacr(i,k) = (rhosur*inv_rho(i,k))**0.54
-       rhofaci(i,k) = (rhosui*inv_rho(i,k))**0.54
+       rhofacr(i,k) = (rhosur*i_rho(i,k))**0.54
+       rhofaci(i,k) = (rhosui*i_rho(i,k))**0.54
        dum          = 1.496e-6*t(i,k)**1.5/(t(i,k)+120.)  ! this is mu
        acn(i,k)     = g*rhow/(18.*dum)  ! 'a' parameter for droplet fallspeed (Stokes' law)
 
       !specify cloud droplet number (for 1-moment version)
        if (.not.(log_predictNc)) then
-          nc(i,k) = nccnst*inv_rho(i,k)
+          nc(i,k) = nccnst*i_rho(i,k)
        endif
 
 ! The test below is skipped if SCPF is not used since now, if SCF>0 somewhere, then nucleation is possible.
@@ -2715,7 +2715,7 @@ call cpu_time(timer_start(3))
        epsi_tot = 0.
        epsiw_tot = 0.
 
-       call impose_max_total_Ni(nitot(i,k,:),max_total_Ni,inv_rho(i,k))
+       call impose_max_total_Ni(nitot(i,k,:),max_total_Ni,i_rho(i,k))
 
        iice_loop1: do iice = 1,nCat
 
@@ -2736,8 +2736,8 @@ call cpu_time(timer_start(3))
 
              call calc_bulkRhoRime(qitot(i,k,iice),qirim(i,k,iice),qiliq(i,k,iice),birim(i,k,iice),rhop)
 
-             call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,dum7,isize,         &
-                        rimsize,liqsize,densize,qitot(i,k,iice),nitot(i,k,iice),qirim(i,k,iice),        &
+             call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,dum7,isize,   &
+                        rimsize,liqsize,densize,qitot(i,k,iice),nitot(i,k,iice),qirim(i,k,iice),  &
                         qiliq(i,k,iice),rhop)
 
              call find_lookupTable_indices_1b(dumj,dum3,rcollsize,qr(i,k),nr(i,k))
@@ -2745,7 +2745,8 @@ call cpu_time(timer_start(3))
              trplmomice_1: if (.not. log_3momentIce) then
 
              ! call to lookup table interpolation subroutines to get process rates
-               call args_for_LUT_main(args_r,args_i,dum1,dum4,dum5,dum7,0.,0.,0.,0.,dumjj,dumii,dumll,dumi,0,0)
+               call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum7,0.,0.,0.,0.,          &
+                                 dumjj,dumii,dumll,dumi,0,0)
 
                f1pr02 = proc_from_LUT_main2mom( 2,args_r,args_i)
                f1pr03 = proc_from_LUT_main2mom( 3,args_r,args_i)
@@ -2765,9 +2766,10 @@ call cpu_time(timer_start(3))
 
           ! ice-rain collection processes
                 if (qr(i,k).ge.qsmall) then
-                  call args_for_LUT_main(args_r,args_i,dum1,dum3,dum4,dum5,dum7,0.,0.,0.,dumjj,dumii,dumll,dumj,dumi,0)
-                  f1pr07 = proc_from_LUT_ir2mom(1,args_r,args_i) !dumjj,dumii,dumll,dumj,dumi,dum1,dum3,dum4,dum5,dum7)
-                  f1pr08 = proc_from_LUT_ir2mom(2,args_r,args_i) !dumjj,dumii,dumll,dumj,dumi,dum1,dum3,dum4,dum5,dum7)
+                  call args_for_LUT(args_r,args_i,dum1,dum3,dum4,dum5,dum7,0.,0.,0.,     &
+                                    dumjj,dumii,dumll,dumj,dumi,0)
+                  f1pr07 = proc_from_LUT_ir2mom(1,args_r,args_i)
+                  f1pr08 = proc_from_LUT_ir2mom(2,args_r,args_i)
                 else
                    f1pr07 = -99. ! log space
                    f1pr08 = -99. ! log space
@@ -2780,10 +2782,11 @@ call cpu_time(timer_start(3))
              !impose lower limits to prevent taking log of # < 0
                 zitot(i,k,iice) = max(zitot(i,k,iice),zsmall)
 
-                call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),zitot(i,k,iice),      &
-                               dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi)
+                call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),          &
+                           zitot(i,k,iice),dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi)
 
-                call args_for_LUT_main(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0.,dumzz,dumjj,dumii,dumll,dumi,0)
+                call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0.,       &
+                                  dumzz,dumjj,dumii,dumll,dumi,0)
 
                 f1pr02 = proc_from_LUT_main3mom( 2,args_r,args_i)
                 f1pr03 = proc_from_LUT_main3mom( 3,args_r,args_i)
@@ -2814,7 +2817,8 @@ call cpu_time(timer_start(3))
 
           ! ice-rain collection processes
                 if (qr(i,k).ge.qsmall) then
-                   call args_for_LUT_main(args_r,args_i,dum1,dum3,dum4,dum5,dum6,dum7,0.,0.,dumzz,dumjj,dumii,dumll,dumj,dumi)
+                   call args_for_LUT(args_r,args_i,dum1,dum3,dum4,dum5,dum6,dum7,0.,0.,  &
+                                     dumzz,dumjj,dumii,dumll,dumj,dumi)
                    f1pr07 = proc_from_LUT_ir3mom(1,args_r,args_i)
                    f1pr08 = proc_from_LUT_ir3mom(2,args_r,args_i)
                    f1pr36 = proc_from_LUT_ir3mom(3,args_r,args_i)
@@ -2993,9 +2997,10 @@ call cpu_time(timer_start(3))
                                  birim(i,k,iice),birim(i,k,catcoll),qiliq(i,k,iice),     &
                                  qiliq(i,k,catcoll))
 
-                      call args_for_LUT_main(args_r,args_i,dum1c,dum4c,dum5c,dum7c,dum1,dum4,dum5,dum7,dumjjc,dumiic,dumic,dumjj,dumii,dumi)
-                      f1pr17 = proc_from_LUT_ii(1,args_r,args_i) !dumjjc,dumiic,dumic,dumjj,dumii,dumi,dum1c,dum4c,dum5c,dum7c,dum1,dum4,dum5,dum7)
-                      f1pr18 = proc_from_LUT_ii(2,args_r,args_i) !dumjjc,dumiic,dumic,dumjj,dumii,dumi,dum1c,dum4c,dum5c,dum7c,dum1,dum4,dum5,dum7)
+                      call args_for_LUT(args_r,args_i,dum1c,dum4c,dum5c,dum7c,dum1, &
+                                    dum4,dum5,dum7,dumjjc,dumiic,dumic,dumjj,dumii,dumi)
+                      f1pr17 = proc_from_LUT_ii(1,args_r,args_i)
+                      f1pr18 = proc_from_LUT_ii(2,args_r,args_i)
 
                     ! note: need to multiply by air density, air density fallspeed correction factor,
                     !       and N of the collectee and collector categories for process rates nicol and qicol,
@@ -3024,9 +3029,10 @@ call cpu_time(timer_start(3))
                                  birim(i,k,catcoll),birim(i,k,iice),qiliq(i,k,catcoll),  &
                                  qiliq(i,k,iice))
 
-                      call args_for_LUT_main(args_r,args_i,dum1c,dum4c,dum5c,dum7c,dum1,dum4,dum5,dum7,dumjjc,dumiic,dumic,dumjj,dumii,dumi)
-                      f1pr17 = proc_from_LUT_ii(1,args_r,args_i) !dumjjc,dumiic,dumic,dumjj,dumii,dumi,dum1c,dum4c,dum5c,dum7c,dum1,dum4,dum5,dum7)
-                      f1pr18 = proc_from_LUT_ii(2,args_r,args_i) !dumjjc,dumiic,dumic,dumjj,dumii,dumi,dum1c,dum4c,dum5c,dum7c,dum1,dum4,dum5,dum7)
+                      call args_for_LUT(args_r,args_i,dum1c,dum4c,dum5c,dum7c,dum1, &
+                                    dum4,dum5,dum7,dumjjc,dumiic,dumic,dumjj,dumii,dumi)
+                      f1pr17 = proc_from_LUT_ii(1,args_r,args_i)
+!                       f1pr18 = proc_from_LUT_ii(2,args_r,args_i)
 
                       nicol(iice,catcoll) = f1pr17*rhofaci(i,k)*rho(i,k)*                &
                                             nitot(i,k,iice)*nitot(i,k,catcoll)*iSCF(k)
@@ -3074,12 +3080,12 @@ call cpu_time(timer_start(3))
              if ((qitot(i,k,iice)-qiliq(i,k,iice)).ge.qsmall .and. t(i,k).gt.273.15) then
                 qsat0 = 0.622*e0/(pres(i,k)-e0)
                 tmp1 = 0.
-                qrmlt(iice) = ((f1pr24+f1pr25*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*((t(i,k)-     &
-                               273.15)*kap-rho(i,k)*xxlv(i,k)*dv*(qsat0-Qv_cld(k)))*2.*pi/xlf(i,k)+   &
-                               tmp1)*nitot(i,k,iice)
-                qimlt(iice) = ((f1pr26+f1pr27*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*((t(i,k)-     &
-                               273.15)*kap-rho(i,k)*xxlv(i,k)*dv*(qsat0-Qv_cld(k)))*2.*pi/xlf(i,k)+   &
-                               tmp1)*nitot(i,k,iice)
+                qrmlt(iice) = ((f1pr24+f1pr25*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)* &
+                              ((t(i,k)-273.15)*kap-rho(i,k)*xxlv(i,k)*dv*(qsat0-         &
+                              Qv_cld(k)))*2.*pi/xlf(i,k)+tmp1)*nitot(i,k,iice)
+                qimlt(iice) = ((f1pr26+f1pr27*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)* &
+                              ((t(i,k)-273.15)*kap-rho(i,k)*xxlv(i,k)*dv*(qsat0-         &
+                              Qv_cld(k)))*2.*pi/xlf(i,k)+tmp1)*nitot(i,k,iice)
                 qrmlt(iice) = max(qrmlt(iice),0.)
                 qimlt(iice) = max(qimlt(iice),0.)
                 ! Make sure both terms are bounded (necessary for conservation check)
@@ -3091,9 +3097,9 @@ call cpu_time(timer_start(3))
                 endif
                 nimlt(iice) = qrmlt(iice)*(nitot(i,k,iice)/(qitot(i,k,iice)-qiliq(i,k,iice)))
                 if (log_3momentIce) then
-                   zimlt(iice) = -((f1pr24*f1pr32+f1pr25*f1pr33*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)  &
-                                  *((t(i,k)-273.15)*kap-rho(i,k)*xxlv(i,k)*dv*(qsat0-Qv_cld(k)))*2.        &
-                                  *pi/xlf(i,k)+tmp1)
+                   zimlt(iice) = -((f1pr24*f1pr32+f1pr25*f1pr33*sc**thrd*(rhofaci(i,k)*  &
+                                 rho(i,k)/mu)**0.5)*((t(i,k)-273.15)*kap-rho(i,k)*       &
+                                 xxlv(i,k)*dv*(qsat0-Qv_cld(k)))*2.*pi/xlf(i,k)+tmp1)
                 endif
              endif
 
@@ -3108,15 +3114,16 @@ call cpu_time(timer_start(3))
            ! qrmlt(iice)=(f1pr05+f1pr14*sc**0.3333*(rhofaci(i,k)*rho(i,k)/mu)**0.5)* &
            !       (t(i,k)-273.15)*2.*pi*kap/xlf(i,k)+tmp1
            ! include RH dependence
-                qrmlt(iice) = ((f1pr05+f1pr14*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*((t(i,k)-    &
-                              273.15)*kap-rho(i,k)*xxlv(i,k)*dv*(qsat0-Qv_cld(k)))*2.*pi/xlf(i,k)+   &
-                              tmp1)*nitot(i,k,iice)
+                qrmlt(iice) = ((f1pr05+f1pr14*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)* &
+                              ((t(i,k)-273.15)*kap-rho(i,k)*xxlv(i,k)*dv*(qsat0-         &
+                              Qv_cld(k)))*2.*pi/xlf(i,k)+tmp1)*nitot(i,k,iice)
                 qrmlt(iice) = max(qrmlt(iice),0.)
                 nimlt(iice) = qrmlt(iice)*(nitot(i,k,iice)/qitot(i,k,iice))
                 if (log_3momentIce .and. log_full3mom) then
-                   zimlt(iice) = -((f1pr05*f1pr30+f1pr14*f1pr31*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*((t(i,k)-   &
-                                 273.15)*kap-rho(i,k)*xxlv(i,k)*dv*(qsat0-Qv_cld(k)))*2.*pi/xlf(i,k)+tmp1)
-               endif
+                   zimlt(iice) = -((f1pr05*f1pr30+f1pr14*f1pr31*sc**thrd*(rhofaci(i,k)*  &
+                                 rho(i,k)/mu)**0.5)*((t(i,k)-273.15)*kap-rho(i,k)*       &
+                                 xxlv(i,k)*dv*(qsat0-Qv_cld(k)))*2.*pi/xlf(i,k)+tmp1)
+                endif
              endif
 
           endif liqfrac_2
@@ -3130,9 +3137,9 @@ call cpu_time(timer_start(3))
           if (qitot(i,k,iice).ge.qsmall .and. (qc(i,k)+qr(i,k)).ge.1.e-6 .and. t(i,k).lt.273.15) then
 
              qsat0  = 0.622*e0/(pres(i,k)-e0)
-             qwgrth(iice) = ((f1pr05+f1pr14*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*((t(i,k)-       &
-                            273.15)*(-kap)+rho(i,k)*xxls(i,k)*dv*(qsat0-Qv_cld(k))*2.*pi/xlf(i,k)))*  &
-                           nitot(i,k,iice)
+             qwgrth(iice) = ((f1pr05+f1pr14*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*   &
+                            ((t(i,k)-273.15)*(-kap)+rho(i,k)*xxls(i,k)*dv*(qsat0-        &
+                            Qv_cld(k))*2.*pi/xlf(i,k)))*nitot(i,k,iice)
              qwgrth(iice) = max(qwgrth(iice),0.)
 
              if (log_LiquidFrac) then
@@ -3223,14 +3230,15 @@ call cpu_time(timer_start(3))
           ! Refreezing
              if (t(i,k).lt.273.15) then
                qsat0  = 0.622*e0/(pres(i,k)-e0)
-               qifrz(iice) = ((f1pr05+f1pr14*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*((t(i,k)-        &
-                             273.15)*(-kap)+rho(i,k)*xxls(i,k)*dv*(qsat0-Qv_cld(k))*2.*pi/xlf(i,k)))*   &
-                             nitot(i,k,iice)
+               qifrz(iice) = ((f1pr05+f1pr14*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*  &
+                             ((t(i,k)-273.15)*(-kap)+rho(i,k)*xxls(i,k)*dv*(qsat0-       &
+                             Qv_cld(k))*2.*pi/xlf(i,k)))*nitot(i,k,iice)
                qifrz(iice) = min(max(qifrz(iice),0.),qiliq(i,k,iice)*odt)
              endif
           ! Shedding
              tmp1=0.
-             if ((qitot(i,k,iice)-qiliq(i,k,iice)).ge.qsmall) tmp1 = qirim(i,k,iice)/(qitot(i,k,iice)-qiliq(i,k,iice))
+             if ((qitot(i,k,iice)-qiliq(i,k,iice)).ge.qsmall)                            &
+               tmp1 = qirim(i,k,iice)/(qitot(i,k,iice)-qiliq(i,k,iice))
           ! Shedding
              qlshd(iice) = tmp1*f1pr28*nitot(i,k,iice)*qiliq(i,k,iice)/qitot(i,k,iice)
              qlshd(iice) = min(max(0.,qlshd(iice)),qiliq(i,k,iice)*odt)
@@ -3462,7 +3470,8 @@ call cpu_time(timer_start(3))
 
        !calculate rain evaporation including ventilation
        if (qr(i,k)*iSPF(k).ge.qsmall) then
-          call find_lookupTable_indices_3(dumii,dumjj,dum1,rdumii,rdumjj,inv_dum3,mu_r(i,k),lamr(i,k))
+          call find_lookupTable_indices_3(dumii,dumjj,dum1,rdumii,rdumjj,inv_dum3,       &
+                                          mu_r(i,k),lamr(i,k))
          !interpolate value at mu_r
           dum1 = revap_table(dumii,dumjj)+(rdumii-real(dumii))*                          &
                  (revap_table(dumii+1,dumjj)-revap_table(dumii,dumjj))
@@ -3527,8 +3536,8 @@ call cpu_time(timer_start(3))
 !       dum = qvs(i,k)*rho(i,k)*g*uzpl(i,k)/max(1.e-3,(pres(i,k)-polysvp1(t(i,k),0)))
 
        !if (log_LiquidFrac) then
-         aaa = (qv(i,k)-qv_old(i,k))*odt - dqsdT*(-dum*g*inv_cp)-(qvs(i,k)-dumqvi)*(1.+xxls(i,k)*   &
-               inv_cp*dqsdT)*oabi*epsi_tot
+         aaa = (qv(i,k)-qv_old(i,k))*odt - dqsdT*(-dum*g*inv_cp)-(qvs(i,k)-dumqvi)*      &
+               (1.+xxls(i,k)*inv_cp*dqsdT)*oabi*epsi_tot
        !else
        !  if (t(i,k).lt.273.15) then
        !     aaa = (qv(i,k)-qv_old(i,k))*odt - dqsdT*(-dum*g*inv_cp)-(qvs(i,k)-dumqvi)*     &
@@ -3726,10 +3735,10 @@ call cpu_time(timer_start(3))
        endif
 
        if (t(i,k).lt.258.15 .and. supi_cld.ge.0.05) then
-!         dum = exp(-0.639+0.1296*100.*supi(i,k))*1000.*inv_rho(i,k)        !Meyers et al. (1992)
-          dum = 0.005*exp(0.304*(273.15-t(i,k)))*1000.*inv_rho(i,k)         !Cooper (1986)
-!         dum = 0.005*dexp(dble(0.304*(273.15-t(i,k))))*1000.*inv_rho(i,k)  !Cooper (1986)
-          dum = min(dum,100.e3*inv_rho(i,k)*SCF(k))
+!         dum = exp(-0.639+0.1296*100.*supi(i,k))*1000.*i_rho(i,k)        !Meyers et al. (1992)
+          dum = 0.005*exp(0.304*(273.15-t(i,k)))*1000.*i_rho(i,k)         !Cooper (1986)
+!         dum = 0.005*dexp(dble(0.304*(273.15-t(i,k))))*1000.*i_rho(i,k)  !Cooper (1986)
+          dum = min(dum,100.e3*i_rho(i,k)*SCF(k))
           N_nuc = max(0.,(dum-sum(nitot(i,k,:)))*odt)
 
           if (N_nuc.ge.1.e-20) then
@@ -3738,7 +3747,8 @@ call cpu_time(timer_start(3))
                 !determine destination ice-phase category:
                 dum1  = 900.     !density of new ice
                 D_new = ((Q_nuc*6.)/(pi*dum1*N_nuc))**thrd
-                call icecat_destination(qitot(i,k,:)*iSCF(k),diam_ice(i,k,:),D_new,deltaD_init,iice_dest)
+                call icecat_destination(qitot(i,k,:)*iSCF(k),diam_ice(i,k,:),D_new,      &
+                                        deltaD_init,iice_dest)
                 if (global_status /= STATUS_OK) return
              else
                 iice_dest = 1
@@ -3757,7 +3767,7 @@ call cpu_time(timer_start(3))
 ! this is not applied at the first time step, since saturation adjustment is applied at the first step
 
        if (.not.(log_predictNc).and.sup_cld.gt.1.e-6.and.it.gt.1) then
-          dum   = nccnst*inv_rho(i,k)*cons7-qc(i,k)
+          dum   = nccnst*i_rho(i,k)*cons7-qc(i,k)
           dum   = max(0.,dum*iSCF(k))         ! in-cloud value
           dumqvs = qv_sat(t(i,k),pres(i,k),0)
           dqsdT = xxlv(i,k)*dumqvs/(rv*t(i,k)*t(i,k))
@@ -3825,7 +3835,7 @@ call cpu_time(timer_start(3))
              qcaut =  kc*1.9230769e-5*(nu(i,k)+2.)*(nu(i,k)+4.)/(nu(i,k)+1.)**2*         &
                       (rho(i,k)*qc(i,k)*iSCF(k)*1.e-3)**4/                               &
                       (rho(i,k)*nc(i,k)*iSCF(k)*1.e-6)**2*(1.+                           &
-                      dum1/(1.-dum)**2)*1000.*inv_rho(i,k)*SCF(k)
+                      dum1/(1.-dum)**2)*1000.*i_rho(i,k)*SCF(k)
              ncautc = qcaut*7.6923076e+9
 
           elseif (iparam.eq.2) then
@@ -3833,7 +3843,7 @@ call cpu_time(timer_start(3))
             !Beheng (1994)
 !Note (BUG), needs to be in-cloud condition
              if (nc(i,k)*iSCF(k)*rho(i,k)*1.e-6 .lt. 100.) then
-                qcaut = 6.e+28*inv_rho(i,k)*mu_c(i,k)**(-1.7)*(1.e-6*rho(i,k)*           &
+                qcaut = 6.e+28*i_rho(i,k)*mu_c(i,k)**(-1.7)*(1.e-6*rho(i,k)*           &
                         nc(i,k)*iSCF(k))**(-3.3)*(1.e-3*rho(i,k)*qc(i,k)*iSCF(k))**(4.7) &
                         *SCF(k)
              else
@@ -3842,9 +3852,9 @@ call cpu_time(timer_start(3))
                 dum1  = 39.36 + (nc(i,k)*iSCF(k)*1.e-6*rho(i,k)-100.)*(30.72-39.36)*5.e-3
                 qcaut = dum+(mu_c(i,k)-5.)*(dum1-dum)*0.1
               ! 1000/rho is for conversion from g cm-3/s to kg/kg
-                qcaut = exp(qcaut)*(1.e-3*rho(i,k)*qc(i,k)*iSCF(k))**4.7*1000.*inv_rho(i,k)*SCF(k)
+                qcaut = exp(qcaut)*(1.e-3*rho(i,k)*qc(i,k)*iSCF(k))**4.7*1000.*i_rho(i,k)*SCF(k)
 !               qcaut = dexp(dble(qcaut))*(1.e-3*rho(i,k)*qc(i,k)*iSCF(k))**4.7*1000.*   &
-!                       inv_rho(i,k)*SCF(k)
+!                       i_rho(i,k)*SCF(k)
              endif
              ncautc = 7.7e+9*qcaut
 
@@ -3879,11 +3889,12 @@ call cpu_time(timer_start(3))
 
           if (iparam.eq.1) then
            !Seifert and Beheng (2001)
-             ncslf = -kc*(1.e-3*rho(i,k)*qc(i,k)*iSCF(k))**2*(nu(i,k)+2.)/(nu(i,k)+1.)*         &
-                     1.e+6*inv_rho(i,k)*SCF(k)+ncautc
+             ncslf = -kc*(1.e-3*rho(i,k)*qc(i,k)*iSCF(k))**2*(nu(i,k)+2.)/(nu(i,k)+1.)*  &
+                     1.e+6*i_rho(i,k)*SCF(k)+ncautc
           elseif (iparam.eq.2) then
            !Beheng (994)
-             ncslf = -5.5e+16*inv_rho(i,k)*mu_c(i,k)**(-0.63)*(1.e-3*rho(i,k)*qc(i,k)*iSCF(k))**2*SCF(k)
+             ncslf = -5.5e+16*i_rho(i,k)*mu_c(i,k)**(-0.63)*(1.e-3*rho(i,k)*qc(i,k)*   &
+                     iSCF(k))**2*SCF(k)
           elseif (iparam.eq.3.or.iparam.eq.4) then
             !Khroutdinov and Kogan (2000)
              ncslf = 0.
@@ -3903,14 +3914,14 @@ call cpu_time(timer_start(3))
              dum1  = (dum/(dum+5.e-4))**4
              qcacc = kr*rho(i,k)*0.001*qc(i,k)*iSCF(k)*qr(i,k)*iSPF(k)*dum1*dum2
              ncacc = qcacc*rho(i,k)*0.001*(nc(i,k)*rho(i,k)*1.e-6)/(qc(i,k)*rho(i,k)*    &  !note: (nc*iSCF)/(qc*iSCF) = nc/qc
-                     0.001)*1.e+6*inv_rho(i,k)
+                     0.001)*1.e+6*i_rho(i,k)
           elseif (iparam.eq.2) then
            !Beheng (994)
              dum2  = (SPF(k)-SPF_clr(k)) !in-cloud Precipitation fraction
              dum   = (qc(i,k)*iSCF(k)*qr(i,k)*iSPF(k))
              qcacc = 6.*rho(i,k)*dum*dum2
              ncacc = qcacc*rho(i,k)*1.e-3*(nc(i,k)*rho(i,k)*1.e-6)/(qc(i,k)*rho(i,k)*    &   !note: (nc*iSCF)/(qc*iSCF) = nc/qc
-                     1.e-3)*1.e+6*inv_rho(i,k)
+                     1.e-3)*1.e+6*i_rho(i,k)
           elseif (iparam.eq.3) then
             !Khroutdinov and Kogan (2000)
              dum2  = (SPF(k)-SPF_clr(k)) !in-cloud Precipitation fraction
@@ -3955,7 +3966,8 @@ call cpu_time(timer_start(3))
           elseif (iparam.eq.2 .or. iparam.eq.3) then
              nrslf = dum*5.78*nr(i,k)*iSPF(k)*qr(i,k)*iSPF(k)*rho(i,k)*SPF(k)
           elseif (iparam.eq.4) then
-             nrslf = dum*205.*(qr(i,k)*iSPF(k))**1.55*(nr(i,k)*1.e-6*rho(i,k)*iSPF(k))**0.6*1.e6/rho(i,k)*SPF(k) ! 1.e6 converts cm-3 to m-3
+             nrslf = dum*205.*(qr(i,k)*iSPF(k))**1.55*(nr(i,k)*1.e-6*rho(i,k)*           &
+                     iSPF(k))**0.6*1.e6/rho(i,k)*SPF(k)                                     ! 1.e6 converts cm-3 to m-3
           endif
 
        endif
@@ -4000,8 +4012,9 @@ call cpu_time(timer_start(3))
        endif
 
     !Limit total deposition (incl. nucleation) and sublimation to saturation adjustment
-       qv_tmp = Qv_cld(k) + (-qcnuc-qccon-qrcon-sum(qlcon)+qcevp+qrevp+sum(qlevp))*dt                  !qv after cond/evap
-       t_tmp  = t(i,k) + (qcnuc+qccon+qrcon+sum(qlcon)-qcevp-qrevp-sum(qlevp))*xxlv(i,k)*inv_cp*dt     !T after cond/evap
+       qv_tmp = Qv_cld(k) + (-qcnuc-qccon-qrcon-sum(qlcon)+qcevp+qrevp+sum(qlevp))*dt         !qv after cond/evap
+       t_tmp  = t(i,k) + (qcnuc+qccon+qrcon+sum(qlcon)-qcevp-qrevp-sum(qlevp))*          &    !T after cond/evap
+                          xxlv(i,k)*inv_cp*dt
        dumqvi = qv_sat(t_tmp,pres(i,k),1)
        qdep_satadj = (qv_tmp-dumqvi)/(1.+xxls(i,k)**2*dumqvi/(cp*rv*t_tmp**2))*odt*SCF(k)
 
@@ -4190,32 +4203,32 @@ call cpu_time(timer_start(3))
 
        iice_loop3: do iice = 1,nCat
 
-          qc(i,k) = qc(i,k) + (-qchetc(iice)-qcheti(iice)-qccol(iice)-qcshd(iice)-            &
+          qc(i,k) = qc(i,k) + (-qchetc(iice)-qcheti(iice)-qccol(iice)-qcshd(iice)-       &
                     qccoll(iice)-qwgrth1c(iice)-qcmul(iice))*dt
 
           if (log_predictNc) then
              nc(i,k) = nc(i,k) + (-nccol(iice)-nchetc(iice)-ncheti(iice)-nccoll(iice))*dt
           endif
 
-          qr(i,k) = qr(i,k) + (-qrcol(iice)+qrmlt(iice)-qrhetc(iice)-qrheti(iice)+            &
+          qr(i,k) = qr(i,k) + (-qrcol(iice)+qrmlt(iice)-qrhetc(iice)-qrheti(iice)+       &
                     qcshd(iice)-qrmul(iice)-qrcoll(iice)+qlshd(iice)-qwgrth1r(iice))*dt
 
         ! apply factor to source for rain number from melting of ice, (ad-hoc
         ! but accounts for rapid evaporation of small melting ice particles)
           if (log_LiquidFrac) then
-             nr(i,k) = nr(i,k) + (-nrcol(iice)-nrhetc(iice)-nrheti(iice)+nimlt(iice)+            &
+             nr(i,k) = nr(i,k) + (-nrcol(iice)-nrhetc(iice)-nrheti(iice)+nimlt(iice)+    &
                        nrshdr(iice)+ncshdc(iice)-nrcoll(iice)+nlshd(iice))*dt
           else
-             nr(i,k) = nr(i,k) + (-nrcol(iice)-nrhetc(iice)-nrheti(iice)+nmltratio*nimlt(iice)+  &
-                       nrshdr(iice)+ncshdc(iice))*dt
+             nr(i,k) = nr(i,k) + (-nrcol(iice)-nrhetc(iice)-nrheti(iice)+nmltratio*      &
+                                 nimlt(iice)+nrshdr(iice)+ncshdc(iice))*dt
           endif
 
          ! if ((qitot(i,k,iice)-qiliq(i,k,iice)).ge.qsmall) then ! not needed in 5.1.1.4.1
          ! add sink terms, assume density stays constant for sink terms
-             birim(i,k,iice) = birim(i,k,iice) - (qisub(iice)+qrmlt(iice)+qimlt(iice))*dt*    &
-                               rimevolume(i,k,iice)
-             qirim(i,k,iice) = qirim(i,k,iice) - (qisub(iice)+qrmlt(iice)+qimlt(iice))*dt*    &
-                               rimefraction(i,k,iice)
+             birim(i,k,iice) = birim(i,k,iice) - (qisub(iice)+qrmlt(iice)+qimlt(iice))*  &
+                               dt*rimevolume(i,k,iice)
+             qirim(i,k,iice) = qirim(i,k,iice) - (qisub(iice)+qrmlt(iice)+qimlt(iice))*  &
+                               dt*rimefraction(i,k,iice)
              qiliq(i,k,iice) = qiliq(i,k,iice) + qimlt(iice)*dt
              qitot(i,k,iice) = qitot(i,k,iice) - (qisub(iice)+qrmlt(iice))*dt
          ! endif
@@ -4226,9 +4239,10 @@ call cpu_time(timer_start(3))
                             qlevp(iice)+qlcon(iice)+qwgrth1c(iice)+qwgrth1r(iice)+       &
                             qrcoll(iice)+qccoll(iice))*dt + dum
           qirim(i,k,iice) = qirim(i,k,iice) + qifrz(iice)*dt + dum
-          birim(i,k,iice) = birim(i,k,iice) + ((qifrz(iice)+qrcol(iice))*inv_rho_rimeMax+         &
-                            (qccol(iice)+qcmul(iice))/rhorime_c(iice)+(qrhetc(iice)+qrheti(iice)+ &
-                            qchetc(iice)+qcheti(iice)+qrmul(iice))*inv_rho_rimeMax)*dt
+          birim(i,k,iice) = birim(i,k,iice) + ((qifrz(iice)+qrcol(iice))*                &
+                            i_rho_rimeMax+(qccol(iice)+qcmul(iice))/rhorime_c(iice)+     &
+                            (qrhetc(iice)+qrheti(iice)+qchetc(iice)+qcheti(iice)+        &
+                            qrmul(iice))*i_rho_rimeMax)*dt
           qiliq(i,k,iice) = qiliq(i,k,iice) + (qrcoll(iice)+qccoll(iice)-qifrz(iice)-    &
                             qlshd(iice)+qlcon(iice)-qlevp(iice)+qwgrth1c(iice)+          &
                             qwgrth1r(iice))*dt
@@ -4250,7 +4264,7 @@ call cpu_time(timer_start(3))
               !source for collector category
                 qirim(i,k,iice) = qirim(i,k,iice)+qicol(catcoll,iice)*dt*rimefraction(i,k,catcoll)
                 birim(i,k,iice) = birim(i,k,iice)+qicol(catcoll,iice)*dt*rimevolume(i,k,catcoll)
-                qiliq(i,k,iice) = qiliq(i,k,iice)+qicol(catcoll,iice)*dt*                    &
+                qiliq(i,k,iice) = qiliq(i,k,iice)+qicol(catcoll,iice)*dt*                &
                                   liquidfraction(i,k,catcoll)
               !sink for collectee category
                 qirim(i,k,catcoll) = qirim(i,k,catcoll)-qicol(catcoll,iice)*dt*rimefraction(i,k,catcoll)
@@ -4274,26 +4288,27 @@ call cpu_time(timer_start(3))
           ! densify ice during wet growth (assume total soaking)
             if (log_wetgrowth(iice)) then
                qirim(i,k,iice) = qitot(i,k,iice)
-               birim(i,k,iice) = qirim(i,k,iice)*inv_rho_rimeMax
+               birim(i,k,iice) = qirim(i,k,iice)*i_rho_rimeMax
             endif
           ! densify rimed ice during melting (tend rime density towards solid ice [917 kg m-3])
-            if (.not. log_LiquidFrac .and. qitot(i,k,iice).ge.qsmall .and. birim(i,k,iice).ge.bsmall .and. qrmlt(iice)>0.) then
+            if (.not. log_LiquidFrac .and. qitot(i,k,iice).ge.qsmall .and.               &
+             birim(i,k,iice).ge.bsmall .and. qrmlt(iice)>0.) then
                tmp1 = qirim(i,k,iice)/birim(i,k,iice)     ! rho_i before densification
                tmp2 = qitot(i,k,iice) + qrmlt(iice)*dt    ! qitot before melting (but after all other updates)
                birim(i,k,iice) = qirim(i,k,iice)/(tmp1+(917.-tmp1)*qrmlt(iice)*dt/tmp2)
             endif
 
-          qv(i,k) = qv(i,k) + (-qidep(iice)+qisub(iice)-qinuc(iice)-qlcon(iice)+       &
+          qv(i,k) = qv(i,k) + (-qidep(iice)+qisub(iice)-qinuc(iice)-qlcon(iice)+         &
                                qlevp(iice))*dt
 
         ! Update theta. Note temperature is not updated here even though it is used below for
         ! the homogeneous freezing threshold. This is done for simplicity - the error will be
         ! very small and the homogeneous temp. freezing threshold is approximate anyway.
-          th(i,k) = th(i,k) + invexn(i,k)*((qidep(iice)-qisub(iice)+qinuc(iice))*      &
-                              xxls(i,k)*inv_cp +(qrcol(iice)+qccol(iice)+qchetc(iice)+ &
-                              qcheti(iice)+qrhetc(iice)+qrheti(iice)+qcmul(iice)+      &
-                              qrmul(iice)-qrmlt(iice)-qimlt(iice)+qifrz(iice))*        &
-                              xlf(i,k)*inv_cp+(qlcon(iice)-qlevp(iice))*xxlv(i,k)*     &
+          th(i,k) = th(i,k) + invexn(i,k)*((qidep(iice)-qisub(iice)+qinuc(iice))*        &
+                              xxls(i,k)*inv_cp +(qrcol(iice)+qccol(iice)+qchetc(iice)+   &
+                              qcheti(iice)+qrhetc(iice)+qrheti(iice)+qcmul(iice)+        &
+                              qrmul(iice)-qrmlt(iice)-qimlt(iice)+qifrz(iice))*          &
+                              xlf(i,k)*inv_cp+(qlcon(iice)-qlevp(iice))*xxlv(i,k)*       &
                               inv_cp)*dt
 
        enddo iice_loop3
@@ -4306,7 +4321,7 @@ call cpu_time(timer_start(3))
        if (log_predictNc) then
           nc(i,k) = nc(i,k) + (-ncacc-ncautc+ncslf+ncnuc)*dt
        else
-          nc(i,k) = nccnst*inv_rho(i,k)
+          nc(i,k) = nccnst*i_rho(i,k)
        endif
        if (iparam.eq.1 .or. iparam.eq.2) then
           nr(i,k) = nr(i,k) + (0.5*ncautc-nrslf-nrevp)*dt
@@ -4315,7 +4330,7 @@ call cpu_time(timer_start(3))
        endif
 
        qv(i,k) = qv(i,k) + (-qcnuc-qccon-qrcon+qcevp+qrevp)*dt
-       th(i,k) = th(i,k) + invexn(i,k)*((qcnuc+qccon+qrcon-qcevp-qrevp)*xxlv(i,k)*    &
+       th(i,k) = th(i,k) + invexn(i,k)*((qcnuc+qccon+qrcon-qcevp-qrevp)*xxlv(i,k)*       &
                  inv_cp)*dt
    !==
 
@@ -4325,7 +4340,8 @@ call cpu_time(timer_start(3))
             if (qitot(i,k,iice).ge.qsmall .and. (qiliq(i,k,iice)/qitot(i,k,iice)).gt.0.99) then
                   qr(i,k) = qr(i,k) + qitot(i,k,iice)
                   nr(i,k) = nr(i,k) + nitot(i,k,iice)
-                  th(i,k) = th(i,k) - invexn(i,k)*(qitot(i,k,iice)-qiliq(i,k,iice))*xlf(i,k)*inv_cp
+                  th(i,k) = th(i,k) - invexn(i,k)*(qitot(i,k,iice)-qiliq(i,k,iice))*     &
+                            xlf(i,k)*inv_cp
                   qitot(i,k,iice) = 0.
                   nitot(i,k,iice) = 0.
                   qirim(i,k,iice) = 0.
@@ -4370,7 +4386,7 @@ call cpu_time(timer_start(3))
        enddo !iice-loop
 
        qv(i,k) = max(0., qv(i,k))
-       call impose_max_total_Ni(nitot(i,k,:),max_total_Ni,inv_rho(i,k))
+       call impose_max_total_Ni(nitot(i,k,:),max_total_Ni,i_rho(i,k))
 
 !---------------------------------------------------------------------------------
 
@@ -4380,15 +4396,19 @@ call cpu_time(timer_start(3))
 
 ! include all processes **except** group 2 processes which are added later below
 ! thus, all group 2 processes are subtracted from the ice variables below
-          dumqi = qitot(i,k,iice) - (qinuc(iice)+qrhetc(iice)+qrheti(iice)+qchetc(iice)+qcheti(iice)+qrmul(iice)+qcmul(iice))*dt
+          dumqi = qitot(i,k,iice) - (qinuc(iice)+qrhetc(iice)+qrheti(iice)+qchetc(iice)+ &
+                                    qcheti(iice)+qrmul(iice)+qcmul(iice))*dt
           dumql = qiliq(i,k,iice)
 
           if ((dumqi-dumql).ge.qsmall) then
 
-             dumni = nitot(i,k,iice) - (ninuc(iice)+nrhetc(iice)+nrheti(iice)+nchetc(iice)+ncheti(iice)+nimul(iice))*dt
+             dumni = nitot(i,k,iice) - (ninuc(iice)+nrhetc(iice)+nrheti(iice)+           &
+                                       nchetc(iice)+ncheti(iice)+nimul(iice))*dt
              dumzi = zitot(i,k,iice)
-             dumqr = qirim(i,k,iice) - (qrhetc(iice)+qrheti(iice)+qchetc(iice)+qcheti(iice)+qrmul(iice)+qcmul(iice))*dt
-             dumbi = birim(i,k,iice) - (qrhetc(iice)+qrheti(iice)+qchetc(iice)+qcheti(iice)+qrmul(iice)+qcmul(iice))*inv_rho_rimeMax*dt
+             dumqr = qirim(i,k,iice) - (qrhetc(iice)+qrheti(iice)+qchetc(iice)+          &
+                                       qcheti(iice)+qrmul(iice)+qcmul(iice))*dt
+             dumbi = birim(i,k,iice) - (qrhetc(iice)+qrheti(iice)+qchetc(iice)+          &
+                           qcheti(iice)+qrmul(iice)+qcmul(iice))*i_rho_rimeMax*dt
 
              dumni = max(dumni,nsmall) ! impose limit on dummy ni
              dumzi = max(dumzi,zsmall) ! impose limit on dummy zi
@@ -4401,13 +4421,13 @@ call cpu_time(timer_start(3))
 ! mu does change change from this process. This is implicitly accounted for in the code below since
 ! in effect G_rate = 0 for category collection.
 
-                G_rate_tot = zqccol(iice) + zidep(iice) + zisub(iice) + zishd(iice) + zimlt(iice)  &
-                            + zislf(iice) + zqrcol(iice)
+                G_rate_tot = zqccol(iice) + zidep(iice) + zisub(iice) + zishd(iice) +    &
+                             zimlt(iice) + zislf(iice) + zqrcol(iice)
 
             ! get updated density to estimate M3 from Qitot
                 call calc_bulkRhoRime(dumqi,dumqr,dumql,dumbi,rhop)
-                call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,dum7,isize,  &
-                                             rimsize,liqsize,densize,dumqi,dumni,dumqr,dumql,rhop)
+                call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,  &
+                     dum7,isize,rimsize,liqsize,densize,dumqi,dumni,dumqr,dumql,rhop)
 
             ! apply iteration to find updated zitot consistent with updated G and dumqi, dumni, etc.
                 do iana = 1,niter_mui
@@ -4418,7 +4438,8 @@ call cpu_time(timer_start(3))
                       dummu_i = compute_mu_3moment_1(dumni,dum3,dumzi,mu_i_max)   !polynomical approximation
                     ! dummu_i = compute_mu_3moment_2(dumni,dum3,dumzi,mu_i_max)   !analytic cubic root
                       call find_lookupTable_indices_1c(dumzz,dum6,zsize,dummu_i)
-                      call args_for_LUT_main(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0.,dumzz,dumjj,dumii,dumll,dumi,0)
+                      call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0., &
+                                        dumzz,dumjj,dumii,dumll,dumi,0)
                       dumden = proc_from_LUT_main3mom(12,args_r,args_i)
                       dum3 =  6./(dumden*pi)*dumqi  !estimate of 3rd moment
                    enddo
@@ -4438,10 +4459,11 @@ call cpu_time(timer_start(3))
 
               !get updated density to estimate M3 from Qitot
                 call calc_bulkRhoRime(dumqi,dumqr,dumql,dumbi,rhop)
-                call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,dum7,isize,     &
-                                                 rimsize,liqsize,densize,dumqi,dumni,dumqr,dumql,rhop)
+                call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,  &
+                       dum7,isize,rimsize,liqsize,densize,dumqi,dumni,dumqr,dumql,rhop)
                 call find_lookupTable_indices_1c(dumzz,dum6,zsize,mu_i_s(iice))
-                call args_for_LUT_main(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0.,dumzz,dumjj,dumii,dumll,dumi,0)
+                call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0.,       &
+                                  dumzz,dumjj,dumii,dumll,dumi,0)
                 dumden = proc_from_LUT_main3mom(12,args_r,args_i)
 
                 dum3 =  6./(dumden*pi)*dumqi      !estimate of 3rd moment (new, after group 1 processes only)
@@ -4600,7 +4622,7 @@ call cpu_time(timer_start(6))
                    V_nc(k) = acn(i,k)*gamma(1.+bcn+mu_c(i,k))*dum/(gamma(mu_c(i,k)+1.))
                 endif
 
-                Co_max = max(Co_max, V_qc(k)*dt_left*inv_dzq(i,k))
+                Co_max = max(Co_max, V_qc(k)*dt_left*i_dzq(i,k))
 
              enddo kloop_sedi_c2
 
@@ -4626,16 +4648,16 @@ call cpu_time(timer_start(6))
 
              !-- for top level only (since flux is 0 above)
              k = k_qxtop
-             fluxdiv_qx = -flux_qx(k)*inv_dzq(i,k)
-             fluxdiv_nx = -flux_nx(k)*inv_dzq(i,k)
-             qc(i,k) = qc(i,k) + fluxdiv_qx*dt_sub*inv_rho(i,k)
-             nc(i,k) = nc(i,k) + fluxdiv_nx*dt_sub*inv_rho(i,k)
+             fluxdiv_qx = -flux_qx(k)*i_dzq(i,k)
+             fluxdiv_nx = -flux_nx(k)*i_dzq(i,k)
+             qc(i,k) = qc(i,k) + fluxdiv_qx*dt_sub*i_rho(i,k)
+             nc(i,k) = nc(i,k) + fluxdiv_nx*dt_sub*i_rho(i,k)
 
              do k = k_qxtop-kdir,k_temp,-kdir
-                fluxdiv_qx = (flux_qx(k+kdir) - flux_qx(k))*inv_dzq(i,k)
-                fluxdiv_nx = (flux_nx(k+kdir) - flux_nx(k))*inv_dzq(i,k)
-                qc(i,k) = qc(i,k) + fluxdiv_qx*dt_sub*inv_rho(i,k)
-                nc(i,k) = nc(i,k) + fluxdiv_nx*dt_sub*inv_rho(i,k)
+                fluxdiv_qx = (flux_qx(k+kdir) - flux_qx(k))*i_dzq(i,k)
+                fluxdiv_nx = (flux_nx(k+kdir) - flux_nx(k))*i_dzq(i,k)
+                qc(i,k) = qc(i,k) + fluxdiv_qx*dt_sub*i_rho(i,k)
+                nc(i,k) = nc(i,k) + fluxdiv_nx*dt_sub*i_rho(i,k)
              enddo
 
              dt_left = dt_left - dt_sub  !update time remaining for sedimentation
@@ -4659,7 +4681,7 @@ call cpu_time(timer_start(6))
                    V_qc(k) = acn(i,k)*gamma(4.+bcn+mu_c(i,k))*dum/(gamma(mu_c(i,k)+4.))
                 endif
 
-                Co_max = max(Co_max, V_qc(k)*dt_left*inv_dzq(i,k))
+                Co_max = max(Co_max, V_qc(k)*dt_left*i_dzq(i,k))
 
              enddo kloop_sedi_c1
 
@@ -4681,12 +4703,12 @@ call cpu_time(timer_start(6))
 
              !-- for top level only (since flux is 0 above)
              k = k_qxtop
-             fluxdiv_qx = -flux_qx(k)*inv_dzq(i,k)
-             qc(i,k) = qc(i,k) + fluxdiv_qx*dt_sub*inv_rho(i,k)
+             fluxdiv_qx = -flux_qx(k)*i_dzq(i,k)
+             qc(i,k) = qc(i,k) + fluxdiv_qx*dt_sub*i_rho(i,k)
 
              do k = k_qxtop-kdir,k_temp,-kdir
-                fluxdiv_qx = (flux_qx(k+kdir) - flux_qx(k))*inv_dzq(i,k)
-                qc(i,k) = qc(i,k) + fluxdiv_qx*dt_sub*inv_rho(i,k)
+                fluxdiv_qx = (flux_qx(k+kdir) - flux_qx(k))*i_dzq(i,k)
+                qc(i,k) = qc(i,k) + fluxdiv_qx*dt_sub*i_rho(i,k)
              enddo
 
              dt_left = dt_left - dt_sub  !update time remaining for sedimentation
@@ -4696,7 +4718,7 @@ call cpu_time(timer_start(6))
 
        endif two_moment
 
-       prt_liq(i) = prt_accum*inv_rhow*odt  !note, contribution from rain is added below
+       prt_liq(i) = prt_accum*i_rhow*odt  !note, contribution from rain is added below
 
     endif qc_present
 
@@ -4766,7 +4788,7 @@ call cpu_time(timer_start(6))
 
              endif qr_not_small_1
 
-             Co_max = max(Co_max, V_qr(k)*dt_left*inv_dzq(i,k))
+             Co_max = max(Co_max, V_qr(k)*dt_left*i_dzq(i,k))
 
           enddo kloop_sedi_r1
 
@@ -4794,19 +4816,19 @@ call cpu_time(timer_start(6))
           !--- for top level only (since flux is 0 above)
           k = k_qxtop
           !- compute flux divergence
-          fluxdiv_qx = -flux_qx(k)*inv_dzq(i,k)
-          fluxdiv_nx = -flux_nx(k)*inv_dzq(i,k)
+          fluxdiv_qx = -flux_qx(k)*i_dzq(i,k)
+          fluxdiv_nx = -flux_nx(k)*i_dzq(i,k)
           !- update prognostic variables
-          qr(i,k) = qr(i,k) + fluxdiv_qx*dt_sub*inv_rho(i,k)
-          nr(i,k) = nr(i,k) + fluxdiv_nx*dt_sub*inv_rho(i,k)
+          qr(i,k) = qr(i,k) + fluxdiv_qx*dt_sub*i_rho(i,k)
+          nr(i,k) = nr(i,k) + fluxdiv_nx*dt_sub*i_rho(i,k)
 
           do k = k_qxtop-kdir,k_temp,-kdir
              !-- compute flux divergence
-             fluxdiv_qx = (flux_qx(k+kdir) - flux_qx(k))*inv_dzq(i,k)
-             fluxdiv_nx = (flux_nx(k+kdir) - flux_nx(k))*inv_dzq(i,k)
+             fluxdiv_qx = (flux_qx(k+kdir) - flux_qx(k))*i_dzq(i,k)
+             fluxdiv_nx = (flux_nx(k+kdir) - flux_nx(k))*i_dzq(i,k)
              !-- update prognostic variables
-             qr(i,k) = qr(i,k) + fluxdiv_qx*dt_sub*inv_rho(i,k)
-             nr(i,k) = nr(i,k) + fluxdiv_nx*dt_sub*inv_rho(i,k)
+             qr(i,k) = qr(i,k) + fluxdiv_qx*dt_sub*i_rho(i,k)
+             nr(i,k) = nr(i,k) + fluxdiv_nx*dt_sub*i_rho(i,k)
           enddo
 
           dt_left = dt_left - dt_sub  !update time remaining for sedimentation
@@ -4815,7 +4837,7 @@ call cpu_time(timer_start(6))
 
        enddo substep_sedi_r
 
-       prt_liq(i) = prt_liq(i) + prt_accum*inv_rhow*odt
+       prt_liq(i) = prt_liq(i) + prt_accum*i_rhow*odt
 
     endif qr_present
 
@@ -4867,13 +4889,15 @@ call cpu_time(timer_start(6))
 
                     !--Compute Vq, Vn:
                       nitot(i,k,iice) = max(nitot(i,k,iice),nsmall) !impose lower limits to prevent log(<0)
-                      call calc_bulkRhoRime(qitot(i,k,iice),qirim(i,k,iice),qiliq(i,k,iice),birim(i,k,iice),rhop)
+                      call calc_bulkRhoRime(qitot(i,k,iice),qirim(i,k,iice),             &
+                                            qiliq(i,k,iice),birim(i,k,iice),rhop)
 
-                      call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,dum7,  &
-                                isize,rimsize,liqsize,densize,qitot(i,k,iice),nitot(i,k,iice),      &
-                                qirim(i,k,iice),qiliq(i,k,iice),rhop)
+                      call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4, &
+                           dum5,dum7,isize,rimsize,liqsize,densize,qitot(i,k,iice),      &
+                           nitot(i,k,iice),qirim(i,k,iice),qiliq(i,k,iice),rhop)
 
-                     call args_for_LUT_main(args_r,args_i,dum1,dum4,dum5,dum7,0.,0.,0.,0.,dumjj,dumii,dumll,dumi,0,0)
+                     call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum7,0.,0.,0.,0.,    &
+                                       dumjj,dumii,dumll,dumi,0,0)
                       f1pr01 = proc_from_LUT_main2mom(1,args_r,args_i)
                       f1pr02 = proc_from_LUT_main2mom(2,args_r,args_i)
                       f1pr09 = proc_from_LUT_main2mom(7,args_r,args_i)
@@ -4888,7 +4912,7 @@ call cpu_time(timer_start(6))
 
                    endif qi_notsmall_i1
 
-                   Co_max = max(Co_max, V_qit(k)*dt_left*inv_dzq(i,k))
+                   Co_max = max(Co_max, V_qit(k)*dt_left*i_dzq(i,k))
 
                 enddo kloop_sedi_i1
 
@@ -4918,27 +4942,27 @@ call cpu_time(timer_start(6))
                 !--- for top level only (since flux is 0 above)
                 k = k_qxtop
                 !-- compute flux divergence
-                fluxdiv_qit = -flux_qit(k)*inv_dzq(i,k)
-                fluxdiv_qir = -flux_qir(k)*inv_dzq(i,k)
-                fluxdiv_bir = -flux_bir(k)*inv_dzq(i,k)
-                fluxdiv_nit = -flux_nit(k)*inv_dzq(i,k)
+                fluxdiv_qit = -flux_qit(k)*i_dzq(i,k)
+                fluxdiv_qir = -flux_qir(k)*i_dzq(i,k)
+                fluxdiv_bir = -flux_bir(k)*i_dzq(i,k)
+                fluxdiv_nit = -flux_nit(k)*i_dzq(i,k)
                 !-- update prognostic variables
-                qitot(i,k,iice) = qitot(i,k,iice) + fluxdiv_qit*dt_sub*inv_rho(i,k)
-                qirim(i,k,iice) = qirim(i,k,iice) + fluxdiv_qir*dt_sub*inv_rho(i,k)
-                birim(i,k,iice) = birim(i,k,iice) + fluxdiv_bir*dt_sub*inv_rho(i,k)
-                nitot(i,k,iice) = nitot(i,k,iice) + fluxdiv_nit*dt_sub*inv_rho(i,k)
+                qitot(i,k,iice) = qitot(i,k,iice) + fluxdiv_qit*dt_sub*i_rho(i,k)
+                qirim(i,k,iice) = qirim(i,k,iice) + fluxdiv_qir*dt_sub*i_rho(i,k)
+                birim(i,k,iice) = birim(i,k,iice) + fluxdiv_bir*dt_sub*i_rho(i,k)
+                nitot(i,k,iice) = nitot(i,k,iice) + fluxdiv_nit*dt_sub*i_rho(i,k)
 
                 do k = k_qxtop-kdir,k_temp,-kdir
                    !-- compute flux divergence
-                   fluxdiv_qit = (flux_qit(k+kdir) - flux_qit(k))*inv_dzq(i,k)
-                   fluxdiv_qir = (flux_qir(k+kdir) - flux_qir(k))*inv_dzq(i,k)
-                   fluxdiv_bir = (flux_bir(k+kdir) - flux_bir(k))*inv_dzq(i,k)
-                   fluxdiv_nit = (flux_nit(k+kdir) - flux_nit(k))*inv_dzq(i,k)
+                   fluxdiv_qit = (flux_qit(k+kdir) - flux_qit(k))*i_dzq(i,k)
+                   fluxdiv_qir = (flux_qir(k+kdir) - flux_qir(k))*i_dzq(i,k)
+                   fluxdiv_bir = (flux_bir(k+kdir) - flux_bir(k))*i_dzq(i,k)
+                   fluxdiv_nit = (flux_nit(k+kdir) - flux_nit(k))*i_dzq(i,k)
                    !-- update prognostic variables
-                   qitot(i,k,iice) = qitot(i,k,iice) + fluxdiv_qit*dt_sub*inv_rho(i,k)
-                   qirim(i,k,iice) = qirim(i,k,iice) + fluxdiv_qir*dt_sub*inv_rho(i,k)
-                   birim(i,k,iice) = birim(i,k,iice) + fluxdiv_bir*dt_sub*inv_rho(i,k)
-                   nitot(i,k,iice) = nitot(i,k,iice) + fluxdiv_nit*dt_sub*inv_rho(i,k)
+                   qitot(i,k,iice) = qitot(i,k,iice) + fluxdiv_qit*dt_sub*i_rho(i,k)
+                   qirim(i,k,iice) = qirim(i,k,iice) + fluxdiv_qir*dt_sub*i_rho(i,k)
+                   birim(i,k,iice) = birim(i,k,iice) + fluxdiv_bir*dt_sub*i_rho(i,k)
+                   nitot(i,k,iice) = nitot(i,k,iice) + fluxdiv_nit*dt_sub*i_rho(i,k)
                 enddo
 
                 dt_left = dt_left - dt_sub  !update time remaining for sedimentation
@@ -4962,11 +4986,13 @@ call cpu_time(timer_start(6))
 
                     !--Compute Vq, Vn:
                       nitot(i,k,iice) = max(nitot(i,k,iice),nsmall) !impose lower limits to prevent log(<0)
-                      call calc_bulkRhoRime(qitot(i,k,iice),qirim(i,k,iice),qiliq(i,k,iice),birim(i,k,iice),rhop)
-                      call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,dum7,  &
-                                isize,rimsize,liqsize,densize,qitot(i,k,iice),nitot(i,k,iice),      &
-                                qirim(i,k,iice),qiliq(i,k,iice),rhop)
-                      call args_for_LUT_main(args_r,args_i,dum1,dum4,dum5,dum7,0.,0.,0.,0.,dumjj,dumii,dumll,dumi,0,0)
+                      call calc_bulkRhoRime(qitot(i,k,iice),qirim(i,k,iice),             &
+                                            qiliq(i,k,iice),birim(i,k,iice),rhop)
+                      call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4, &
+                           dum5,dum7,isize,rimsize,liqsize,densize,qitot(i,k,iice),      &
+                           nitot(i,k,iice),qirim(i,k,iice),qiliq(i,k,iice),rhop)
+                      call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum7,0.,0.,0.,0.,   &
+                                        dumjj,dumii,dumll,dumi,0,0)
                       f1pr01 = proc_from_LUT_main2mom(1,args_r,args_i)
                       f1pr02 = proc_from_LUT_main2mom(2,args_r,args_i)
                       f1pr09 = proc_from_LUT_main2mom(7,args_r,args_i)
@@ -4981,7 +5007,7 @@ call cpu_time(timer_start(6))
 
                    endif qi_notsmall_i2
 
-                   Co_max = max(Co_max, V_qit(k)*dt_left*inv_dzq(i,k))
+                   Co_max = max(Co_max, V_qit(k)*dt_left*i_dzq(i,k))
 
                 enddo kloop_sedi_i2
 
@@ -5012,31 +5038,31 @@ call cpu_time(timer_start(6))
                 !--- for top level only (since flux is 0 above)
                 k = k_qxtop
                 !-- compute flux divergence
-                fluxdiv_qit = -flux_qit(k)*inv_dzq(i,k)
-                fluxdiv_qir = -flux_qir(k)*inv_dzq(i,k)
-                fluxdiv_qil = -flux_qil(k)*inv_dzq(i,k)
-                fluxdiv_bir = -flux_bir(k)*inv_dzq(i,k)
-                fluxdiv_nit = -flux_nit(k)*inv_dzq(i,k)
+                fluxdiv_qit = -flux_qit(k)*i_dzq(i,k)
+                fluxdiv_qir = -flux_qir(k)*i_dzq(i,k)
+                fluxdiv_qil = -flux_qil(k)*i_dzq(i,k)
+                fluxdiv_bir = -flux_bir(k)*i_dzq(i,k)
+                fluxdiv_nit = -flux_nit(k)*i_dzq(i,k)
                 !-- update prognostic variables
-                qitot(i,k,iice) = qitot(i,k,iice) + fluxdiv_qit*dt_sub*inv_rho(i,k)
-                qirim(i,k,iice) = qirim(i,k,iice) + fluxdiv_qir*dt_sub*inv_rho(i,k)
-                qiliq(i,k,iice) = qiliq(i,k,iice) + fluxdiv_qil*dt_sub*inv_rho(i,k)
-                birim(i,k,iice) = birim(i,k,iice) + fluxdiv_bir*dt_sub*inv_rho(i,k)
-                nitot(i,k,iice) = nitot(i,k,iice) + fluxdiv_nit*dt_sub*inv_rho(i,k)
+                qitot(i,k,iice) = qitot(i,k,iice) + fluxdiv_qit*dt_sub*i_rho(i,k)
+                qirim(i,k,iice) = qirim(i,k,iice) + fluxdiv_qir*dt_sub*i_rho(i,k)
+                qiliq(i,k,iice) = qiliq(i,k,iice) + fluxdiv_qil*dt_sub*i_rho(i,k)
+                birim(i,k,iice) = birim(i,k,iice) + fluxdiv_bir*dt_sub*i_rho(i,k)
+                nitot(i,k,iice) = nitot(i,k,iice) + fluxdiv_nit*dt_sub*i_rho(i,k)
 
                 do k = k_qxtop-kdir,k_temp,-kdir
                    !-- compute flux divergence
-                   fluxdiv_qit = (flux_qit(k+kdir) - flux_qit(k))*inv_dzq(i,k)
-                   fluxdiv_qir = (flux_qir(k+kdir) - flux_qir(k))*inv_dzq(i,k)
-                   fluxdiv_qil = (flux_qil(k+kdir) - flux_qil(k))*inv_dzq(i,k)
-                   fluxdiv_bir = (flux_bir(k+kdir) - flux_bir(k))*inv_dzq(i,k)
-                   fluxdiv_nit = (flux_nit(k+kdir) - flux_nit(k))*inv_dzq(i,k)
+                   fluxdiv_qit = (flux_qit(k+kdir) - flux_qit(k))*i_dzq(i,k)
+                   fluxdiv_qir = (flux_qir(k+kdir) - flux_qir(k))*i_dzq(i,k)
+                   fluxdiv_qil = (flux_qil(k+kdir) - flux_qil(k))*i_dzq(i,k)
+                   fluxdiv_bir = (flux_bir(k+kdir) - flux_bir(k))*i_dzq(i,k)
+                   fluxdiv_nit = (flux_nit(k+kdir) - flux_nit(k))*i_dzq(i,k)
                    !-- update prognostic variables
-                   qitot(i,k,iice) = qitot(i,k,iice) + fluxdiv_qit*dt_sub*inv_rho(i,k)
-                   qirim(i,k,iice) = qirim(i,k,iice) + fluxdiv_qir*dt_sub*inv_rho(i,k)
-                   qiliq(i,k,iice) = qiliq(i,k,iice) + fluxdiv_qil*dt_sub*inv_rho(i,k)
-                   birim(i,k,iice) = birim(i,k,iice) + fluxdiv_bir*dt_sub*inv_rho(i,k)
-                   nitot(i,k,iice) = nitot(i,k,iice) + fluxdiv_nit*dt_sub*inv_rho(i,k)
+                   qitot(i,k,iice) = qitot(i,k,iice) + fluxdiv_qit*dt_sub*i_rho(i,k)
+                   qirim(i,k,iice) = qirim(i,k,iice) + fluxdiv_qir*dt_sub*i_rho(i,k)
+                   qiliq(i,k,iice) = qiliq(i,k,iice) + fluxdiv_qil*dt_sub*i_rho(i,k)
+                   birim(i,k,iice) = birim(i,k,iice) + fluxdiv_bir*dt_sub*i_rho(i,k)
+                   nitot(i,k,iice) = nitot(i,k,iice) + fluxdiv_nit*dt_sub*i_rho(i,k)
                 enddo
 
                 dt_left = dt_left - dt_sub  !update time remaining for sedimentation
@@ -5066,21 +5092,24 @@ call cpu_time(timer_start(6))
 
                     !--Compute Vq, Vn:
                       nitot(i,k,iice) = max(nitot(i,k,iice),nsmall) !impose lower limits to prevent log(<0)
-                      call calc_bulkRhoRime(qitot(i,k,iice),qirim(i,k,iice),qiliq(i,k,iice),birim(i,k,iice),rhop)
+                      call calc_bulkRhoRime(qitot(i,k,iice),qirim(i,k,iice),             &
+                                            qiliq(i,k,iice),birim(i,k,iice),rhop)
 
-                      call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,dum7,  &
-                                isize,rimsize,liqsize,densize,qitot(i,k,iice),nitot(i,k,iice),      &
-                                qirim(i,k,iice),qiliq(i,k,iice),rhop)
+                      call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4, &
+                                dum5,dum7,isize,rimsize,liqsize,densize,qitot(i,k,iice), &
+                                nitot(i,k,iice),qirim(i,k,iice),qiliq(i,k,iice),rhop)
 
                     ! get Z_norm indices
 
                     !impose lower limits to prevent taking log of # < 0
                       zitot(i,k,iice) = max(zitot(i,k,iice),zsmall)
 
-                      call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),zitot(i,k,iice),dum1,dum4,dum5,   &
-                                     dum7,dumjj,dumii,dumll,dumi)
+                      call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),    &
+                                     zitot(i,k,iice),dum1,dum4,dum5,dum7,dumjj,dumii,    &
+                                     dumll,dumi)
 
-                      call args_for_LUT_main(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0.,dumzz,dumjj,dumii,dumll,dumi,0)
+                      call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0., &
+                                        dumzz,dumjj,dumii,dumll,dumi,0)
 
                       f1pr01 = proc_from_LUT_main3mom( 1,args_r,args_i)
                       f1pr02 = proc_from_LUT_main3mom( 2,args_r,args_i)
@@ -5094,7 +5123,8 @@ call cpu_time(timer_start(6))
                       nitot(i,k,iice) = max(nitot(i,k,iice), f1pr10*qitot(i,k,iice))
 
                     !impose limiter on zitot to make sure mu_i is in bounds
-                      call apply_mui_bounds_to_zi(zitot(i,k,iice),qitot(i,k,iice),nitot(i,k,iice),f1pr16)
+                      call apply_mui_bounds_to_zi(zitot(i,k,iice),qitot(i,k,iice),       &
+                                                  nitot(i,k,iice),f1pr16)
 
                       V_qit(k) = f1pr02*rhofaci(i,k)     !mass-weighted fall speed (with density factor)
                       V_nit(k) = f1pr01*rhofaci(i,k)     !number-weighted fall speed (with density factor)
@@ -5103,7 +5133,7 @@ call cpu_time(timer_start(6))
                    endif qi_notsmall_i3
 
                    ! use V_zit for calculating sub-stepping since it is larger than V_qit
-                   Co_max = max(Co_max, V_zit(k)*dt_left*inv_dzq(i,k))
+                   Co_max = max(Co_max, V_zit(k)*dt_left*i_dzq(i,k))
 
                 enddo kloop_sedi_i3
 
@@ -5134,32 +5164,32 @@ call cpu_time(timer_start(6))
                 !--- for top level only (since flux is 0 above)
                 k = k_qxtop
                 !-- compute flux divergence
-                fluxdiv_qit = -flux_qit(k)*inv_dzq(i,k)
-                fluxdiv_qir = -flux_qir(k)*inv_dzq(i,k)
-                fluxdiv_bir = -flux_bir(k)*inv_dzq(i,k)
-                fluxdiv_nit = -flux_nit(k)*inv_dzq(i,k)
-                fluxdiv_zit = -flux_zit(k)*inv_dzq(i,k)
+                fluxdiv_qit = -flux_qit(k)*i_dzq(i,k)
+                fluxdiv_qir = -flux_qir(k)*i_dzq(i,k)
+                fluxdiv_bir = -flux_bir(k)*i_dzq(i,k)
+                fluxdiv_nit = -flux_nit(k)*i_dzq(i,k)
+                fluxdiv_zit = -flux_zit(k)*i_dzq(i,k)
                 !-- update prognostic variables
-                qitot(i,k,iice) = qitot(i,k,iice) + fluxdiv_qit*dt_sub*inv_rho(i,k)
-                qirim(i,k,iice) = qirim(i,k,iice) + fluxdiv_qir*dt_sub*inv_rho(i,k)
-                birim(i,k,iice) = birim(i,k,iice) + fluxdiv_bir*dt_sub*inv_rho(i,k)
-                nitot(i,k,iice) = nitot(i,k,iice) + fluxdiv_nit*dt_sub*inv_rho(i,k)
-                zitot(i,k,iice) = zitot(i,k,iice) + fluxdiv_zit*dt_sub*inv_rho(i,k)
+                qitot(i,k,iice) = qitot(i,k,iice) + fluxdiv_qit*dt_sub*i_rho(i,k)
+                qirim(i,k,iice) = qirim(i,k,iice) + fluxdiv_qir*dt_sub*i_rho(i,k)
+                birim(i,k,iice) = birim(i,k,iice) + fluxdiv_bir*dt_sub*i_rho(i,k)
+                nitot(i,k,iice) = nitot(i,k,iice) + fluxdiv_nit*dt_sub*i_rho(i,k)
+                zitot(i,k,iice) = zitot(i,k,iice) + fluxdiv_zit*dt_sub*i_rho(i,k)
 
 
                 do k = k_qxtop-kdir,k_temp,-kdir
                    !-- compute flux divergence
-                   fluxdiv_qit = (flux_qit(k+kdir) - flux_qit(k))*inv_dzq(i,k)
-                   fluxdiv_qir = (flux_qir(k+kdir) - flux_qir(k))*inv_dzq(i,k)
-                   fluxdiv_bir = (flux_bir(k+kdir) - flux_bir(k))*inv_dzq(i,k)
-                   fluxdiv_nit = (flux_nit(k+kdir) - flux_nit(k))*inv_dzq(i,k)
-                   fluxdiv_zit = (flux_zit(k+kdir) - flux_zit(k))*inv_dzq(i,k)
+                   fluxdiv_qit = (flux_qit(k+kdir) - flux_qit(k))*i_dzq(i,k)
+                   fluxdiv_qir = (flux_qir(k+kdir) - flux_qir(k))*i_dzq(i,k)
+                   fluxdiv_bir = (flux_bir(k+kdir) - flux_bir(k))*i_dzq(i,k)
+                   fluxdiv_nit = (flux_nit(k+kdir) - flux_nit(k))*i_dzq(i,k)
+                   fluxdiv_zit = (flux_zit(k+kdir) - flux_zit(k))*i_dzq(i,k)
                    !-- update prognostic variables
-                   qitot(i,k,iice) = qitot(i,k,iice) + fluxdiv_qit*dt_sub*inv_rho(i,k)
-                   qirim(i,k,iice) = qirim(i,k,iice) + fluxdiv_qir*dt_sub*inv_rho(i,k)
-                   birim(i,k,iice) = birim(i,k,iice) + fluxdiv_bir*dt_sub*inv_rho(i,k)
-                   nitot(i,k,iice) = nitot(i,k,iice) + fluxdiv_nit*dt_sub*inv_rho(i,k)
-                   zitot(i,k,iice) = zitot(i,k,iice) + fluxdiv_zit*dt_sub*inv_rho(i,k)
+                   qitot(i,k,iice) = qitot(i,k,iice) + fluxdiv_qit*dt_sub*i_rho(i,k)
+                   qirim(i,k,iice) = qirim(i,k,iice) + fluxdiv_qir*dt_sub*i_rho(i,k)
+                   birim(i,k,iice) = birim(i,k,iice) + fluxdiv_bir*dt_sub*i_rho(i,k)
+                   nitot(i,k,iice) = nitot(i,k,iice) + fluxdiv_nit*dt_sub*i_rho(i,k)
+                   zitot(i,k,iice) = zitot(i,k,iice) + fluxdiv_zit*dt_sub*i_rho(i,k)
                 enddo
 
                 dt_left = dt_left - dt_sub  !update time remaining for sedimentation
@@ -5184,21 +5214,23 @@ call cpu_time(timer_start(6))
 
                     !--Compute Vq, Vn:
                       nitot(i,k,iice) = max(nitot(i,k,iice),nsmall) !impose lower limits to prevent log(<0)
-                      call calc_bulkRhoRime(qitot(i,k,iice),qirim(i,k,iice),qiliq(i,k,iice),birim(i,k,iice),rhop)
+                      call calc_bulkRhoRime(qitot(i,k,iice),qirim(i,k,iice),             &
+                                            qiliq(i,k,iice),birim(i,k,iice),rhop)
 
-                      call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,dum7,  &
-                                isize,rimsize,liqsize,densize,qitot(i,k,iice),nitot(i,k,iice),      &
-                                qirim(i,k,iice),qiliq(i,k,iice),rhop)
+                      call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4, &
+                                dum5,dum7,isize,rimsize,liqsize,densize,qitot(i,k,iice), &
+                              nitot(i,k,iice),qirim(i,k,iice),qiliq(i,k,iice),rhop)
 
                     ! get Z_norm indices
 
                     !impose lower limits to prevent taking log of # < 0
                       zitot(i,k,iice) = max(zitot(i,k,iice),zsmall)
 
-                      call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),zitot(i,k,iice),dum1,dum4,dum5,   &
-                                     dum7,dumjj,dumii,dumll,dumi)
+                      call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),    &
+                              zitot(i,k,iice),dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi)
 
-                      call args_for_LUT_main(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0.,dumzz,dumjj,dumii,dumll,dumi,0)
+                      call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0., &
+                                        dumzz,dumjj,dumii,dumll,dumi,0)
 
                       f1pr01 = proc_from_LUT_main3mom( 1,args_r,args_i)
                       f1pr02 = proc_from_LUT_main3mom( 2,args_r,args_i)
@@ -5226,7 +5258,7 @@ call cpu_time(timer_start(6))
                    endif qi_notsmall_i4
 
                    ! use V_zit for calculating sub-stepping since it is larger than V_qit
-                   Co_max = max(Co_max, V_zit(k)*dt_left*inv_dzq(i,k))
+                   Co_max = max(Co_max, V_zit(k)*dt_left*i_dzq(i,k))
 
                 enddo kloop_sedi_i4
 
@@ -5258,36 +5290,36 @@ call cpu_time(timer_start(6))
                 !--- for top level only (since flux is 0 above)
                 k = k_qxtop
                 !-- compute flux divergence
-                fluxdiv_qit = -flux_qit(k)*inv_dzq(i,k)
-                fluxdiv_qir = -flux_qir(k)*inv_dzq(i,k)
-                fluxdiv_qil = -flux_qil(k)*inv_dzq(i,k)
-                fluxdiv_bir = -flux_bir(k)*inv_dzq(i,k)
-                fluxdiv_nit = -flux_nit(k)*inv_dzq(i,k)
-                fluxdiv_zit = -flux_zit(k)*inv_dzq(i,k)
+                fluxdiv_qit = -flux_qit(k)*i_dzq(i,k)
+                fluxdiv_qir = -flux_qir(k)*i_dzq(i,k)
+                fluxdiv_qil = -flux_qil(k)*i_dzq(i,k)
+                fluxdiv_bir = -flux_bir(k)*i_dzq(i,k)
+                fluxdiv_nit = -flux_nit(k)*i_dzq(i,k)
+                fluxdiv_zit = -flux_zit(k)*i_dzq(i,k)
                 !-- update prognostic variables
-                qitot(i,k,iice) = qitot(i,k,iice) + fluxdiv_qit*dt_sub*inv_rho(i,k)
-                qirim(i,k,iice) = qirim(i,k,iice) + fluxdiv_qir*dt_sub*inv_rho(i,k)
-                qiliq(i,k,iice) = qiliq(i,k,iice) + fluxdiv_qil*dt_sub*inv_rho(i,k)
-                birim(i,k,iice) = birim(i,k,iice) + fluxdiv_bir*dt_sub*inv_rho(i,k)
-                nitot(i,k,iice) = nitot(i,k,iice) + fluxdiv_nit*dt_sub*inv_rho(i,k)
-                zitot(i,k,iice) = zitot(i,k,iice) + fluxdiv_zit*dt_sub*inv_rho(i,k)
+                qitot(i,k,iice) = qitot(i,k,iice) + fluxdiv_qit*dt_sub*i_rho(i,k)
+                qirim(i,k,iice) = qirim(i,k,iice) + fluxdiv_qir*dt_sub*i_rho(i,k)
+                qiliq(i,k,iice) = qiliq(i,k,iice) + fluxdiv_qil*dt_sub*i_rho(i,k)
+                birim(i,k,iice) = birim(i,k,iice) + fluxdiv_bir*dt_sub*i_rho(i,k)
+                nitot(i,k,iice) = nitot(i,k,iice) + fluxdiv_nit*dt_sub*i_rho(i,k)
+                zitot(i,k,iice) = zitot(i,k,iice) + fluxdiv_zit*dt_sub*i_rho(i,k)
 
 
                 do k = k_qxtop-kdir,k_temp,-kdir
                    !-- compute flux divergence
-                   fluxdiv_qit = (flux_qit(k+kdir) - flux_qit(k))*inv_dzq(i,k)
-                   fluxdiv_qir = (flux_qir(k+kdir) - flux_qir(k))*inv_dzq(i,k)
-                   fluxdiv_qil = (flux_qil(k+kdir) - flux_qil(k))*inv_dzq(i,k)
-                   fluxdiv_bir = (flux_bir(k+kdir) - flux_bir(k))*inv_dzq(i,k)
-                   fluxdiv_nit = (flux_nit(k+kdir) - flux_nit(k))*inv_dzq(i,k)
-                   fluxdiv_zit = (flux_zit(k+kdir) - flux_zit(k))*inv_dzq(i,k)
+                   fluxdiv_qit = (flux_qit(k+kdir) - flux_qit(k))*i_dzq(i,k)
+                   fluxdiv_qir = (flux_qir(k+kdir) - flux_qir(k))*i_dzq(i,k)
+                   fluxdiv_qil = (flux_qil(k+kdir) - flux_qil(k))*i_dzq(i,k)
+                   fluxdiv_bir = (flux_bir(k+kdir) - flux_bir(k))*i_dzq(i,k)
+                   fluxdiv_nit = (flux_nit(k+kdir) - flux_nit(k))*i_dzq(i,k)
+                   fluxdiv_zit = (flux_zit(k+kdir) - flux_zit(k))*i_dzq(i,k)
                    !-- update prognostic variables
-                   qitot(i,k,iice) = qitot(i,k,iice) + fluxdiv_qit*dt_sub*inv_rho(i,k)
-                   qirim(i,k,iice) = qirim(i,k,iice) + fluxdiv_qir*dt_sub*inv_rho(i,k)
-                   qiliq(i,k,iice) = qiliq(i,k,iice) + fluxdiv_qil*dt_sub*inv_rho(i,k)
-                   birim(i,k,iice) = birim(i,k,iice) + fluxdiv_bir*dt_sub*inv_rho(i,k)
-                   nitot(i,k,iice) = nitot(i,k,iice) + fluxdiv_nit*dt_sub*inv_rho(i,k)
-                   zitot(i,k,iice) = zitot(i,k,iice) + fluxdiv_zit*dt_sub*inv_rho(i,k)
+                   qitot(i,k,iice) = qitot(i,k,iice) + fluxdiv_qit*dt_sub*i_rho(i,k)
+                   qirim(i,k,iice) = qirim(i,k,iice) + fluxdiv_qir*dt_sub*i_rho(i,k)
+                   qiliq(i,k,iice) = qiliq(i,k,iice) + fluxdiv_qil*dt_sub*i_rho(i,k)
+                   birim(i,k,iice) = birim(i,k,iice) + fluxdiv_bir*dt_sub*i_rho(i,k)
+                   nitot(i,k,iice) = nitot(i,k,iice) + fluxdiv_nit*dt_sub*i_rho(i,k)
+                   zitot(i,k,iice) = zitot(i,k,iice) + fluxdiv_zit*dt_sub*i_rho(i,k)
                 enddo
 
                 dt_left = dt_left - dt_sub  !update time remaining for sedimentation
@@ -5300,8 +5332,8 @@ call cpu_time(timer_start(6))
 
           endif three_moment_ice_1
 
-          prt_sol(i) = prt_sol(i) + prt_accum*inv_rhow*odt
-          prt_soli(i,iice) = prt_soli(i,iice) + prt_accum*inv_rhow*odt
+          prt_sol(i) = prt_sol(i) + prt_accum*i_rhow*odt
+          prt_soli(i,iice) = prt_soli(i,iice) + prt_accum*i_rhow*odt
 
        endif qi_present
 
@@ -5356,21 +5388,24 @@ call cpu_time(timer_end(6))
           do iice = 1,nCat
              if (qitot(i,k,iice).ge.qsmall) then
                 nitot(i,k,iice) = max(nitot(i,k,iice),nsmall)
-                call calc_bulkRhoRime(qitot(i,k,iice),qirim(i,k,iice),qiliq(i,k,iice),birim(i,k,iice),rhop)
-                call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,dum7,isize,         &
-                           rimsize,liqsize,densize,qitot(i,k,iice),nitot(i,k,iice),qirim(i,k,iice),        &
-                           qiliq(i,k,iice),rhop)
+                call calc_bulkRhoRime(qitot(i,k,iice),qirim(i,k,iice),qiliq(i,k,iice),   &
+                                      birim(i,k,iice),rhop)
+                call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,  &
+                          dum7,isize,rimsize,liqsize,densize,qitot(i,k,iice),            &
+                          nitot(i,k,iice),qirim(i,k,iice),qiliq(i,k,iice),rhop)
 
                 if (.not. log_3momentIce) then
-                   call args_for_LUT_main(args_r,args_i,dum1,dum4,dum5,dum7,0.,0.,0.,0.,dumjj,dumii,dumll,dumi,0,0)
+                   call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum7,0.,0.,0.,0.,      &
+                                     dumjj,dumii,dumll,dumi,0,0)
                    f1pr16 = proc_from_LUT_main2mom(12,args_r,args_i)
                 else
                    zitot(i,k,iice) = max(zitot(i,k,iice),zsmall)
 
-                   call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),zitot(i,k,iice),          &
-                              dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi)
+                   call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),       &
+                           zitot(i,k,iice),dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi)
 
-                   call args_for_LUT_main(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0.,dumzz,dumjj,dumii,dumll,dumi,0)
+                   call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0.,    &
+                                     dumzz,dumjj,dumii,dumll,dumi,0)
                    f1pr16 = proc_from_LUT_main3mom(12,args_r,args_i)
                 endif
                 diam_ice(i,k,iice) = ((qitot(i,k,iice)*6.)/(nitot(i,k,iice)*f1pr16*pi))**thrd
@@ -5389,8 +5424,8 @@ call cpu_time(timer_end(6))
              !determine destination ice-phase category:
              dum1  = 900.     !density of new ice
              D_new = ((Q_nuc*6.)/(pi*dum1*N_nuc))**thrd
-             call icecat_destination(qitot(i,k,:)*iSCF(k),diam_ice(i,k,:),D_new,deltaD_init,     &
-                                  iice_dest)
+             call icecat_destination(qitot(i,k,:)*iSCF(k),diam_ice(i,k,:),D_new,         &
+                                     deltaD_init,iice_dest)
              if (global_status /= STATUS_OK) return
           else
              iice_dest = 1
@@ -5398,15 +5433,15 @@ call cpu_time(timer_end(6))
 
           qirim(i,k,iice_dest) = qirim(i,k,iice_dest) + Q_nuc
           qitot(i,k,iice_dest) = qitot(i,k,iice_dest) + Q_nuc
-          birim(i,k,iice_dest) = birim(i,k,iice_dest) + Q_nuc*inv_rho_rimeMax
+          birim(i,k,iice_dest) = birim(i,k,iice_dest) + Q_nuc*i_rho_rimeMax
           nitot(i,k,iice_dest) = nitot(i,k,iice_dest) + N_nuc
          !Z-tendency for triple-moment ice
          !  note:  this could be optimized by moving this conditional block outside of loop k_loop_fz
          !         (would need to save values of iice_dest -- ditto for homo freezing of rain)
           if (log_3momentIce .and. N_nuc.ge.nsmall) then
              tmp1 = Q_nuc*6./(900.*pi)  !estimate of moment_3 tendency
-             call get_cloud_dsd2(qc(i,k),nc(i,k),mu_c(i,k),rho(i,k),nu(i,k),dnu,lamc(i,k), &
-                                 lammin,lammax,cdist(i,k),cdist1(i,k),iSCF(k))
+             call get_cloud_dsd2(qc(i,k),nc(i,k),mu_c(i,k),rho(i,k),nu(i,k),dnu,         &
+                                 lamc(i,k),lammin,lammax,cdist(i,k),cdist1(i,k),iSCF(k))
              mu_i_new = mu_c(i,k)
              zitot(i,k,iice_dest) = zitot(i,k,iice_dest) + G_of_mu(mu_i_new)*tmp1**2/N_nuc
           endif ! log_3momentice
@@ -5426,7 +5461,8 @@ call cpu_time(timer_end(6))
              !determine destination ice-phase category:
              dum1  = 900.     !density of new ice
              D_new = ((Q_nuc*6.)/(pi*dum1*N_nuc))**thrd
-             call icecat_destination(qitot(i,k,:)*iSCF(k),diam_ice(i,k,:),D_new,deltaD_init,iice_dest)
+             call icecat_destination(qitot(i,k,:)*iSCF(k),diam_ice(i,k,:),D_new,         &
+                                     deltaD_init,iice_dest)
              if (global_status /= STATUS_OK) return
           else
              iice_dest = 1
@@ -5434,13 +5470,13 @@ call cpu_time(timer_end(6))
 
           qirim(i,k,iice_dest) = qirim(i,k,iice_dest) + Q_nuc
           qitot(i,k,iice_dest) = qitot(i,k,iice_dest) + Q_nuc
-          birim(i,k,iice_dest) = birim(i,k,iice_dest) + Q_nuc*inv_rho_rimeMax
+          birim(i,k,iice_dest) = birim(i,k,iice_dest) + Q_nuc*i_rho_rimeMax
           nitot(i,k,iice_dest) = nitot(i,k,iice_dest) + N_nuc
          ! z tendency for triple moment ice
           if (log_3momentIce .and. N_nuc.ge.qsmall) then
              tmp1 = Q_nuc*6./(900.*pi)  !estimate of moment_3 tendency
              mu_i_new = mu_r(i,k)
-             zitot(i,k,iice_dest) = zitot(i,k,iice_dest) + G_of_mu(mu_i_new)*tmp1**2/N_nuc
+             zitot(i,k,iice_dest) = zitot(i,k,iice_dest)+G_of_mu(mu_i_new)*tmp1**2/N_nuc
           endif ! log_3momentice
          ! update theta. Note temperature is NOT updated here, but currently not used after
           th(i,k) = th(i,k) + invexn(i,k)*Q_nuc*xlf(i,k)*inv_cp
@@ -5463,14 +5499,16 @@ call cpu_time(timer_end(6))
              qi_not_small_merge:  if (qitot(i,k,iice).ge.qsmall) then
 
                 nitot(i,k,iice) = max(nitot(i,k,iice),nsmall)
-                call calc_bulkRhoRime(qitot(i,k,iice),qirim(i,k,iice),qiliq(i,k,iice),birim(i,k,iice),rhop)
-                call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,dum7,isize,   &
-                       rimsize,liqsize,densize,qitot(i,k,iice),nitot(i,k,iice),qirim(i,k,iice),      &
-                       qiliq(i,k,iice),rhop)
+                call calc_bulkRhoRime(qitot(i,k,iice),qirim(i,k,iice),qiliq(i,k,iice),   &
+                                      birim(i,k,iice),rhop)
+                call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,  &
+                          dum7,isize,rimsize,liqsize,densize,qitot(i,k,iice),            &
+                          nitot(i,k,iice),qirim(i,k,iice),qiliq(i,k,iice),rhop)
 
                 if (.not. log_3momentIce) then
 
-                  call args_for_LUT_main(args_r,args_i,dum1,dum4,dum5,dum7,0.,0.,0.,0.,dumjj,dumii,dumll,dumi,0,0)
+                  call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum7,0.,0.,0.,0.,       &
+                                    dumjj,dumii,dumll,dumi,0,0)
                   f1pr15 = proc_from_LUT_main2mom(11,args_r,args_i)
 
                 else ! triple moment ice
@@ -5479,15 +5517,17 @@ call cpu_time(timer_end(6))
 
                    zitot(i,k,iice) = max(zitot(i,k,iice),zsmall)   ! to prevent taking log of # < 0
 
-                   call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),zitot(i,k,iice),          &
-                                  dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi)
+                   call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),       &
+                              zitot(i,k,iice),dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi)
 
-                   call args_for_LUT_main(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0.,dumzz,dumjj,dumii,dumll,dumi,0)
+                   call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0.,    &
+                                     dumzz,dumjj,dumii,dumll,dumi,0)
                    f1pr15 = proc_from_LUT_main3mom(11,args_r,args_i)
                    f1pr16 = proc_from_LUT_main3mom(12,args_r,args_i)
 
                    if (log_3momentIce) then
-                      call apply_mui_bounds_to_zi(zitot(i,k,iice),qitot(i,k,iice),nitot(i,k,iice),f1pr16)
+                      call apply_mui_bounds_to_zi(zitot(i,k,iice),qitot(i,k,iice),       &
+                                                  nitot(i,k,iice),f1pr16)
                    endif
 
                 endif
@@ -5504,7 +5544,8 @@ call cpu_time(timer_end(6))
              else
 
                 qv(i,k) = qv(i,k) + qitot(i,k,iice)
-                th(i,k) = th(i,k) - invexn(i,k)*(qitot(i,k,iice)-qiliq(i,k,iice))*xxls(i,k)*inv_cp
+                th(i,k) = th(i,k) - invexn(i,k)*(qitot(i,k,iice)-qiliq(i,k,iice))*       &
+                                     xxls(i,k)*inv_cp
                 th(i,k) = th(i,k) - invexn(i,k)*qiliq(i,k,iice)*xxlv(i,k)*inv_cp
                 qitot(i,k,iice) = 0.
                 nitot(i,k,iice) = 0.
@@ -5522,7 +5563,7 @@ call cpu_time(timer_end(6))
        do k = kbot,ktop,kdir
           do iice = nCat,2,-1
              tmp1 = abs(diag_di(i,k,iice)-diag_di(i,k,iice-1))
-             if (tmp1.le.deltaD_init .and. qitot(i,k,iice).gt.0. .and.               &
+             if (tmp1.le.deltaD_init .and. qitot(i,k,iice).gt.0. .and.                   &
                  qitot(i,k,iice-1).gt.0.) then
                 qitot(i,k,iice-1) = qitot(i,k,iice-1) + qitot(i,k,iice)
                 nitot(i,k,iice-1) = nitot(i,k,iice-1) + nitot(i,k,iice)
@@ -5574,7 +5615,7 @@ call cpu_time(timer_end(6))
     ! cloud:
        if (qc(i,k)*iSCF(k).ge.qsmall) then
           call get_cloud_dsd2(qc(i,k),nc(i,k),mu_c(i,k),rho(i,k),nu(i,k),dnu,lamc(i,k),  &
-                             lammin,lammax,tmp1,tmp2, iSCF(k))
+                              lammin,lammax,tmp1,tmp2, iSCF(k))
           diag_effc(i,k) = 0.5*(mu_c(i,k)+3.)/lamc(i,k)
        else
           qv(i,k) = qv(i,k)+qc(i,k)
@@ -5602,7 +5643,7 @@ call cpu_time(timer_end(6))
          !diag_effr(i,k) = 0.5*(mu_r(i,k)+3.)/lamr(i,k)    (currently not used)
         ! ze_rain(i,k) = n0r(i,k)*720./lamr(i,k)**3/lamr(i,k)**3/lamr(i,k)
           ! non-exponential rain:
-          ze_rain(i,k) = rho(i,k)*nr(i,k)*(mu_r(i,k)+6.)*(mu_r(i,k)+5.)*(mu_r(i,k)+4.)*           &
+          ze_rain(i,k) = rho(i,k)*nr(i,k)*(mu_r(i,k)+6.)*(mu_r(i,k)+5.)*(mu_r(i,k)+4.)*  &
                         (mu_r(i,k)+3.)*(mu_r(i,k)+2.)*(mu_r(i,k)+1.)/lamr(i,k)**6
           ze_rain(i,k) = max(ze_rain(i,k),1.e-22)
        else
@@ -5614,7 +5655,7 @@ call cpu_time(timer_end(6))
 
     ! ice:
 
-       call impose_max_total_Ni(nitot(i,k,:),max_total_Ni,inv_rho(i,k))
+       call impose_max_total_Ni(nitot(i,k,:),max_total_Ni,i_rho(i,k))
 
        iice_loop_final_diagnostics:  do iice = 1,nCat
 
@@ -5624,15 +5665,17 @@ call cpu_time(timer_end(6))
              nitot(i,k,iice) = max(nitot(i,k,iice),nsmall)
              nr(i,k)         = max(nr(i,k),nsmall)
 
-             call calc_bulkRhoRime(qitot(i,k,iice),qirim(i,k,iice),qiliq(i,k,iice),birim(i,k,iice),rhop)
+             call calc_bulkRhoRime(qitot(i,k,iice),qirim(i,k,iice),qiliq(i,k,iice),      &
+                                   birim(i,k,iice),rhop)
 
              trplmomice_3: if (.not. log_3momentIce) then
 
-                call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,dum7,isize,   &
-                       rimsize,liqsize,densize,qitot(i,k,iice),nitot(i,k,iice),qirim(i,k,iice),      &
-                       qiliq(i,k,iice),rhop)
+                call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,  &
+                          dum7,isize,rimsize,liqsize,densize,qitot(i,k,iice),            &
+                        nitot(i,k,iice),qirim(i,k,iice),qiliq(i,k,iice),rhop)
 
-                call args_for_LUT_main(args_r,args_i,dum1,dum4,dum5,dum7,0.,0.,0.,0.,dumjj,dumii,dumll,dumi,0,0)
+                call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum7,0.,0.,0.,0.,         &
+                                  dumjj,dumii,dumll,dumi,0,0)
                 f1pr01 = proc_from_LUT_main2mom( 1,args_r,args_i)
                 f1pr02 = proc_from_LUT_main2mom( 2,args_r,args_i)
                 f1pr06 = proc_from_LUT_main2mom( 6,args_r,args_i)
@@ -5644,19 +5687,20 @@ call cpu_time(timer_end(6))
 
              else ! trplmomice_3
 
-                call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,dum7,isize,                &
-                       rimsize,liqsize,densize,qitot(i,k,iice),nitot(i,k,iice),qirim(i,k,iice),qiliq(i,k,iice),   &
-                       rhop)
+                call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,  &
+                          dum7,isize,rimsize,liqsize,densize,qitot(i,k,iice),            &
+                          nitot(i,k,iice),qirim(i,k,iice),qiliq(i,k,iice),rhop)
 
              ! get Znorm indices
 
              !impose lower limits to prevent taking log of # < 0
                 zitot(i,k,iice) = max(zitot(i,k,iice),zsmall)
 
-                call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),zitot(i,k,iice),          &
-                               dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi)
+                call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),          &
+                           zitot(i,k,iice),dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi)
 
-                call args_for_LUT_main(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0.,dumzz,dumjj,dumii,dumll,dumi,0)
+                call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0.,       &
+                                  dumzz,dumjj,dumii,dumll,dumi,0)
 
                 f1pr01 = proc_from_LUT_main3mom( 1,args_r,args_i)
                 f1pr02 = proc_from_LUT_main3mom( 2,args_r,args_i)
@@ -5678,7 +5722,8 @@ call cpu_time(timer_end(6))
              nitot(i,k,iice) = max(nitot(i,k,iice),f1pr10*qitot(i,k,iice))
 
              if (log_3momentIce) then
-                call apply_mui_bounds_to_zi(zitot(i,k,iice),qitot(i,k,iice),nitot(i,k,iice),f1pr16)
+                call apply_mui_bounds_to_zi(zitot(i,k,iice),qitot(i,k,iice),             &
+                                            nitot(i,k,iice),f1pr16)
              endif
 
   !--this should already be done in s/r 'calc_bulkRhoRime'
@@ -5812,13 +5857,13 @@ call cpu_time(timer_end(6))
           endif
 
       !VIS2: component through rain;  based on Gultepe and Milbrandt, 2008, Table 2 eqn (1)
-       tmp1 = mflux_r(i,k)*inv_rhow*3.6e+6                                    !rain rate [mm h-1]
+       tmp1 = mflux_r(i,k)*i_rhow*3.6e+6                                    !rain rate [mm h-1]
        if (tmp1>0.01) then
           diag_vis2(i,k)= max(minVIS,1000.*(-4.12*tmp1**0.176+9.01))   ![m]
        endif
 
       !VIS3: component through snow;  based on Gultepe and Milbrandt, 2008, Table 2 eqn (6)
-       tmp1 = mflux_i(i,k)*inv_rhow*3.6e+6                                    !snow rate, liq-eq [mm h-1]
+       tmp1 = mflux_i(i,k)*i_rhow*3.6e+6                                    !snow rate, liq-eq [mm h-1]
        if (tmp1>0.01) then
           diag_vis3(i,k)= max(minVIS,1000.*(1.10*tmp1**(-0.701)))      ![m]
        endif
@@ -9563,22 +9608,26 @@ end function proc_from_LUT_ir2mom
  end function proc_from_LUT_ii
 
 !==========================================================================================!
- subroutine args_for_LUT_main(args_r,args_i,                                                    &
-                              arg_r_1,arg_r_2,arg_r_3,arg_r_4,arg_r_5,arg_r_6,arg_r_7,arg_r_8,  &
-                              arg_i_1,arg_i_2,arg_i_3,arg_i_4,arg_i_5,arg_i_6)
+ subroutine args_for_LUT(args_r,args_i,                                                    &
+                         arg_r_1,arg_r_2,arg_r_3,arg_r_4,arg_r_5,arg_r_6,arg_r_7,arg_r_8,  &
+                         arg_i_1,arg_i_2,arg_i_3,arg_i_4,arg_i_5,arg_i_6)
 
  !--------------------------------------------------------------------------------
- ! Consolidates individual real and integer values, used to access the LUT,
- ! into arrays.  This is just to simplify the appearance of the code in p3_main.
- ! The two returned arrays contain the arguments to call the function
- ! 'proc_from_LUT_main2mom' or 'proc_from_LUT_main3mom'.
+ ! Consolidates individual real and integer values used to access the LUTs
+ ! into 2 arrays.  This is just to simplify the readibility of the code in p3_main.
+ ! The two returned arrays contain the arguments to call the next function called in
+ ! in the group 'proc_from_LUT_[x]'.
+ !
+ ! Note, for some functions 'proc_from_LUT_[x]', only a subset of the arguments are used.
+ ! "Blank" values (0. or 0) are passed in here to create args_r and args_i but are
+ ! ignored in the given 'proc_from_LUT_[x]' function.
  !--------------------------------------------------------------------------------
 
 !arguments:
  real,    dimension(n_args_r), intent(out) :: args_r
  integer, dimension(n_args_i), intent(out) :: args_i
- real,    intent(in)  :: arg_r_1,arg_r_2,arg_r_3,arg_r_4,arg_r_5,arg_r_6,arg_r_7,arg_r_8
- integer, intent(in)  :: arg_i_1,arg_i_2,arg_i_3,arg_i_4,arg_i_5,arg_i_6
+ real,    intent(in) :: arg_r_1,arg_r_2,arg_r_3,arg_r_4,arg_r_5,arg_r_6,arg_r_7,arg_r_8
+ integer, intent(in) :: arg_i_1,arg_i_2,arg_i_3,arg_i_4,arg_i_5,arg_i_6
 
  args_r(1) = arg_r_1
  args_r(2) = arg_r_2
@@ -9596,7 +9645,7 @@ end function proc_from_LUT_ir2mom
  args_i(5) = arg_i_5
  args_i(6) = arg_i_6
 
- end subroutine args_for_LUT_main
+ end subroutine args_for_LUT
 !==========================================================================================!
 
  real function proc_from_LUT_main3mom(ind,args_r,args_i)
@@ -11155,7 +11204,7 @@ else
  end subroutine calc_bulkRhoRime
 
 !===========================================================================================
- subroutine impose_max_total_Ni(nitot_local,max_total_Ni,inv_rho_local)
+ subroutine impose_max_total_Ni(nitot_local,max_total_Ni,i_rho_local)
 
 !--------------------------------------------------------------------------------
 ! Impose maximum total ice number concentration (total of all ice categories).
@@ -11167,13 +11216,13 @@ else
 
 !arguments:
  real, intent(inout), dimension(:) :: nitot_local           !note: dimension (nCat)
- real, intent(in)                  :: max_total_Ni,inv_rho_local
+ real, intent(in)                  :: max_total_Ni,i_rho_local
 
 !local variables:
  real                              :: dum
 
  if (sum(nitot_local(:)).ge.1.e-20) then
-    dum = max_total_Ni*inv_rho_local/sum(nitot_local(:))
+    dum = max_total_Ni*i_rho_local/sum(nitot_local(:))
     nitot_local(:) = nitot_local(:)*min(dum,1.)
  endif
 
@@ -11594,7 +11643,7 @@ else
 ! !                 do ind=1,5 !niter_mui
 ! !                    mu_i = compute_mu_3moment_1(Ni,mom3,Zi,mu_i_max)
 ! !                    call find_lookupTable_indices_1c(dumzz,dum6,zsize,mu_i)
-! !                    call args_for_LUT_main(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0.,dumzz,dumjj,dumii,dumll,dumi,0)
+! !                    call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0.,dumzz,dumjj,dumii,dumll,dumi,0)
 ! !                    rhoi = proc_from_LUT_main3mom(12,args_r,args_i)
 ! !                    mom3 =  6./(rhoi*pi)*Qi  !estimate of moment3
 ! !                 enddo
@@ -11604,7 +11653,7 @@ else
 
  do ind = 1,max_iterations
     call find_lookupTable_indices_1c(dumzz,dum6,zsize,mu_old)
-    call args_for_LUT_main(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0.,dumzz,dumjj,dumii,dumll,dumi,0)
+    call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0.,dumzz,dumjj,dumii,dumll,dumi,0)
     rhoi = proc_from_LUT_main3mom(12,args_r,args_i)
     mom3 = 6./(rhoi*pi)*Qi
     mu_i = compute_mu_3moment_1(Ni,mom3,Zi,mu_i_max)   ! piecewise polynomial approximation (fast)
