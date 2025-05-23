@@ -27,16 +27,12 @@ subroutine columnmodel
 
       implicit none
 
-      character(len=10), parameter :: version_p3 = 'v5.3.14'  !THIS NEEDS TO BE READ IN
+      character(len=20), parameter :: version_p3 = 'v5.3.14'
 
-      ! integer, parameter :: nCat         =  1
-      ! logical, parameter :: trplMomIce   = .true.
-      ! logical, parameter :: liqFrac      = .true.
-      
       !for use when reading in from config file:
-      integer :: nCat
-      logical :: trplMomIce
-      logical :: liqFrac
+      integer            :: nCat
+      logical            :: trplMomIce
+      logical            :: liqFrac
 
       integer, parameter :: max_nCat     = 5         ! this allows arrays to be declared (below) with nCat read in
       logical, parameter :: scpf_on      = .false.   ! switch for cloud fraction parameterization (SCPF)
@@ -166,7 +162,6 @@ subroutine columnmodel
 
       print*
       print*, '** Remember to use compiler debug options for testing new code (modify Makefile appropriately) **'
-      print*
 
 !---------------------------------------------------------------------------------------!
 
@@ -373,6 +368,7 @@ subroutine columnmodel
 !=========================================================================!
 !  MAIN TIME LOOP:
       print*, 'Starting main loop...'
+      print*
 
       DO step = 1,nt
 
@@ -600,48 +596,140 @@ subroutine columnmodel
 
 !  Output to files:
 
-!    Precipitation rates at lowest level (surface):
-!        write(41,*) tminr, prt_liq(1), prt_sol(1), PR,time3
+         if (step.eq.1) then
+            write(*,'(A)') '                PR_liq      PR_sol      Precip      max Ze       Time '
+            write(*,'(A)') '   Time         mm h-1      mm h-1        mm         dBZ           s  '
+            write(*,'(A)') '  ------        ------      ------      ------      ------       -----'
 
-!        if (mod(tminr,float(1)) < 1.e-5)  &
+!            print*
+         endif
+
          if (mod(tminr,float(5)) < 1.e-5)  &
-           print*, 'time (min): ',tminr,prt_liq(1),prt_sol(1),PR, maxval(diag_ZET(1,:)), time3, timer_accum(1)/time3
+           write(*,'(I4,A, 6F12.3)') int(tminr),' min: ',prt_liq(1),prt_sol(1),PR, maxval(diag_ZET(1,:)), time3
 
          IF (mod(tminr,float(outfreq)) < 1.e-5) THEN  !output only every OUTFREQ min   !for TESING
 
-	   do k=1,nk
+	         do k=1,nk
 
-              dum1 = 0.
-              dum2 = 0.
-              dum3 = 0.
-              if (Qitot(1,k,1).gt.0.) dum1 = Qirim(1,k,1)/(Qitot(1,k,1)-Qiliq(1,k,1))        ! rime fraction
-              if (Qitot(1,k,1).gt.0.) dum2 = Qiliq(1,k,1)/Qitot(1,k,1)                     ! liquid fraction
-              if (Nr(1,k).gt.0.) dum3 = (6.*Qr(1,k)/(pi*1000.*Nr(1,k)))**(1./3.)  ! Drm
-            !for nCat=1: (misc)
-              write(30,'(26e13.4)')      &
+              if (nCat.eq.1) then
+
+                 dum1 = 0.
+                 dum2 = 0.
+                 dum3 = 0.
+                 if (Qitot(1,k,1).gt.0.) dum1 = Qirim(1,k,1)/(Qitot(1,k,1)-Qiliq(1,k,1))      ! rime fraction
+                 if (Qitot(1,k,1).gt.0.) dum2 = Qiliq(1,k,1)/Qitot(1,k,1)                     ! liquid fraction
+                 if (Nr(1,k).gt.0.) dum3 = (6.*Qr(1,k)/(pi*1000.*Nr(1,k)))**(1./3.)           ! Drm
+                 write(30,'(26e13.4)')   &
                       z(k),              &  !col 0 (for python plot script)
                       w(1,k),            &  !col 1
-                      diag_ZET(1,k),     &  !col 2
-                      Qc(1,k),           &  !col 3
-                      Qr(1,k),           &  !col 4
-!                     Qitot(1,k,1),      &  !col 5
-                      sum(Qitot(1,k,:)), &  !col 5
-                      0.,                &  !col 6
-!                     diag_mui(1,k,1),   &  !col 6
-                      diag_rhoi(1,k,1),  &  !col 7
-                      diag_di(1,k,1),    &  !col 8
-                      diag_dhmax(1,k,1), &  !col 9 Dh_max
-                      prt_liq(1),        &  !col 10
-                      prt_sol(1),        &  !col 11
-                      Nc(1,k),           &  !col 12
-                      Nr(1,k),           &  !col 13
-                      sum(Nitot(1,k,:)), &  !col 14
-                      dum1,              &  !col 15
-                      dum2,              &  !col 16
-                      dum3,              &  !col 17
-                      tt1(1,k)-T0           !col 18
+                      prt_liq(1),        &  !col 2
+                      prt_sol(1),        &  !col 3
+                      diag_ZET(1,k),     &  !col 4
+                      tt1(1,k)-T0,       &  !col 5
+                      Qc(1,k),           &  !col 6
+                      Qr(1,k),           &  !col 7
+                      Nc(1,k),           &  !col 8
+                      Nr(1,k),           &  !col 9
+                      sum(Qitot(1,k,:)), &  !col 10
+                      sum(Nitot(1,k,:)), &  !col 11
+                      dum1,              &  !col 12
+                      dum2,              &  !col 13
+                      dum3,              &  !col 14
+                      Qitot(1,k,1),      &  !col 15
+                      Qirim(1,k,1),      &  !col 16
+                      Qiliq(1,k,1),      &  !col 17
+                      Nitot(1,k,1),      &  !col 18
+                      Birim(1,k,1),      &  !col 19
+                      Zitot(1,k,1),      &  !col 20
+                      diag_rhoi(1,k,1),  &  !col 21
+                      diag_di(1,k,1)        !col 22
 
-!*---------------------------------------------------------*!
+              elseif (nCat.eq.2) then
+
+                 dum1 = 0.
+                 dum2 = 0.
+                 dum3 = 0.
+                 write(30,'(31e13.4)')   &
+                      z(k),              &  !col 0 (for python plot script)
+                      w(1,k),            &  !col 1
+                      prt_liq(1),        &  !col 2
+                      prt_sol(1),        &  !col 3
+                      diag_ZET(1,k),     &  !col 4
+                      tt1(1,k)-T0,       &  !col 5
+                      Qc(1,k),           &  !col 6
+                      Qr(1,k),           &  !col 7
+                      Nc(1,k),           &  !col 8
+                      Nr(1,k),           &  !col 9
+                      sum(Qitot(1,k,:)), &  !col 10
+                      sum(Nitot(1,k,:)), &  !col 11
+                      dum1,              &  !col 12
+                      dum2,              &  !col 13
+                      dum3,              &  !col 14
+                      Qitot(1,k,1),      &  !col 15
+                      Qirim(1,k,1),      &  !col 16
+                      Qiliq(1,k,1),      &  !col 17
+                      Nitot(1,k,1),      &  !col 18
+                      Birim(1,k,1),      &  !col 19
+                      Zitot(1,k,1),      &  !col 20
+                      diag_rhoi(1,k,1),  &  !col 21
+                      diag_di(1,k,1),    &  !col 22
+                      Qitot(1,k,2),      &  !col 23
+                      Qirim(1,k,2),      &  !col 24
+                      Qiliq(1,k,2),      &  !col 25
+                      Nitot(1,k,2),      &  !col 26
+                      Birim(1,k,2),      &  !col 27
+                      Zitot(1,k,2),      &  !col 28
+                      diag_rhoi(1,k,2),  &  !col 29
+                      diag_di(1,k,2)        !col 30
+
+              elseif (nCat.eq.3) then
+
+                 dum1 = 0.
+                 dum2 = 0.
+                 dum3 = 0.
+                 write(30,'(39e13.4)')   &
+                      z(k),              &  !col 0 (for python plot script)
+                      w(1,k),            &  !col 1
+                      prt_liq(1),        &  !col 2
+                      prt_sol(1),        &  !col 3
+                      diag_ZET(1,k),     &  !col 4
+                      tt1(1,k)-T0,       &  !col 5
+                      Qc(1,k),           &  !col 6
+                      Qr(1,k),           &  !col 7
+                      Nc(1,k),           &  !col 8
+                      Nr(1,k),           &  !col 9
+                      sum(Qitot(1,k,:)), &  !col 10
+                      sum(Nitot(1,k,:)), &  !col 11
+                      dum1,              &  !col 12
+                      dum2,              &  !col 13
+                      dum3,              &  !col 14
+                      Qitot(1,k,1),      &  !col 15
+                      Qirim(1,k,1),      &  !col 16
+                      Qiliq(1,k,1),      &  !col 17
+                      Nitot(1,k,1),      &  !col 18
+                      Birim(1,k,1),      &  !col 19
+                      Zitot(1,k,1),      &  !col 20
+                      diag_rhoi(1,k,1),  &  !col 21
+                      diag_di(1,k,1),    &  !col 22
+                      Qitot(1,k,2),      &  !col 23
+                      Qirim(1,k,2),      &  !col 24
+                      Qiliq(1,k,2),      &  !col 25
+                      Nitot(1,k,2),      &  !col 26
+                      Birim(1,k,2),      &  !col 27
+                      Zitot(1,k,2),      &  !col 28
+                      diag_rhoi(1,k,2),  &  !col 29
+                      diag_di(1,k,2),    &  !col 30
+                      Qitot(1,k,3),      &  !col 31
+                      Qirim(1,k,3),      &  !col 32
+                      Qiliq(1,k,3),      &  !col 33
+                      Nitot(1,k,3),      &  !col 34
+                      Birim(1,k,3),      &  !col 35
+                      Zitot(1,k,3),      &  !col 36
+                      diag_rhoi(1,k,3),  &  !col 37
+                      diag_di(1,k,3)        !col 38
+
+              endif
+
             enddo  ! k-loop
 
          ENDIF    ! outfreq
@@ -652,11 +740,10 @@ subroutine columnmodel
       print*
       print*, 'P3 CONFIGURATION:'
       print*
-!     write(*,'(a12,a10)')  'version:  ', version_p3
+      write(*,'(a12,a20)')  'version:  ', version_p3
       write(*,'(1a12,1i1)') 'nCat   :  ', nCat
       write(*,'(1a12,1L)')  'trlMom :  ', trplMomIce
       write(*,'(1a12,1L)')  'liqFrac:  ', liqFrac
-!#
       print*
       print*, 'ACCUMULATED CPU TIMINGS:'
       print*
@@ -673,7 +760,7 @@ subroutine columnmodel
       write(55,*)
       write(55,*) 'P3 CONFIGURATION:'
       write(55,*)
-!     write(55,'(a12,a10)')  'version:  ', version_p3
+      write(55,'(a12,a20)')  'version:  ', version_p3
       write(55,'(1a12,1i1)') 'nCat   :  ', nCat
       write(55,'(1a12,1L)')  'trlMom :  ', trplMomIce
       write(55,'(1a12,1L)')  'liqFrac:  ', liqFrac

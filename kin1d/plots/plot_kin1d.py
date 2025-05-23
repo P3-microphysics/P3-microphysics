@@ -14,6 +14,7 @@ def plot_column_A(col):
 
     zet  = np.zeros((nt,nk), dtype='d')
     qitt = np.zeros((nt,nk), dtype='d')  #total (sum of all qitot(iice))
+    nitt = np.zeros((nt,nk), dtype='d')  #total (sum of all nitot(iice))
     TT   = np.zeros((nt,nk), dtype='d')
     Frim = np.zeros((nt,nk), dtype='d')
     rhoi = np.zeros((nt,nk), dtype='d')
@@ -35,16 +36,19 @@ def plot_column_A(col):
         qc[t,:]   = data[(t)*nk:(t+1)*nk, 6] *1.e+3   #convert to [mm]
         qr[t,:]   = data[(t)*nk:(t+1)*nk, 7] *1.e+3
         qitt[t,:] = data[(t)*nk:(t+1)*nk,10] *1.e+3
+        nitt[t,:] = data[(t)*nk:(t+1)*nk,11]
 
     # apply mask:
     mask = qitt > 0.001
     Wup  = np.where(Wup>0., Wup, -1.)
     Rliq = np.where(Rliq>0., Rliq, -1.)
     Rsol = np.where(Rsol>0., Rsol, -1.)
+    nitt   = np.log10(nitt+1.e-12)
     #zet  = np.where(mask, zet,  -99.)
     #Frim = np.where(mask, Frim, -99.)
     #Di   = np.where(mask, Di,   -99.)
     #Dhmax= np.where(mask, Dhmax,-99.)
+
     Qlev_small = 1.e-6
 
     cb_pad = 0.03
@@ -74,11 +78,14 @@ def plot_column_A(col):
     ax[3,col].contour( range(nt), z_agl, np.transpose(qc), levels=[Qlev_small], linewidths=lnwid, linestyles='dotted', colors='Green')
     ax[3,col].contour( range(nt), z_agl, np.transpose(qitt), levels=[Qlev_small], linewidths=lnwid, linestyles='dotted', colors='Blue')
 
-    im4 = ax[4,col].contourf(range(nt), z_agl, np.transpose(qitt), levels=levs_Q,   cmap='Blues') #
+    im4 = ax[4,col].contourf(range(nt), z_agl, np.transpose(qitt), levels=levs_Q,   cmap='Blues')
     fig.colorbar(im4, ax=ax[4,col], shrink=0.8, pad=cb_pad)
     ax[4,col].contour( range(nt), z_agl, np.transpose(qc), levels=[Qlev_small], linewidths=lnwid, linestyles='dotted', colors='Green')
     ax[4,col].contour( range(nt), z_agl, np.transpose(qr), levels=[Qlev_small], linewidths=lnwid, linestyles='dotted', colors='Red')
     ax[4,col].contour( range(nt), z_agl, np.transpose(qitt), levels=[Qlev_small], linewidths=lnwid, linestyles='dotted', colors='Blue')
+
+    im5 = ax[5,col].contourf(range(nt), z_agl, np.transpose(nitt), levels=levs_ni,   colors=ccol_ni)
+    fig.colorbar(im5, ax=ax[5,col], shrink=0.8, pad=cb_pad)
 
 
     xloc = 93
@@ -90,6 +97,7 @@ def plot_column_A(col):
     ax[2,col].text(xloc,yloc,'g kg$^{-1}$', size=labsize)
     ax[3,col].text(xloc,yloc,'g kg$^{-1}$', size=labsize)
     ax[4,col].text(xloc,yloc,'g kg$^{-1}$', size=labsize)
+    ax[5,col].text(xloc,yloc,'# m$^{-3}$',  size=labsize)
 #   ax[3,col].text(xloc,yloc,'mm',     size=labsize)
 
     xloc = 5
@@ -98,11 +106,14 @@ def plot_column_A(col):
     ax[0,col].text(xloc,yloc,'$w$', size=labsize)
     ax[0,col].text(xloc,yloc-1.8,'$R_{liq}$', size=labsize, color='red')
     ax[0,col].text(xloc,yloc-3.4,'$R_{sol}$', size=labsize, color='blue')
-    #ax[0,col].text(xloc,yloc-4.3,'(mm h$^{-1}$)', size=8)
     ax[1,col].text(xloc,yloc,'$Z_e$',       size=labsize)
     ax[2,col].text(xloc,yloc,'$Q_c$',       size=labsize)
     ax[3,col].text(xloc,yloc,'$Q_r$',       size=labsize)
     ax[4,col].text(xloc,yloc,'$Q_{i,tot}$', size=labsize)
+    ax[4,col].text(xloc,yloc-1.7,'(sum)', size=labsize-3)
+    ax[5,col].text(xloc,yloc,'$log(N_{i,tot})$', size=labsize)
+    ax[5,col].text(xloc,yloc-1.7,'(sum)', size=labsize-3)
+    #ax[0,col].text(xloc,yloc-4.3,'(mm h$^{-1}$)', size=8)
     #ax[3,col].text(xloc,yloc,'$D_m$',       size=labsize)
 
 
@@ -298,9 +309,8 @@ z_agl = data[0:nk,0]/1000.   # array of elevations AGL [km]  (column 0)
 #--------  plotting intervals:
 #levs_Z    = [-20., 0., 10., 20., 30., 40., 50., 60., 70., 80.]
 levs_Z = [-30,-10,0,5,10,15,20,25,30,35,40,45,50,55,60,65,70]
-#levs_Q  = [0.001, 0.01, 0.1, 0.2, 0.3, 0.4, 0.5, 1., 2., 3., 4., 5.,7.,10.]
-levs_Q   = [0.1, 0.2, 0.3, 0.4, 0.5, 1., 2., 3., 4., 5.,6.,7.,8.,9.,10.]
-levs_Qc  = [0.1, 0.2, 0.3, 0.4, 0.5, 1., 2., 3., 4., 5.]
+levs_Q  = [0.001, 0.1, 1., 2.5, 5.,7.5,10.,12.5,15.]
+levs_Qc  = [0.001, 0.1, 1., 2.5, 5., 7.5, 10.]
 levs_Qr  = levs_Qc
 levs_F   = [0., 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.]
 levs_ni  = [-1, 0, 1, 2, 3, 4, 5, 6, 7]
@@ -323,7 +333,6 @@ ccol_di   = ccol_qit
 
 #--------------------------------------------------------------------------------------------------
 
-#fig, ax = plt.subplots(nrows=6, ncols=nCat+1, figsize=(10,14), sharex=True)
 fig, ax = plt.subplots(nrows=6, ncols=nCat+1, figsize=(7+5*nCat, 14), sharex=True)
 
 plot_column_A(0)    #first column, "general" fields (not specific to a particular ice category)
@@ -334,7 +343,6 @@ plot_column_A(0)    #first column, "general" fields (not specific to a particula
 #       will be plotted.
 
 for iice in range(nCat):
-#   print('iice: ',iice)
     plot_column_B(iice+1)    #second+ column(s), column of fields for each ice category
 
 # adjust subplots
@@ -344,6 +352,5 @@ plt.subplots_adjust(wspace=0.10)
 #plt.tight_layout()
 
 #--------------------------
-#plt.savefig('./fig.png', format='png')
 plt.savefig(outfilename, format='png')
-#plt.show()
+plt.show()

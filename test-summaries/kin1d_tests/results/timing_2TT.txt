@@ -1,6 +1,7 @@
 
  P3 CONFIGURATION:
 
+  version:  v5.3.14             
   nCat   :  2
   trlMom :  T
   liqFrac:  T
@@ -9,9 +10,9 @@
 
  Block Description              Time (ms)     % of p3_main
  ------------------             ---------     ------------
-   1 full p3_main              12.557697      100.000000
-   2 i_loop_main               12.453709       99.171913
-   3 k_loop_main (procs)       10.888910       86.711044
-   6 sedimentation              0.442209        3.521420
-   9 type_diags                 0.037613        0.299521
+   1 full p3_main              11.270952      100.000000
+   2 i_loop_main               11.161137       99.025681
+   3 k_loop_main (procs)        9.546185       84.697235
+   6 sedimentation              0.449629        3.989271
+   9 type_diags                 0.043354        0.384653
 

@@ -2,8 +2,8 @@
 
 # Define root directory for output.  For normal testing prior to commit changes,
 # this should be the ./test-summaries directory off of the repository.
-rootdir="../test-summaries"
-#rootdir="."
+#rootdir="../test-summaries"
+rootdir="."
 
 # Update accordingly (used for plot titles)
 p3_version='v5.4.3 + optimization'
@@ -30,18 +30,19 @@ for config in p3_config-*.txt; do
     # Run the model
     ./execld
     # Make plot for last case
-    python plot_ncol.py -i out_p3.dat -t "${p3_version}, config: ${id}" -n ${ncat}
+    python plot_kin1d.py -i out_p3.dat -t "${p3_version}, config: ${id}" -n ${ncat}
 
     # Rename the output files to include the configuration identifier
     mv out_p3.dat "${rootdir}/kin1d_tests/results/out_p3_${id}.dat"
     mv timing.txt "${rootdir}/kin1d_tests/results/timing_${id}.txt"
     mv fig.png    "${rootdir}/kin1d_tests/results/fig_${id}.png"
 
+    echo
     echo "Completed configuration $id"
     echo "----------------------------------------"
     echo
 done
 
-cp microphy_p3.f90 cld1d.f90 plot_1col_full.py ${rootdir}/kin1d_tests/results
+cp microphy_p3.f90 cld1d.f90 plot_kin1d.py ${rootdir}/kin1d_tests/results
 
 echo "All configurations completed!"
