@@ -625,51 +625,8 @@
 
 !------------------------------------------------------------------------------------------!
 
-! Generate lookup table for rain shape parameter mu_r
-! this is very fast so it can be generated at the start of each run
-! make a 150x1 1D lookup table, this is done in parameter
-! space of a scaled mean size proportional qr/Nr -- initlamr
-
-!if(owr) print*, '   Generating rain lookup-table ...'
-
-!-- for variable mu_r only:
-! ! !  do i = 1,150              ! loop over lookup table values
-! ! !     initlamr = 1./((real(i)*2.)*1.e-6 + 250.e-6)
-! ! !
-! ! ! ! iterate to get mu_r
-! ! ! ! mu_r-lambda relationship is from Cao et al. (2008), eq. (7)
-! ! !
-! ! ! ! start with first guess, mu_r = 0
-! ! !
-! ! !     mu_r = 0.
-! ! !
-! ! !     do ii=1,50
-! ! !        lamr = initlamr*((mu_r+3.)*(mu_r+2.)*(mu_r+1.)/6.)**thrd
-! ! !
-! ! ! ! new estimate for mu_r based on lambda
-! ! ! ! set max lambda in formula for mu_r to 20 mm-1, so Cao et al.
-! ! ! ! formula is not extrapolated beyond Cao et al. data range
-! ! !        dum  = min(20.,lamr*1.e-3)
-! ! !        mu_r = max(0.,-0.0201*dum**2+0.902*dum-1.718)
-! ! !
-! ! ! ! if lambda is converged within 0.1%, then exit loop
-! ! !        if (ii.ge.2) then
-! ! !           if (abs((lamold-lamr)/lamr).lt.0.001) goto 111
-! ! !        end if
-! ! !
-! ! !        lamold = lamr
-! ! !
-! ! !     enddo
-! ! !
-! ! ! 111 continue
-! ! !
-! ! ! ! assign lookup table values
-! ! !     mu_r_table(i) = mu_r
-! ! !
-! ! !  enddo
-!==
-
- mu_r_table(:) = mu_r_constant
+! call generate_mur_table(mu_r_table)
+! mu_r_table(:) = mu_r_constant
 
 !.......................................................................
 ! Generate lookup table for rain fallspeed and ventilation parameters
@@ -894,14 +851,14 @@ END subroutine p3_init
    real, dimension(ims:ime, kms:kme,n_iceCat)  :: zitot   ! ice mixing ratio, reflectivity          m6 kg-1
    real, dimension(ims:ime, kms:kme,n_iceCat)  :: qiliq   ! liquid mixing ratio on ice kg/kg
 
-   real, dimension(its:ite) :: pcprt_liq,pcprt_sol
-   real                     :: dum1,dum2,dum3,dum4
-   integer                  :: i,k,j
+   real, dimension(its:ite)                    :: pcprt_liq,pcprt_sol
+   real                                        :: dum1,dum2,dum3,dum4
+   integer                                     :: i,k,j
 
-   integer, parameter                           :: n_diag2d = 2
-   integer, parameter                           :: n_diag3d = 3
-   real, dimension(ims:ime, n_diag2d)           :: diag2d        ! user-defined diagnostic fields (2D)
-   real, dimension(ims:ime, kms:kme, n_diag3d)  :: diag3d        ! user-defined diagnostic fields (3D)
+   integer, parameter                          :: n_diag2d = 2
+   integer, parameter                          :: n_diag3d = 3
+   real, dimension(ims:ime, n_diag2d)          :: diag2d        ! user-defined diagnostic fields (2D)
+   real, dimension(ims:ime, kms:kme, n_diag3d) :: diag3d        ! user-defined diagnostic fields (3D)
 
    logical                           :: log_predictNc
    logical                           :: log_3momIce
@@ -1951,7 +1908,6 @@ END subroutine p3_init
  integer, intent(in)                                  :: n_diag_3d  ! number of 3D diagnostic fields
 
  real, intent(inout), dimension(its:ite,kts:kte)      :: qc         ! cloud, mass mixing ratio         kg kg-1
-! note: Nc may be specified or predicted (set by log_predictNc)
  real, intent(inout), dimension(its:ite,kts:kte)      :: nc         ! cloud, number mixing ratio       #  kg-1
  real, intent(inout), dimension(its:ite,kts:kte)      :: qr         ! rain, mass mixing ratio          kg kg-1
  real, intent(inout), dimension(its:ite,kts:kte)      :: nr         ! rain, number mixing ratio        #  kg-1
@@ -1995,7 +1951,11 @@ END subroutine p3_init
 
  logical, intent(in)                                  :: log_3momentIce ! .T. for triple-moment ice
  logical, intent(in)                                  :: log_LiquidFrac ! .T. for prognostic liquid-fraction
- logical, intent(in)                                  :: log_predictNc ! .T. (.F.) for prediction (specification) of Nc
+ !----
+ ! *** TO BE REMOVED ***
+ ! Left in for now; will need to remove from SUBROUTINE statement and all call statements to 'p3_main'
+ logical, intent(in)                                  :: log_predictNc
+ !----
  logical, intent(in)                                  :: debug_on      !switch for internal debug checks
  character(len=*), intent(in)                         :: model         !driving model
 
@@ -2461,11 +2421,6 @@ call cpu_time(timer_start(2))
        rhofaci(i,k) = (rhosui*i_rho(i,k))**0.54
        dum          = 1.496e-6*t(i,k)**1.5/(t(i,k)+120.)  ! this is mu
        acn(i,k)     = g*rhow/(18.*dum)  ! 'a' parameter for droplet fallspeed (Stokes' law)
-
-      !specify cloud droplet number (for 1-moment version)
-       if (.not.(log_predictNc)) then
-          nc(i,k) = nccnst*i_rho(i,k)
-       endif
 
 ! The test below is skipped if SCPF is not used since now, if SCF>0 somewhere, then nucleation is possible.
 ! If there is the possibility of nucleation or droplet activation (i.e., if RH is relatively high)
@@ -3762,46 +3717,27 @@ call cpu_time(timer_start(3))
 !.................................................................
 ! droplet activation
 
-! for specified Nc, make sure droplets are present if conditions are supersaturated
-! note that this is also applied at the first time step
-! this is not applied at the first time step, since saturation adjustment is applied at the first step
-
-       if (.not.(log_predictNc).and.sup_cld.gt.1.e-6.and.it.gt.1) then
-          dum   = nccnst*i_rho(i,k)*cons7-qc(i,k)
-          dum   = max(0.,dum*iSCF(k))         ! in-cloud value
-          dumqvs = qv_sat(t(i,k),pres(i,k),0)
-          dqsdT = xxlv(i,k)*dumqvs/(rv*t(i,k)*t(i,k))
-          ab    = 1. + dqsdT*xxlv(i,k)*inv_cp
-          dum   = max(0.,min(dum,(Qv_cld(k)-dumqvs)/ab))  ! limit overdepletion of supersaturation
-          qcnuc = dum*odt*SCF(k)
-          qcnuc = max(qcnuc,0.)
-       endif
-
-       if (log_predictNc) then
-         ! for predicted Nc, calculate activation explicitly from supersaturation
-         ! note that this is also applied at the first time step
-          if (sup_cld.gt.1.e-6) then
-             dum1  = 1./bact**0.5
-             sigvl = 0.0761 - 1.55e-4*(t(i,k)-273.15)
-             aact  = 2.*mw/(rhow*rr*t(i,k))*sigvl
-             sm1   = 2.*dum1*(aact*thrd*inv_rm1)**1.5
-             sm2   = 2.*dum1*(aact*thrd*inv_rm2)**1.5
-             uu1   = 2.*log(sm1/sup_cld)/(4.242*log(sig1))
-             uu2   = 2.*log(sm2/sup_cld)/(4.242*log(sig2))
-             dum1  = nanew1*0.5*(1.-derf(uu1)) ! activated number in kg-1 mode 1
-             dum2  = nanew2*0.5*(1.-derf(uu2)) ! activated number in kg-1 mode 2
-           ! make sure this value is not greater than total number of aerosol
-             dum2  = min((nanew1+nanew2),dum1+dum2)
-             dum2  = (dum2-nc(i,k)*iSCF(k))*odt*SCF(k)
-             dum2  = max(0.,dum2)
-             ncnuc = dum2
-           ! do not include mass increase from droplet activation during first time step
-           ! since this is already accounted for by saturation adjustment below
-             if (it.le.1) then
-                qcnuc = 0.
-             else
-                qcnuc = ncnuc*cons7
-             endif
+       if (sup_cld.gt.1.e-6) then
+          dum1  = 1./bact**0.5
+          sigvl = 0.0761 - 1.55e-4*(t(i,k)-273.15)
+          aact  = 2.*mw/(rhow*rr*t(i,k))*sigvl
+          sm1   = 2.*dum1*(aact*thrd*inv_rm1)**1.5
+          sm2   = 2.*dum1*(aact*thrd*inv_rm2)**1.5
+          uu1   = 2.*log(sm1/sup_cld)/(4.242*log(sig1))
+          uu2   = 2.*log(sm2/sup_cld)/(4.242*log(sig2))
+          dum1  = nanew1*0.5*(1.-derf(uu1)) ! activated number in kg-1 mode 1
+          dum2  = nanew2*0.5*(1.-derf(uu2)) ! activated number in kg-1 mode 2
+        ! make sure this value is not greater than total number of aerosol
+          dum2  = min((nanew1+nanew2),dum1+dum2)
+          dum2  = (dum2-nc(i,k)*iSCF(k))*odt*SCF(k)
+          dum2  = max(0.,dum2)
+          ncnuc = dum2
+        ! do not include mass increase from droplet activation during first time step
+        ! since this is already accounted for by saturation adjustment below
+          if (it.le.1) then
+             qcnuc = 0.
+          else
+             qcnuc = ncnuc*cons7
           endif
        endif
 
@@ -3967,7 +3903,7 @@ call cpu_time(timer_start(3))
              nrslf = dum*5.78*nr(i,k)*iSPF(k)*qr(i,k)*iSPF(k)*rho(i,k)*SPF(k)
           elseif (iparam.eq.4) then
              nrslf = dum*205.*(qr(i,k)*iSPF(k))**1.55*(nr(i,k)*1.e-6*rho(i,k)*           &
-                     iSPF(k))**0.6*1.e6/rho(i,k)*SPF(k)                                     ! 1.e6 converts cm-3 to m-3
+                     iSPF(k))**0.6*1.e6/rho(i,k)*SPF(k)       ! 1.e6 converts cm-3 to m-3
           endif
 
        endif
@@ -4057,16 +3993,12 @@ call cpu_time(timer_start(3))
           qwgrth1c = qwgrth1c*ratio
           qccoll = qccoll*ratio
          !qchetc = qchetc*ratio !currently not used
-         !if (log_predictNc) then
-         ! note: the conditional is present for strict code logic but commented for efficiency
-         !       (4 multiplications, even if values are not used [if log_predictNc=.false.], are cheaper than one IF)
-            ncautc = ncautc*ratio
-            ncacc  = ncacc*ratio
-            nccol  = nccol*ratio
-            ncheti = ncheti*ratio
-           !nchetc = nchetc*ratio
-            nccoll = nccoll*ratio
-         !endif
+          ncautc = ncautc*ratio
+          ncacc  = ncacc*ratio
+          nccol  = nccol*ratio
+          ncheti = ncheti*ratio
+         !nchetc = nchetc*ratio
+          nccoll = nccoll*ratio
        endif
 
 ! rain
@@ -4206,9 +4138,7 @@ call cpu_time(timer_start(3))
           qc(i,k) = qc(i,k) + (-qchetc(iice)-qcheti(iice)-qccol(iice)-qcshd(iice)-       &
                     qccoll(iice)-qwgrth1c(iice)-qcmul(iice))*dt
 
-          if (log_predictNc) then
-             nc(i,k) = nc(i,k) + (-nccol(iice)-nchetc(iice)-ncheti(iice)-nccoll(iice))*dt
-          endif
+          nc(i,k) = nc(i,k) + (-nccol(iice)-nchetc(iice)-ncheti(iice)-nccoll(iice))*dt
 
           qr(i,k) = qr(i,k) + (-qrcol(iice)+qrmlt(iice)-qrhetc(iice)-qrheti(iice)+       &
                     qcshd(iice)-qrmul(iice)-qrcoll(iice)+qlshd(iice)-qwgrth1r(iice))*dt
@@ -4318,11 +4248,7 @@ call cpu_time(timer_start(3))
        qc(i,k) = qc(i,k) + (-qcacc-qcaut+qcnuc+qccon-qcevp)*dt
        qr(i,k) = qr(i,k) + (qcacc+qcaut+qrcon-qrevp)*dt
 
-       if (log_predictNc) then
-          nc(i,k) = nc(i,k) + (-ncacc-ncautc+ncslf+ncnuc)*dt
-       else
-          nc(i,k) = nccnst*i_rho(i,k)
-       endif
+       nc(i,k) = nc(i,k) + (-ncacc-ncautc+ncslf+ncnuc)*dt
        if (iparam.eq.1 .or. iparam.eq.2) then
           nr(i,k) = nr(i,k) + (0.5*ncautc-nrslf-nrevp)*dt
        else
@@ -4341,7 +4267,7 @@ call cpu_time(timer_start(3))
                   qr(i,k) = qr(i,k) + qitot(i,k,iice)
                   nr(i,k) = nr(i,k) + nitot(i,k,iice)
                   th(i,k) = th(i,k) - invexn(i,k)*(qitot(i,k,iice)-qiliq(i,k,iice))*     &
-                            xlf(i,k)*inv_cp
+                                       xlf(i,k)*inv_cp
                   qitot(i,k,iice) = 0.
                   nitot(i,k,iice) = 0.
                   qirim(i,k,iice) = 0.
@@ -4604,119 +4530,64 @@ call cpu_time(timer_start(6))
           endif
        enddo
 
-       two_moment: if (log_predictNc) then  !2-moment cloud:
+       substep_sedi_c2: do while (dt_left.gt.1.e-4)
 
-          substep_sedi_c2: do while (dt_left.gt.1.e-4)
+          Co_max  = 0.
+          V_qc(:) = 0.
+          V_nc(:) = 0.
 
-             Co_max  = 0.
-             V_qc(:) = 0.
-             V_nc(:) = 0.
+          kloop_sedi_c2: do k = k_qxtop,k_qxbot,-kdir
 
-             kloop_sedi_c2: do k = k_qxtop,k_qxbot,-kdir
-
-                if (qc(i,k)*iSCF(k).ge.qsmall) then
-                   call get_cloud_dsd2(qc(i,k),nc(i,k),mu_c(i,k),rho(i,k),nu(i,k),dnu,   &
-                                   lamc(i,k),lammin,lammax,tmp1,tmp2,iSCF(k))
-                   dum = 1./lamc(i,k)**bcn
-                   V_qc(k) = acn(i,k)*gamma(4.+bcn+mu_c(i,k))*dum/(gamma(mu_c(i,k)+4.))
-                   V_nc(k) = acn(i,k)*gamma(1.+bcn+mu_c(i,k))*dum/(gamma(mu_c(i,k)+1.))
-                endif
-
-                Co_max = max(Co_max, V_qc(k)*dt_left*i_dzq(i,k))
-
-             enddo kloop_sedi_c2
-
-             !-- compute dt_sub
-             tmpint1 = int(Co_max+1.)    !number of substeps remaining if dt_sub were constant
-             dt_sub  = min(dt_left, dt_left/float(tmpint1))
-
-             if (k_qxbot.eq.kbot) then
-                k_temp = k_qxbot
-             else
-                k_temp = k_qxbot-kdir
+             if (qc(i,k)*iSCF(k).ge.qsmall) then
+                call get_cloud_dsd2(qc(i,k),nc(i,k),mu_c(i,k),rho(i,k),nu(i,k),dnu,   &
+                                lamc(i,k),lammin,lammax,tmp1,tmp2,iSCF(k))
+                dum = 1./lamc(i,k)**bcn
+                V_qc(k) = acn(i,k)*gamma(4.+bcn+mu_c(i,k))*dum/(gamma(mu_c(i,k)+4.))
+                V_nc(k) = acn(i,k)*gamma(1.+bcn+mu_c(i,k))*dum/(gamma(mu_c(i,k)+1.))
              endif
 
-             !-- calculate fluxes
-             do k = k_temp,k_qxtop,kdir
-                flux_qx(k) = V_qc(k)*qc(i,k)*rho(i,k)
-                flux_nx(k) = V_nc(k)*nc(i,k)*rho(i,k)
-             enddo
+             Co_max = max(Co_max, V_qc(k)*dt_left*i_dzq(i,k))
 
-             !accumulated precip during time step
-             if (k_qxbot.eq.kbot) prt_accum = prt_accum + flux_qx(kbot)*dt_sub
-             !or, optimized: prt_accum = prt_accum - (k_qxbot.eq.kbot)*dt_sub
+          enddo kloop_sedi_c2
 
-             !-- for top level only (since flux is 0 above)
-             k = k_qxtop
-             fluxdiv_qx = -flux_qx(k)*i_dzq(i,k)
-             fluxdiv_nx = -flux_nx(k)*i_dzq(i,k)
+          !-- compute dt_sub
+          tmpint1 = int(Co_max+1.)    !number of substeps remaining if dt_sub were constant
+          dt_sub  = min(dt_left, dt_left/float(tmpint1))
+
+          if (k_qxbot.eq.kbot) then
+             k_temp = k_qxbot
+          else
+             k_temp = k_qxbot-kdir
+          endif
+
+          !-- calculate fluxes
+          do k = k_temp,k_qxtop,kdir
+             flux_qx(k) = V_qc(k)*qc(i,k)*rho(i,k)
+             flux_nx(k) = V_nc(k)*nc(i,k)*rho(i,k)
+          enddo
+
+          !accumulated precip during time step
+          if (k_qxbot.eq.kbot) prt_accum = prt_accum + flux_qx(kbot)*dt_sub
+          !or, optimized: prt_accum = prt_accum - (k_qxbot.eq.kbot)*dt_sub
+
+          !-- for top level only (since flux is 0 above)
+          k = k_qxtop
+          fluxdiv_qx = -flux_qx(k)*i_dzq(i,k)
+          fluxdiv_nx = -flux_nx(k)*i_dzq(i,k)
+          qc(i,k) = qc(i,k) + fluxdiv_qx*dt_sub*i_rho(i,k)
+          nc(i,k) = nc(i,k) + fluxdiv_nx*dt_sub*i_rho(i,k)
+
+          do k = k_qxtop-kdir,k_temp,-kdir
+             fluxdiv_qx = (flux_qx(k+kdir) - flux_qx(k))*i_dzq(i,k)
+             fluxdiv_nx = (flux_nx(k+kdir) - flux_nx(k))*i_dzq(i,k)
              qc(i,k) = qc(i,k) + fluxdiv_qx*dt_sub*i_rho(i,k)
              nc(i,k) = nc(i,k) + fluxdiv_nx*dt_sub*i_rho(i,k)
+          enddo
 
-             do k = k_qxtop-kdir,k_temp,-kdir
-                fluxdiv_qx = (flux_qx(k+kdir) - flux_qx(k))*i_dzq(i,k)
-                fluxdiv_nx = (flux_nx(k+kdir) - flux_nx(k))*i_dzq(i,k)
-                qc(i,k) = qc(i,k) + fluxdiv_qx*dt_sub*i_rho(i,k)
-                nc(i,k) = nc(i,k) + fluxdiv_nx*dt_sub*i_rho(i,k)
-             enddo
+          dt_left = dt_left - dt_sub  !update time remaining for sedimentation
+          if (k_qxbot.ne.kbot) k_qxbot = k_qxbot - kdir
 
-             dt_left = dt_left - dt_sub  !update time remaining for sedimentation
-             if (k_qxbot.ne.kbot) k_qxbot = k_qxbot - kdir
-
-          enddo substep_sedi_c2
-
-       else  !1-moment cloud:  (two_moment label)
-
-          substep_sedi_c1: do while (dt_left.gt.1.e-4)
-
-             Co_max  = 0.
-             V_qc(:) = 0.
-
-             kloop_sedi_c1: do k = k_qxtop,k_qxbot,-kdir
-
-                if (qc(i,k)*iSCF(k).ge.qsmall) then
-                   call get_cloud_dsd2(qc(i,k),nc(i,k),mu_c(i,k),rho(i,k),nu(i,k),dnu,   &
-                                       lamc(i,k),lammin,lammax,tmp1,tmp2,iSCF(k))
-                   dum = 1./lamc(i,k)**bcn
-                   V_qc(k) = acn(i,k)*gamma(4.+bcn+mu_c(i,k))*dum/(gamma(mu_c(i,k)+4.))
-                endif
-
-                Co_max = max(Co_max, V_qc(k)*dt_left*i_dzq(i,k))
-
-             enddo kloop_sedi_c1
-
-             tmpint1 = int(Co_max+1.)    !number of substeps remaining if dt_sub were constant
-             dt_sub  = min(dt_left, dt_left/float(tmpint1))
-
-             if (k_qxbot.eq.kbot) then
-                k_temp = k_qxbot
-             else
-                k_temp = k_qxbot-kdir
-             endif
-
-             do k = k_temp,k_qxtop,kdir
-                flux_qx(k) = V_qc(k)*qc(i,k)*rho(i,k)
-             enddo
-
-             !accumulated precip during time step
-             if (k_qxbot.eq.kbot) prt_accum = prt_accum + flux_qx(kbot)*dt_sub
-
-             !-- for top level only (since flux is 0 above)
-             k = k_qxtop
-             fluxdiv_qx = -flux_qx(k)*i_dzq(i,k)
-             qc(i,k) = qc(i,k) + fluxdiv_qx*dt_sub*i_rho(i,k)
-
-             do k = k_qxtop-kdir,k_temp,-kdir
-                fluxdiv_qx = (flux_qx(k+kdir) - flux_qx(k))*i_dzq(i,k)
-                qc(i,k) = qc(i,k) + fluxdiv_qx*dt_sub*i_rho(i,k)
-             enddo
-
-             dt_left = dt_left - dt_sub  !update time remaining for sedimentation
-             if (k_qxbot.ne.kbot) k_qxbot = k_qxbot - kdir
-
-          enddo substep_sedi_c1
-
-       endif two_moment
+       enddo substep_sedi_c2
 
        prt_liq(i) = prt_accum*i_rhow*odt  !note, contribution from rain is added below
 
@@ -5244,11 +5115,10 @@ call cpu_time(timer_start(6))
                       nitot(i,k,iice) = max(nitot(i,k,iice),f1pr10*qitot(i,k,iice))
 
                     !impose limiter on zitot to make sure mu_i is in bounds
-                      dum1 = 6./(f1pr16*pi)*qitot(i,k,iice)
-                      tmp1 = G_of_mu(0.)
-                      tmp2 = G_of_mu(20.)
-                      zitot(i,k,iice) = min(zitot(i,k,iice),tmp1*dum1**2/nitot(i,k,iice))
-                      zitot(i,k,iice) = max(zitot(i,k,iice),tmp2*dum1**2/nitot(i,k,iice))
+                      tmp1 = 6./(f1pr16*pi)*qitot(i,k,iice)
+                      tmp2 = tmp1**2/nitot(i,k,iice)
+                      zitot(i,k,iice) = min(zitot(i,k,iice),G_of_mu( 0.)*tmp2)
+                      zitot(i,k,iice) = max(zitot(i,k,iice),G_of_mu(20.)*tmp2)
                     !.............
 
                       V_qit(k) = f1pr02*rhofaci(i,k)     !mass-weighted fall speed (with density factor)
@@ -11107,7 +10977,6 @@ else
           nr      = max(nr,nsmall)
           inv_dum = (qr/(cons1*nr*6.))**thrd
 
-        ! apply constant mu_r:
           mu_r = mu_r_constant
 
 !--- apply diagnostic (variable) mu_r:
@@ -11799,6 +11668,55 @@ else
 !  enddo
 
  end function maxHailSize
+
+!===========================================================================================
+
+! subroutine generate_mur_table(mu_r)
+! Generate lookup table for rain shape parameter mu_r
+! this is very fast so it can be generated at the start of each run
+! make a 150x1 1D lookup table, this is done in parameter
+! space of a scaled mean size proportional qr/Nr -- initlamr
+
+!if(owr) print*, '   Generating rain lookup-table ...'
+
+!-- for variable mu_r only:
+! ! !  do i = 1,150              ! loop over lookup table values
+! ! !     initlamr = 1./((real(i)*2.)*1.e-6 + 250.e-6)
+! ! !
+! ! ! ! iterate to get mu_r
+! ! ! ! mu_r-lambda relationship is from Cao et al. (2008), eq. (7)
+! ! !
+! ! ! ! start with first guess, mu_r = 0
+! ! !
+! ! !     mu_r = 0.
+! ! !
+! ! !     do ii=1,50
+! ! !        lamr = initlamr*((mu_r+3.)*(mu_r+2.)*(mu_r+1.)/6.)**thrd
+! ! !
+! ! ! ! new estimate for mu_r based on lambda
+! ! ! ! set max lambda in formula for mu_r to 20 mm-1, so Cao et al.
+! ! ! ! formula is not extrapolated beyond Cao et al. data range
+! ! !        dum  = min(20.,lamr*1.e-3)
+! ! !        mu_r = max(0.,-0.0201*dum**2+0.902*dum-1.718)
+! ! !
+! ! ! ! if lambda is converged within 0.1%, then exit loop
+! ! !        if (ii.ge.2) then
+! ! !           if (abs((lamold-lamr)/lamr).lt.0.001) goto 111
+! ! !        end if
+! ! !
+! ! !        lamold = lamr
+! ! !
+! ! !     enddo
+! ! !
+! ! ! 111 continue
+! ! !
+! ! ! ! assign lookup table values
+! ! !     mu_r_table(i) = mu_r
+! ! !
+! ! !  enddo
+!==
+
+! end subroutine generate_mur_table
 
 !===========================================================================================
 
