@@ -110,8 +110,8 @@
  ! physical and mathematical constants
  real           :: rhosur,rhosui,ar,br,f1r,f2r,ecr,rhow,kr,kc,bimm,aimm,rin,mi0,nccnst,  &
                    eci,eri,bcn,cpw,e0,cons1,cons2,cons3,cons4,cons5,cons6,cons7,cons8,   &
-                   i_rhow,qsmall,nsmall,bsmall,zsmall,cp,g,rd,rv,ep_2,inv_cp,mw,osm,   &
-                   vi,epsm,rhoa,map,ma,rr,bact,inv_rm1,inv_rm2,sig1,nanew1,f11,f21,sig2, &
+                   i_rhow,qsmall,nsmall,bsmall,zsmall,cp,g,rd,rv,ep_2,i_cp,mw,osm,   &
+                   vi,epsm,rhoa,map,ma,rr,bact,i_rm1,i_rm2,sig1,nanew1,f11,f21,sig2, &
                    nanew2,f12,f22,pi,thrd,sxth,piov3,piov6,rho_rimeMin,                  &
                    rho_rimeMax,i_rho_rimeMax,max_total_Ni,dbrk,nmltratio,minVIS,       &
                    maxVIS,mu_i_initial,mu_r_constant,inv_Drmax,Dmin_HM,Dinit_HM
@@ -219,7 +219,7 @@
 
 ! physical constants
  cp     = 1005.
- inv_cp = 1./cp
+ i_cp = 1./cp
  g      = 9.816
  rd     = 287.15
  rv     = 461.51
@@ -297,7 +297,7 @@
 ! inv_bact = (map*rhow)/(vi*osm*epsm*mw*rhoa)    *** to replace /bact **
 
 ! mode 1
- inv_rm1 = 2.e+7           ! inverse aerosol mean size (m-1)
+ i_rm1   = 2.e+7           ! inverse of aerosol mean size (m-1)
  sig1    = 2.0             ! aerosol standard deviation
  nanew1  = 300.e6          ! aerosol number mixing ratio (kg-1)
  f11     = 0.5*exp(2.5*(log(sig1))**2)
@@ -306,7 +306,7 @@
 ! note: currently only set for a single mode, droplet activation code needs to
 !       be modified to include the second mode
 ! mode 2
- inv_rm2 = 7.6923076e+5    ! inverse aerosol mean size (m-1)
+ i_rm2   = 7.6923076e+5    ! inverse of aerosol mean size (m-1)
  sig2    = 2.5             ! aerosol standard deviation
  nanew2  = 0.              ! aerosol number mixing ratio (kg-1)
  f12     = 0.5*exp(2.5*(log(sig2))**2)
@@ -1428,7 +1428,7 @@ END subroutine p3_init
       snd_ave(:)  = 0.
    endif
 
-   tmparr_ik = (1.e+5/pres)**(rd*inv_cp)  !for optimization of calc of theta, temp
+   tmparr_ik = (1.e+5/pres)**(rd*i_cp)  !for optimization of calc of theta, temp
 
    substep_loop: do i_substep = 1, n_substep
 
@@ -1459,7 +1459,7 @@ END subroutine p3_init
       if (global_status /= STATUS_OK) return
 
      !convert back to temperature:
-      temp = theta/tmparr_ik    !i.e.: temp = theta*(pres*1.e-5)**(rd*inv_cp)
+      temp = theta/tmparr_ik    !i.e.: temp = theta*(pres*1.e-5)**(rd*i_cp)
 
       if (n_substep > 1) then
          prt_liq_ave(:) = prt_liq_ave(:) + prt_liq(:)
@@ -1722,11 +1722,11 @@ END subroutine p3_init
  real, intent(in),  dimension(:) :: Qv        ! Water vapor mix.ratio (grid mean)
  real, intent(in),  dimension(:) :: Qsi       ! Saturation Water vapor mix.ratio w.r.t. ice or liq, dep. on T
  real, intent(in),  dimension(:) :: pres      ! pressure in Pa
- real, intent(out), dimension(:) :: SCF,iSCF  ! Subgrid "Cloudy" fraction (fraction where RH>100%) and inverse
- real, intent(out), dimension(:) :: SPF,iSPF  ! Subgrid "Precip" fraction and inverse
- real, intent(out), dimension(:) :: SPF_clr   ! Subgrid "Precip" fraction in clear sky (not overlap cloud)
- real, intent(out), dimension(:) :: Qv_cld    ! Water vapor mix.ratio     in "Cloudy" fraction
- real, intent(out), dimension(:) :: Qv_clr    ! Water vapor mix.ratio NOT in "Cloudy" fraction
+ real, intent(out), dimension(:) :: SCF,iSCF  ! Subgrid "cloudy" fraction (fraction where RH>100%) and inverse
+ real, intent(out), dimension(:) :: SPF,iSPF  ! Subgrid "precip" fraction and inverse
+ real, intent(out), dimension(:) :: SPF_clr   ! Subgrid "precip" fraction in clear sky (not overlap cloud)
+ real, intent(out), dimension(:) :: Qv_cld    ! Water vapor mix.ratio     in "cloudy" fraction
+ real, intent(out), dimension(:) :: Qv_clr    ! Water vapor mix.ratio NOT in "cloudy" fraction
  real, intent(in)                :: pfrac     ! precipitation fraction factor
  real, intent(in)                :: resfact   ! model resolution factor
  integer, intent(in)             :: ktop,kbot ! indices of model top and bottom
@@ -1778,15 +1778,15 @@ END subroutine p3_init
        !------------------------------------------------------------
        ! COMPUTE CLOUD FRACTION AND in-FRACTIONS WATER VAPOR CONTENT
        !------------------------------------------------------------
-       Qtot       = Qv(k)+Qcond(k)                            ! Total "Cloudy" mean water mixing ratio
+       Qtot       = Qv(k)+Qcond(k)                            ! Total "cloudy" mean water mixing ratio
        DELTA_Qtot = Qsi(k)*(1.-RHoo)                          ! half-width of Qtot subgrid PDF
        SCF(k)     = 0.5*(Qtot+DELTA_Qtot-QSI(k))/DELTA_Qtot   ! subgrid cloud fraction
 
-       if (SCF(k) .lt. 0.01 ) then          ! minimum allowed Cloud fraction (below it is clear-sky)
-          SCF(k)    = 0.                    ! inverse of Cloud cover
-          iSCF(k)   = 0.                    ! inverse of Cloud cover
-          Qv_cld(k) = 0.                    ! water vapour mix. ratio in Cloudy part
-          Qv_clr(k) = Qv(k)                 ! water vapour mix. ratio in Clear sky part
+       if (SCF(k) .lt. 0.01 ) then          ! minimum allowed cloud fraction (below it is clear-sky)
+          SCF(k)    = 0.                    ! inverse of cloud cover
+          iSCF(k)   = 0.                    ! inverse of cloud cover
+          Qv_cld(k) = 0.                    ! water vapour mix. ratio in cloudy part
+          Qv_clr(k) = Qv(k)                 ! water vapour mix. ratio in clear sky part
        elseif (SCF(k) .lt. 0.99 ) then
           iSCF(k)   = 1./SCF(k)             ! beware: Could be big!
           Qv_cld(k) = 0.5*(Qtot+DELTA_Qtot+QSI(k))-Qcond(k)*iSCF(k)
@@ -2091,7 +2091,7 @@ END subroutine p3_init
             rimevolume,arr_lami,arr_mui,rimedensity
 
  real, dimension(its:ite,kts:kte) :: i_dzq,i_rho,ze_ice,ze_rain,prec,acn,rho,rhofacr,    &
-            rhofaci,xxls,xxlv,xlf,qvs,qvi,sup,supi,vtrmi1,tmparr1,mflux_r,mflux_i,invexn
+            rhofaci,xxls,xxlv,xlf,qvs,qvi,sup,supi,vtrmi1,tmparr1,mflux_r,mflux_i,i_exn
 
  real, dimension(kts:kte) :: V_qr,V_qit,V_nit,V_nr,V_qc,V_nc,V_zit,flux_qit,flux_qx,     &
             flux_nx,flux_nit,flux_qir,flux_bir,flux_zit,flux_qil
@@ -2102,7 +2102,7 @@ END subroutine p3_init
  real    :: lammax,lammin,mu,dv,sc,dqsdT,ab,kap,epsr,epsc,xx,aaa,epsilon,sigvl,epsi_tot, &
             aact,sm1,sm2,uu1,uu2,dum,dum1,dum2,dumqv,dumqvs,dums,ratio,qsat0,dum3,dum4,  &
             dum5,dum6,rdumii,rdumjj,dqsidT,abi,dumqvi,rhop,v_impact,ri,iTc,D_c,tmp1,     &
-            tmp2,inv_dum3,odt,oxx,oabi,fluxdiv_qit,fluxdiv_nit,fluxdiv_qir,fluxdiv_bir,  &
+            tmp2,i_dum3,i_dt,i_xx,i_abi,fluxdiv_qit,fluxdiv_nit,fluxdiv_qir,fluxdiv_bir, &
             prt_accum,fluxdiv_qx,fluxdiv_nx,Co_max,dt_sub,fluxdiv_zit,D_new,Q_nuc,N_nuc, &
             deltaD_init,dum1c,dum4c,dum5c,dumt,qcon_satadj,qdep_satadj,sources,sinks,    &
             timeScaleFactor,dt_left,qv_tmp,t_tmp,dum1z,dum7c,dum7,fluxdiv_qil,epsiw_tot, &
@@ -2222,7 +2222,7 @@ END subroutine p3_init
 !
 !    !-- call to s/r 'check_values' WITHIN k loops:
 !     if (debug_on) then
-!        tmparr1(i,k) = th(i,k)*(pres(i,k)*1.e-5)**(rd*inv_cp)
+!        tmparr1(i,k) = th(i,k)*(pres(i,k)*1.e-5)**(rd*i_cp)
 !        call check_values(qv(i,k:k),tmparr1(i,k:k),qc(i,k:k),nc(i,k:k),qr(i,k:k),nr(i,k:k),     &
 !             qitot(i,k:k,:),qirim(i,k:k,:),nitot(i,k:k,:),birim(i,k:k,:),zitot(i,k:k,:),i,it,debug_ABORT,555)
 !        if (global_status /= STATUS_OK) return
@@ -2231,7 +2231,7 @@ END subroutine p3_init
 !
 !    !-- call to s/r 'check_values' OUTSIDE k loops:
 !     if (debug_on) then
-!        tmparr1(i,:) = th(i,:)*(pres(i,:)*1.e-5)**(rd*inv_cp)
+!        tmparr1(i,:) = th(i,:)*(pres(i,:)*1.e-5)**(rd*i_cp)
 !        call check_values(qv(i,:),tmparr1(i,:),qc(i,:),nc(i,:),qr(i,:),nr(i,:),qitot(i,:,:),  &
 !                          qirim(i,:,:),nitot(i,:,:),birim(i,:,:),zitot(i,:,:),i,it,debug_ABORT,666)
 !        if (global_status /= STATUS_OK) return
@@ -2301,11 +2301,11 @@ call cpu_time(timer_start(1))
  log_typeDiags  = .true.
 
  i_dzq    = 1./dzq  ! inverse of thickness of layers
- odt        = 1./dt   ! inverse model time step
+ i_dt     = 1./dt   ! inverse of model time step
 
 ! Compute time scale factor over which to apply soft rain lambda limiter
 ! note: '1./max(30.,dt)' = '1.*min(1./30., 1./dt)'
- timeScaleFactor = min(1./120., odt)
+ timeScaleFactor = min(1./120., i_dt)
 
  prt_liq   = 0.
  prt_sol   = 0.
@@ -2336,8 +2336,8 @@ call cpu_time(timer_start(1))
  f1pr22    = -99.  !to avoid uninialized variable (in case of accidental use)
  f1pr23    = -99.
 
- tmparr1 = (pres*1.e-5)**(rd*inv_cp)
- invexn  = 1./tmparr1        !inverse Exner function array
+ tmparr1 = (pres*1.e-5)**(rd*i_cp)
+ i_exn  = 1./tmparr1         !inverse of Exner function array
  t       = th    *tmparr1    !compute temperature from theta (value at beginning of microphysics step)
  t_old   = th_old*tmparr1    !compute temperature from theta (value at beginning of model time step)
  qv      = max(qv,0.)        !clip water vapor to prevent negative values passed in (beginning of microphysics)
@@ -2433,7 +2433,7 @@ call cpu_time(timer_start(2))
 
        if (qc(i,k).lt.qsmall .or. (qc(i,k).lt.1.e-8 .and. sup(i,k).lt.-0.1)) then
           qv(i,k) = qv(i,k) + qc(i,k)
-          th(i,k) = th(i,k) - invexn(i,k)*qc(i,k)*xxlv(i,k)*inv_cp
+          th(i,k) = th(i,k) - i_exn(i,k)*qc(i,k)*xxlv(i,k)*i_cp
           qc(i,k) = 0.
           nc(i,k) = 0.
        else
@@ -2442,7 +2442,7 @@ call cpu_time(timer_start(2))
 
        if (qr(i,k).lt.qsmall .or. (qr(i,k).lt.1.e-8 .and. sup(i,k).lt.-0.1)) then
           qv(i,k) = qv(i,k) + qr(i,k)
-          th(i,k) = th(i,k) - invexn(i,k)*qr(i,k)*xxlv(i,k)*inv_cp
+          th(i,k) = th(i,k) - i_exn(i,k)*qr(i,k)*xxlv(i,k)*i_cp
           qr(i,k) = 0.
           nr(i,k) = 0.
        else
@@ -2453,9 +2453,9 @@ call cpu_time(timer_start(2))
           if (qitot(i,k,iice).lt.qsmall .or. (qitot(i,k,iice).lt.1.e-8 .and.             &
            supi(i,k).lt.-0.1)) then
              qv(i,k) = qv(i,k) + qitot(i,k,iice)
-             th(i,k) = th(i,k) - invexn(i,k)*(qitot(i,k,iice)-qiliq(i,k,iice))*          &
-                                 xxls(i,k)*inv_cp
-             th(i,k) = th(i,k) - invexn(i,k)*qiliq(i,k,iice)*xxlv(i,k)*inv_cp
+             th(i,k) = th(i,k) - i_exn(i,k)*(qitot(i,k,iice)-qiliq(i,k,iice))*           &
+                                 xxls(i,k)*i_cp
+             th(i,k) = th(i,k) - i_exn(i,k)*qiliq(i,k,iice)*xxlv(i,k)*i_cp
              qitot(i,k,iice) = 0.
              nitot(i,k,iice) = 0.
              qirim(i,k,iice) = 0.
@@ -2469,8 +2469,8 @@ call cpu_time(timer_start(2))
               qitot(i,k,iice)).gt.0.99) then
              qr(i,k) = qr(i,k) + qitot(i,k,iice)
              nr(i,k) = nr(i,k) + nitot(i,k,iice)
-             th(i,k) = th(i,k) - invexn(i,k)*(qitot(i,k,iice)-qiliq(i,k,iice))*xlf(i,k)* &
-                                 inv_cp
+             th(i,k) = th(i,k) - i_exn(i,k)*(qitot(i,k,iice)-qiliq(i,k,iice))*xlf(i,k)*  &
+                                 i_cp
              qitot(i,k,iice) = 0.
              nitot(i,k,iice) = 0.
              qirim(i,k,iice) = 0.
@@ -2482,8 +2482,8 @@ call cpu_time(timer_start(2))
            t(i,k).ge.273.15) then
              qr(i,k) = qr(i,k) + qitot(i,k,iice)
              nr(i,k) = nr(i,k) + nitot(i,k,iice)
-             th(i,k) = th(i,k) - invexn(i,k)*(qitot(i,k,iice)-qiliq(i,k,iice))*xlf(i,k)* &
-                                 inv_cp
+             th(i,k) = th(i,k) - i_exn(i,k)*(qitot(i,k,iice)-qiliq(i,k,iice))*xlf(i,k)*  &
+                                 i_cp
              qitot(i,k,iice) = 0.
              nitot(i,k,iice) = 0.
              qirim(i,k,iice) = 0.
@@ -2505,7 +2505,7 @@ call cpu_time(timer_start(2))
     if (debug_on) then
        location_ind = 200
        force_abort  =.false.
-       tmparr1(i,:) = th(i,:)*(pres(i,:)*1.e-5)**(rd*inv_cp)
+       tmparr1(i,:) = th(i,:)*(pres(i,:)*1.e-5)**(rd*i_cp)
        if (log_3momentIce) then
           call check_values(qv(i,:),tmparr1(i,:),qc(i,:),nc(i,:),qr(i,:),nr(i,:),        &
                           qitot(i,:,:),qirim(i,:,:),nitot(i,:,:),birim(i,:,:),i,it,      &
@@ -2552,10 +2552,9 @@ call cpu_time(timer_start(3))
        enddo
 
        !The test below is skipped if SCPF is used since now, if SCF>0 somewhere, then nucleation is possible
-       if ( (     SCPF_on) .and. log_exitlevel .and.       &
-          (SCF(k).lt.0.01) )  goto 555 !i.e. skip all process rates !%%% FRED TEST NOT SURE
-       if ( (.not.SCPF_on) .and. log_exitlevel .and.       &
-          ((t(i,k).lt.273.15 .and. supi(i,k).lt.-0.05) .or.&
+       if ( (     SCPF_on) .and. log_exitlevel .and. (SCF(k).lt.0.01) ) goto 555 !i.e. skip all process rates
+       if ( (.not.SCPF_on) .and. log_exitlevel .and.                                     &
+          ((t(i,k).lt.273.15 .and. supi(i,k).lt.-0.05) .or.                              &
            (t(i,k).ge.273.15 .and. sup(i,k) .lt.-0.05))) goto 555   !i.e. skip all process rates
 
     ! initialize warm-phase process rates
@@ -2601,7 +2600,7 @@ call cpu_time(timer_start(3))
       ! scale mixing and radiation are not explicitly included.
 
           dqsdT   = xxlv(i,k)*qvs(i,k)/(rv*t(i,k)*t(i,k))
-          ab      = 1. + dqsdT*xxlv(i,k)*inv_cp
+          ab      = 1. + dqsdT*xxlv(i,k)*i_cp
           epsilon = (qv(i,k)-qvs(i,k)-ssat(i,k))/ab
           epsilon = max(epsilon,-qc(i,k))   ! limit adjustment to available water
         ! don't adjust upward if subsaturated
@@ -2613,9 +2612,9 @@ call cpu_time(timer_start(3))
           if (abs(epsilon).ge.1.e-15) then
              qc(i,k)   = qc(i,k)+epsilon
              qv(i,k)   = qv(i,k)-epsilon
-             th(i,k)   = th(i,k)+epsilon*invexn(i,k)*xxlv(i,k)*inv_cp
+             th(i,k)   = th(i,k)+epsilon*i_exn(i,k)*xxlv(i,k)*i_cp
             ! recalculate variables if there was adjustment
-             t(i,k)    = th(i,k)*(1.e-5*pres(i,k))**(rd*inv_cp)
+             t(i,k)    = th(i,k)*(1.e-5*pres(i,k))**(rd*i_cp)
              qvs(i,k)  = qv_sat(t(i,k),pres(i,k),0)
              qvi(i,k)  = qv_sat(t(i,k),pres(i,k),1)
              sup(i,k)  = qv(i,k)/qvs(i,k)-1.
@@ -2641,8 +2640,8 @@ call cpu_time(timer_start(3))
        dum    = 1./(rv*t(i,k)**2)
        dqsdT  = xxlv(i,k)*qvs(i,k)*dum
        dqsidT = xxls(i,k)*qvi(i,k)*dum
-       ab     = 1.+dqsdT*xxlv(i,k)*inv_cp
-       abi    = 1.+dqsidT*xxls(i,k)*inv_cp
+       ab     = 1.+dqsdT*xxlv(i,k)*i_cp
+       abi    = 1.+dqsidT*xxls(i,k)*i_cp
        kap    = 1.414e+3*mu
       !very simple temperature dependent aggregation efficiency
 !       if (t(i,k).lt.253.15) then
@@ -2970,8 +2969,10 @@ call cpu_time(timer_start(3))
 
                       nicol(catcoll,iice) = eii*Eii_fact(iice)*nicol(catcoll,iice)
                       qicol(catcoll,iice) = eii*Eii_fact(iice)*qicol(catcoll,iice)
-                      nicol(catcoll,iice) = min(nicol(catcoll,iice), nitot(i,k,catcoll)*odt)
-                      qicol(catcoll,iice) = min(qicol(catcoll,iice), qitot(i,k,catcoll)*odt)
+                      nicol(catcoll,iice) = min(nicol(catcoll,iice), nitot(i,k,catcoll)* &
+                                                i_dt)
+                      qicol(catcoll,iice) = min(qicol(catcoll,iice), qitot(i,k,catcoll)* &
+                                                i_dt)
 
                   ! second, calculate collection of iice category by catcoll category
 
@@ -2987,7 +2988,7 @@ call cpu_time(timer_start(3))
                                  birim(i,k,catcoll),birim(i,k,iice),qiliq(i,k,catcoll),  &
                                  qiliq(i,k,iice))
 
-                      call args_for_LUT(args_r,args_i,dum1c,dum4c,dum5c,dum7c,dum1, &
+                      call args_for_LUT(args_r,args_i,dum1c,dum4c,dum5c,dum7c,dum1,      &
                                     dum4,dum5,dum7,dumjjc,dumiic,dumic,dumjj,dumii,dumi)
                       f1pr17 = proc_from_LUT_ii(1,args_r,args_i)
 !                       f1pr18 = proc_from_LUT_ii(2,args_r,args_i)
@@ -3000,8 +3001,8 @@ call cpu_time(timer_start(3))
                      ! note: Eii_fact applied to the collector category
                       nicol(iice,catcoll) = eii*Eii_fact(catcoll)*nicol(iice,catcoll)
                       qicol(iice,catcoll) = eii*Eii_fact(catcoll)*qicol(iice,catcoll)
-                      nicol(iice,catcoll) = min(nicol(iice,catcoll),nitot(i,k,iice)*odt)
-                      qicol(iice,catcoll) = min(qicol(iice,catcoll),qitot(i,k,iice)*odt)
+                      nicol(iice,catcoll) = min(nicol(iice,catcoll),nitot(i,k,iice)*i_dt)
+                      qicol(iice,catcoll) = min(qicol(iice,catcoll),qitot(i,k,iice)*i_dt)
 
                    endif qitotcatcoll_notsmall
                 enddo catcoll_loop
@@ -3050,8 +3051,9 @@ call cpu_time(timer_start(3))
                 qimlt(iice) = max(qimlt(iice),0.)
                 ! Make sure both terms are bounded (necessary for conservation check)
                 sinks = qimlt(iice)+qrmlt(iice)
-                if (sinks.gt.0. .and. sinks .gt. (qitot(i,k,iice)-qiliq(i,k,iice))*odt) then
-                    ratio = (qitot(i,k,iice)-qiliq(i,k,iice))*odt/sinks
+                if (sinks.gt.0. .and. sinks .gt. (qitot(i,k,iice)-qiliq(i,k,iice))*      &
+                    i_dt) then
+                    ratio = (qitot(i,k,iice)-qiliq(i,k,iice))*i_dt/sinks
                     qrmlt(iice) = qrmlt(iice)*ratio
                     qimlt(iice) = qimlt(iice)*ratio
                 endif
@@ -3195,7 +3197,7 @@ call cpu_time(timer_start(3))
                qifrz(iice) = ((f1pr05+f1pr14*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*  &
                              ((t(i,k)-273.15)*(-kap)+rho(i,k)*xxls(i,k)*dv*(qsat0-       &
                              Qv_cld(k))*2.*pi/xlf(i,k)))*nitot(i,k,iice)
-               qifrz(iice) = min(max(qifrz(iice),0.),qiliq(i,k,iice)*odt)
+               qifrz(iice) = min(max(qifrz(iice),0.),qiliq(i,k,iice)*i_dt)
              endif
           ! Shedding
              tmp1=0.
@@ -3203,7 +3205,7 @@ call cpu_time(timer_start(3))
                tmp1 = qirim(i,k,iice)/(qitot(i,k,iice)-qiliq(i,k,iice))
           ! Shedding
              qlshd(iice) = tmp1*f1pr28*nitot(i,k,iice)*qiliq(i,k,iice)/qitot(i,k,iice)
-             qlshd(iice) = min(max(0.,qlshd(iice)),qiliq(i,k,iice)*odt)
+             qlshd(iice) = min(max(0.,qlshd(iice)),qiliq(i,k,iice)*i_dt)
              nlshd(iice) = qlshd(iice)*1.928e+6
              if (log_3momentIce .and. log_full3mom) then
                 zishd(iice) = -tmp1*f1pr35*qiliq(i,k,iice)/qitot(i,k,iice)
@@ -3435,7 +3437,7 @@ call cpu_time(timer_start(3))
 
        !calculate rain evaporation including ventilation
        if (qr(i,k)*iSPF(k).ge.qsmall) then
-          call find_lookupTable_indices_3(dumii,dumjj,dum1,rdumii,rdumjj,inv_dum3,       &
+          call find_lookupTable_indices_3(dumii,dumjj,dum1,rdumii,rdumjj,i_dum3,         &
                                           mu_r(i,k),lamr(i,k))
          !interpolate value at mu_r
           dum1 = revap_table(dumii,dumjj)+(rdumii-real(dumii))*                          &
@@ -3458,12 +3460,12 @@ call cpu_time(timer_start(3))
           epsc = 0.
        endif
 
-       oabi = 1./abi
+       i_abi = 1./abi
        !if (log_LiquidFrac) then
-         xx   = epsc + epsr + epsi_tot*(1.+xxls(i,k)*inv_cp*dqsdT)*oabi + epsiw_tot
+         xx   = epsc + epsr + epsi_tot*(1.+xxls(i,k)*i_cp*dqsdT)*i_abi + epsiw_tot
        !else
        !  if (t(i,k).lt.273.15) then
-       !     xx   = epsc + epsr + epsi_tot*(1.+xxls(i,k)*inv_cp*dqsdT)*oabi
+       !     xx   = epsc + epsr + epsi_tot*(1.+xxls(i,k)*i_cp*dqsdT)*i_abi
        !  else
        !     xx   = epsc + epsr
        !  endif
@@ -3496,24 +3498,24 @@ call cpu_time(timer_start(3))
      ! note this formulation for dT/dt is not exact since pressure
      ! may change and t and t_old were both diagnosed using the current pressure
      ! errors from this assumption are small
-       dum = -cp/g*(t(i,k)-t_old(i,k))*odt
+       dum = -cp/g*(t(i,k)-t_old(i,k))*i_dt
 
 !       dum = qvs(i,k)*rho(i,k)*g*uzpl(i,k)/max(1.e-3,(pres(i,k)-polysvp1(t(i,k),0)))
 
        !if (log_LiquidFrac) then
-         aaa = (qv(i,k)-qv_old(i,k))*odt - dqsdT*(-dum*g*inv_cp)-(qvs(i,k)-dumqvi)*      &
-               (1.+xxls(i,k)*inv_cp*dqsdT)*oabi*epsi_tot
+         aaa = (qv(i,k)-qv_old(i,k))*i_dt - dqsdT*(-dum*g*i_cp)-(qvs(i,k)-dumqvi)*     &
+               (1.+xxls(i,k)*i_cp*dqsdT)*i_abi*epsi_tot
        !else
        !  if (t(i,k).lt.273.15) then
-       !     aaa = (qv(i,k)-qv_old(i,k))*odt - dqsdT*(-dum*g*inv_cp)-(qvs(i,k)-dumqvi)*     &
-       !           (1.+xxls(i,k)*inv_cp*dqsdT)*oabi*epsi_tot
+       !     aaa = (qv(i,k)-qv_old(i,k))*i_dt - dqsdT*(-dum*g*i_cp)-(qvs(i,k)-dumqvi)* &
+       !           (1.+xxls(i,k)*i_cp*dqsdT)*i_abi*epsi_tot
        !  else
-       !     aaa = (qv(i,k)-qv_old(i,k))*odt - dqsdT*(-dum*g*inv_cp)
+       !     aaa = (qv(i,k)-qv_old(i,k))*i_dt - dqsdT*(-dum*g*i_cp)
        !  endif
        !endif
 
        xx  = max(1.e-20,xx)   ! set lower bound on xx to prevent division by zero
-       oxx = 1./xx
+       i_xx = 1./xx
 
        if (.not. scpf_ON)  then
           ssat_cld = ssat(i,k)
@@ -3535,23 +3537,23 @@ call cpu_time(timer_start(3))
 
 
 !Note (BUG): Cholette (Jul 2022), remove *SCF(k) for ssat_cld and multiplication *CF for grid-mean qccon
-!          qccon = ((aaa*epsc*oxx+(ssat_cld-aaa*oxx)*odt*epsc*oxx*(1.-sngl(dexp(-dble(xx*dt)))))/ab)*SCF(k)
+!          qccon = ((aaa*epsc*i_xx+(ssat_cld-aaa*i_xx)*i_dt*epsc*i_xx*(1.-sngl(dexp(-dble(xx*dt)))))/ab)*SCF(k)
 !          remove *SPF(k) for ssat_r and multiplication *SPF for grid-mean qccon
-!          qrcon = ((aaa*epsr*oxx+(ssat_r-aaa*oxx)*odt*epsr*oxx*(1.-sngl(dexp(-dble(xx*dt)))))/ab)*SPF(k)
-       if (qc(i,k).ge.qsmall) qccon = (aaa*epsc*oxx+(ssat_cld*SCF(k)-aaa*oxx)*odt*epsc*  &
-                                      oxx*(1.-sngl(dexp(-dble(xx*dt)))))/ab
-       if (qr(i,k).ge.qsmall) qrcon = (aaa*epsr*oxx+(ssat_r*SPF(k)-aaa*oxx)*odt*epsr*    &
-                                      oxx*(1.-sngl(dexp(-dble(xx*dt)))))/ab
+!          qrcon = ((aaa*epsr*i_xx+(ssat_r-aaa*i_xx)*i_dt*epsr*i_xx*(1.-sngl(dexp(-dble(xx*dt)))))/ab)*SPF(k)
+       if (qc(i,k).ge.qsmall) qccon = (aaa*epsc*i_xx+(ssat_cld*SCF(k)-aaa*i_xx)*i_dt*    &
+                                       epsc*i_xx*(1.-sngl(dexp(-dble(xx*dt)))))/ab
+       if (qr(i,k).ge.qsmall) qrcon = (aaa*epsr*i_xx+(ssat_r*SPF(k)-aaa*i_xx)*i_dt*epsr* &
+                                      i_xx*(1.-sngl(dexp(-dble(xx*dt)))))/ab
 
       !evaporate instantly for very small water contents
-       if (sup_cld.lt.-0.001 .and. qc(i,k).lt.1.e-12)  qccon = -qc(i,k)*odt
-       if (sup_r  .lt.-0.001 .and. qr(i,k).lt.1.e-12)  qrcon = -qr(i,k)*odt
+       if (sup_cld.lt.-0.001 .and. qc(i,k).lt.1.e-12)  qccon = -qc(i,k)*i_dt
+       if (sup_r  .lt.-0.001 .and. qr(i,k).lt.1.e-12)  qrcon = -qr(i,k)*i_dt
 
        if (qccon.lt.0.) then
           qcevp = -qccon
           qccon = 0.
        else
-          qccon = min(qccon, qv(i,k)*odt)
+          qccon = min(qccon, qv(i,k)*i_dt)
        endif
 
        if (qrcon.lt.0.) then
@@ -3560,7 +3562,7 @@ call cpu_time(timer_start(3))
          !nrevp = nrevp*exp(-0.2*mu_r(i,k))  !add mu dependence [Seifert (2008), neglecting size dependence]
           qrcon = 0.
        else
-          qrcon = min(qrcon, qv(i,k)*odt)
+          qrcon = min(qrcon, qv(i,k)*i_dt)
        endif
 
        iice_loop_depsub:  do iice = 1,nCat
@@ -3571,17 +3573,17 @@ call cpu_time(timer_start(3))
               ! Sublimation/deposition of ice
               !note: diffusional growth/decay rate: (stored as 'qidep' temporarily; may go to qisub below)
 !Note (BUG): Cholette (Jul 2022), remove *SCF(k) for ssat_cld and multiplication *CF for grid-mean qccon
-!                 qidep(iice) = ((aaa*epsi(iice)*oxx+(ssat_cld-aaa*oxx)*odt*epsi(iice)*oxx*               &
-!                               (1.-dexp(-dble(xx*dt))))*oabi+(qvs(i,k)-dumqvi)*epsi(iice)*oabi)*SCF(k)
-                 qidep(iice) = (aaa*epsi(iice)*oxx+(ssat_cld*SCF(k)-aaa*oxx)*odt*        &
-                               epsi(iice)*oxx*(1.-dexp(-dble(xx*dt))))*oabi+(qvs(i,k)-   &
-                               dumqvi)*epsi(iice)*oabi
+!                 qidep(iice) = ((aaa*epsi(iice)*i_xx+(ssat_cld-aaa*i_xx)*i_dt*epsi(iice)*i_xx*               &
+!                               (1.-dexp(-dble(xx*dt))))*i_abi+(qvs(i,k)-dumqvi)*epsi(iice)*i_abi)*SCF(k)
+                 qidep(iice) = (aaa*epsi(iice)*i_xx+(ssat_cld*SCF(k)-aaa*i_xx)*i_dt*     &
+                               epsi(iice)*i_xx*(1.-dexp(-dble(xx*dt))))*i_abi+(qvs(i,k)- &
+                               dumqvi)*epsi(iice)*i_abi
               endif
 
               !for very small ice contents in dry air, sublimate all ice instantly
               if (supi_cld.lt.-0.001 .and. qitot(i,k,iice).lt.1.e-12 .and.               &
                qitot(i,k,iice).ge.qsmall.and.(qiliq(i,k,iice)/qitot(i,k,iice)).lt.0.01)  &
-               qidep(iice) = -(qitot(i,k,iice)-qiliq(i,k,iice))*odt
+               qidep(iice) = -(qitot(i,k,iice)-qiliq(i,k,iice))*i_dt
 
               !note: 'clbfact_dep' and 'clbfact_sub' calibration factors for ice deposition and sublimation
               !   These are adjustable ad hoc factors used to increase or decrease deposition and/or
@@ -3592,7 +3594,7 @@ call cpu_time(timer_start(3))
               !note: limit to saturation adjustment (for dep and subl) is applied later
                  qisub(iice) = -qidep(iice)
                  qisub(iice) = qisub(iice)*clbfact_sub
-                 qisub(iice) = min(qisub(iice), (qitot(i,k,iice)-qiliq(i,k,iice))*odt)
+                 qisub(iice) = min(qisub(iice), (qitot(i,k,iice)-qiliq(i,k,iice))*i_dt)
                  nisub(iice) = qisub(iice)*(nitot(i,k,iice)/(qitot(i,k,iice)-            &
                                qiliq(i,k,iice)))
                  qidep(iice) = 0.
@@ -3601,7 +3603,7 @@ call cpu_time(timer_start(3))
                  endif
               else
                  qidep(iice) = qidep(iice)*clbfact_dep
-                 qidep(iice) = min(qidep(iice), qv(i,k)*odt)
+                 qidep(iice) = min(qidep(iice), qv(i,k)*i_dt)
                  if (log_3momentIce .and. log_full3mom .and. epsi(iice).gt.0.) then
                     zidep(iice) = epsiz(iice)/epsi(iice)*qidep(iice)
                  endif
@@ -3611,19 +3613,19 @@ call cpu_time(timer_start(3))
                  (qiliq(i,k,iice)/qitot(i,k,iice)).ge.0.01) then
               ! Condensation/evaporation fo qiliq
 !Note (BUG) Cholette (Jul 2022), remove *SCF(k) for ssat_cld and multiplication *CF for grid-mean qccon
-!                 qlcon(iice) = ((aaa*epsiw(iice)*oxx+(ssat_cld-aaa*oxx)*odt*epsiw(iice)*oxx* &
+!                 qlcon(iice) = ((aaa*epsiw(iice)*i_xx+(ssat_cld-aaa*i_xx)*i_dt*epsiw(iice)*i_xx* &
 !                               (1.-dexp(-dble(xx*dt))))/ab)*SCF(k)
-                 qlcon(iice) = (aaa*epsiw(iice)*oxx+(ssat_cld*SCF(k)-aaa*oxx)*odt*        &
-                                epsiw(iice)*oxx*(1.-dexp(-dble(xx*dt))))/ab
+                 qlcon(iice) = (aaa*epsiw(iice)*i_xx+(ssat_cld*SCF(k)-aaa*i_xx)*i_dt*    &
+                                epsiw(iice)*i_xx*(1.-dexp(-dble(xx*dt))))/ab
               endif
 
               if (sup_cld.lt.-0.001 .and. qitot(i,k,iice).lt.1.e-12 .and.                 &
                qitot(i,k,iice).ge.qsmall .and. (qiliq(i,k,iice)/qitot(i,k,iice)).ge.0.01) &
-               qlcon(iice) = -qiliq(i,k,iice)*odt
+               qlcon(iice) = -qiliq(i,k,iice)*i_dt
 
               if (qlcon(iice).lt.0.) then
                  qlevp(iice) = -qlcon(iice)
-                 qlevp(iice) = min(qlevp(iice),qiliq(i,k,iice)*odt)
+                 qlevp(iice) = min(qlevp(iice),qiliq(i,k,iice)*i_dt)
                  nlevp(iice) = qlevp(iice)*nitot(i,k,iice)/qitot(i,k,iice)
                  qlcon(iice) = 0.
 
@@ -3631,7 +3633,7 @@ call cpu_time(timer_start(3))
                   zisub(iice) = -epsizsb(iice)/epsiw(iice)*qlevp(iice)
 
               else
-                 qlcon(iice) = min(qlcon(iice), qv(i,k)*odt)
+                 qlcon(iice) = min(qlcon(iice), qv(i,k)*i_dt)
 
                  if (log_3momentIce .and. epsiw(iice).gt.0. .and.                        &
                   (qiliq(i,k,iice)/qitot(i,k,iice)).ge.0.01)                             &
@@ -3644,15 +3646,15 @@ call cpu_time(timer_start(3))
        !   if (qitot(i,k,iice).ge.qsmall .and. t(i,k).lt.273.15) then
             !note: diffusional growth/decay rate: (stored as 'qidep' temporarily; may go to qisub below)
 !Note (BUG) Cholette (Jul 2022), remove *SCF(k) for ssat_cld and multiplication *CF for grid-mean qccon
-!             qidep(iice) = ((aaa*epsi(iice)*oxx+(ssat_cld-aaa*oxx)*odt*epsi(iice)*oxx*                      &
-!                           (1.-sngl(dexp(-dble(xx*dt)))))*oabi+(qvs(i,k)-dumqvi)*epsi(iice)*oabi)*SCF(k)
-       !      qidep(iice) = (aaa*epsi(iice)*oxx+(ssat_cld*SCF(k)-aaa*oxx)*odt*epsi(iice)*oxx*   &
-       !                    (1.-sngl(dexp(-dble(xx*dt)))))*oabi+(qvs(i,k)-dumqvi)*epsi(iice)*oabi
+!             qidep(iice) = ((aaa*epsi(iice)*i_xx+(ssat_cld-aaa*i_xx)*i_dt*epsi(iice)*i_xx*                      &
+!                           (1.-sngl(dexp(-dble(xx*dt)))))*i_abi+(qvs(i,k)-dumqvi)*epsi(iice)*i_abi)*SCF(k)
+       !      qidep(iice) = (aaa*epsi(iice)*i_xx+(ssat_cld*SCF(k)-aaa*i_xx)*i_dt*epsi(iice)*i_xx*   &
+       !                    (1.-sngl(dexp(-dble(xx*dt)))))*i_abi+(qvs(i,k)-dumqvi)*epsi(iice)*i_abi
        !   endif
 
          !for very small ice contents in dry air, sublimate all ice instantly
        !   if (supi_cld.lt.-0.001 .and. qitot(i,k,iice).lt.1.e-12) &
-       !      qidep(iice) = -qitot(i,k,iice)*odt
+       !      qidep(iice) = -qitot(i,k,iice)*i_dt
 
           !note: 'clbfact_dep' and 'clbfact_sub' calibration factors for ice deposition and sublimation
           !   These are adjustable ad hoc factors used to increase or decrease deposition and/or
@@ -3663,7 +3665,7 @@ call cpu_time(timer_start(3))
        !    !note: limit to saturation adjustment (for dep and subl) is applied later
        !      qisub(iice) = -qidep(iice)
        !      qisub(iice) = qisub(iice)*clbfact_sub
-       !      qisub(iice) = min(qisub(iice), qitot(i,k,iice)*odt)
+       !      qisub(iice) = min(qisub(iice), qitot(i,k,iice)*i_dt)
        !      nisub(iice) = qisub(iice)*(nitot(i,k,iice)/qitot(i,k,iice))
        !      qidep(iice) = 0.
 
@@ -3673,7 +3675,7 @@ call cpu_time(timer_start(3))
 
        !   else
        !      qidep(iice) = qidep(iice)*clbfact_dep
-       !      qidep(iice) = min(qidep(iice), qv(i,k)*odt)
+       !      qidep(iice) = min(qidep(iice), qv(i,k)*i_dt)
 
        !      if (log_3momentIce.and.epsi(iice).gt.0.) then
        !         zidep(iice) = epsiz(iice)/epsi(iice)*qidep(iice)
@@ -3704,10 +3706,10 @@ call cpu_time(timer_start(3))
 !         dum = exp(-0.639+0.1296*100.*supi(i,k))*1000.*i_rho(i,k)        !Meyers et al. (1992)
           dum = 0.005*exp(0.304*(273.15-t(i,k)))*1000.*i_rho(i,k)         !Cooper (1986)
           dum = min(dum,100.e3*i_rho(i,k)*SCF(k))
-          N_nuc = max(0.,(dum-sum(nitot(i,k,:)))*odt)
+          N_nuc = max(0.,(dum-sum(nitot(i,k,:)))*i_dt)
 
           if (N_nuc.ge.1.e-20) then
-             Q_nuc = max(0.,(dum-sum(nitot(i,k,:)))*mi0*odt)
+             Q_nuc = max(0.,(dum-sum(nitot(i,k,:)))*mi0*i_dt)
              if (nCat>1) then
                 !determine destination ice-phase category:
                 dum1  = 900.     !density of new ice
@@ -3731,15 +3733,15 @@ call cpu_time(timer_start(3))
           dum1  = 1./bact**0.5
           sigvl = 0.0761 - 1.55e-4*(t(i,k)-273.15)
           aact  = 2.*mw/(rhow*rr*t(i,k))*sigvl
-          sm1   = 2.*dum1*(aact*thrd*inv_rm1)**1.5
-          sm2   = 2.*dum1*(aact*thrd*inv_rm2)**1.5
+          sm1   = 2.*dum1*(aact*thrd*i_rm1)**1.5
+          sm2   = 2.*dum1*(aact*thrd*i_rm2)**1.5
           uu1   = 2.*log(sm1/sup_cld)/(4.242*log(sig1))
           uu2   = 2.*log(sm2/sup_cld)/(4.242*log(sig2))
           dum1  = nanew1*0.5*(1.-derf(uu1)) ! activated number in kg-1 mode 1
           dum2  = nanew2*0.5*(1.-derf(uu2)) ! activated number in kg-1 mode 2
         ! make sure this value is not greater than total number of aerosol
           dum2  = min((nanew1+nanew2),dum1+dum2)
-          dum2  = (dum2-nc(i,k)*iSCF(k))*odt*SCF(k)
+          dum2  = (dum2-nc(i,k)*iSCF(k))*i_dt*SCF(k)
           dum2  = max(0.,dum2)
           ncnuc = dum2
         ! do not include mass increase from droplet activation during first time step
@@ -3758,11 +3760,11 @@ call cpu_time(timer_start(3))
 ! to remove any supersaturation in the intial conditions
 
        if (it.le.1) then
-          dumt   = th(i,k)*(pres(i,k)*1.e-5)**(rd*inv_cp)
+          dumt   = th(i,k)*(pres(i,k)*1.e-5)**(rd*i_cp)
           dumqv  = Qv_cld(k)
           dumqvs = qv_sat(dumt,pres(i,k),0)
           dums   = dumqv-dumqvs
-          qccon  = dums/(1.+xxlv(i,k)**2*dumqvs/(cp*rv*dumt**2))*odt*SCF(k)
+          qccon  = dums/(1.+xxlv(i,k)**2*dumqvs/(cp*rv*dumt**2))*i_dt*SCF(k)
           qccon  = max(0.,qccon)
           if (qccon.le.1.e-7) qccon = 0.
        endif
@@ -3929,7 +3931,7 @@ call cpu_time(timer_start(3))
     !Limit total condensation (incl. activation) and evaporation to saturation adjustment
        dumqvs = qv_sat(t(i,k),pres(i,k),0)
        qcon_satadj = (Qv_cld(k)-dumqvs)/(1.+xxlv(i,k)**2*dumqvs/(cp*rv*t(i,k)**2))*      &
-                     odt*SCF(k)
+                     i_dt*SCF(k)
 
        tmp1 = qccon+qrcon+qcnuc+sum(qlcon)
        if (tmp1>0. .and. qcon_satadj<0.) then
@@ -3961,9 +3963,9 @@ call cpu_time(timer_start(3))
     !Limit total deposition (incl. nucleation) and sublimation to saturation adjustment
        qv_tmp = Qv_cld(k) + (-qcnuc-qccon-qrcon-sum(qlcon)+qcevp+qrevp+sum(qlevp))*dt         !qv after cond/evap
        t_tmp  = t(i,k) + (qcnuc+qccon+qrcon+sum(qlcon)-qcevp-qrevp-sum(qlevp))*          &    !T after cond/evap
-                          xxlv(i,k)*inv_cp*dt
+                          xxlv(i,k)*i_cp*dt
        dumqvi = qv_sat(t_tmp,pres(i,k),1)
-       qdep_satadj = (qv_tmp-dumqvi)/(1.+xxls(i,k)**2*dumqvi/(cp*rv*t_tmp**2))*odt*SCF(k)
+       qdep_satadj = (qv_tmp-dumqvi)/(1.+xxls(i,k)**2*dumqvi/(cp*rv*t_tmp**2))*i_dt*SCF(k)
 
        tmp1 = sum(qidep)+sum(qinuc)
        if (tmp1>0. .and. qdep_satadj<0.) then
@@ -3984,8 +3986,8 @@ call cpu_time(timer_start(3))
                             1.e-20))  !optimized (avoids IF(qisub.gt.0.) )
              nisub(iice)  = nisub(iice)*min(1.,qisub(iice)/dum)
           enddo
-         !qchetc = qchetc*min(1.,qc(i,k)*odt/max(sum(qchetc),1.e-20))  !currently not used
-         !qrhetc = qrhetc*min(1.,qr(i,k)*odt/max(sum(qrhetc),1.e-20))  !currently not used
+         !qchetc = qchetc*min(1.,qc(i,k)*i_dt/max(sum(qchetc),1.e-20))  !currently not used
+         !qrhetc = qrhetc*min(1.,qr(i,k)*i_dt/max(sum(qrhetc),1.e-20))  !currently not used
        endif
 
 
@@ -4253,12 +4255,11 @@ call cpu_time(timer_start(3))
         ! Update theta. Note temperature is not updated here even though it is used below for
         ! the homogeneous freezing threshold. This is done for simplicity - the error will be
         ! very small and the homogeneous temp. freezing threshold is approximate anyway.
-          th(i,k) = th(i,k) + invexn(i,k)*((qidep(iice)-qisub(iice)+qinuc(iice))*        &
-                              xxls(i,k)*inv_cp +(qrcol(iice)+qccol(iice)+qchetc(iice)+   &
+          th(i,k) = th(i,k) + i_exn(i,k)*((qidep(iice)-qisub(iice)+qinuc(iice))*         &
+                              xxls(i,k)*i_cp +(qrcol(iice)+qccol(iice)+qchetc(iice)+     &
                               qcheti(iice)+qrhetc(iice)+qrheti(iice)+qcmul(iice)+        &
                               qrmul(iice)-qrmlt(iice)-qimlt(iice)+qifrz(iice))*          &
-                              xlf(i,k)*inv_cp+(qlcon(iice)-qlevp(iice))*xxlv(i,k)*       &
-                              inv_cp)*dt
+                              xlf(i,k)*i_cp+(qlcon(iice)-qlevp(iice))*xxlv(i,k)*i_cp)*dt
 
        enddo iice_loop3
    !==
@@ -4275,8 +4276,8 @@ call cpu_time(timer_start(3))
        endif
 
        qv(i,k) = qv(i,k) + (-qcnuc-qccon-qrcon+qcevp+qrevp)*dt
-       th(i,k) = th(i,k) + invexn(i,k)*((qcnuc+qccon+qrcon-qcevp-qrevp)*xxlv(i,k)*       &
-                 inv_cp)*dt
+       th(i,k) = th(i,k) + i_exn(i,k)*((qcnuc+qccon+qrcon-qcevp-qrevp)*xxlv(i,k)*       &
+                 i_cp)*dt
    !==
 
        ! clipping for Filiq > 0.99 (transfer unmelted ice to rain)
@@ -4285,8 +4286,8 @@ call cpu_time(timer_start(3))
             if (qitot(i,k,iice).ge.qsmall .and. (qiliq(i,k,iice)/qitot(i,k,iice)).gt.0.99) then
                   qr(i,k) = qr(i,k) + qitot(i,k,iice)
                   nr(i,k) = nr(i,k) + nitot(i,k,iice)
-                  th(i,k) = th(i,k) - invexn(i,k)*(qitot(i,k,iice)-qiliq(i,k,iice))*     &
-                                       xlf(i,k)*inv_cp
+                  th(i,k) = th(i,k) - i_exn(i,k)*(qitot(i,k,iice)-qiliq(i,k,iice))*     &
+                                       xlf(i,k)*i_cp
                   qitot(i,k,iice) = 0.
                   nitot(i,k,iice) = 0.
                   qirim(i,k,iice) = 0.
@@ -4299,7 +4300,7 @@ call cpu_time(timer_start(3))
      ! clipping for small hydrometeor values
        if (qc(i,k).lt.qsmall) then
           qv(i,k) = qv(i,k) + qc(i,k)
-          th(i,k) = th(i,k) - invexn(i,k)*qc(i,k)*xxlv(i,k)*inv_cp
+          th(i,k) = th(i,k) - i_exn(i,k)*qc(i,k)*xxlv(i,k)*i_cp
           qc(i,k) = 0.
           nc(i,k) = 0.
        else
@@ -4308,7 +4309,7 @@ call cpu_time(timer_start(3))
 
        if (qr(i,k).lt.qsmall) then
           qv(i,k) = qv(i,k) + qr(i,k)
-          th(i,k) = th(i,k) - invexn(i,k)*qr(i,k)*xxlv(i,k)*inv_cp
+          th(i,k) = th(i,k) - i_exn(i,k)*qr(i,k)*xxlv(i,k)*i_cp
           qr(i,k) = 0.
           nr(i,k) = 0.
        else
@@ -4318,9 +4319,9 @@ call cpu_time(timer_start(3))
        do iice = 1,nCat
           if (qitot(i,k,iice).lt.qsmall) then
              qv(i,k) = qv(i,k) + qitot(i,k,iice)
-             th(i,k) = th(i,k) - invexn(i,k)*(qitot(i,k,iice)-qiliq(i,k,iice))*          &
-                                 xxls(i,k)*inv_cp
-             th(i,k) = th(i,k) - invexn(i,k)*qiliq(i,k,iice)*xxlv(i,k)*inv_cp
+             th(i,k) = th(i,k) - i_exn(i,k)*(qitot(i,k,iice)-qiliq(i,k,iice))*          &
+                                 xxls(i,k)*i_cp
+             th(i,k) = th(i,k) - i_exn(i,k)*qiliq(i,k,iice)*xxlv(i,k)*i_cp
              qitot(i,k,iice) = 0.
              nitot(i,k,iice) = 0.
              qirim(i,k,iice) = 0.
@@ -4490,7 +4491,7 @@ call cpu_time(timer_end(3))
     if (debug_on) then
        location_ind = 300
        force_abort  = debug_ABORT
-       tmparr1(i,:) = th(i,:)*(pres(i,:)*1.e-5)**(rd*inv_cp)
+       tmparr1(i,:) = th(i,:)*(pres(i,:)*1.e-5)**(rd*i_cp)
        if (log_3momentIce) then
           call check_values(qv(i,:),tmparr1(i,:),qc(i,:),nc(i,:),qr(i,:),nr(i,:),        &
                qitot(i,:,:),qirim(i,:,:),nitot(i,:,:),birim(i,:,:),i,it,force_abort,     &
@@ -4609,7 +4610,7 @@ call cpu_time(timer_start(6))
 
        enddo substep_sedi_c2
 
-       prt_liq(i) = prt_accum*i_rhow*odt  !note, contribution from rain is added below
+       prt_liq(i) = prt_accum*i_rhow*i_dt  !note, contribution from rain is added below
 
     endif qc_present
 
@@ -4657,7 +4658,7 @@ call cpu_time(timer_start(6))
                 call get_rain_dsd2(qr(i,k),nr(i,k),mu_r(i,k),lamr(i,k),cdistr(i,k),      &
                                    logn0r(i,k),iSPF(k))
 
-                call find_lookupTable_indices_3(dumii,dumjj,dum1,rdumii,rdumjj,inv_dum3, &
+                call find_lookupTable_indices_3(dumii,dumjj,dum1,rdumii,rdumjj,i_dum3,   &
                                         mu_r(i,k),lamr(i,k))
                 !mass-weighted fall speed:
                 dum1 = vm_table(dumii,dumjj)+(rdumii-real(dumii))*                       &
@@ -4728,7 +4729,7 @@ call cpu_time(timer_start(6))
 
        enddo substep_sedi_r
 
-       prt_liq(i) = prt_liq(i) + prt_accum*i_rhow*odt
+       prt_liq(i) = prt_liq(i) + prt_accum*i_rhow*i_dt
 
     endif qr_present
 
@@ -5222,8 +5223,8 @@ call cpu_time(timer_start(6))
 
           endif three_moment_ice_1
 
-          prt_sol(i) = prt_sol(i) + prt_accum*i_rhow*odt
-          prt_soli(i,iice) = prt_soli(i,iice) + prt_accum*i_rhow*odt
+          prt_sol(i) = prt_sol(i) + prt_accum*i_rhow*i_dt
+          prt_soli(i,iice) = prt_soli(i,iice) + prt_accum*i_rhow*i_dt
 
        endif qi_present
 
@@ -5240,7 +5241,7 @@ call cpu_time(timer_start(6))
    ! if (debug_on) then
    !    location_ind = 600
    !    force_abort  = .false.
-   !    tmparr1(i,:) = th(i,:)*(pres(i,:)*1.e-5)**(rd*inv_cp)
+   !    tmparr1(i,:) = th(i,:)*(pres(i,:)*1.e-5)**(rd*i_cp)
    !    if (log_3momentIce) then
    !       call check_values(qv(i,:),tmparr1(i,:),qc(i,:),nc(i,:),qr(i,:),nr(i,:),qitot(i,:,:), &
    !              qirim(i,:,:),nitot(i,:,:),birim(i,:,:),i,it,force_abort,location_ind,         &
@@ -5338,7 +5339,7 @@ call cpu_time(timer_end(6))
                                     N_nuc
           endif ! log_3momentice
          ! update theta. Note temperature is NOT updated here, but currently not used after
-          th(i,k) = th(i,k) + invexn(i,k)*Q_nuc*xlf(i,k)*inv_cp
+          th(i,k) = th(i,k) + i_exn(i,k)*Q_nuc*xlf(i,k)*i_cp
           qc(i,k) = 0.  != qc(i,k) - Q_nuc
           nc(i,k) = 0.  != nc(i,k) - N_nuc
 
@@ -5371,7 +5372,7 @@ call cpu_time(timer_end(6))
              zitot(i,k,iice_dest) = zitot(i,k,iice_dest)+G_of_mu(mu_i_new)*tmp1**2/N_nuc
           endif ! log_3momentice
          ! update theta. Note temperature is NOT updated here, but currently not used after
-          th(i,k) = th(i,k) + invexn(i,k)*Q_nuc*xlf(i,k)*inv_cp
+          th(i,k) = th(i,k) + i_exn(i,k)*Q_nuc*xlf(i,k)*i_cp
           qr(i,k) = 0.  ! = qr(i,k) - Q_nuc
           nr(i,k) = 0.  ! = nr(i,k) - N_nuc
 
@@ -5436,9 +5437,9 @@ call cpu_time(timer_end(6))
              else
 
                 qv(i,k) = qv(i,k) + qitot(i,k,iice)
-                th(i,k) = th(i,k) - invexn(i,k)*(qitot(i,k,iice)-qiliq(i,k,iice))*       &
-                                     xxls(i,k)*inv_cp
-                th(i,k) = th(i,k) - invexn(i,k)*qiliq(i,k,iice)*xxlv(i,k)*inv_cp
+                th(i,k) = th(i,k) - i_exn(i,k)*(qitot(i,k,iice)-qiliq(i,k,iice))*       &
+                                     xxls(i,k)*i_cp
+                th(i,k) = th(i,k) - i_exn(i,k)*qiliq(i,k,iice)*xxlv(i,k)*i_cp
                 qitot(i,k,iice) = 0.
                 nitot(i,k,iice) = 0.
                 qirim(i,k,iice) = 0.
@@ -5484,7 +5485,7 @@ call cpu_time(timer_end(6))
 !    if (debug_on) then
 !       location_ind = 700
 !       force_abort  = .false.
-!       tmparr1(i,:) = th(i,:)*(pres(i,:)*1.e-5)**(rd*inv_cp)
+!       tmparr1(i,:) = th(i,:)*(pres(i,:)*1.e-5)**(rd*i_cp)
 !       if (log_3momentIce) then
 !          call check_values(qv(i,:),tmparr1(i,:),qc(i,:),nc(i,:),qr(i,:),nr(i,:),qitot(i,:,:), &
 !                 qirim(i,:,:),nitot(i,:,:),birim(i,:,:),i,it,force_abort,location_ind,         &
@@ -5511,7 +5512,7 @@ call cpu_time(timer_end(6))
           diag_effc(i,k) = 0.5*(mu_c(i,k)+3.)/lamc(i,k)
        else
           qv(i,k) = qv(i,k)+qc(i,k)
-          th(i,k) = th(i,k)-invexn(i,k)*qc(i,k)*xxlv(i,k)*inv_cp
+          th(i,k) = th(i,k)-i_exn(i,k)*qc(i,k)*xxlv(i,k)*i_cp
           qc(i,k) = 0.
           nc(i,k) = 0.
        endif
@@ -5539,7 +5540,7 @@ call cpu_time(timer_end(6))
           ze_rain(i,k) = max(ze_rain(i,k),1.e-22)
        else
           qv(i,k) = qv(i,k)+qr(i,k)
-          th(i,k) = th(i,k)-invexn(i,k)*qr(i,k)*xxlv(i,k)*inv_cp
+          th(i,k) = th(i,k)-i_exn(i,k)*qr(i,k)*xxlv(i,k)*i_cp
           qr(i,k) = 0.
           nr(i,k) = 0.
        endif
@@ -5642,9 +5643,9 @@ call cpu_time(timer_end(6))
           else
 
              qv(i,k) = qv(i,k) + qitot(i,k,iice)
-             th(i,k) = th(i,k) - invexn(i,k)*(qitot(i,k,iice)-qiliq(i,k,iice))*          &
-                                 xxls(i,k)*inv_cp
-             th(i,k) = th(i,k) - invexn(i,k)*qiliq(i,k,iice)*xxlv(i,k)*inv_cp
+             th(i,k) = th(i,k) - i_exn(i,k)*(qitot(i,k,iice)-qiliq(i,k,iice))*          &
+                                 xxls(i,k)*i_cp
+             th(i,k) = th(i,k) - i_exn(i,k)*qiliq(i,k,iice)*xxlv(i,k)*i_cp
              qitot(i,k,iice) = 0.
              nitot(i,k,iice) = 0.
              qirim(i,k,iice) = 0.
@@ -5692,7 +5693,7 @@ call cpu_time(timer_end(6))
     if (log_predictSsat) then
    ! recalculate supersaturation from T and qv
        do k = kbot,ktop,kdir
-          t(i,k) = th(i,k)*(1.e-5*pres(i,k))**(rd*inv_cp)
+          t(i,k) = th(i,k)*(1.e-5*pres(i,k))**(rd*i_cp)
           dum    = qv_sat(t(i,k),pres(i,k),0)
           ssat(i,k) = qv(i,k)-dum
        enddo
@@ -5715,7 +5716,7 @@ call cpu_time(timer_end(6))
     if (debug_on) then
        location_ind = 900
        force_abort  = debug_ABORT
-       tmparr1(i,:) = th(i,:)*(pres(i,:)*1.e-5)**(rd*inv_cp)
+       tmparr1(i,:) = th(i,:)*(pres(i,:)*1.e-5)**(rd*i_cp)
        if (log_3momentIce) then
           call check_values(qv(i,:),tmparr1(i,:),qc(i,:),nc(i,:),qr(i,:),nr(i,:),        &
                      qitot(i,:,:),qirim(i,:,:),nitot(i,:,:),birim(i,:,:),i,it,           &
@@ -5776,15 +5777,15 @@ call cpu_time(timer_end(6))
    if (log_liqsatadj) then
      l_satadj:  do k = kbot,ktop,kdir
 
-         t_tmp   = th(i,k)*(pres(i,k)*1.e-5)**(rd*inv_cp)
+         t_tmp   = th(i,k)*(pres(i,k)*1.e-5)**(rd*i_cp)
          qv_tmp  = qv(i,k)
          dumqvs  = qv_sat(t_tmp,pres(i,k),0)
          if (qv_tmp .gt. dumqvs) then
-              dum     = (qv_tmp-dumqvs)/(1.+xxlv(i,k)**2*dumqvs/(cp*rv*t_tmp**2))*odt
+              dum     = (qv_tmp-dumqvs)/(1.+xxlv(i,k)**2*dumqvs/(cp*rv*t_tmp**2))*i_dt
               qc(i,k) = qc(i,k)+dum*dt
               qv(i,k) = qv(i,k)-dum*dt
-              th(i,k) = th(i,k) + 1./((pres(i,k)*1.e-5)**(rd*inv_cp))*(dum*xxlv(i,k)*    &
-                                  inv_cp)*dt
+              th(i,k) = th(i,k) + 1./((pres(i,k)*1.e-5)**(rd*i_cp))*(dum*xxlv(i,k)*    &
+                                  i_cp)*dt
          endif
       enddo l_satadj
     endif
@@ -5924,12 +5925,13 @@ call cpu_time(timer_start(9))
 
              if ((qitot(i,k,iice)-qiliq(i,k,iice)).ge.qsmall) then
 
-                rimefraction(i,k,iice) = qirim(i,k,iice)/(qitot(i,k,iice)-qiliq(i,k,iice)) !rime mass fraction
-                t_tmp   = th(i,kbot)*(pres(i,kbot)*1.e-5)**(rd*inv_cp)                     !1st level temperature
+                rimefraction(i,k,iice) = qirim(i,k,iice)/(qitot(i,k,iice)-               &
+                                         qiliq(i,k,iice))                     ! rime mass fraction
+                t_tmp   = th(i,kbot)*(pres(i,kbot)*1.e-5)**(rd*i_cp)          ! 1st level temperature
                 if (birim(i,k,iice).ge.bsmall) then
-                   rimedensity(i,k,iice) = qirim(i,k,iice)/birim(i,k,iice)                 !rime density
+                   rimedensity(i,k,iice) = qirim(i,k,iice)/birim(i,k,iice)    ! rime density
                 endif
-                liquidfraction(i,k,iice) = qiliq(i,k,iice)/qitot(i,k,iice)                 !liquid fraction
+                liquidfraction(i,k,iice) = qiliq(i,k,iice)/qitot(i,k,iice)    ! liquid fraction
 
                 if (liquidfraction(i,k,iice).ge.0.15) then
                    Q_wsnow(i,k,iice) = qitot(i,k,iice)
@@ -10848,7 +10850,7 @@ else
 
 
 !======================================================================================!
- subroutine find_lookupTable_indices_3(dumii,dumjj,dum1,rdumii,rdumjj,inv_dum3,mu_r,lamr)
+ subroutine find_lookupTable_indices_3(dumii,dumjj,dum1,rdumii,rdumjj,i_dum3,mu_r,lamr)
 
 !------------------------------------------------------------------------------------------!
 ! Finds indices in rain lookup table (3)
@@ -10858,7 +10860,7 @@ else
 
 ! arguments:
  integer, intent(out) :: dumii,dumjj
- real,    intent(out) :: dum1,rdumii,rdumjj,inv_dum3
+ real,    intent(out) :: dum1,rdumii,rdumjj,i_dum3
  real,    intent(in)  :: mu_r,lamr
 
 !------------------------------------------------------------------------------------------!
@@ -10866,16 +10868,16 @@ else
         ! find location in scaled mean size space
           dum1 = (mu_r+1.)/lamr
           if (dum1.le.195.e-6) then
-             inv_dum3  = 0.1
-             rdumii = (dum1*1.e6+5.)*inv_dum3
+             i_dum3  = 0.1
+             rdumii = (dum1*1.e6+5.)*i_dum3
              rdumii = max(rdumii, 1.)
              rdumii = min(rdumii,20.)
              dumii  = int(rdumii)
              dumii  = max(dumii, 1)
              dumii  = min(dumii,20)
           elseif (dum1.gt.195.e-6) then
-             inv_dum3  = thrd*0.1            !i.e. 1/30
-             rdumii = (dum1*1.e+6-195.)*inv_dum3 + 20.
+             i_dum3  = thrd*0.1            !i.e. 1/30
+             rdumii = (dum1*1.e+6-195.)*i_dum3 + 20.
              rdumii = max(rdumii, 20.)
              rdumii = min(rdumii,300.)
              dumii  = int(rdumii)
