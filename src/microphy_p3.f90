@@ -26,7 +26,7 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.4.3                                                                     !
+! Version:       5.4.4                                                                     !
 ! Last updated:  2025 May                                                                  !
 !__________________________________________________________________________________________!
 
@@ -146,7 +146,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.4.3'
+ character(len=1024), parameter :: version_p3                    = '5.4.4'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.9-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '6.9-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.2'
@@ -2514,15 +2514,18 @@ call cpu_time(timer_start(2))
              log_hydrometeorsPresent = .true.    ! final update
           endif
 
-          if (log_LiquidFrac .and. qitot(i,k,iice).ge.qsmall .and. (qiliq(i,k,iice)/qitot(i,k,iice)).gt.0.99) then
-             qr(i,k) = qr(i,k) + qitot(i,k,iice)
-             nr(i,k) = nr(i,k) + nitot(i,k,iice)
-             th(i,k) = th(i,k) - invexn(i,k)*(qitot(i,k,iice)-qiliq(i,k,iice))*xlf(i,k)*inv_cp
-             qitot(i,k,iice) = 0.
-             nitot(i,k,iice) = 0.
-             qirim(i,k,iice) = 0.
-             qiliq(i,k,iice) = 0.
-             birim(i,k,iice) = 0.
+          if (log_LiquidFrac .and. qitot(i,k,iice).ge.qsmall) then
+             if (qiliq(i,k,iice)/qitot(i,k,iice).gt.0.99) then
+                qr(i,k) = qr(i,k) + qitot(i,k,iice)
+                nr(i,k) = nr(i,k) + nitot(i,k,iice)
+                th(i,k) = th(i,k) - i_exn(i,k)*(qitot(i,k,iice)-qiliq(i,k,iice))*        &
+                                    xlf(i,k)*i_cp
+                qitot(i,k,iice) = 0.
+                nitot(i,k,iice) = 0.
+                qirim(i,k,iice) = 0.
+                qiliq(i,k,iice) = 0.
+                birim(i,k,iice) = 0.
+             endif
           endif
 
           if (qitot(i,k,iice).ge.qsmall .and. qitot(i,k,iice).lt.1.e-8 .and.             &
@@ -3563,8 +3566,8 @@ call cpu_time(timer_start(3))
 !       dum = qvs(i,k)*rho(i,k)*g*uzpl(i,k)/max(1.e-3,(pres(i,k)-polysvp1(t(i,k),0)))
 
        !if (log_LiquidFrac) then
-         aaa = (qv(i,k)-qv_old(i,k))*odt - dqsdT*(-dum*g*inv_cp)-(qvs(i,k)-dumqvi)*(1.+xxls(i,k)*   &
-               inv_cp*dqsdT)*oabi*epsi_tot
+       aaa = (qv(i,k)-qv_old(i,k))*i_dt - dqsdT*(-dum*g*i_cp)-(qvs(i,k)-dumqvi)*         &
+               (1.+xxls(i,k)*i_cp*dqsdT)*i_abi*epsi_tot
        !else
        !  if (t(i,k).lt.273.15) then
        !     aaa = (qv(i,k)-qv_old(i,k))*odt - dqsdT*(-dum*g*inv_cp)-(qvs(i,k)-dumqvi)*     &
@@ -3630,14 +3633,17 @@ call cpu_time(timer_start(3))
 
        ! if (log_LiquidFrac) then
 
-              if (qitot(i,k,iice).ge.qsmall .and. (qiliq(i,k,iice)/qitot(i,k,iice)).lt.0.01) then
               ! Sublimation/deposition of ice
-              !note: diffusional growth/decay rate: (stored as 'qidep' temporarily; may go to qisub below)
-!Note (BUG): Cholette (Jul 2022), remove *SCF(k) for ssat_cld and multiplication *CF for grid-mean qccon
-!                 qidep(iice) = ((aaa*epsi(iice)*oxx+(ssat_cld-aaa*oxx)*odt*epsi(iice)*oxx*               &
-!                               (1.-dexp(-dble(xx*dt))))*oabi+(qvs(i,k)-dumqvi)*epsi(iice)*oabi)*SCF(k)
-                 qidep(iice) = (aaa*epsi(iice)*oxx+(ssat_cld*SCF(k)-aaa*oxx)*odt*epsi(iice)*oxx*   &
-                               (1.-dexp(-dble(xx*dt))))*oabi+(qvs(i,k)-dumqvi)*epsi(iice)*oabi
+              if (qitot(i,k,iice).ge.qsmall) then
+                 if (qiliq(i,k,iice)/qitot(i,k,iice).lt.0.01) then
+                 !note: diffusional growth/decay rate: (stored as 'qidep' temporarily; may go to qisub below)
+   !Note (BUG): Cholette (Jul 2022), remove *SCF(k) for ssat_cld and multiplication *CF for grid-mean qccon
+   !                 qidep(iice) = ((aaa*epsi(iice)*i_xx+(ssat_cld-aaa*i_xx)*i_dt*epsi(iice)*i_xx*               &
+   !                               (1.-dexp(-dble(xx*dt))))*i_abi+(qvs(i,k)-dumqvi)*epsi(iice)*i_abi)*SCF(k)
+                    qidep(iice) = (aaa*epsi(iice)*i_xx+(ssat_cld*SCF(k)-aaa*i_xx)*i_dt*  &
+                                  epsi(iice)*i_xx*(1.-dexp(-dble(xx*dt))))*i_abi+        &
+                                  (qvs(i,k)-dumqvi)*epsi(iice)*i_abi
+                 endif
               endif
 
               !for very small ice contents in dry air, sublimate all ice instantly
