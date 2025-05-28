@@ -6,7 +6,7 @@ PROGRAM create_p3_lookuptable_3
 ! 'p3_lookupTable_3.dat') for compute mui with triple-moment ice
 !
 !--------------------------------------------------------------------------------------
-! Version:       1.3
+! Version:       1.0
 ! Last modified: 2025 May
 !______________________________________________________________________________________
 
@@ -21,7 +21,7 @@ PROGRAM create_p3_lookuptable_3
  implicit none
 
  !-----
- character(len=20), parameter :: version   = '1.3'
+ character(len=20), parameter :: version   = '1.4'
  logical, parameter           :: log_3momI = .true.    !switch to create table for 2momI (.false.) or 3momI (.true.)
  !-----
 
@@ -41,6 +41,8 @@ PROGRAM create_p3_lookuptable_3
 
  real, parameter :: mu_i_min = 0.
  real, parameter :: mu_i_max = 20.
+
+ integer, parameter :: num_int_bins      = 40000 ! number of bins for numerical integration of ice processes
 
  integer :: i,ii,iii,jj,kk,kkk,dumii,i_iter,n_iter_psdSolve
 
@@ -67,7 +69,7 @@ PROGRAM create_p3_lookuptable_3
  real :: diagnostic_mui_Fl
 
 ! outputs from lookup table (i.e. "mui" read by access_lookup_table in s/r p3_main)
- real, dimension(n_Znorm,n_rhor,n_Qnorm,n_Fr,n_Fl) :: mu_i_save
+ real, dimension(n_Znorm,n_rhor,n_Qnorm,n_Fr,n_Fl) :: mu_i_save,rhomm,momen3,momen3_save
 
 ! for M6 rates
  real, dimension(n_rhor)            :: cgp,crp
@@ -82,9 +84,9 @@ PROGRAM create_p3_lookuptable_3
 
  character(len=2014)                :: filename
 
- pi  = acos(-1.)
-
 !===   end of variable declaration ===
+
+ pi  = acos(-1.)
 
 ! set constants and parameters
  dd   =  2.e-6 ! bin width for numerical integration of ice processes (units of m)
@@ -294,7 +296,7 @@ PROGRAM create_p3_lookuptable_3
     mom6 = Z_value/dum
     n_iter_psdSolve = 0
 
-          do
+    do
 
           !print*,Z_value,q,rhom,mom3,mom6
           ! first estimate of mu_i
@@ -363,7 +365,10 @@ PROGRAM create_p3_lookuptable_3
           call intgrl_section_Fl(lam,mu_i, ds1,ds,dg,dsr, dcrit,dcrits,dcritr,intgrR1,intgrR2,intgrR3,intgrR4,intgrR5)
           n0   = q/((1.-Fl)*(cs1*intgrR1 + cs*intgrR2 + cgp(i_rhor)*intgrR3 + csr*intgrR4)+Fl*cs5*intgrR5)
 
+        ! print*,'lam,N0,mu:',lam,n0,mu_i
+
         ! calculate normalized mom3 directly from PSD parameters (3-moment-ice only)
+          !mom3_old = mom3
           mom3 = n0*gamma(4.+mu_i)/lam**(4.+mu_i)
         ! update normalized mom6 based on the updated ratio of normalized mom3 and normalized Q
         ! (we want mom6 normalized by mom3 not q)
@@ -372,19 +377,72 @@ PROGRAM create_p3_lookuptable_3
           mom6 = Z_value/dum
           zqerror_old = zqerror
           zqerror = abs((mom6-mom6_old)/(mom6_old))
-          
           if (abs((mom6-mom6_old)/(mom6_old)).lt.1e-16 .or. abs((zqerror-zqerror_old)/zqerror_old).lt.0.01) goto 116
           n_iter_psdSolve=n_iter_psdSolve+1
           if (n_iter_psdSolve.gt.50) goto 116
-          
+
        enddo
 
 116 continue
 
        mu_i_save(i_Znorm,i_rhor,i_Qnorm,i_Fr,i_Fl) = mu_i
+       momen3_save(i_Znorm,i_rhor,i_Qnorm,i_Fr,i_Fl) = mom3
+
+!.....................................................................................
+! mass-weighted density
 !.....................................................................................
 
-       print*,i_Znorm,i_rhor,i_Fr,i_Fl,i_Qnorm,mu_i_save(i_Znorm,i_rhor,i_Qnorm,i_Fr,i_Fl),n_iter_psdSolve,zqerror
+! assume conditions for t and p as assumed above (giving rhos), then in microphysics scheme
+! multiply by density correction factor (rhos/rho)^0.54, from Heymsfield et al. 2006
+
+! fallspeed formulation from Mitchell and Heymsfield 2005
+
+           ! initialize for numerical integration
+          sum1 = 0.
+          sum2 = 0.
+
+        ! numerically integrate over size distribution
+          ii_loop_2: do ii = 1,num_int_bins
+
+             dum = real(ii)*dd - 0.5*dd   ! particle size
+
+            !assign mass-size parameters (depending on size at ii)
+             if (dum.le.dcrit) then
+                ds1 = 3.
+                cs1 = pi*sxth*900.
+             else if (dum.gt.dcrit.and.dum.le.dcrits) then
+                ds1 = ds
+                cs1 = cs
+             elseif (dum.gt.dcrits.and.dum.le.dcritr) then
+                ds1 = dg
+                cs1 = cgp(i_rhor)
+             elseif (dum.gt.dcritr) then
+                ds1 = dsr
+                cs1 = csr
+             endif
+
+        ! These processes assume the liquid and the dry components of ice (add Fl)
+        ! See Cholette et al. 2019 for details
+             mass = (1.-Fl)*cs1*dum**ds1+Fl*pi*sxth*1000.*dum**3.
+
+            !denominator of mass-weighted V:
+             sum2 = sum2+mass*dum**(mu_i)*exp(-lam*dum)*dd
+
+            !numerator of mass-weighted density:
+            ! particle density is defined as mass divided by volume of sphere with same D
+             sum1 = sum1+mass**2/(pi*sxth*dum**3)*dum**mu_i*exp(-lam*dum)*dd
+
+          enddo ii_loop_2
+
+        ! save mean fallspeeds for lookup table:
+
+          rhomm(i_Znorm,i_rhor,i_Qnorm,i_Fr,i_Fl) = sum1/sum2
+          momen3(i_Znorm,i_rhor,i_Qnorm,i_Fr,i_Fl) = 6.*q/(pi*rhomm(i_Znorm,i_rhor,i_Qnorm,i_Fr,i_Fl))
+
+       print*,i_Znorm,i_rhor,i_Fr,i_Fl,i_Qnorm,mu_i_save(i_Znorm,i_rhor,i_Qnorm,i_Fr,i_Fl), &
+       rhomm(i_Znorm,i_rhor,i_Qnorm,i_Fr,i_Fl),n_iter_psdSolve,zqerror
+       print*,i_Znorm,i_rhor,i_Fr,i_Fl,i_Qnorm,momen3_save(i_Znorm,i_rhor,i_Qnorm,i_Fr,i_Fl), &
+       momen3(i_Znorm,i_rhor,i_Qnorm,i_Fr,i_Fl)
 
        enddo i_Qnorm_loop
 
@@ -392,9 +450,15 @@ PROGRAM create_p3_lookuptable_3
          !-- ice table
          i_Qnorm_loop_2:  do i_Qnorm = 1,n_Qnorm
              
-             write(1,'(5i5,1e15.5)')                             &
+          rhomm(i_Znorm,i_rhor,i_Qnorm,i_Fr,i_Fl)     = dim( rhomm(i_Znorm,i_rhor,i_Qnorm,i_Fr,i_Fl),     cutoff)
+
+             write(1,'(5i5,4e15.5)')                             &
                          i_Znorm,i_rhor,i_Fr,i_Fl,i_Qnorm,        &
-                         mu_i_save(i_Znorm,i_rhor,i_Qnorm,i_Fr,i_Fl)
+                         mu_i_save(i_Znorm,i_rhor,i_Qnorm,i_Fr,i_Fl), &
+                         rhomm(i_Znorm,i_rhor,i_Qnorm,i_Fr,i_Fl), &
+                         momen3_save(i_Znorm,i_rhor,i_Qnorm,i_Fr,i_Fl), &
+                         momen3(i_Znorm,i_rhor,i_Qnorm,i_Fr,i_Fl)
+
 
          enddo i_Qnorm_loop_2
 
