@@ -27,12 +27,16 @@ subroutine columnmodel
 
       implicit none
 
-      character(len=20), parameter :: version_p3 = 'v5.3.14'
+      character(len=10), parameter :: version_p3 = 'v5.3.14'  !THIS NEEDS TO BE READ IN
+
+      ! integer, parameter :: nCat         =  1
+      ! logical, parameter :: trplMomIce   = .true.
+      ! logical, parameter :: liqFrac      = .true.
 
       !for use when reading in from config file:
-      integer            :: nCat
-      logical            :: trplMomIce
-      logical            :: liqFrac
+      integer :: nCat
+      logical :: trplMomIce
+      logical :: liqFrac
 
       integer, parameter :: max_nCat     = 5         ! this allows arrays to be declared (below) with nCat read in
       logical, parameter :: scpf_on      = .false.   ! switch for cloud fraction parameterization (SCPF)
@@ -162,6 +166,7 @@ subroutine columnmodel
 
       print*
       print*, '** Remember to use compiler debug options for testing new code (modify Makefile appropriately) **'
+      print*
 
 !---------------------------------------------------------------------------------------!
 
@@ -740,10 +745,11 @@ subroutine columnmodel
       print*
       print*, 'P3 CONFIGURATION:'
       print*
-      write(*,'(a12,a20)')  'version:  ', version_p3
+!     write(*,'(a12,a10)')  'version:  ', version_p3
       write(*,'(1a12,1i1)') 'nCat   :  ', nCat
       write(*,'(1a12,1L)')  'trlMom :  ', trplMomIce
       write(*,'(1a12,1L)')  'liqFrac:  ', liqFrac
+!#
       print*
       print*, 'ACCUMULATED CPU TIMINGS:'
       print*
@@ -760,7 +766,7 @@ subroutine columnmodel
       write(55,*)
       write(55,*) 'P3 CONFIGURATION:'
       write(55,*)
-      write(55,'(a12,a20)')  'version:  ', version_p3
+!     write(55,'(a12,a10)')  'version:  ', version_p3
       write(55,'(1a12,1i1)') 'nCat   :  ', nCat
       write(55,'(1a12,1L)')  'trlMom :  ', trplMomIce
       write(55,'(1a12,1L)')  'liqFrac:  ', liqFrac
