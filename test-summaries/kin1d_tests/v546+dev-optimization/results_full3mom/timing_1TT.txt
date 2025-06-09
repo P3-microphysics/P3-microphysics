@@ -1,0 +1,18 @@
+
+ P3 CONFIGURATION:
+
+  version:  v5.3.14             
+  nCat   :  1
+  trlMom :  T
+  liqFrac:  T
+
+ ACCUMULATED CPU TIMINGS:
+
+ Block Description              Time (ms)     % of p3_main
+ ------------------             ---------     ------------
+   1 full p3_main               4.127321      100.000000
+   2 i_loop_main                4.067893       98.560127
+   3 k_loop_main (procs)        2.920136       70.751373
+   6 sedimentation              0.490098       11.874481
+   9 type_diags                 0.011082        0.268496
+

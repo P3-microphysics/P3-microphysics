@@ -27,7 +27,7 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.4.3 + optimization                                                      !
+! Version:       5.4.3 + optimization + muiLT3-v1.4                                        !
 ! Last updated:  2025 May                                                                  !
 !__________________________________________________________________________________________!
 
@@ -56,6 +56,7 @@
  integer, parameter :: isize        = 50
  integer, parameter :: iisize       = 25
  integer, parameter :: zsize        = 11  ! size of mu_i array in lookup_table (for 3-moment ice)
+ integer, parameter :: zqsize       = 80  ! size of Zi,tot/qi,tot for mu_i array in lookup_table (for 3-moment ice)
  integer, parameter :: densize      =  5
  integer, parameter :: rimsize      =  4
  integer, parameter :: liqsize      =  4
@@ -73,6 +74,7 @@
  ! NOTE: TO DO, MAKE LOOKUP TABLE ARRAYS ALLOCATABLE SO BOTH 2-MOMENT AND 3-MOMENT NOT ALLOCATED
  real, dimension(densize,rimsize,liqsize,isize,tabsize)                     :: itab        !ice lookup table values
  real, dimension(zsize,densize,rimsize,liqsize,isize,tabsize_3mom)          :: itab_3mom   !ice lookup table values
+ real, dimension(zqsize,densize,rimsize,liqsize,isize,2)                    :: itab_3mom_mui  !ice lookup table values
 
 !ice lookup table values for ice-rain collision/collection
  real, dimension(densize,rimsize,liqsize,isize,rcollsize,colltabsize)       :: itabcoll
@@ -149,18 +151,21 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.4.3 + optimization'
+ character(len=1024), parameter :: version_p3                    = '5.4.3 + optimization + muiLT3-v1.4'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.9-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '6.9-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.2'
+ character(len=1024), parameter :: version_intended_table_3      = '1.4' !for mu_i with 3mom
 
  character(len=1024)            :: version_header_table_1_2mom
  character(len=1024)            :: version_header_table_1_3mom
  character(len=1024)            :: version_header_table_2
+ character(len=1024)            :: version_header_table_3
  character(len=1024)            :: lookup_file_1                   !lookup table, main
  character(len=1024)            :: lookup_file_2                   !lookup table for ice-ice interactions (for nCat>1 only)
+ character(len=1024)            :: lookup_file_3                   !lookup table for outputing mu_i with 3mom
  character(len=1024)            :: dumstr,read_path
- integer                        :: i,j,ii,jj,kk,jjj,jjj2,jjjj,jjjj2,end_status,zz,procnum,istat,ierr,ll
+ integer                        :: i,j,ii,jj,kk,jjj,jjj2,jjjj,jjjj2,end_status,zz,procnum,istat,ierr,ll,zq
  real                           :: lamr,mu_r,dum,dm,dum1,dum2,dum3,dum4,dum5,dd,amg,vt,dia
  double precision               :: dp_dum1, dp_dum2, dp_dum3
  logical                        :: err_abort
@@ -177,6 +182,7 @@
    lookup_file_1 = trim(read_path)//'/'//'p3_lookupTable_1.dat-v'//trim(version_intended_table_1_2mom)
  endif
  lookup_file_2 = trim(read_path)//'/'//'p3_lookupTable_2.dat-v'//trim(version_intended_table_2)
+ lookup_file_3 = trim(read_path)//'/'//'p3_lookupTable_3.dat-v'//trim(version_intended_table_3)
 
 !------------------------------------------------------------------------------------------!
 
@@ -506,6 +512,53 @@
           enddo  !ii
        enddo  !jj
     enddo   !zz
+
+    close(10)
+
+    print*, '     Reading table 3 [v',trim(version_intended_table_3),'] ...'
+
+    open(unit=10,file=lookup_file_3,status='old',iostat=ierr,err=102)
+ 102  if (ierr.ne.0) then
+         if(owr) print*,'Error opening 3-moment lookup table file for mu_i '//lookup_file_3
+         if(owr) print*,'Make sure this file is unzipped and then rerun the model.'
+         if(owr) print*,' '
+         flush(6)
+         stop
+      end if
+
+    !-- check that table version is correct:
+    !   note:  to override and use a different lookup table, simply comment out the 'return' below
+    read(10,*) dumstr,version_header_table_3
+    if (trim(version_intended_table_3) /= trim(version_header_table_3)) then
+       if(owr) print*
+       if(owr) print*, '***********   WARNING in P3_INIT   *************'
+       if(owr) print*, ' Loading lookupTable_3: v',trim(version_header_table_3)
+       if(owr) print*, ' P3 v',trim(version_p3),' is intended to use lookupTable_3: v',    &
+               trim(version_intended_table_3)
+      !if(owr) print*, '               -- ABORTING -- '
+       if(owr) print*, '************************************************'
+       if(owr) print*
+       global_status = STATUS_ERROR
+       if (trim(model) == 'WRF') then
+          print*,'Stopping in P3 init'
+          stop
+       endif
+    endif
+
+    read(10,*)
+
+    do zq = 1,zqsize
+       do jj = 1,densize
+          do ii = 1,rimsize
+            do ll = 1,liqsize
+              do i = 1,isize
+                read(10,*) dum,dum,dum,dum,dum,itab_3mom_mui(zq,jj,ii,ll,i,1),& 
+                     itab_3mom_mui(zq,jj,ii,ll,i,2),dum,dum
+              enddo
+            enddo  !ll
+          enddo  !ii
+       enddo  !jj
+    enddo   !zq
 
     close(10)
 
@@ -2106,12 +2159,12 @@ END subroutine p3_init
             prt_accum,fluxdiv_qx,fluxdiv_nx,Co_max,dt_sub,fluxdiv_zit,D_new,Q_nuc,N_nuc, &
             deltaD_init,dum1c,dum4c,dum5c,dumt,qcon_satadj,qdep_satadj,sources,sinks,    &
             timeScaleFactor,dt_left,qv_tmp,t_tmp,dum1z,dum7c,dum7,fluxdiv_qil,epsiw_tot, &
-            tmp3
+            dum8,tmp3,tmp4
 
  double precision :: tmpdbl1,tmpdbl2,tmpdbl3
 
  integer :: dumi,i,k,ii,iice,iice_dest,dumj,dumii,dumjj,dumzz,tmpint1,ktop,kbot,kdir,    &
-            dumic,dumiic,dumjjc,catcoll,k_qxbot,k_qxtop,k_temp,dumll,dumllc
+            dumic,dumiic,dumjjc,catcoll,k_qxbot,k_qxtop,k_temp,dumll,dumllc,dumzq
 
  logical :: log_nucleationPossible,log_hydrometeorsPresent,log_predictSsat,              &
             log_exitlevel,log_hmossopOn,log_qxpresent
@@ -2179,6 +2232,7 @@ END subroutine p3_init
 
 ! added for triple moment ice
  real                  :: mu_i               !shape parameter for ice
+ real                  :: rholt3             !mean mass-weighted density from LT3
  real                  :: mu_i_new           !shape parameter for processes that specify mu_i
  real, dimension(nCat) :: dumm0,dumm3,mu_i_s
 
@@ -2187,7 +2241,7 @@ END subroutine p3_init
  integer, parameter :: niter_satadj = 5 ! number of iterations for saturation adj. (testing only)
 
  real    :: dumni,dumqi,dumzi,dumqr,dumbi,dumql,dumden,dmudt,dummu_i,dumnitend,dumqitend,dumzitend
- real    :: G_new,G_rate_tot,ziold
+ real    :: G_new,G_rate_tot,dumzi_old
  integer :: iana
  logical, parameter :: log_full3mom = .true.   ! switch to turn on full 3-moment ice
 
@@ -2479,6 +2533,12 @@ call cpu_time(timer_start(2))
              endif
           endif
 
+          if (log_LiquidFrac .and. qitot(i,k,iice).ge.qsmall .and. (qiliq(i,k,iice)/qitot(i,k,iice)).le.0.01) then
+             qr(i,k) = qr(i,k)+qiliq(i,k,iice)
+             qitot(i,k,iice) = qitot(i,k,iice) - qiliq(i,k,iice)
+             qiliq(i,k,iice) = 0.
+          endif
+
           if (qitot(i,k,iice).ge.qsmall .and. qitot(i,k,iice).lt.1.e-8 .and.             &
            t(i,k).ge.273.15) then
              qr(i,k) = qr(i,k) + qitot(i,k,iice)
@@ -2739,8 +2799,12 @@ call cpu_time(timer_start(3))
              !impose lower limits to prevent taking log of # < 0
                 zitot(i,k,iice) = max(zitot(i,k,iice),zsmall)
 
-                call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),          &
-                           zitot(i,k,iice),dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi)
+                call solve_mui_lt3(mu_i,rholt3,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),zitot(i,k,iice),      &
+                                dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi,zsize,zqsize)
+
+                f1pr16 = rholt3
+                !call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),          &
+                !           zitot(i,k,iice),dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi)
 
                 call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0.,       &
                                   dumzz,dumjj,dumii,dumll,dumi,0)
@@ -2752,7 +2816,8 @@ call cpu_time(timer_start(3))
                 f1pr09 = proc_from_LUT_main3mom( 7,args_r,args_i)
                 f1pr10 = proc_from_LUT_main3mom( 8,args_r,args_i)
                 f1pr14 = proc_from_LUT_main3mom(10,args_r,args_i)
-                f1pr16 = proc_from_LUT_main3mom(12,args_r,args_i)
+                !f1pr16 = proc_from_LUT_main3mom(12,args_r,args_i)
+
                 if (log_full3mom) then
                    f1pr29 = proc_from_LUT_main3mom(21,args_r,args_i)
                    f1pr30 = proc_from_LUT_main3mom(22,args_r,args_i)
@@ -4239,6 +4304,12 @@ call cpu_time(timer_start(3))
 
           if (log_LiquidFrac) qiliq(i,k,iice) = max(qiliq(i,k,iice),0.)
 
+          if (log_LiquidFrac .and. qitot(i,k,iice).ge.qsmall .and. (qiliq(i,k,iice)/qitot(i,k,iice)).le.0.01) then
+             qr(i,k) = qr(i,k)+qiliq(i,k,iice)
+             qitot(i,k,iice) = qitot(i,k,iice) - qiliq(i,k,iice)
+             qiliq(i,k,iice) = 0.
+          endif
+
           ! densify ice during wet growth (assume total soaking)
             if (log_wetgrowth(iice)) then
                qirim(i,k,iice) = qitot(i,k,iice)
@@ -4380,24 +4451,34 @@ call cpu_time(timer_start(3))
                      dum7,isize,rimsize,liqsize,densize,dumqi,dumni,dumqr,dumql,rhop)
 
             ! apply iteration to find updated zitot consistent with updated G and dumqi, dumni, etc.
+                dumzi_old=dumzi
                 do iana = 1,niter_mui
 
-                   dumden = 200.                  !initialial guess of density for iteration
-                   dum3   = 6./(dumden*pi)*dumqi  !estimate of 3rd moment
-                   do imu = 1,niter_mui
-                      dummu_i = compute_mu_3mom_1(dumni,dum3,dumzi,mu_i_max)   !polynomical approximation
-                    ! dummu_i = compute_mu_3mom_2(dumni,dum3,dumzi,mu_i_max)   !analytic cubic root
-                      call find_lookupTable_indices_1c(dumzz,dum6,zsize,dummu_i)
-                      call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0., &
-                                        dumzz,dumjj,dumii,dumll,dumi,0)
-                      dumden = proc_from_LUT_main3mom(12,args_r,args_i)
-                      dum3 =  6./(dumden*pi)*dumqi  !estimate of 3rd moment
-                   enddo
+                   call solve_mui_lt3(mu_i,rholt3,dum6,dumzz,dumqi,dumni, &
+                                      dumzi,dum1,dum4,dum5,dum7,dumjj,dumii,    &
+                                      dumll,dumi,zsize,zqsize)
+                   dum3 = 6./(rholt3*pi)*dumqi
+
+                   !dumden = 200.                  !initialial guess of density for iteration
+                   !dum3   = 6./(dumden*pi)*dumqi  !estimate of 3rd moment
+
+                   !do imu = 1,niter_mui
+                   !   dummu_i = compute_mu_3mom_1(dumni,dum3,dumzi,mu_i_max)   !polynomical approximation
+                   ! ! dummu_i = compute_mu_3mom_2(dumni,dum3,dumzi,mu_i_max)   !analytic cubic root
+                   !   call find_lookupTable_indices_1c(dumzz,dum6,zsize,dummu_i)
+                   !   call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0., &
+                   !                     dumzz,dumjj,dumii,dumll,dumi,0)
+                   !   dumden = proc_from_LUT_main3mom(12,args_r,args_i)
+                   !   dum3 =  6./(dumden*pi)*dumqi  !estimate of 3rd moment
+                   !enddo
 
                   ! update dummy zi based on updated density (and thus 3rd moment):
                    G_new = G_of_mu(mu_i_s(iice)) + G_rate_tot*dt
                    dumzi = G_new*dum3**2/dumni
                    dumzi = max(dumzi,zsmall)
+
+                   if (abs((dumzi-dumzi_old)/dumzi_old) .lt. 0.01) exit
+                   dumzi_old=dumzi
 
                 enddo ! iana iterative loop to estimate updated Zitot
 
@@ -4999,9 +5080,14 @@ call cpu_time(timer_start(6))
                     !impose lower limits to prevent taking log of # < 0
                       zitot(i,k,iice) = max(zitot(i,k,iice),zsmall)
 
-                      call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),    &
-                                     zitot(i,k,iice),dum1,dum4,dum5,dum7,dumjj,dumii,    &
-                                     dumll,dumi)
+                      call solve_mui_lt3(mu_i,rholt3,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice), &
+                                      zitot(i,k,iice),dum1,dum4,dum5,dum7,dumjj,dumii,    &
+                                      dumll,dumi,zsize,zqsize)
+                      f1pr16 = rholt3
+
+                      !call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),    &
+                      !               zitot(i,k,iice),dum1,dum4,dum5,dum7,dumjj,dumii,    &
+                      !               dumll,dumi)
 
                       call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0., &
                                         dumzz,dumjj,dumii,dumll,dumi,0)
@@ -5010,7 +5096,7 @@ call cpu_time(timer_start(6))
                       f1pr02 = proc_from_LUT_main3mom( 2,args_r,args_i)
                       f1pr09 = proc_from_LUT_main3mom( 7,args_r,args_i)
                       f1pr10 = proc_from_LUT_main3mom( 8,args_r,args_i)
-                      f1pr16 = proc_from_LUT_main3mom(12,args_r,args_i)
+                      !f1pr16 = proc_from_LUT_main3mom(12,args_r,args_i)
                       f1pr19 = proc_from_LUT_main3mom(13,args_r,args_i)
 
                     !impose mean ice size bounds (i.e. apply lambda limiters)
@@ -5121,8 +5207,13 @@ call cpu_time(timer_start(6))
                     !impose lower limits to prevent taking log of # < 0
                       zitot(i,k,iice) = max(zitot(i,k,iice),zsmall)
 
-                      call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),    &
-                              zitot(i,k,iice),dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi)
+                      call solve_mui_lt3(mu_i,rholt3,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice), &
+                                      zitot(i,k,iice),dum1,dum4,dum5,dum7,dumjj,dumii,    &
+                                      dumll,dumi,zsize,zqsize)
+                      f1pr16 = rholt3
+
+                      !call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),    &
+                      !        zitot(i,k,iice),dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi)
 
                       call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0., &
                                         dumzz,dumjj,dumii,dumll,dumi,0)
@@ -5131,7 +5222,7 @@ call cpu_time(timer_start(6))
                       f1pr02 = proc_from_LUT_main3mom( 2,args_r,args_i)
                       f1pr09 = proc_from_LUT_main3mom( 7,args_r,args_i)
                       f1pr10 = proc_from_LUT_main3mom( 8,args_r,args_i)
-                      f1pr16 = proc_from_LUT_main3mom(12,args_r,args_i)
+                      !f1pr16 = proc_from_LUT_main3mom(12,args_r,args_i)
                       f1pr19 = proc_from_LUT_main3mom(13,args_r,args_i)
 
                     !impose mean ice size bounds (i.e. apply lambda limiters)
@@ -5295,12 +5386,16 @@ call cpu_time(timer_end(6))
                 else
                    zitot(i,k,iice) = max(zitot(i,k,iice),zsmall)
 
-                   call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),       &
-                           zitot(i,k,iice),dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi)
+                   call solve_mui_lt3(mu_i,rholt3,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice), &
+                                      zitot(i,k,iice),dum1,dum4,dum5,dum7,dumjj,dumii,    &
+                                      dumll,dumi,zsize,zqsize)
+                   f1pr16 = rholt3
+                   !call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),       &
+                   !        zitot(i,k,iice),dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi)
 
-                   call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0.,    &
-                                     dumzz,dumjj,dumii,dumll,dumi,0)
-                   f1pr16 = proc_from_LUT_main3mom(12,args_r,args_i)
+                   !call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0.,    &
+                   !                  dumzz,dumjj,dumii,dumll,dumi,0)
+                   !f1pr16 = proc_from_LUT_main3mom(12,args_r,args_i)
                 endif
                 diam_ice(i,k,iice) = ((qitot(i,k,iice)*6.)/(nitot(i,k,iice)*f1pr16*      &
                                        pi))**thrd
@@ -5413,13 +5508,17 @@ call cpu_time(timer_end(6))
 
                    zitot(i,k,iice) = max(zitot(i,k,iice),zsmall)   ! to prevent taking log of # < 0
 
-                   call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),       &
-                              zitot(i,k,iice),dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi)
+                   call solve_mui_lt3(mu_i,rholt3,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice), &
+                                      zitot(i,k,iice),dum1,dum4,dum5,dum7,dumjj,dumii,    &
+                                      dumll,dumi,zsize,zqsize)
+                   f1pr16 = rholt3
+                   !call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),       &
+                   !           zitot(i,k,iice),dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi)
 
                    call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0.,    &
                                      dumzz,dumjj,dumii,dumll,dumi,0)
                    f1pr15 = proc_from_LUT_main3mom(11,args_r,args_i)
-                   f1pr16 = proc_from_LUT_main3mom(12,args_r,args_i)
+                   !f1pr16 = proc_from_LUT_main3mom(12,args_r,args_i)
 
                    if (log_3momentIce) then
                       call apply_mui_bounds_to_zi(zitot(i,k,iice),qitot(i,k,iice),       &
@@ -5591,8 +5690,12 @@ call cpu_time(timer_end(6))
              !impose lower limits to prevent taking log of # < 0
                 zitot(i,k,iice) = max(zitot(i,k,iice),zsmall)
 
-                call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),          &
-                           zitot(i,k,iice),dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi)
+                call solve_mui_lt3(mu_i,rholt3,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice), &
+                                      zitot(i,k,iice),dum1,dum4,dum5,dum7,dumjj,dumii,    &
+                                      dumll,dumi,zsize,zqsize)
+                f1pr16 = rholt3
+                !call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),          &
+                !           zitot(i,k,iice),dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi)
 
                 call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0.,       &
                                   dumzz,dumjj,dumii,dumll,dumi,0)
@@ -5604,7 +5707,7 @@ call cpu_time(timer_end(6))
                 f1pr10 = proc_from_LUT_main3mom( 8,args_r,args_i)
                 f1pr13 = proc_from_LUT_main3mom( 9,args_r,args_i)
                 f1pr15 = proc_from_LUT_main3mom(11,args_r,args_i)
-                f1pr16 = proc_from_LUT_main3mom(12,args_r,args_i)
+                !f1pr16 = proc_from_LUT_main3mom(12,args_r,args_i)
                 if (log_typeDiags) then
                    f1pr22 = proc_from_LUT_main3mom(14,args_r,args_i)
                    f1pr23 = proc_from_LUT_main3mom(15,args_r,args_i)
@@ -6432,6 +6535,220 @@ else
 endif
 
 end function proc_from_LUT_ir2mom
+
+!==========================================================================================!
+
+ SUBROUTINE access_lookup_table_3(dumzq,dumjj,dumii,dumll,dumi,index,dum1,dum4,dum5,dum7,dum8,proc)
+
+ implicit none
+
+ real    :: dum1,dum4,dum5,dum7,dum8,proc,iproc1,iproc2,gproc1,gproc2,rproc1,rproc2,dproc1,dproc2
+ integer :: dumzq,dumjj,dumii,dumi,index,dumll
+
+
+!!if (.false.) then  ! to test old, "full" approach
+ if (dum7 == 1. .and. dumll==1) then  !skip interpolation for liq-frac if qiliq = 0.
+
+! get at current zz
+ ! get at current jj
+
+   ! get current ii
+
+    ! at ll between i and i+1
+    dproc1 = itab_3mom_mui(dumzq,dumjj,dumii,dumll,dumi,index)+(dum1-real(dumi))*(itab_3mom_mui(dumzq,dumjj,dumii,       &
+             dumll,dumi+1,index)-itab_3mom_mui(dumzq,dumjj,dumii,dumll,dumi,index))
+
+   ! get current ii+1
+
+    ! at ll between i and i+1
+    dproc2 = itab_3mom_mui(dumzq,dumjj,dumii+1,dumll,dumi,index)+(dum1-real(dumi))*(itab_3mom_mui(dumzq,dumjj,dumii+1,       &
+             dumll,dumi+1,index)-itab_3mom_mui(dumzq,dumjj,dumii+1,dumll,dumi,index))
+
+    gproc1   = dproc1+(dum4-real(dumii))*(dproc2-dproc1)
+
+ ! get at current jj+1
+
+   ! get current ii
+
+    ! at ll between i and i+1
+    dproc1 = itab_3mom_mui(dumzq,dumjj+1,dumii,dumll,dumi,index)+(dum1-real(dumi))*(itab_3mom_mui(dumzq,dumjj+1,dumii,       &
+             dumll,dumi+1,index)-itab_3mom_mui(dumzq,dumjj+1,dumii,dumll,dumi,index))
+
+   ! get current ii+1
+
+    ! at ll between i and i+1
+    dproc2 = itab_3mom_mui(dumzq,dumjj+1,dumii+1,dumll,dumi,index)+(dum1-real(dumi))*(itab_3mom_mui(dumzq,dumjj+1,dumii+1,       &
+             dumll,dumi+1,index)-itab_3mom_mui(dumzq,dumjj+1,dumii+1,dumll,dumi,index))
+
+    gproc2   = dproc1+(dum4-real(dumii))*(dproc2-dproc1)
+
+    rproc1   = gproc1+(dum5-real(dumjj))*(gproc2-gproc1)
+
+! get at current zz+1
+ ! get at current jj
+
+   ! get current ii
+
+    ! at ll between i and i+1
+    dproc1 = itab_3mom_mui(dumzq+1,dumjj,dumii,dumll,dumi,index)+(dum1-real(dumi))*(itab_3mom_mui(dumzq+1,dumjj,dumii,       &
+             dumll,dumi+1,index)-itab_3mom_mui(dumzq+1,dumjj,dumii,dumll,dumi,index))
+
+   ! get current ii+1
+    ! at ll between i and i+1
+    dproc2 = itab_3mom_mui(dumzq+1,dumjj,dumii+1,dumll,dumi,index)+(dum1-real(dumi))*(itab_3mom_mui(dumzq+1,dumjj,dumii+1,       &
+             dumll,dumi+1,index)-itab_3mom_mui(dumzq+1,dumjj,dumii+1,dumll,dumi,index))
+
+    gproc1   = dproc1+(dum4-real(dumii))*(dproc2-dproc1)
+
+ ! get at current jj+1
+
+   ! get current ii
+
+    ! at ll between i and i+1
+    dproc1 = itab_3mom_mui(dumzq+1,dumjj+1,dumii,dumll,dumi,index)+(dum1-real(dumi))*(itab_3mom_mui(dumzq+1,dumjj+1,dumii,       &
+             dumll,dumi+1,index)-itab_3mom_mui(dumzq+1,dumjj+1,dumii,dumll,dumi,index))
+
+   ! get current ii+1
+
+    ! at ll between i and i+1
+    dproc2 = itab_3mom_mui(dumzq+1,dumjj+1,dumii+1,dumll,dumi,index)+(dum1-real(dumi))*(itab_3mom_mui(dumzq+1,dumjj+1,       &
+             dumii+1,dumll,dumi+1,index)-itab_3mom_mui(dumzq+1,dumjj+1,dumii+1,dumll,dumi,index))
+
+    gproc2   = dproc1+(dum4-real(dumii))*(dproc2-dproc1)
+
+    rproc2   = gproc1+(dum5-real(dumjj))*(gproc2-gproc1)
+
+! get final interpolation between rproc1 and rproc2
+
+ proc = rproc1+(dum8-real(dumzq))*(rproc2-rproc1)
+
+else
+
+! get at current zz
+  ! get at current jj
+
+    ! get current ii
+
+     ! at ll between i and i+1
+     dproc1 = itab_3mom_mui(dumzq,dumjj,dumii,dumll,dumi,index)+(dum1-real(dumi))*(itab_3mom_mui(dumzq,dumjj,dumii,       &
+              dumll,dumi+1,index)-itab_3mom_mui(dumzq,dumjj,dumii,dumll,dumi,index))
+
+     ! at ll+1 between i and i+1
+     dproc2 = itab_3mom_mui(dumzq,dumjj,dumii,dumll+1,dumi,index)+(dum1-real(dumi))*(itab_3mom_mui(dumzq,dumjj,dumii,     &
+              dumll+1,dumi+1,index)-itab_3mom_mui(dumzq,dumjj,dumii,dumll+1,dumi,index))
+
+     iproc1   = dproc1+(dum7-real(dumll))*(dproc2-dproc1)
+
+    ! get current ii+1
+
+     ! at ll between i and i+1
+     dproc1 = itab_3mom_mui(dumzq,dumjj,dumii+1,dumll,dumi,index)+(dum1-real(dumi))*(itab_3mom_mui(dumzq,dumjj,dumii+1,       &
+              dumll,dumi+1,index)-itab_3mom_mui(dumzq,dumjj,dumii+1,dumll,dumi,index))
+
+     ! at ll+1 between i and i+1
+     dproc2 = itab_3mom_mui(dumzq,dumjj,dumii+1,dumll+1,dumi,index)+(dum1-real(dumi))*(itab_3mom_mui(dumzq,dumjj,dumii+1,     &
+              dumll+1,dumi+1,index)-itab_3mom_mui(dumzq,dumjj,dumii+1,dumll+1,dumi,index))
+
+     iproc2   = dproc1+(dum7-real(dumll))*(dproc2-dproc1)
+
+     gproc1   = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+
+  ! get at current jj+1
+
+    ! get current ii
+
+     ! at ll between i and i+1
+     dproc1 = itab_3mom_mui(dumzq,dumjj+1,dumii,dumll,dumi,index)+(dum1-real(dumi))*(itab_3mom_mui(dumzq,dumjj+1,dumii,       &
+              dumll,dumi+1,index)-itab_3mom_mui(dumzq,dumjj+1,dumii,dumll,dumi,index))
+
+     ! at ll+1 between i and i+1
+     dproc2 = itab_3mom_mui(dumzq,dumjj+1,dumii,dumll+1,dumi,index)+(dum1-real(dumi))*(itab_3mom_mui(dumzq,dumjj+1,dumii,     &
+              dumll+1,dumi+1,index)-itab_3mom_mui(dumzq,dumjj+1,dumii,dumll+1,dumi,index))
+
+     iproc1   = dproc1+(dum7-real(dumll))*(dproc2-dproc1)
+
+    ! get current ii+1
+
+     ! at ll between i and i+1
+     dproc1 = itab_3mom_mui(dumzq,dumjj+1,dumii+1,dumll,dumi,index)+(dum1-real(dumi))*(itab_3mom_mui(dumzq,dumjj+1,       &
+              dumii+1,dumll,dumi+1,index)-itab_3mom_mui(dumzq,dumjj+1,dumii+1,dumll,dumi,index))
+
+     ! at ll+1 between i and i+1
+     dproc2 = itab_3mom_mui(dumzq,dumjj+1,dumii+1,dumll+1,dumi,index)+(dum1-real(dumi))*(itab_3mom_mui(dumzq,dumjj+1,     &
+              dumii+1,dumll+1,dumi+1,index)-itab_3mom_mui(dumzq,dumjj+1,dumii+1,dumll+1,dumi,index))
+
+     iproc2   = dproc1+(dum7-real(dumll))*(dproc2-dproc1)
+
+     gproc2   = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+
+     rproc1   = gproc1+(dum5-real(dumjj))*(gproc2-gproc1)
+
+! get at current zz+1
+  ! get at current jj
+
+    ! get current ii
+
+     ! at ll between i and i+1
+     dproc1 = itab_3mom_mui(dumzq+1,dumjj,dumii,dumll,dumi,index)+(dum1-real(dumi))*(itab_3mom_mui(dumzq+1,dumjj,dumii,       &
+              dumll,dumi+1,index)-itab_3mom_mui(dumzq+1,dumjj,dumii,dumll,dumi,index))
+
+     ! at ll+1 between i and i+1
+     dproc2 = itab_3mom_mui(dumzq+1,dumjj,dumii,dumll+1,dumi,index)+(dum1-real(dumi))*(itab_3mom_mui(dumzq+1,dumjj,dumii,     &
+              dumll+1,dumi+1,index)-itab_3mom_mui(dumzq+1,dumjj,dumii,dumll+1,dumi,index))
+
+     iproc1   = dproc1+(dum7-real(dumll))*(dproc2-dproc1)
+
+    ! get current ii+1
+
+     ! at ll between i and i+1
+     dproc1 = itab_3mom_mui(dumzq+1,dumjj,dumii+1,dumll,dumi,index)+(dum1-real(dumi))*(itab_3mom_mui(dumzq+1,dumjj,       &
+              dumii+1,dumll,dumi+1,index)-itab_3mom_mui(dumzq+1,dumjj,dumii+1,dumll,dumi,index))
+
+     ! at ll+1 between i and i+1
+     dproc2 = itab_3mom_mui(dumzq+1,dumjj,dumii+1,dumll+1,dumi,index)+(dum1-real(dumi))*(itab_3mom_mui(dumzq+1,dumjj,     &
+              dumii+1,dumll+1,dumi+1,index)-itab_3mom_mui(dumzq+1,dumjj,dumii+1,dumll+1,dumi,index))
+
+     iproc2   = dproc1+(dum7-real(dumll))*(dproc2-dproc1)
+
+     gproc1   = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+
+  ! get at current jj+1
+
+    ! get current ii
+
+     ! at ll between i and i+1
+     dproc1 = itab_3mom_mui(dumzq+1,dumjj+1,dumii,dumll,dumi,index)+(dum1-real(dumi))*(itab_3mom_mui(dumzq+1,dumjj+1,       &
+              dumii,dumll,dumi+1,index)-itab_3mom_mui(dumzq+1,dumjj+1,dumii,dumll,dumi,index))
+
+     ! at ll+1 between i and i+1
+     dproc2 = itab_3mom_mui(dumzq+1,dumjj+1,dumii,dumll+1,dumi,index)+(dum1-real(dumi))*(itab_3mom_mui(dumzq+1,dumjj+1,     &
+              dumii,dumll+1,dumi+1,index)-itab_3mom_mui(dumzq+1,dumjj+1,dumii,dumll+1,dumi,index))
+
+     iproc1   = dproc1+(dum7-real(dumll))*(dproc2-dproc1)
+
+    ! get current ii+1
+
+     ! at ll between i and i+1
+     dproc1 = itab_3mom_mui(dumzq+1,dumjj+1,dumii+1,dumll,dumi,index)+(dum1-real(dumi))*(itab_3mom_mui(dumzq+1,dumjj+1,       &
+              dumii+1,dumll,dumi+1,index)-itab_3mom_mui(dumzq+1,dumjj+1,dumii+1,dumll,dumi,index))
+
+     ! at ll+1 between i and i+1
+     dproc2 = itab_3mom_mui(dumzq+1,dumjj+1,dumii+1,dumll+1,dumi,index)+(dum1-real(dumi))*(itab_3mom_mui(dumzq+1,dumjj+1,     &
+              dumii+1,dumll+1,dumi+1,index)-itab_3mom_mui(dumzq+1,dumjj+1,dumii+1,dumll+1,dumi,index))
+
+     iproc2   = dproc1+(dum7-real(dumll))*(dproc2-dproc1)
+
+     gproc2   = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+
+     rproc2   = gproc1+(dum5-real(dumjj))*(gproc2-gproc1)
+
+! get final interpolation between rproc1 and rproc2
+
+  proc = rproc1+(dum8-real(dumzq))*(rproc2-rproc1)
+
+endif
+
+END SUBROUTINE access_lookup_table_3
 
 !==========================================================================================!
 
@@ -9785,6 +10102,35 @@ proc_from_LUT_main3mom = proc
 
 end function proc_from_LUT_main3mom
 
+!======================================================================================!
+
+ subroutine find_lookupTable_indices_3a(dumzq,dum8,zqsize,zitot,qitot)
+
+ !------------------------------------------------------------------------------------------!
+ ! Finds indices for G index in 3-moment ice lookup table
+ !------------------------------------------------------------------------------------------!
+
+ implicit none
+
+! arguments:
+ integer, intent(out) :: dumzq
+ integer, intent(in)  :: zqsize
+ real,    intent(out) :: dum8
+ real,    intent(in)  :: zitot,qitot
+
+!------------------------------------------------------------------------------------------!
+
+  ! find index for mu_i
+    dum8  = (alog10(zitot/qitot)+23.)*3.10347652     !optimization v1.0-1.2
+    dumzq = int(dum8)
+    dum8  = min(dum8,real(zqsize))
+    dum8  = max(dum8,1.)
+    dumzq = max(1,dumzq)
+    dumzq = min(zqsize-1,dumzq)
+
+ end subroutine find_lookupTable_indices_3a
+
+
 !==========================================================================================!
 
  real function proc_from_LUT_ir3mom(ind,args_r,args_i)
@@ -11498,6 +11844,34 @@ else
  G_of_mu = ((6.+mu)*(5.+mu)*(4.+mu))/((3.+mu)*(2.+mu)*(1.+mu))
 
  end function G_of_mu
+
+!======================================================================================!
+ subroutine solve_mui_lt3(mu_i,rholt3,dum6,dumzz,Qi,Ni,Zi,dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi,zsize,zqsize)
+
+ !--------------------------------------------------------------------------
+ ! Solves for mu_i from qitot, nitot, and zitot.
+ ! Also returns values of dum6 and dumzz which are later used.  
+ ! - added April 2025
+ !--------------------------------------------------------------------------
+
+!arguments:
+ real,    intent(in)  :: Qi,Ni,Zi,dum1,dum4,dum5,dum7
+ integer, intent(in)  :: dumjj,dumii,dumll,dumi,zqsize,zsize
+ real,    intent(out) :: mu_i,dum6,rholt3
+ integer, intent(out) :: dumzz
+
+!local:
+ integer             :: dumzq
+ real                :: dum8
+
+ ! first find index for LT3 and interpolates in LT3 to get mu_i
+ call find_lookupTable_indices_3a(dumzq,dum8,zqsize,Zi,Qi)
+ call access_lookup_table_3(dumzq,dumjj,dumii,dumll,dumi,1,dum1,dum4,dum5,dum7,dum8,mu_i)
+ call access_lookup_table_3(dumzq,dumjj,dumii,dumll,dumi,2,dum1,dum4,dum5,dum7,dum8,rholt3)
+ ! then find dum6, dumzz from mu_i
+ call find_lookupTable_indices_1c(dumzz,dum6,zsize,mu_i)
+
+ end subroutine solve_mui_lt3
 
 !======================================================================================!
  subroutine solve_mui(mu_i,dum6,dumzz,Qi,Ni,Zi,dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi)
