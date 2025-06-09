@@ -27,7 +27,7 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.4.3 + optimization + muiLT3-v1.4                                        !
+! Version:       5.4.3 + optimization                                                      !
 ! Last updated:  2025 May                                                                  !
 !__________________________________________________________________________________________!
 
@@ -112,10 +112,10 @@
  ! physical and mathematical constants
  real           :: rhosur,rhosui,ar,br,f1r,f2r,ecr,rhow,kr,kc,bimm,aimm,rin,mi0,nccnst,  &
                    eci,eri,bcn,cpw,e0,cons1,cons2,cons3,cons4,cons5,cons6,cons7,cons8,   &
-                   i_rhow,qsmall,nsmall,bsmall,zsmall,cp,g,rd,rv,ep_2,i_cp,mw,osm,   &
-                   vi,epsm,rhoa,map,ma,rr,bact,i_rm1,i_rm2,sig1,nanew1,f11,f21,sig2, &
+                   i_rhow,qsmall,nsmall,bsmall,zsmall,cp,g,rd,rv,ep_2,i_cp,mw,osm,       &
+                   vi,epsm,rhoa,map,ma,rr,bact,i_rm1,i_rm2,sig1,nanew1,f11,f21,sig2,     &
                    nanew2,f12,f22,pi,thrd,sxth,piov3,piov6,rho_rimeMin,                  &
-                   rho_rimeMax,i_rho_rimeMax,max_total_Ni,dbrk,nmltratio,minVIS,       &
+                   rho_rimeMax,i_rho_rimeMax,max_total_Ni,dbrk,nmltratio,minVIS,         &
                    maxVIS,mu_i_initial,mu_r_constant,inv_Drmax,Dmin_HM,Dinit_HM
 
  integer :: n_iceCat = -1   !used for GEM interface
@@ -151,7 +151,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.4.3 + optimization + muiLT3-v1.4'
+ character(len=1024), parameter :: version_p3                    = '5.4.3 + optimization'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.9-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '6.9-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.2'
@@ -552,7 +552,7 @@
           do ii = 1,rimsize
             do ll = 1,liqsize
               do i = 1,isize
-                read(10,*) dum,dum,dum,dum,dum,itab_3mom_mui(zq,jj,ii,ll,i,1),& 
+                read(10,*) dum,dum,dum,dum,dum,itab_3mom_mui(zq,jj,ii,ll,i,1),&
                      itab_3mom_mui(zq,jj,ii,ll,i,2),dum,dum
               enddo
             enddo  !ll
@@ -2520,7 +2520,7 @@ call cpu_time(timer_start(2))
           endif
 
           if (log_LiquidFrac .and. qitot(i,k,iice).ge.qsmall) then
-             if (qiliq(i,k,iice)/qitot(i,k,iice).gt.0.99) then
+             if  (qiliq(i,k,iice)/qitot(i,k,iice).gt.0.99) then
                 qr(i,k) = qr(i,k) + qitot(i,k,iice)
                 nr(i,k) = nr(i,k) + nitot(i,k,iice)
                 th(i,k) = th(i,k) - i_exn(i,k)*(qitot(i,k,iice)-qiliq(i,k,iice))*        &
@@ -2531,12 +2531,11 @@ call cpu_time(timer_start(2))
                 qiliq(i,k,iice) = 0.
                 birim(i,k,iice) = 0.
              endif
-          endif
-
-          if (log_LiquidFrac .and. qitot(i,k,iice).ge.qsmall .and. (qiliq(i,k,iice)/qitot(i,k,iice)).le.0.01) then
-             qr(i,k) = qr(i,k)+qiliq(i,k,iice)
-             qitot(i,k,iice) = qitot(i,k,iice) - qiliq(i,k,iice)
-             qiliq(i,k,iice) = 0.
+          if (qiliq(i,k,iice)/qitot(i,k,iice).le.0.01) then
+                qr(i,k) = qr(i,k)+qiliq(i,k,iice)
+                qitot(i,k,iice) = qitot(i,k,iice) - qiliq(i,k,iice)
+                qiliq(i,k,iice) = 0.
+             endif
           endif
 
           if (qitot(i,k,iice).ge.qsmall .and. qitot(i,k,iice).lt.1.e-8 .and.             &
@@ -3569,7 +3568,7 @@ call cpu_time(timer_start(3))
 !       dum = qvs(i,k)*rho(i,k)*g*uzpl(i,k)/max(1.e-3,(pres(i,k)-polysvp1(t(i,k),0)))
 
        !if (log_LiquidFrac) then
-       aaa = (qv(i,k)-qv_old(i,k))*i_dt - dqsdT*(-dum*g*i_cp)-(qvs(i,k)-dumqvi)*         &
+         aaa = (qv(i,k)-qv_old(i,k))*i_dt - dqsdT*(-dum*g*i_cp)-(qvs(i,k)-dumqvi)*     &
                (1.+xxls(i,k)*i_cp*dqsdT)*i_abi*epsi_tot
        !else
        !  if (t(i,k).lt.273.15) then
@@ -3635,7 +3634,6 @@ call cpu_time(timer_start(3))
 
        ! if (log_LiquidFrac) then
 
-              ! Sublimation/deposition of ice
               if (qitot(i,k,iice).ge.qsmall) then
                  if (qiliq(i,k,iice)/qitot(i,k,iice).lt.0.01) then
                  !note: diffusional growth/decay rate: (stored as 'qidep' temporarily; may go to qisub below)
@@ -11850,7 +11848,7 @@ else
 
  !--------------------------------------------------------------------------
  ! Solves for mu_i from qitot, nitot, and zitot.
- ! Also returns values of dum6 and dumzz which are later used.  
+ ! Also returns values of dum6 and dumzz which are later used.
  ! - added April 2025
  !--------------------------------------------------------------------------
 
