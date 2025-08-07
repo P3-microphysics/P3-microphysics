@@ -1175,14 +1175,14 @@
 
                                diag3d_01     = p3a(1,1,28),                  &
                                diag3d_02     = p3a(1,1,29),                  &
-                               diag3d_03     = p3a(1,1,30) )
-!                               diag3d_04     = p3a(1,1,31),                  &
-!                               diag3d_05     = p3a(1,1,32),                  &
-!                               diag3d_06     = p3a(1,1,33),                  &
-!                               diag3d_07     = p3a(1,1,34),                  &
-!                               diag3d_08     = p3a(1,1,35),                  &
-!                               diag3d_09     = p3a(1,1,36),                  &
-!                               diag3d_10     = p3a(1,1,37) )
+                               diag3d_03     = p3a(1,1,30),                  &
+                               diag3d_04     = p3a(1,1,31),                  &
+                               diag3d_05     = p3a(1,1,32),                  &
+                               diag3d_06     = p3a(1,1,33),                  &
+                               diag3d_07     = p3a(1,1,34),                  &
+                               diag3d_08     = p3a(1,1,35),                  &
+                               diag3d_09     = p3a(1,1,36),                  &
+                               diag3d_10     = p3a(1,1,37) )
 
                do k=1,nk
                do i=1,ni
@@ -1267,14 +1267,14 @@
 
                                diag3d_01     = p3a(1,1,29),                  &
                                diag3d_02     = p3a(1,1,30),                  &
-                               diag3d_03     = p3a(1,1,31) )
-!                               diag3d_04     = p3a(1,1,32),                  &
-!                               diag3d_05     = p3a(1,1,33),                  &
-!                               diag3d_06     = p3a(1,1,34),                  &
-!                               diag3d_07     = p3a(1,1,35),                  &
-!                               diag3d_08     = p3a(1,1,36),                  &
-!                               diag3d_09     = p3a(1,1,37),                  &
-!                               diag3d_10     = p3a(1,1,38) )
+                               diag3d_03     = p3a(1,1,31),                  &
+                               diag3d_04     = p3a(1,1,32),                  &
+                               diag3d_05     = p3a(1,1,33),                  &
+                               diag3d_06     = p3a(1,1,34),                  &
+                               diag3d_07     = p3a(1,1,35),                  &
+                               diag3d_08     = p3a(1,1,36),                  &
+                               diag3d_09     = p3a(1,1,37),                  &
+                               diag3d_10     = p3a(1,1,38) )
 
                do k=1,nk
                do i=1,ni
@@ -1294,13 +1294,13 @@
                   out3d(i,j,k,1) = p3a(i,k,29)
                   out3d(i,j,k,2) = p3a(i,k,30)
                   out3d(i,j,k,3) = p3a(i,k,31)
-!                  out3d(i,j,k,4) = p3a(i,k,32)
-!                  out3d(i,j,k,5) = p3a(i,k,33)
-!                  out3d(i,j,k,6) = p3a(i,k,34)
-!                  out3d(i,j,k,7) = p3a(i,k,35)
-!                  out3d(i,j,k,8) = p3a(i,k,36)
-!                  out3d(i,j,k,9) = p3a(i,k,37)
-!                  out3d(i,j,k,10) = p3a(i,k,38)
+                  out3d(i,j,k,4) = p3a(i,k,32)
+                  out3d(i,j,k,5) = p3a(i,k,33)
+                  out3d(i,j,k,6) = p3a(i,k,34)
+                  out3d(i,j,k,7) = p3a(i,k,35)
+                  out3d(i,j,k,8) = p3a(i,k,36)
+                  out3d(i,j,k,9) = p3a(i,k,37)
+                  out3d(i,j,k,10) = p3a(i,k,38)
                enddo
                enddo
 
