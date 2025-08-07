@@ -1,0 +1,18 @@
+To run with the default input file (../out_p3.dat), output file (fig.png), figure title ('TITLE'), and 1-ice-category
+execute:
+
+$ python3 plot_kin1d.py 
+
+ 
+To specify one of more of these, execute:
+
+$ python3 plot_kin1d.py -i [my_input_file] -f my_fig_name.png -t 'my awesome title' -n [# ice categories]
+
+If you forget, get help with:
+
+$ python3 plot_1col.py -h
+
+If -n is not specified, the default value is 1, so only the first ice category will be plotted, even if kin1d
+was run with multiple categories (i.e. nCat > 1).
+ 
+

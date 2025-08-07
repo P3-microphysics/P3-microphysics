@@ -399,7 +399,7 @@
 !    variables "out1", "out2", "out3", ... etc.
 
 !     nout3d =   3
-      nout3d =   19
+      nout3d =   10
 
 !----------------------------------------------------------------------
 !  For arbitrary 2d output array:  

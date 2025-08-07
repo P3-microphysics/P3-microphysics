@@ -1383,8 +1383,8 @@
 
 !---- shift forcing location (JM):
 !OKL case:
-xc_wnudge =  xc_wnudge - 40000.
-yc_wnudge =  yc_wnudge - 20000.
+!xc_wnudge =  xc_wnudge + 20000.
+!yc_wnudge =  yc_wnudge + 20000.
 
 !CLG case:
 ! xc_wnudge =  xc_wnudge + 50000.
