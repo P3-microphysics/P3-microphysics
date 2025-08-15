@@ -6,15 +6,15 @@
 rootdir="."
 
 # Update accordingly (used for plot titles)
-p3_version='v5.4.3 + optimization'
+p3_version='v5.4.7'
 
 # Compile kin1D
 make clean
 make execld
 
 rm -rf ${rootdir}/kin1d_tests/results-previous_commit
-mv ${rootdir}/kin1d_tests/results ${rootdir}/kin1d_tests/results-previous_commit
-mkdir -p ${rootdir}/kin1d_tests/results
+mv ${rootdir}/kin1d_tests/results-last_commit ${rootdir}/kin1d_tests/results-previous_commit
+mkdir -p ${rootdir}/kin1d_tests/results-last_commit
 
 # Loop through all p3_config-*.txt files
 for config in p3_config-*.txt; do
@@ -33,9 +33,9 @@ for config in p3_config-*.txt; do
     python plot_kin1d.py -i out_p3.dat -t "${p3_version}, config: ${id}" -n ${ncat}
 
     # Rename the output files to include the configuration identifier
-    mv out_p3.dat "${rootdir}/kin1d_tests/results/out_p3_${id}.dat"
-    mv timing.txt "${rootdir}/kin1d_tests/results/timing_${id}.txt"
-    mv fig.png    "${rootdir}/kin1d_tests/results/fig_${id}.png"
+    mv out_p3.dat "${rootdir}/kin1d_tests/results-last_commit//out_p3_${id}.dat"
+    mv timing.txt "${rootdir}/kin1d_tests/results-last_commit/timing_${id}.txt"
+    mv fig.png    "${rootdir}/kin1d_tests/results-last_commit/fig_${id}.png"
 
     echo
     echo "Completed configuration $id"
@@ -43,6 +43,6 @@ for config in p3_config-*.txt; do
     echo
 done
 
-cp microphy_p3.f90 cld1d.f90 plot_kin1d.py ${rootdir}/kin1d_tests/results
+cp microphy_p3.f90 cld1d.f90 plot_kin1d.py ${rootdir}/kin1d_tests/results-last_commit
 
 echo "All configurations completed!"

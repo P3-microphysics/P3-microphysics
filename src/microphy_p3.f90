@@ -27,7 +27,7 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.4.6                                                                     !
+! Version:       5.4.7                                                                     !
 ! Last updated:  2025 Aug                                                                  !
 !__________________________________________________________________________________________!
 
@@ -2307,8 +2307,8 @@ END subroutine p3_init
 #ifdef TIMING_P3
  timer_start = 0.
  timer_end   = 0.
- if present(timer)) timer       = 0.
- if present(timer_description)) timer_description = ''
+ if (present(timer)) timer = 0.
+ if (present(timer_description)) timer_description = ''
 #endif
 
 #ifdef TIMING_P3
@@ -3065,7 +3065,7 @@ call cpu_time(timer_start(3))
                       call args_for_LUT(args_r,args_i,dum1c,dum4c,dum5c,dum7c,dum1,      &
                                     dum4,dum5,dum7,dumjjc,dumiic,dumic,dumjj,dumii,dumi)
                       f1pr17 = proc_from_LUT_ii(1,args_r,args_i)
-!                       f1pr18 = proc_from_LUT_ii(2,args_r,args_i)
+                      f1pr18 = proc_from_LUT_ii(2,args_r,args_i)
 
                       nicol(iice,catcoll) = f1pr17*rhofaci(i,k)*rho(i,k)*                &
                                             nitot(i,k,iice)*nitot(i,k,catcoll)*iSCF(k)
@@ -3655,10 +3655,13 @@ call cpu_time(timer_start(3))
                  endif
               endif
 
-              !for very small ice contents in dry air, sublimate all ice instantly
-              if (supi_cld.lt.-0.001 .and. qitot(i,k,iice).lt.1.e-12 .and.               &
-               qitot(i,k,iice).ge.qsmall.and.(qiliq(i,k,iice)/qitot(i,k,iice)).lt.0.01)  &
-               qidep(iice) = -(qitot(i,k,iice)-qiliq(i,k,iice))*i_dt
+            !for very small ice contents in dry air, sublimate all ice instantly
+              if (qitot(i,k,iice).ge.qsmall) then
+                 if (supi_cld.lt.-0.001 .and. qitot(i,k,iice).lt.1.e-12 .and.            &
+                   (qiliq(i,k,iice)/qitot(i,k,iice)).lt.0.01) then
+                     qidep(iice) = -(qitot(i,k,iice)-qiliq(i,k,iice))*i_dt
+                 endif
+              endif
 
               !note: 'clbfact_dep' and 'clbfact_sub' calibration factors for ice deposition and sublimation
               !   These are adjustable ad hoc factors used to increase or decrease deposition and/or
@@ -3684,14 +3687,15 @@ call cpu_time(timer_start(3))
                  endif
               endif
 
-              if (qitot(i,k,iice).ge.qsmall .and.                                        &
-                 (qiliq(i,k,iice)/qitot(i,k,iice)).ge.0.01) then
+              if (qitot(i,k,iice).ge.qsmall) then
+                 if ((qiliq(i,k,iice)/qitot(i,k,iice)).ge.0.01) then
               ! Condensation/evaporation fo qiliq
 !Note (BUG) Cholette (Jul 2022), remove *SCF(k) for ssat_cld and multiplication *CF for grid-mean qccon
 !                 qlcon(iice) = ((aaa*epsiw(iice)*i_xx+(ssat_cld-aaa*i_xx)*i_dt*epsiw(iice)*i_xx* &
 !                               (1.-dexp(-dble(xx*dt))))/ab)*SCF(k)
-                 qlcon(iice) = (aaa*epsiw(iice)*i_xx+(ssat_cld*SCF(k)-aaa*i_xx)*i_dt*    &
-                                epsiw(iice)*i_xx*(1.-dexp(-dble(xx*dt))))/ab
+                    qlcon(iice) = (aaa*epsiw(iice)*i_xx+(ssat_cld*SCF(k)-aaa*i_xx)*i_dt* &
+                                   epsiw(iice)*i_xx*(1.-dexp(-dble(xx*dt))))/ab
+                 endif
               endif
 
               if (sup_cld.lt.-0.001 .and. qitot(i,k,iice).lt.1.e-12 .and.                 &
@@ -4311,10 +4315,12 @@ call cpu_time(timer_start(3))
 
           if (log_LiquidFrac) qiliq(i,k,iice) = max(qiliq(i,k,iice),0.)
 
-          if (log_LiquidFrac .and. qitot(i,k,iice).ge.qsmall .and. (qiliq(i,k,iice)/qitot(i,k,iice)).le.0.01) then
-             qr(i,k) = qr(i,k)+qiliq(i,k,iice)
-             qitot(i,k,iice) = qitot(i,k,iice) - qiliq(i,k,iice)
-             qiliq(i,k,iice) = 0.
+          if (qitot(i,k,iice).ge.qsmall) then
+             if (log_LiquidFrac .and. (qiliq(i,k,iice)/qitot(i,k,iice)).le.0.01) then
+                qr(i,k) = qr(i,k)+qiliq(i,k,iice)
+                qitot(i,k,iice) = qitot(i,k,iice) - qiliq(i,k,iice)
+                qiliq(i,k,iice) = 0.
+             endif
           endif
 
           ! densify ice during wet growth (assume total soaking)
@@ -4364,7 +4370,8 @@ call cpu_time(timer_start(3))
        ! clipping for Filiq > 0.99 (transfer unmelted ice to rain)
        if (log_LiquidFrac) then
          do iice = 1,nCat
-            if (qitot(i,k,iice).ge.qsmall .and. (qiliq(i,k,iice)/qitot(i,k,iice)).gt.0.99) then
+            if (qitot(i,k,iice).ge.qsmall) then
+               if (qiliq(i,k,iice)/qitot(i,k,iice).gt.0.99) then
                   qr(i,k) = qr(i,k) + qitot(i,k,iice)
                   nr(i,k) = nr(i,k) + nitot(i,k,iice)
                   th(i,k) = th(i,k) - i_exn(i,k)*(qitot(i,k,iice)-qiliq(i,k,iice))*     &
@@ -4374,6 +4381,7 @@ call cpu_time(timer_start(3))
                   qirim(i,k,iice) = 0.
                   qiliq(i,k,iice) = 0.
                   birim(i,k,iice) = 0.
+               endif
             endif
           enddo !iice-loop
         endif
