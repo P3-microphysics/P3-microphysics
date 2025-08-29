@@ -2735,7 +2735,7 @@ call cpu_time(timer_start(3))
        endif
 
        call get_cloud_dsd2(qc(i,k),nc(i,k),mu_c(i,k),rho(i,k),nu(i,k),dnu,lamc(i,k),     &
-                           lammin,lammax,cdist(i,k),cdist1(i,k),iSCF(k))
+                           cdist(i,k),cdist1(i,k),iSCF(k))
 
 
        call get_rain_dsd2(qr(i,k),nr(i,k),mu_r(i,k),lamr(i,k),cdistr(i,k),logn0r(i,k),   &
@@ -4648,7 +4648,7 @@ call cpu_time(timer_start(6))
 
              if (qc(i,k)*iSCF(k).ge.qsmall) then
                 call get_cloud_dsd2(qc(i,k),nc(i,k),mu_c(i,k),rho(i,k),nu(i,k),dnu,   &
-                                lamc(i,k),lammin,lammax,tmp1,tmp2,iSCF(k))
+                                lamc(i,k),tmp1,tmp2,iSCF(k))
                 dum = 1./lamc(i,k)**bcn
                 V_qc(k) = acn(i,k)*gamma(4.+bcn+mu_c(i,k))*dum/(gamma(mu_c(i,k)+4.))
                 V_nc(k) = acn(i,k)*gamma(1.+bcn+mu_c(i,k))*dum/(gamma(mu_c(i,k)+1.))
@@ -4829,25 +4829,25 @@ call cpu_time(timer_start(6))
        call sedimentation_ice_TT(qitot(i,:,:),qirim(i,:,:),qiliq(i,:,:),nitot(i,:,:),    &
                               birim(i,:,:),zitot(i,:,:),prt_sol(i),prt_soli(i,:),        &
                               rho(i,:),i_rho(i,:),rhofaci(i,:),i_dzq,nk,nCat,ktop,kbot,  &
-                              kdir,qsmall,dt,i_dt)
+                              kdir,dt)
 
     elseif (log_3momentIce .and. .not. log_LiquidFrac) then
 
        call sedimentation_ice_TF(qitot(i,:,:),qirim(i,:,:),nitot(i,:,:),birim(i,:,:),    &
                               zitot(i,:,:),prt_sol(i),prt_soli(i,:),rho(i,:),i_rho(i,:), &
-                              rhofaci(i,:),i_dzq,nk,nCat,ktop,kbot,kdir,qsmall,dt,i_dt)
+                              rhofaci(i,:),i_dzq,nk,nCat,ktop,kbot,kdir,dt)
 
     elseif (.not. log_3momentIce .and. log_LiquidFrac) then
 
        call sedimentation_ice_FT(qitot(i,:,:),qirim(i,:,:),qiliq(i,:,:),nitot(i,:,:),    &
                               birim(i,:,:),prt_sol(i),prt_soli(i,:),rho(i,:),i_rho(i,:), &
-                              rhofaci(i,:),i_dzq,nk,nCat,ktop,kbot,kdir,qsmall,dt,i_dt)
+                              rhofaci(i,:),i_dzq,nk,nCat,ktop,kbot,kdir,dt)
 
     elseif (.not. log_3momentIce .and. .not. log_LiquidFrac) then
 
        call sedimentation_ice_FF(qitot(i,:,:),qirim(i,:,:),nitot(i,:,:),birim(i,:,:),    &
                               prt_sol(i),prt_soli(i,:),rho(i,:),i_rho(i,:),rhofaci(i,:), &
-                              i_dzq,nk,nCat,ktop,kbot,kdir,qsmall,dt,i_dt)
+                              i_dzq,nk,nCat,ktop,kbot,kdir,dt)
 
     endif
 
@@ -4951,7 +4951,7 @@ call cpu_time(timer_end(6))
           if (log_3momentIce .and. N_nuc.ge.nsmall) then
              tmp1 = Q_nuc*6./(900.*pi)  !estimate of moment_3 tendency
              call get_cloud_dsd2(qc(i,k),nc(i,k),mu_c(i,k),rho(i,k),nu(i,k),dnu,         &
-                                 lamc(i,k),lammin,lammax,cdist(i,k),cdist1(i,k),iSCF(k))
+                                 lamc(i,k),cdist(i,k),cdist1(i,k),iSCF(k))
              mu_i_new = mu_c(i,k)
              zitot(i,k,iice_dest) = zitot(i,k,iice_dest) + G_of_mu(mu_i_new)*tmp1**2/    &
                                     N_nuc
@@ -5126,7 +5126,7 @@ call cpu_time(timer_end(6))
     ! cloud:
        if (qc(i,k)*iSCF(k).ge.qsmall) then
           call get_cloud_dsd2(qc(i,k),nc(i,k),mu_c(i,k),rho(i,k),nu(i,k),dnu,lamc(i,k),  &
-                              lammin,lammax,tmp1,tmp2, iSCF(k))
+                              tmp1,tmp2, iSCF(k))
           diag_effc(i,k) = 0.5*(mu_c(i,k)+3.)/lamc(i,k)
        else
           qv(i,k) = qv(i,k)+qc(i,k)
@@ -10766,7 +10766,7 @@ else
 
 
 !===========================================================================================
- subroutine get_cloud_dsd2(qc_grd,nc_grd,mu_c,rho,nu,dnu,lamc,lammin,lammax,cdist,cdist1,iSCF)
+ subroutine get_cloud_dsd2(qc_grd,nc_grd,mu_c,rho,nu,dnu,lamc,cdist,cdist1,iSCF)
 
 !Note (BUG) need to be updated because problem when qc<qsmall but qc*iSCF>=qsmall
 ! This will change the solution
@@ -11828,7 +11828,7 @@ else
  end subroutine calculate_mu_change
 
 !======================================================================================!
- subroutine find_top(k_qxtop,log_qxpresent,qx,qsmall,ktop,kbot,kdir)
+ subroutine find_top(k_qxtop,log_qxpresent,qx,ktop,kbot,kdir)
 
  !---------------------------------------------------------------------------
  ! Find highest level with non-tiny qx (top of "cloud" of given hydrometeor);
@@ -11839,7 +11839,6 @@ else
  integer, intent(out) :: k_qxtop
  logical, intent(out) :: log_qxpresent
  integer, intent(in)  :: ktop,kbot,kdir
- real,    intent(in)  :: qsmall
  real,    intent(in), dimension(:) :: qx
  ! local:
  integer :: k
@@ -11855,7 +11854,7 @@ else
  end subroutine find_top
 
 !======================================================================================!
- integer function k_bottom(qx,qsmall,k_qxtop,kbot,kdir)
+ integer function k_bottom(qx,k_qxtop,kbot,kdir)
 
  !--------------------------------------------------------------------------------------
  ! Find and return lowest level (bottom of "cloud"of given hydrometeor) with non-tiny qx
@@ -11863,7 +11862,6 @@ else
 
  ! arguments:
  integer, intent(in) :: k_qxtop,kbot,kdir
- real,    intent(in) :: qsmall
  real,    intent(in), dimension(:) :: qx
  ! local:
  integer :: k
@@ -11878,14 +11876,158 @@ else
  end function k_bottom
 
 !======================================================================================!
- subroutine sedimentation_liquid
+!   subroutine sedimentation_liquid(qx,nx,liq_type,iSxF,prt_liq,rho,i_rho,rhofacr,acn,i_dz,dt,nk,dnu,ktop,kbot,kdir)
+!
+!  !----------------------------------------------------------------------
+!  ! Perform full sedimentation step for mass and number of cloud or rain
+!  !----------------------------------------------------------------------
+!
+! !arguments:
+!  real, intent(inout), dimension(nk) :: qx,nx
+!  real, intent(inout) :: prt_liq     ! liquid precipitation rate (cloud + rain)
+!  real, intent(in)    :: dt
+!  real, intent(in), dimension(nk)      :: rho,i_rho,rhofacr,i_dz,iSxF,acn
+!  real, intent(in), dimension(:) :: dnu
+!  integer, intent(in) :: liq_type,nk,ktop,kbot,kdir
+!
+! !local variables:
+!  real, dimension(nk) :: V_qx,V_nx,flux_qx,flux_nx
+!  real    :: dt_left,dt_sub,prt_accum,Co_max,mu_c,dum,lamc,mu_r,lamr,rdumii,rdumjj,dum1,dum2,dum3,i_dum3
+!  integer :: k,k_qxtop,k_qxbot,k_temp,tmpint1,dumii,dumjj
+!  logical :: log_qxpresent
+!
+!  log_qxpresent = .false.
+!  k_qxtop       = kbot
+!
+! !     !find top, determine qxpresent
+! !     do k = ktop,kbot,-kdir
+! !        if (qr(i,k)*iSPF(k).ge.qsmall) then
+! !           log_qxpresent = .true.
+! !           k_qxtop = k
+! !           exit
+! !        endif !
+! !     enddo
+!  call find_top(k_qxtop,log_qxpresent,qx(:)*iSxF(:),ktop,kbot,kdir)
+!
+!  qx_present: if (log_qxpresent) then
+!
+!     dt_left   = dt  !time remaining for sedi over full model (mp) time step
+!     prt_accum = 0.  !precip rate for individual category
+!
+! !       !find bottom
+! !        do k = kbot,k_qxtop,kdir
+! !           if (qr(i,k)*iSPF(k).ge.qsmall) then
+! !              k_qxbot = k
+! !              exit
+! !           endif
+! !        enddo
+!     k_qxbot = k_bottom(qx(:)*iSxF(:),ktop,kbot,kdir)   ! FOR RAIN
+!
+!     substep_sedi_r: do while (dt_left.gt.1.e-4)
+!
+!        Co_max  = 0.
+!        V_qx(:) = 0.
+!        V_nx(:) = 0.
+!
+!
+!        if (liq_type == 1) then  !CLOUD:
+!           kloop_sedi_c2: do k = k_qxtop,k_qxbot,-kdir
+!
+!              if (qx(k)*iSxF(k).ge.qsmall) then
+!                 call get_cloud_dsd2(qx(k),nx(k),mu_c,rho(k),dum,dnu,lamc,dum,dum,iSxF(k))
+!                 dum = 1./lamc**bcn
+!                 V_qx(k) = acn(k)*gamma(4.+bcn+mu_c)*dum/(gamma(mu_c+4.))
+!                 V_nx(k) = acn(k)*gamma(1.+bcn+mu_c)*dum/(gamma(mu_c+1.))
+!              endif
+!              Co_max = max(Co_max, V_qx(k)*dt_left*i_dz(k))
+!
+!           enddo kloop_sedi_c2
+!        endif  !liq_type
+!
+!
+!        if (liq_type == 2) then  !RAIN:
+!        kloop_sedi_r1: do k = k_qxtop,k_qxbot,-kdir
+!
+!           qr_not_small_1: if (qx(k)*iSxF(k).ge.qsmall) then
+!
+!              nx(k)  = max(nx(k),nsmall)
+! !              call get_rain_dsd2(qx(k),nx(k),mu_r(k),lamr,cdistr(i,k),      &
+! !                                 logn0r(i,k),iSPF(k))
+!              call get_rain_dsd2(qx(k),nx(k),mu_r,lamr,dum,dum,iSxF(k))
+!              call find_lookupTable_indices_3(dumii,dumjj,dum1,rdumii,rdumjj,i_dum3,mu_r,lamr)
+!              !mass-weighted fall speed:
+!              dum1 = vm_table(dumii,dumjj)+(rdumii-real(dumii))*                       &
+!                     (vm_table(dumii+1,dumjj)-vm_table(dumii,dumjj))         !at mu_r
+!              dum2 = vm_table(dumii,dumjj+1)+(rdumii-real(dumii))*                     &
+!                     (vm_table(dumii+1,dumjj+1)-vm_table(dumii,dumjj+1))   !at mu_r+1
+!              V_qx(k) = dum1 + (rdumjj-real(dumjj))*(dum2-dum1)         !interpolated
+!              V_qx(k) = V_qx(k)*rhofacr(k)                  !corrected for air density
+!               ! number-weighted fall speed:
+!              dum1 = vn_table(dumii,dumjj)+(rdumii-real(dumii))*                       &
+!                     (vn_table(dumii+1,dumjj)-vn_table(dumii,dumjj))        !at mu_r
+!              dum2 = vn_table(dumii,dumjj+1)+(rdumii-real(dumii))*                     &
+!                     (vn_table(dumii+1,dumjj+1)-vn_table(dumii,dumjj+1))    !at mu_r+1
+!              V_nx(k) = dum1+(rdumjj-real(dumjj))*(dum2-dum1)            !interpolated
+!              V_nx(k) = V_nx(k)*rhofacr(k)                !corrected for air density
+!
+!           endif qr_not_small_1
+!
+!           Co_max = max(Co_max, V_qx(k)*dt_left*i_dz(k))
+!
+!        enddo kloop_sedi_r1
+!        endif  !liq_type
+!
+!
+!        !-- compute dt_sub
+!        tmpint1 = int(Co_max+1.)    !number of substeps remaining if dt_sub were constant
+!        dt_sub  = min(dt_left, dt_left/float(tmpint1))
+!
+!        if (k_qxbot.eq.kbot) then
+!           k_temp = k_qxbot
+!        else
+!           k_temp = k_qxbot-kdir
+!        endif
+!
+!        !-- calculate fluxes
+!        do k = k_temp,k_qxtop,kdir
+!           flux_qx(k) = V_qx(k)*qx(k)*rho(k)
+!           flux_nx(k) = V_nx(k)*nx(k)*rho(k)
+! !           mflux_r(i,k) = flux_qx(k)  !store mass flux for use in visibility diagnostic)
+!        enddo
+!
+!        !accumulated precip during time step
+!        if (k_qxbot.eq.kbot) prt_accum = prt_accum + flux_qx(kbot)*dt_sub
+!        !or, optimized: prt_accum = prt_accum - (k_qxbot.eq.kbot)*dt_sub
+!
+!        !-- update prognostic variables based on flux divergence:
+!
+!        k = k_qxtop   !for top level only (since flux is 0 above)
+! !        tmp1 = i_dz(k)*dt_sub*i_rho(k)
+!        qx(k) = qx(k) -flux_qx(k)*i_dz(k)*dt_sub*i_rho(k)
+!        nx(k) = nx(k) -flux_qx(k)*i_dz(k)*dt_sub*i_rho(k)
+!
+!        do k = k_qxtop-kdir,k_temp,-kdir
+! !           tmp1 = i_dz(k)*dt_sub*i_rho(k)
+!           qx(k) = qx(k) + (flux_qx(k+kdir) - flux_qx(k))*i_dz(k)*dt_sub*i_rho(k)
+!           nx(k) = nx(k) + (flux_nx(k+kdir) - flux_nx(k))*i_dz(k)*dt_sub*i_rho(k)
+!        enddo
+!
+!        dt_left = dt_left - dt_sub  !update time remaining for sedimentation
+!        if (k_qxbot.ne.kbot) k_qxbot = k_qxbot - kdir
+!        !or, optimzed: k_qxbot = k_qxbot +(k_qxbot.eq.kbot)*kdir
+!
+!     enddo substep_sedi_r
+!
+!     prt_liq = prt_liq + prt_accum*i_rhow/dt
+!
+!  endif qx_present
+!
+!  end subroutine sedimentation_liquid
 
-
- end subroutine sedimentation_liquid
 
 !======================================================================================!
  subroutine sedimentation_ice_TT(qit,qir,qil,nit,bir,zit,prt_sol,prt_soli,rho,i_rho,     &
-                                 rhofac,i_dz,nk,nCat,ktop,kbot,kdir,qsmall,dt,i_dt)
+                                 rhofac,i_dz,nk,nCat,ktop,kbot,kdir,dt)
 
  !--------------------------------------------------------------------------
  ! Performs full sedimentation step for all prognostic ice variables.
@@ -11904,7 +12046,7 @@ else
  real, intent(inout)                     :: prt_sol
  real, intent(inout), dimension(nCat)    :: prt_soli
  integer, intent(in)                     :: nk,nCat,ktop,kbot,kdir
- real,    intent(in)                     :: qsmall,dt,i_dt
+ real,    intent(in)                     :: dt
  real,    intent(in), dimension(nk)      :: rho,i_rho,rhofac,i_dz
 
 !local variables:
@@ -11923,13 +12065,13 @@ else
 
     log_qxpresent = .false.  !note: this applies to ice category 'iice' only
     k_qxtop       = kbot
-    call find_top(k_qxtop,log_qxpresent,qit(:,iice),qsmall,ktop,kbot,kdir)
+    call find_top(k_qxtop,log_qxpresent,qit(:,iice),ktop,kbot,kdir)
 
     qi_present: if (log_qxpresent) then
 
        dt_left   = dt  !time remaining for sedi over full model (mp) time step
        prt_accum = 0.  !precip rate for individual category
-       k_qxbot   = k_bottom(qit(:,iice),qsmall,ktop,kbot,kdir)
+       k_qxbot   = k_bottom(qit(:,iice),ktop,kbot,kdir)
 
        substep_sedi_i4: do while (dt_left.gt.1.e-4)
 
@@ -12038,8 +12180,9 @@ else
 
        enddo substep_sedi_i4
 
-       prt_sol = prt_sol + prt_accum*i_rhow*i_dt
-       prt_soli(iice) = prt_soli(iice) + prt_accum*i_rhow*i_dt
+       tmp1 = 1./dt
+       prt_sol = prt_sol + prt_accum*i_rhow*tmp1
+       prt_soli(iice) = prt_soli(iice) + prt_accum*i_rhow*tmp1
 
        endif qi_present
 
@@ -12049,7 +12192,7 @@ else
 
 !======================================================================================!
  subroutine sedimentation_ice_TF(qit,qir,nit,bir,zit,prt_sol,prt_soli,rho,i_rho,rhofac,  &
-                                 i_dz,nk,nCat,ktop,kbot,kdir,qsmall,dt,i_dt)
+                                 i_dz,nk,nCat,ktop,kbot,kdir,dt)
 
  !--------------------------------------------------------------------------
  ! Performs full sedimentation step for all prognostic ice variables.
@@ -12064,7 +12207,7 @@ else
  real, intent(inout) :: prt_sol
  real, intent(inout), dimension(nCat) :: prt_soli
  integer, intent(in) :: nk,nCat,ktop,kbot,kdir
- real,    intent(in) :: qsmall,dt,i_dt
+ real,    intent(in) :: dt
  real, intent(in), dimension(nk) :: rho,i_rho,rhofac,i_dz
 
 !local variables:
@@ -12083,13 +12226,13 @@ else
 
     log_qxpresent = .false.  !note: this applies to ice category 'iice' only
     k_qxtop       = kbot
-    call find_top(k_qxtop,log_qxpresent,qit(:,iice),qsmall,ktop,kbot,kdir)
+    call find_top(k_qxtop,log_qxpresent,qit(:,iice),ktop,kbot,kdir)
 
     qi_present: if (log_qxpresent) then
 
        dt_left   = dt  !time remaining for sedi over full model (mp) time step
        prt_accum = 0.  !precip rate for individual category
-       k_qxbot   = k_bottom(qit(:,iice),qsmall,ktop,kbot,kdir)
+       k_qxbot   = k_bottom(qit(:,iice),ktop,kbot,kdir)
 
        substep_sedi_i4: do while (dt_left.gt.1.e-4)
 
@@ -12199,8 +12342,9 @@ else
 
        enddo substep_sedi_i4
 
-       prt_sol = prt_sol + prt_accum*i_rhow*i_dt
-       prt_soli(iice) = prt_soli(iice) + prt_accum*i_rhow*i_dt
+       tmp1 = 1./dt
+       prt_sol = prt_sol + prt_accum*i_rhow*tmp1
+       prt_soli(iice) = prt_soli(iice) + prt_accum*i_rhow*tmp1
 
        endif qi_present
 
@@ -12210,7 +12354,7 @@ else
 
 !======================================================================================!
  subroutine sedimentation_ice_FT(qit,qir,qil,nit,bir,prt_sol,prt_soli,rho,i_rho,rhofac,  &
-                                 i_dz,nk,nCat,ktop,kbot,kdir,qsmall,dt,i_dt)
+                                 i_dz,nk,nCat,ktop,kbot,kdir,dt)
 
  !--------------------------------------------------------------------------
  ! Performs full sedimentation step for all prognostic ice variables.
@@ -12225,7 +12369,7 @@ else
  real, intent(inout)                     :: prt_sol
  real, intent(inout), dimension(nCat)    :: prt_soli
  integer, intent(in)                     :: nk,nCat,ktop,kbot,kdir
- real,    intent(in)                     :: qsmall,dt,i_dt
+ real,    intent(in)                     :: dt
  real, intent(in), dimension(nk)         :: rho,i_rho,rhofac,i_dz
 
 !local variables:
@@ -12242,13 +12386,13 @@ else
 
     log_qxpresent = .false.  !note: this applies to ice category 'iice' only
     k_qxtop       = kbot
-    call find_top(k_qxtop,log_qxpresent,qit(:,iice),qsmall,ktop,kbot,kdir)
+    call find_top(k_qxtop,log_qxpresent,qit(:,iice),ktop,kbot,kdir)
 
     qi_present: if (log_qxpresent) then
 
        dt_left   = dt  !time remaining for sedi over full model (mp) time step
        prt_accum = 0.  !precip rate for individual category
-       k_qxbot   = k_bottom(qit(:,iice),qsmall,ktop,kbot,kdir)
+       k_qxbot   = k_bottom(qit(:,iice),ktop,kbot,kdir)
 
        substep_sedi_i4: do while (dt_left.gt.1.e-4)
 
@@ -12340,8 +12484,9 @@ else
 
        enddo substep_sedi_i4
 
-       prt_sol = prt_sol + prt_accum*i_rhow*i_dt
-       prt_soli(iice) = prt_soli(iice) + prt_accum*i_rhow*i_dt
+       tmp1 = 1./dt
+       prt_sol = prt_sol + prt_accum*i_rhow*tmp1
+       prt_soli(iice) = prt_soli(iice) + prt_accum*i_rhow*tmp1
 
        endif qi_present
 
@@ -12351,7 +12496,7 @@ else
 
 !======================================================================================!
  subroutine sedimentation_ice_FF(qit,qir,nit,bir,prt_sol,prt_soli,rho,i_rho,rhofac,      &
-                                 i_dz,nk,nCat,ktop,kbot,kdir,qsmall,dt,i_dt)
+                                 i_dz,nk,nCat,ktop,kbot,kdir,dt)
 
  !--------------------------------------------------------------------------
  ! Performs full sedimentation step for all prognostic ice variables.
@@ -12366,7 +12511,7 @@ else
  real, intent(inout) :: prt_sol
  real, intent(inout), dimension(nCat) :: prt_soli
  integer, intent(in) :: nk,nCat,ktop,kbot,kdir
- real,    intent(in) :: qsmall,dt,i_dt
+ real,    intent(in) :: dt
  real, intent(in), dimension(nk) :: rho,i_rho,rhofac,i_dz
 
 !local variables:
@@ -12383,13 +12528,13 @@ else
 
     log_qxpresent = .false.  !note: this applies to ice category 'iice' only
     k_qxtop       = kbot
-    call find_top(k_qxtop,log_qxpresent,qit(:,iice),qsmall,ktop,kbot,kdir)
+    call find_top(k_qxtop,log_qxpresent,qit(:,iice),ktop,kbot,kdir)
 
     qi_present: if (log_qxpresent) then
 
        dt_left   = dt  !time remaining for sedi over full model (mp) time step
        prt_accum = 0.  !precip rate for individual category
-       k_qxbot   = k_bottom(qit(:,iice),qsmall,ktop,kbot,kdir)
+       k_qxbot   = k_bottom(qit(:,iice),ktop,kbot,kdir)
 
        substep_sedi_i4: do while (dt_left.gt.1.e-4)
 
@@ -12476,8 +12621,9 @@ else
 
        enddo substep_sedi_i4
 
-       prt_sol = prt_sol + prt_accum*i_rhow*i_dt
-       prt_soli(iice) = prt_soli(iice) + prt_accum*i_rhow*i_dt
+       tmp1 = 1./dt
+       prt_sol = prt_sol + prt_accum*i_rhow*tmp1
+       prt_soli(iice) = prt_soli(iice) + prt_accum*i_rhow*tmp1
 
        endif qi_present
 
