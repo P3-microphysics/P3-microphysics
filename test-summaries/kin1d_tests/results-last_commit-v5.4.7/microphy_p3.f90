@@ -16,7 +16,7 @@
 !   Jouan et al. (2020)           [W. Forecasting, 35, 2541-2565]  - cloud fraction        !
 !   Milbrandt et al. (2021)       [J. Atmos. Sci., 78, 439-458]    - triple-moment ice     !
 !   Cholette et al. (2023)        [J.A.M.E.S, 15(4), e2022MS003328 - trplMomIce + liqFrac  !
-!   Morrison et al. (2025         [J.A.M.E.S, 17, e2024MS004644    - full trplMomIce
+!   Morrison et al. (2025         [J.A.M.E.S, 17, e2024MS004644    - full trplMomIce       !
 !                                                                                          !
 ! For questions or bug reports, please contact:                                            !
 !    Hugh Morrison   (morrison@ucar.edu), or                                               !
@@ -27,8 +27,8 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.4.3 + optimization                                                      !
-! Last updated:  2025 May                                                                  !
+! Version:       5.4.7                                                                     !
+! Last updated:  2025 Aug                                                                  !
 !__________________________________________________________________________________________!
 
  MODULE microphy_p3
@@ -151,7 +151,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.4.3 + optimization'
+ character(len=1024), parameter :: version_p3                    = '5.4.6'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.9-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '6.9-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.2'
@@ -785,7 +785,8 @@ END subroutine p3_init
                 qit_2, qni_2, qir_2, qib_2, diag_vmi_2, diag_dmi_2, diag_rhoi_2, qzi_2, qli_2,  &
                 qit_3, qni_3, qir_3, qib_3, diag_vmi_3, diag_dmi_3, diag_rhoi_3, qzi_3, qli_3,  &
                 qit_4, qni_4, qir_4, qib_4, diag_vmi_4, diag_dmi_4, diag_rhoi_4, qzi_4, qli_4,  &
-                nc, diag2d_01, diag2d_02, diag3d_01, diag3d_02, diag3d_03, &
+                nc, diag2d_01, diag2d_02, diag3d_01, diag3d_02, diag3d_03,                      &
+                diag3d_04, diag3d_05, diag3d_06,diag3d_07, diag3d_08, diag3d_09,diag3d_10,      &
                 diag_dhmax_1, diag_dhmax_2, diag_dhmax_3, diag_dhmax_4 )
 
   !------------------------------------------------------------------------------------------!
@@ -881,6 +882,9 @@ END subroutine p3_init
    real, dimension(ims:ime, kms:kme, jms:jme), intent(out),   optional :: diag_vmi_4, diag_dmi_4, diag_rhoi_4
    real, dimension(ims:ime, jms:jme),          intent(out),   optional :: diag2d_01, diag2d_02
    real, dimension(ims:ime, kms:kme, jms:jme), intent(out),   optional :: diag3d_01, diag3d_02, diag3d_03
+   real, dimension(ims:ime, kms:kme, jms:jme), intent(out),   optional :: diag3d_04, diag3d_05, diag3d_06
+   real, dimension(ims:ime, kms:kme, jms:jme), intent(out),   optional :: diag3d_07, diag3d_08, diag3d_09
+   real, dimension(ims:ime, kms:kme, jms:jme), intent(out),   optional :: diag3d_10
 
    real, dimension(ims:ime, kms:kme, jms:jme), intent(out),   optional :: diag_dhmax_1, diag_dhmax_2, diag_dhmax_3, diag_dhmax_4
 
@@ -909,7 +913,7 @@ END subroutine p3_init
    integer                                     :: i,k,j
 
    integer, parameter                          :: n_diag2d = 2
-   integer, parameter                          :: n_diag3d = 3
+   integer, parameter                          :: n_diag3d = 10
    real, dimension(ims:ime, n_diag2d)          :: diag2d        ! user-defined diagnostic fields (2D)
    real, dimension(ims:ime, kms:kme, n_diag3d) :: diag3d        ! user-defined diagnostic fields (3D)
 
@@ -1106,6 +1110,13 @@ END subroutine p3_init
       if (present(diag3d_01))  diag3d_01(:,:,j)  = diag3d(:,:,1)
       if (present(diag3d_02))  diag3d_02(:,:,j)  = diag3d(:,:,2)
       if (present(diag3d_03))  diag3d_03(:,:,j)  = diag3d(:,:,3)
+      if (present(diag3d_04))  diag3d_04(:,:,j)  = diag3d(:,:,4)
+      if (present(diag3d_05))  diag3d_05(:,:,j)  = diag3d(:,:,5)
+      if (present(diag3d_06))  diag3d_06(:,:,j)  = diag3d(:,:,6)
+      if (present(diag3d_07))  diag3d_07(:,:,j)  = diag3d(:,:,7)
+      if (present(diag3d_08))  diag3d_08(:,:,j)  = diag3d(:,:,8)
+      if (present(diag3d_09))  diag3d_09(:,:,j)  = diag3d(:,:,9)
+      if (present(diag3d_10))  diag3d_10(:,:,j)  = diag3d(:,:,10)
 
    enddo j_loop
 
@@ -2293,10 +2304,12 @@ END subroutine p3_init
 !    !==
 !-----------------------------------------------------------------------------------!
 
- timer       = 0.
+#ifdef TIMING_P3
  timer_start = 0.
  timer_end   = 0.
- timer_description = ''
+ if (present(timer)) timer = 0.
+ if (present(timer_description)) timer_description = ''
+#endif
 
 #ifdef TIMING_P3
 timer_description(1) = 'full p3_main'
@@ -2520,7 +2533,7 @@ call cpu_time(timer_start(2))
           endif
 
           if (log_LiquidFrac .and. qitot(i,k,iice).ge.qsmall) then
-             if  (qiliq(i,k,iice)/qitot(i,k,iice).gt.0.99) then
+             if (qiliq(i,k,iice)/qitot(i,k,iice).gt.0.99) then
                 qr(i,k) = qr(i,k) + qitot(i,k,iice)
                 nr(i,k) = nr(i,k) + nitot(i,k,iice)
                 th(i,k) = th(i,k) - i_exn(i,k)*(qitot(i,k,iice)-qiliq(i,k,iice))*        &
@@ -2531,7 +2544,7 @@ call cpu_time(timer_start(2))
                 qiliq(i,k,iice) = 0.
                 birim(i,k,iice) = 0.
              endif
-          if (qiliq(i,k,iice)/qitot(i,k,iice).le.0.01) then
+             if (qiliq(i,k,iice)/qitot(i,k,iice).le.0.01) then
                 qr(i,k) = qr(i,k)+qiliq(i,k,iice)
                 qitot(i,k,iice) = qitot(i,k,iice) - qiliq(i,k,iice)
                 qiliq(i,k,iice) = 0.
@@ -2798,15 +2811,11 @@ call cpu_time(timer_start(3))
              !impose lower limits to prevent taking log of # < 0
                 zitot(i,k,iice) = max(zitot(i,k,iice),zsmall)
 
-                call solve_mui_lt3(mu_i,rholt3,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice), &
-                                   zitot(i,k,iice),dum1,dum4,dum5,dum7,dumjj,dumii,dumll,  &
+                call get_mui_rhoi(mu_i,f1pr16,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice), &
+                                   zitot(i,k,iice),dum1,dum4,dum5,dum7,dumjj,dumii,dumll, &
                                    dumi,zsize,zqsize)
 
-                f1pr16 = rholt3
-                !call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),          &
-                !           zitot(i,k,iice),dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi)
-
-                call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0.,       &
+                call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0.,        &
                                   dumzz,dumjj,dumii,dumll,dumi,0)
 
                 f1pr02 = proc_from_LUT_main3mom( 2,args_r,args_i)
@@ -2816,7 +2825,6 @@ call cpu_time(timer_start(3))
                 f1pr09 = proc_from_LUT_main3mom( 7,args_r,args_i)
                 f1pr10 = proc_from_LUT_main3mom( 8,args_r,args_i)
                 f1pr14 = proc_from_LUT_main3mom(10,args_r,args_i)
-                !f1pr16 = proc_from_LUT_main3mom(12,args_r,args_i)
 
                 if (log_full3mom) then
                    f1pr29 = proc_from_LUT_main3mom(21,args_r,args_i)
@@ -3057,7 +3065,7 @@ call cpu_time(timer_start(3))
                       call args_for_LUT(args_r,args_i,dum1c,dum4c,dum5c,dum7c,dum1,      &
                                     dum4,dum5,dum7,dumjjc,dumiic,dumic,dumjj,dumii,dumi)
                       f1pr17 = proc_from_LUT_ii(1,args_r,args_i)
-!                       f1pr18 = proc_from_LUT_ii(2,args_r,args_i)
+                      f1pr18 = proc_from_LUT_ii(2,args_r,args_i)
 
                       nicol(iice,catcoll) = f1pr17*rhofaci(i,k)*rho(i,k)*                &
                                             nitot(i,k,iice)*nitot(i,k,catcoll)*iSCF(k)
@@ -3647,10 +3655,13 @@ call cpu_time(timer_start(3))
                  endif
               endif
 
-              !for very small ice contents in dry air, sublimate all ice instantly
-              if (supi_cld.lt.-0.001 .and. qitot(i,k,iice).lt.1.e-12 .and.               &
-               qitot(i,k,iice).ge.qsmall.and.(qiliq(i,k,iice)/qitot(i,k,iice)).lt.0.01)  &
-               qidep(iice) = -(qitot(i,k,iice)-qiliq(i,k,iice))*i_dt
+            !for very small ice contents in dry air, sublimate all ice instantly
+              if (qitot(i,k,iice).ge.qsmall) then
+                 if (supi_cld.lt.-0.001 .and. qitot(i,k,iice).lt.1.e-12 .and.            &
+                   (qiliq(i,k,iice)/qitot(i,k,iice)).lt.0.01) then
+                     qidep(iice) = -(qitot(i,k,iice)-qiliq(i,k,iice))*i_dt
+                 endif
+              endif
 
               !note: 'clbfact_dep' and 'clbfact_sub' calibration factors for ice deposition and sublimation
               !   These are adjustable ad hoc factors used to increase or decrease deposition and/or
@@ -3676,14 +3687,15 @@ call cpu_time(timer_start(3))
                  endif
               endif
 
-              if (qitot(i,k,iice).ge.qsmall .and.                                        &
-                 (qiliq(i,k,iice)/qitot(i,k,iice)).ge.0.01) then
+              if (qitot(i,k,iice).ge.qsmall) then
+                 if ((qiliq(i,k,iice)/qitot(i,k,iice)).ge.0.01) then
               ! Condensation/evaporation fo qiliq
 !Note (BUG) Cholette (Jul 2022), remove *SCF(k) for ssat_cld and multiplication *CF for grid-mean qccon
 !                 qlcon(iice) = ((aaa*epsiw(iice)*i_xx+(ssat_cld-aaa*i_xx)*i_dt*epsiw(iice)*i_xx* &
 !                               (1.-dexp(-dble(xx*dt))))/ab)*SCF(k)
-                 qlcon(iice) = (aaa*epsiw(iice)*i_xx+(ssat_cld*SCF(k)-aaa*i_xx)*i_dt*    &
-                                epsiw(iice)*i_xx*(1.-dexp(-dble(xx*dt))))/ab
+                    qlcon(iice) = (aaa*epsiw(iice)*i_xx+(ssat_cld*SCF(k)-aaa*i_xx)*i_dt* &
+                                   epsiw(iice)*i_xx*(1.-dexp(-dble(xx*dt))))/ab
+                 endif
               endif
 
               if (sup_cld.lt.-0.001 .and. qitot(i,k,iice).lt.1.e-12 .and.                 &
@@ -4303,10 +4315,12 @@ call cpu_time(timer_start(3))
 
           if (log_LiquidFrac) qiliq(i,k,iice) = max(qiliq(i,k,iice),0.)
 
-          if (log_LiquidFrac .and. qitot(i,k,iice).ge.qsmall .and. (qiliq(i,k,iice)/qitot(i,k,iice)).le.0.01) then
-             qr(i,k) = qr(i,k)+qiliq(i,k,iice)
-             qitot(i,k,iice) = qitot(i,k,iice) - qiliq(i,k,iice)
-             qiliq(i,k,iice) = 0.
+          if (qitot(i,k,iice).ge.qsmall) then
+             if (log_LiquidFrac .and. (qiliq(i,k,iice)/qitot(i,k,iice)).le.0.01) then
+                qr(i,k) = qr(i,k)+qiliq(i,k,iice)
+                qitot(i,k,iice) = qitot(i,k,iice) - qiliq(i,k,iice)
+                qiliq(i,k,iice) = 0.
+             endif
           endif
 
           ! densify ice during wet growth (assume total soaking)
@@ -4356,7 +4370,8 @@ call cpu_time(timer_start(3))
        ! clipping for Filiq > 0.99 (transfer unmelted ice to rain)
        if (log_LiquidFrac) then
          do iice = 1,nCat
-            if (qitot(i,k,iice).ge.qsmall .and. (qiliq(i,k,iice)/qitot(i,k,iice)).gt.0.99) then
+            if (qitot(i,k,iice).ge.qsmall) then
+               if (qiliq(i,k,iice)/qitot(i,k,iice).gt.0.99) then
                   qr(i,k) = qr(i,k) + qitot(i,k,iice)
                   nr(i,k) = nr(i,k) + nitot(i,k,iice)
                   th(i,k) = th(i,k) - i_exn(i,k)*(qitot(i,k,iice)-qiliq(i,k,iice))*     &
@@ -4366,6 +4381,7 @@ call cpu_time(timer_start(3))
                   qirim(i,k,iice) = 0.
                   qiliq(i,k,iice) = 0.
                   birim(i,k,iice) = 0.
+               endif
             endif
           enddo !iice-loop
         endif
@@ -4453,7 +4469,7 @@ call cpu_time(timer_start(3))
                 dumzi_old = dumzi
                 do iana = 1,niter_mui
 
-                   call solve_mui_lt3(mu_i,rholt3,dum6,dumzz,dumqi,dumni,dumzi,dum1,     &
+                   call get_mui_rhoi(mu_i,rholt3,dum6,dumzz,dumqi,dumni,dumzi,dum1,      &
                                   dum4,dum5,dum7,dumjj,dumii,dumll,dumi,zsize,zqsize)
                    dum3 = 6./(rholt3*pi)*dumqi
 
@@ -4482,7 +4498,7 @@ call cpu_time(timer_start(3))
                                   dumzz,dumjj,dumii,dumll,dumi,0)
                 dumden = proc_from_LUT_main3mom(12,args_r,args_i)
 
-                dum3 =  6./(dumden*pi)*dumqi      !estimate of 3rd moment (new, after group 1 processes only)
+                dum3 = 6./(dumden*pi)*dumqi      !estimate of 3rd moment (new, after group 1 processes only)
                 zitot(i,k,iice) = G_of_mu(mu_i_s(iice))*dum3**2/dumni
                 zitot(i,k,iice) = max(zsmall,zitot(i,k,iice))
 !===
@@ -5065,14 +5081,9 @@ call cpu_time(timer_start(6))
                     !impose lower limits to prevent taking log of # < 0
                       zitot(i,k,iice) = max(zitot(i,k,iice),zsmall)
 
-                      call solve_mui_lt3(mu_i,rholt3,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice), &
-                                      zitot(i,k,iice),dum1,dum4,dum5,dum7,dumjj,dumii,    &
-                                      dumll,dumi,zsize,zqsize)
-                      f1pr16 = rholt3
-
-                      !call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),    &
-                      !               zitot(i,k,iice),dum1,dum4,dum5,dum7,dumjj,dumii,    &
-                      !               dumll,dumi)
+                      call get_mui_rhoi(mu_i,f1pr16,dum6,dumzz,qitot(i,k,iice),          &
+                                     nitot(i,k,iice),zitot(i,k,iice),dum1,dum4,dum5,     &
+                                     dum7,dumjj,dumii,dumll,dumi,zsize,zqsize)
 
                       call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0., &
                                         dumzz,dumjj,dumii,dumll,dumi,0)
@@ -5081,7 +5092,6 @@ call cpu_time(timer_start(6))
                       f1pr02 = proc_from_LUT_main3mom( 2,args_r,args_i)
                       f1pr09 = proc_from_LUT_main3mom( 7,args_r,args_i)
                       f1pr10 = proc_from_LUT_main3mom( 8,args_r,args_i)
-                      !f1pr16 = proc_from_LUT_main3mom(12,args_r,args_i)
                       f1pr19 = proc_from_LUT_main3mom(13,args_r,args_i)
 
                     !impose mean ice size bounds (i.e. apply lambda limiters)
@@ -5192,13 +5202,9 @@ call cpu_time(timer_start(6))
                     !impose lower limits to prevent taking log of # < 0
                       zitot(i,k,iice) = max(zitot(i,k,iice),zsmall)
 
-                      call solve_mui_lt3(mu_i,rholt3,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice), &
-                                      zitot(i,k,iice),dum1,dum4,dum5,dum7,dumjj,dumii,    &
-                                      dumll,dumi,zsize,zqsize)
-                      f1pr16 = rholt3
-
-                      !call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),    &
-                      !        zitot(i,k,iice),dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi)
+                      call get_mui_rhoi(mu_i,f1pr16,dum6,dumzz,qitot(i,k,iice),           &
+                                     nitot(i,k,iice),zitot(i,k,iice),dum1,dum4,dum5,dum7, &
+                                     dumjj,dumii,dumll,dumi,zsize,zqsize)
 
                       call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0., &
                                         dumzz,dumjj,dumii,dumll,dumi,0)
@@ -5207,7 +5213,6 @@ call cpu_time(timer_start(6))
                       f1pr02 = proc_from_LUT_main3mom( 2,args_r,args_i)
                       f1pr09 = proc_from_LUT_main3mom( 7,args_r,args_i)
                       f1pr10 = proc_from_LUT_main3mom( 8,args_r,args_i)
-                      !f1pr16 = proc_from_LUT_main3mom(12,args_r,args_i)
                       f1pr19 = proc_from_LUT_main3mom(13,args_r,args_i)
 
                     !impose mean ice size bounds (i.e. apply lambda limiters)
@@ -5371,16 +5376,9 @@ call cpu_time(timer_end(6))
                 else
                    zitot(i,k,iice) = max(zitot(i,k,iice),zsmall)
 
-                   call solve_mui_lt3(mu_i,rholt3,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice), &
-                                      zitot(i,k,iice),dum1,dum4,dum5,dum7,dumjj,dumii,    &
-                                      dumll,dumi,zsize,zqsize)
-                   f1pr16 = rholt3
-                   !call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),       &
-                   !        zitot(i,k,iice),dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi)
-
-                   !call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0.,    &
-                   !                  dumzz,dumjj,dumii,dumll,dumi,0)
-                   !f1pr16 = proc_from_LUT_main3mom(12,args_r,args_i)
+                   call get_mui_rhoi(mu_i,f1pr16,dum6,dumzz,qitot(i,k,iice),             &
+                                  nitot(i,k,iice),zitot(i,k,iice),dum1,dum4,dum5,dum7,   &
+                                  dumjj,dumii,dumll,dumi,zsize,zqsize)
                 endif
                 diam_ice(i,k,iice) = ((qitot(i,k,iice)*6.)/(nitot(i,k,iice)*f1pr16*      &
                                        pi))**thrd
@@ -5493,17 +5491,13 @@ call cpu_time(timer_end(6))
 
                    zitot(i,k,iice) = max(zitot(i,k,iice),zsmall)   ! to prevent taking log of # < 0
 
-                   call solve_mui_lt3(mu_i,rholt3,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice), &
-                                      zitot(i,k,iice),dum1,dum4,dum5,dum7,dumjj,dumii,    &
-                                      dumll,dumi,zsize,zqsize)
-                   f1pr16 = rholt3
-                   !call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),       &
-                   !           zitot(i,k,iice),dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi)
+                   call get_mui_rhoi(mu_i,f1pr16,dum6,dumzz,qitot(i,k,iice),             &
+                                  nitot(i,k,iice),zitot(i,k,iice),dum1,dum4,dum5,dum7,   &
+                                  dumjj,dumii,dumll,dumi,zsize,zqsize)
 
                    call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0.,    &
                                      dumzz,dumjj,dumii,dumll,dumi,0)
                    f1pr15 = proc_from_LUT_main3mom(11,args_r,args_i)
-                   !f1pr16 = proc_from_LUT_main3mom(12,args_r,args_i)
 
                    if (log_3momentIce) then
                       call apply_mui_bounds_to_zi(zitot(i,k,iice),qitot(i,k,iice),       &
@@ -5675,12 +5669,9 @@ call cpu_time(timer_end(6))
              !impose lower limits to prevent taking log of # < 0
                 zitot(i,k,iice) = max(zitot(i,k,iice),zsmall)
 
-                call solve_mui_lt3(mu_i,rholt3,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice), &
-                                      zitot(i,k,iice),dum1,dum4,dum5,dum7,dumjj,dumii,    &
-                                      dumll,dumi,zsize,zqsize)
-                f1pr16 = rholt3
-                !call solve_mui(mu_i,dum6,dumzz,qitot(i,k,iice),nitot(i,k,iice),          &
-                !           zitot(i,k,iice),dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi)
+                call get_mui_rhoi(mu_i,f1pr16,dum6,dumzz,qitot(i,k,iice),                &
+                               nitot(i,k,iice),zitot(i,k,iice),dum1,dum4,dum5,dum7,      &
+                               dumjj,dumii,dumll,dumi,zsize,zqsize)
 
                 call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0.,       &
                                   dumzz,dumjj,dumii,dumll,dumi,0)
@@ -5692,7 +5683,6 @@ call cpu_time(timer_end(6))
                 f1pr10 = proc_from_LUT_main3mom( 8,args_r,args_i)
                 f1pr13 = proc_from_LUT_main3mom( 9,args_r,args_i)
                 f1pr15 = proc_from_LUT_main3mom(11,args_r,args_i)
-                !f1pr16 = proc_from_LUT_main3mom(12,args_r,args_i)
                 if (log_typeDiags) then
                    f1pr22 = proc_from_LUT_main3mom(14,args_r,args_i)
                    f1pr23 = proc_from_LUT_main3mom(15,args_r,args_i)
@@ -11839,19 +11829,19 @@ else
  end function G_of_mu
 
 !======================================================================================!
- subroutine solve_mui_lt3(mu_i,rholt3,dum6,dumzz,Qi,Ni,Zi,dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi,zsize,zqsize)
+ subroutine get_mui_rhoi(mu_i,rholt3,dum6,dumzz,Qi,Ni,Zi,dum1,dum4,dum5,dum7,dumjj,      &
+                        dumii,dumll,dumi,zsize,zqsize)
 
  !--------------------------------------------------------------------------
- ! Solves for mu_i from qitot, nitot, and zitot.
+ ! Obtains mu_i and rho_i from qitot, nitot, and zitot.
  ! Also returns values of dum6 and dumzz which are later used.
- ! - added April 2025
  !--------------------------------------------------------------------------
 
 !arguments:
- real,    intent(in)  :: Qi,Ni,Zi,dum1,dum4,dum5,dum7
- integer, intent(in)  :: dumjj,dumii,dumll,dumi,zqsize,zsize
  real,    intent(out) :: mu_i,dum6,rholt3
  integer, intent(out) :: dumzz
+ real,    intent(in)  :: Qi,Ni,Zi,dum1,dum4,dum5,dum7
+ integer, intent(in)  :: dumjj,dumii,dumll,dumi,zqsize,zsize
 
 !local:
  integer             :: dumzq
@@ -11859,12 +11849,14 @@ else
 
  ! first find index for LT3 and interpolates in LT3 to get mu_i
  call find_lookupTable_indices_3a(dumzq,dum8,zqsize,Zi,Qi)
+
  mu_i   = proc_from_LUT_3(1,dumzq,dumjj,dumii,dumll,dumi,dum1,dum4,dum5,dum7,dum8)
  rholt3 = proc_from_LUT_3(2,dumzq,dumjj,dumii,dumll,dumi,dum1,dum4,dum5,dum7,dum8)
- ! then find dum6, dumzz from mu_i
+
+ !now find dum6, dumzz from mu_i
  call find_lookupTable_indices_1c(dumzz,dum6,zsize,mu_i)
 
- end subroutine solve_mui_lt3
+ end subroutine get_mui_rhoi
 
 !======================================================================================!
  subroutine solve_mui(mu_i,dum6,dumzz,Qi,Ni,Zi,dum1,dum4,dum5,dum7,dumjj,dumii,dumll,dumi)
@@ -12297,6 +12289,199 @@ else
       dmudt=(mu_new-mu_old)/dt
 
  end subroutine calculate_mu_change
+
+!======================================================================================!
+
+! Consolidated ice sedimentation subroutine to replace the four similar code blocks
+subroutine ice_sedimentation_substep(i, iice, k_qxtop, k_qxbot, kbot, kdir, dt_left, &
+                                   prt_accum, log_3momentIce, log_LiquidFrac,        &
+                                   qitot, qirim, qiliq, birim, nitot, zitot,         &
+                                   rho, rhofaci, i_dzq, i_rho, mflux_i)
+  implicit none
+  
+  ! Input/Output variables
+  integer, intent(in) :: i, iice, k_qxtop, kbot, kdir
+  integer, intent(inout) :: k_qxbot
+  real, intent(inout) :: dt_left, prt_accum
+  logical, intent(in) :: log_3momentIce, log_LiquidFrac
+  
+  ! Arrays - these should match the module's array declarations
+  real, dimension(:,:,:), intent(inout) :: qitot, qirim, qiliq, birim, nitot, zitot
+  real, dimension(:,:), intent(in) :: rho, rhofaci, i_dzq, i_rho
+  real, dimension(:,:), intent(out) :: mflux_i
+  
+  ! Local variables
+  real :: Co_max, dt_sub, tmpint1, tmp1, tmp2
+  real, dimension(:), allocatable :: V_qit, V_nit, V_zit
+  real, dimension(:), allocatable :: flux_qit, flux_nit, flux_qir, flux_qil, flux_bir, flux_zit
+  real :: fluxdiv_qit, fluxdiv_qir, fluxdiv_qil, fluxdiv_bir, fluxdiv_nit, fluxdiv_zit
+  real :: rhop, mu_i, f1pr01, f1pr02, f1pr09, f1pr10, f1pr16, f1pr19
+  real :: dum1, dum4, dum5, dum6, dum7
+  integer :: dumi, dumjj, dumii, dumll, dumzz, k, k_temp
+  integer :: isize, rimsize, liqsize, densize, zsize, zqsize
+  real, dimension(8) :: args_r
+  integer, dimension(6) :: args_i
+  
+  ! Allocate local arrays (assuming they match the module's dimensions)
+  allocate(V_qit(size(rho,2)), V_nit(size(rho,2)), V_zit(size(rho,2)))
+  allocate(flux_qit(size(rho,2)), flux_nit(size(rho,2)), flux_qir(size(rho,2)))
+  allocate(flux_qil(size(rho,2)), flux_bir(size(rho,2)), flux_zit(size(rho,2)))
+  
+  ! Main sedimentation substep loop
+  substep_sedi_ice: do while (dt_left.gt.1.e-4)
+    
+    Co_max = 0.
+    V_qit(:) = 0.
+    V_nit(:) = 0.
+    if (log_3momentIce) V_zit(:) = 0.
+    
+    ! Loop over vertical levels to compute fall speeds
+    kloop_sedi_ice: do k = k_qxtop,k_qxbot,-kdir
+      
+      ! Compute Vq, Vn (get values from lookup table)
+      qi_notsmall_ice: if (qitot(i,k,iice).ge.qsmall) then
+        
+        ! Compute Vq, Vn:
+        nitot(i,k,iice) = max(nitot(i,k,iice),nsmall) !impose lower limits to prevent log(<0)
+        call calc_bulkRhoRime(qitot(i,k,iice),qirim(i,k,iice),             &
+                              qiliq(i,k,iice),birim(i,k,iice),rhop)
+        
+        call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4, &
+             dum5,dum7,isize,rimsize,liqsize,densize,qitot(i,k,iice),      &
+             nitot(i,k,iice),qirim(i,k,iice),qiliq(i,k,iice),rhop)
+        
+        if (.not. log_3momentIce) then
+          ! Two-moment lookup table
+          call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum7,0.,0.,0.,0.,    &
+                            dumjj,dumii,dumll,dumi,0,0)
+          f1pr01 = proc_from_LUT_main2mom(1,args_r,args_i)
+          f1pr02 = proc_from_LUT_main2mom(2,args_r,args_i)
+          f1pr09 = proc_from_LUT_main2mom(7,args_r,args_i)
+          f1pr10 = proc_from_LUT_main2mom(8,args_r,args_i)
+        else
+          ! Three-moment lookup table
+          zitot(i,k,iice) = max(zitot(i,k,iice),zsmall)
+          
+          call get_mui_rhoi(mu_i,f1pr16,dum6,dumzz,qitot(i,k,iice),          &
+                         nitot(i,k,iice),zitot(i,k,iice),dum1,dum4,dum5,     &
+                         dum7,dumjj,dumii,dumll,dumi,zsize,zqsize)
+          
+          call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0., &
+                            dumzz,dumjj,dumii,dumll,dumi,0)
+          
+          f1pr01 = proc_from_LUT_main3mom( 1,args_r,args_i)
+          f1pr02 = proc_from_LUT_main3mom( 2,args_r,args_i)
+          f1pr09 = proc_from_LUT_main3mom( 7,args_r,args_i)
+          f1pr10 = proc_from_LUT_main3mom( 8,args_r,args_i)
+          f1pr19 = proc_from_LUT_main3mom(13,args_r,args_i)
+        endif
+        
+        ! Impose mean ice size bounds (i.e. apply lambda limiters)
+        nitot(i,k,iice) = min(nitot(i,k,iice),f1pr09*qitot(i,k,iice))
+        nitot(i,k,iice) = max(nitot(i,k,iice),f1pr10*qitot(i,k,iice))
+        
+        ! Apply zitot limits for three-moment case
+        if (log_3momentIce) then
+          if (log_LiquidFrac) then
+            ! Impose limiter on zitot to make sure mu_i is in bounds
+            tmp1 = 6./(f1pr16*pi)*qitot(i,k,iice)
+            tmp2 = tmp1**2/nitot(i,k,iice)
+            zitot(i,k,iice) = min(zitot(i,k,iice),G_of_mu( 0.)*tmp2)
+            zitot(i,k,iice) = max(zitot(i,k,iice),G_of_mu(20.)*tmp2)
+          else
+            ! Impose limiter on zitot to make sure mu_i is in bounds
+            call apply_mui_bounds_to_zi(zitot(i,k,iice),qitot(i,k,iice),       &
+                                        nitot(i,k,iice),f1pr16)
+          endif
+        endif
+        
+        ! Compute fall speeds
+        V_qit(k) = f1pr02*rhofaci(i,k)     !mass-weighted fall speed (with density factor)
+        V_nit(k) = f1pr01*rhofaci(i,k)     !number-weighted fall speed (with density factor)
+        if (log_3momentIce) V_zit(k) = f1pr19*rhofaci(i,k)     !reflectivity-weighted fall speed (with density factor)
+        
+      endif qi_notsmall_ice
+      
+      ! Use appropriate velocity for calculating sub-stepping
+      if (log_3momentIce) then
+        Co_max = max(Co_max, V_zit(k)*dt_left*i_dzq(i,k))  !use V_zit since it is larger than V_qit
+      else
+        Co_max = max(Co_max, V_qit(k)*dt_left*i_dzq(i,k))
+      endif
+      
+    enddo kloop_sedi_ice
+    
+    ! Compute dt_sub
+    tmpint1 = int(Co_max+1.)    !number of substeps remaining if dt_sub were constant
+    dt_sub  = min(dt_left, dt_left/real(tmpint1))
+    
+    if (k_qxbot.eq.kbot) then
+       k_temp = k_qxbot
+    else
+       k_temp = k_qxbot-kdir
+    endif
+    
+    ! Calculate fluxes
+    do k = k_temp,k_qxtop,kdir
+       flux_qit(k) = V_qit(k)*qitot(i,k,iice)*rho(i,k)
+       flux_nit(k) = V_nit(k)*nitot(i,k,iice)*rho(i,k)
+       flux_qir(k) = V_qit(k)*qirim(i,k,iice)*rho(i,k)
+       if (log_LiquidFrac) flux_qil(k) = V_qit(k)*qiliq(i,k,iice)*rho(i,k)
+       flux_bir(k) = V_qit(k)*birim(i,k,iice)*rho(i,k)
+       if (log_3momentIce) flux_zit(k) = V_zit(k)*zitot(i,k,iice)*rho(i,k)
+       mflux_i(i,k) = flux_qit(k)  !store mass flux for use in visibility diagnostic)
+    enddo
+    
+    ! Accumulated precip during time step
+    if (k_qxbot.eq.kbot) prt_accum = prt_accum + flux_qit(kbot)*dt_sub
+    
+    ! For top level only (since flux is 0 above)
+    k = k_qxtop
+    ! Compute flux divergence
+    fluxdiv_qit = -flux_qit(k)*i_dzq(i,k)
+    fluxdiv_qir = -flux_qir(k)*i_dzq(i,k)
+    if (log_LiquidFrac) fluxdiv_qil = -flux_qil(k)*i_dzq(i,k)
+    fluxdiv_bir = -flux_bir(k)*i_dzq(i,k)
+    fluxdiv_nit = -flux_nit(k)*i_dzq(i,k)
+    if (log_3momentIce) fluxdiv_zit = -flux_zit(k)*i_dzq(i,k)
+    
+    ! Update prognostic variables
+    qitot(i,k,iice) = qitot(i,k,iice) + fluxdiv_qit*dt_sub*i_rho(i,k)
+    qirim(i,k,iice) = qirim(i,k,iice) + fluxdiv_qir*dt_sub*i_rho(i,k)
+    if (log_LiquidFrac) qiliq(i,k,iice) = qiliq(i,k,iice) + fluxdiv_qil*dt_sub*i_rho(i,k)
+    birim(i,k,iice) = birim(i,k,iice) + fluxdiv_bir*dt_sub*i_rho(i,k)
+    nitot(i,k,iice) = nitot(i,k,iice) + fluxdiv_nit*dt_sub*i_rho(i,k)
+    if (log_3momentIce) zitot(i,k,iice) = zitot(i,k,iice) + fluxdiv_zit*dt_sub*i_rho(i,k)
+    
+    ! Update remaining levels
+    do k = k_qxtop-kdir,k_temp,-kdir
+       ! Compute flux divergence
+       fluxdiv_qit = (flux_qit(k+kdir) - flux_qit(k))*i_dzq(i,k)
+       fluxdiv_qir = (flux_qir(k+kdir) - flux_qir(k))*i_dzq(i,k)
+       if (log_LiquidFrac) fluxdiv_qil = (flux_qil(k+kdir) - flux_qil(k))*i_dzq(i,k)
+       fluxdiv_bir = (flux_bir(k+kdir) - flux_bir(k))*i_dzq(i,k)
+       fluxdiv_nit = (flux_nit(k+kdir) - flux_nit(k))*i_dzq(i,k)
+       if (log_3momentIce) fluxdiv_zit = (flux_zit(k+kdir) - flux_zit(k))*i_dzq(i,k)
+       
+       ! Update prognostic variables
+       qitot(i,k,iice) = qitot(i,k,iice) + fluxdiv_qit*dt_sub*i_rho(i,k)
+       qirim(i,k,iice) = qirim(i,k,iice) + fluxdiv_qir*dt_sub*i_rho(i,k)
+       if (log_LiquidFrac) qiliq(i,k,iice) = qiliq(i,k,iice) + fluxdiv_qil*dt_sub*i_rho(i,k)
+       birim(i,k,iice) = birim(i,k,iice) + fluxdiv_bir*dt_sub*i_rho(i,k)
+       nitot(i,k,iice) = nitot(i,k,iice) + fluxdiv_nit*dt_sub*i_rho(i,k)
+       if (log_3momentIce) zitot(i,k,iice) = zitot(i,k,iice) + fluxdiv_zit*dt_sub*i_rho(i,k)
+    enddo
+    
+    dt_left = dt_left - dt_sub  !update time remaining for sedimentation
+    if (k_qxbot.ne.kbot) k_qxbot = k_qxbot - kdir
+    
+  enddo substep_sedi_ice
+  
+  ! Deallocate local arrays
+  deallocate(V_qit, V_nit, V_zit)
+  deallocate(flux_qit, flux_nit, flux_qir, flux_qil, flux_bir, flux_zit)
+  
+end subroutine ice_sedimentation_substep
 
 !======================================================================================!
  END MODULE microphy_p3

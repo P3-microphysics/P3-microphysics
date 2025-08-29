@@ -353,4 +353,4 @@ plt.subplots_adjust(wspace=0.10)
 
 #--------------------------
 plt.savefig(outfilename, format='png')
-#plt.show()
+plt.show()
