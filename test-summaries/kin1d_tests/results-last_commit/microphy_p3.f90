@@ -28,7 +28,7 @@
 !__________________________________________________________________________________________!
 !                                                                                          !
 ! Version:       5.4.7 + sedi                                                              !
-! Last updated:  2025 Aug                                                                  !
+! Last updated:  2025 Sept                                                                 !
 !__________________________________________________________________________________________!
 
  MODULE microphy_p3
@@ -2620,10 +2620,9 @@ call cpu_time(timer_start(3))
 
 
      ! if relatively dry and no hydrometeors at this level, skip to end of k-loop (i.e. skip this level)
-       log_exitlevel = .true.
-       if (qc(i,k).ge.qsmall .or. qr(i,k).ge.qsmall) log_exitlevel = .false.
+       log_exitlevel = merge(.false., .true., qc(i,k).ge.qsmall .or. qr(i,k).ge.qsmall)
        do iice = 1,nCat
-          if (qitot(i,k,iice).ge.qsmall) log_exitlevel = .false.
+          log_exitlevel = merge(.false., log_exitlevel, qitot(i,k,iice).ge.qsmall)
        enddo
 
        !The test below is skipped if SCPF is used since now, if SCF>0 somewhere, then nucleation is possible
@@ -2678,10 +2677,11 @@ call cpu_time(timer_start(3))
           ab      = 1. + dqsdT*xxlv(i,k)*i_cp
           epsilon = (qv(i,k)-qvs(i,k)-ssat(i,k))/ab
           epsilon = max(epsilon,-qc(i,k))   ! limit adjustment to available water
-        ! don't adjust upward if subsaturated
+        ! do not adjust upward if subsaturated
         ! otherwise this could result in positive adjustment
         ! (spurious generation ofcloud water) in subsaturated conditions
-          if (ssat(i,k).lt.0.) epsilon = min(0.,epsilon)
+          !if (ssat(i,k).lt.0.) epsilon = min(0.,epsilon)
+          epsilon = merge(min(0.,epsilon), epsilon, ssat(i,k).lt.0.)
 
         ! now do the adjustment
           if (abs(epsilon).ge.1.e-15) then
@@ -2701,10 +2701,9 @@ call cpu_time(timer_start(3))
 !----------------------------------------------------------------------
 
 ! skip micro process calculations except nucleation/acvtivation if there no hydrometeors are present
-       log_exitlevel = .true.
-       if (qc(i,k).ge.qsmall .or. qr(i,k).ge.qsmall) log_exitlevel=.false.
+       log_exitlevel = merge(.false., .true., qc(i,k).ge.qsmall .or. qr(i,k).ge.qsmall)
        do iice = 1,nCat
-          if (qitot(i,k,iice).ge.qsmall) log_exitlevel=.false.
+          log_exitlevel = merge(.false., log_exitlevel, qitot(i,k,iice).ge.qsmall)
        enddo
        if (log_exitlevel) goto 444   !i.e. skip to nucleation
 
@@ -2964,9 +2963,9 @@ call cpu_time(timer_start(3))
              ! assume collected rain by qiliq
              if (qitot(i,k,iice).ge.qsmall .and. qr(i,k).ge.qsmall .and. t(i,k).gt.273.15) then
                 ! note: f1pr08 and logn0r are already calculated as log_10
-                    tmp1 = rho(i,k)*rhofaci(i,k)*eri*iSCF(k)*(SPF(k)-SPF_clr(k))
-                    qrcoll(iice) = 10.**(f1pr08+logn0r(i,k))*nitot(i,k,iice)*tmp1
-                    nrcoll(iice) = 10.**(f1pr07+logn0r(i,k))*nitot(i,k,iice)*tmp1
+                tmp1 = rho(i,k)*rhofaci(i,k)*eri*iSCF(k)*(SPF(k)-SPF_clr(k))
+                qrcoll(iice) = 10.**(f1pr08+logn0r(i,k))*nitot(i,k,iice)*tmp1
+                nrcoll(iice) = 10.**(f1pr07+logn0r(i,k))*nitot(i,k,iice)*tmp1
                 if (log_3momentIce .and. log_full3mom) then
                     zqrcol(iice) = 10.**(logn0r(i,k))*f1pr36*tmp1
                 endif
@@ -3622,8 +3621,10 @@ call cpu_time(timer_start(3))
                                       i_xx*(1.-sngl(dexp(-dble(xx*dt)))))/ab
 
       !evaporate instantly for very small water contents
-       if (sup_cld.lt.-0.001 .and. qc(i,k).lt.1.e-12)  qccon = -qc(i,k)*i_dt
-       if (sup_r  .lt.-0.001 .and. qr(i,k).lt.1.e-12)  qrcon = -qr(i,k)*i_dt
+      !if (sup_cld.lt.-0.001 .and. qc(i,k).lt.1.e-12)  qccon = -qc(i,k)*i_dt
+      !if (sup_r  .lt.-0.001 .and. qr(i,k).lt.1.e-12)  qrcon = -qr(i,k)*i_dt
+       qccon = merge(-qc(i,k)*i_dt, qccon, sup_cld.lt.-0.001 .and. qc(i,k).lt.1.e-12)
+       qrcon = merge(-qr(i,k)*i_dt, qrcon, sup_r  .lt.-0.001 .and. qr(i,k).lt.1.e-12)
 
        if (qccon.lt.0.) then
           qcevp = -qccon
@@ -3827,11 +3828,7 @@ call cpu_time(timer_start(3))
           ncnuc = dum2
         ! do not include mass increase from droplet activation during first time step
         ! since this is already accounted for by saturation adjustment below
-          if (it.le.1) then
-             qcnuc = 0.
-          else
-             qcnuc = ncnuc*cons7
-          endif
+          qcnuc = merge(0., ncnuc*cons7, it.le.1)
        endif
 
 !................................................................
@@ -3906,8 +3903,8 @@ call cpu_time(timer_start(3))
 
           endif
 
-          if (qcaut .eq.0.) ncautc = 0.
-          if (ncautc.eq.0.) qcaut  = 0.
+          ncautc = merge(0., ncautc, qcaut.eq.0.)
+          qcaut  = merge(0., qcaut,  ncautc.eq.0.)
 
        endif qc_not_small_1
 
@@ -3962,9 +3959,8 @@ call cpu_time(timer_start(3))
              qcacc = 8.53*(qc(i,k)*iSCF(k))**1.05*(qr(i,k)*iSPF(k))**0.98 *dum2
              ncacc = qcacc*nc(i,k)/qc(i,k)
           endif
-
-          if (qcacc.eq.0.) ncacc = 0.
-          if (ncacc.eq.0.) qcacc = 0.
+          ncacc = merge(0., ncacc, qcacc.eq.0.)
+          qcacc = merge(0., qcacc, ncacc.eq.0.)
 
        endif
 
@@ -4315,7 +4311,7 @@ call cpu_time(timer_start(3))
              birim(i,k,iice) = 0.
           endif
 
-          if (log_LiquidFrac) qiliq(i,k,iice) = max(qiliq(i,k,iice),0.)
+          qiliq(i,k,iice) = max(qiliq(i,k,iice),0.)  !works for any log_LiquidFrac
 
           if (qitot(i,k,iice).ge.qsmall) then
              if (log_LiquidFrac .and. (qiliq(i,k,iice)/qitot(i,k,iice)).le.0.01) then
@@ -4612,13 +4608,14 @@ call cpu_time(timer_start(6))
 ! Sedimentation:
 
 ! Cloud:
-    call sedimentation_liquid(qc,nc,1,iSCF,prt_liq(i),rho(i,:),i_rho(i,:),i_dzq(i,:),dt,nk,ktop,kbot,kdir,acn=acn(i,:),dnu=dnu(:))
+    call sedimentation_liquid(qc(i,:),nc(i,:),1,iSCF,prt_liq(i),rho(i,:),i_rho(i,:),i_dzq(i,:),    &
+                              dt,nk,ktop,kbot,kdir,acn=acn(i,:),dnu=dnu(:))
 
 ! Rain:
-    call sedimentation_liquid(qr,nr,2,iSPF,prt_liq(i),rho(i,:),i_rho(i,:),i_dzq(i,:),dt,nk,ktop,kbot,kdir,rhofacr=rhofacr(i,:))
+    call sedimentation_liquid(qr(i,:),nr(i,:),2,iSPF,prt_liq(i),rho(i,:),i_rho(i,:),i_dzq(i,:),    &
+                              dt,nk,ktop,kbot,kdir,rhofacr=rhofacr(i,:))
 
 ! Ice:
-
     if (log_3momentIce .and. log_LiquidFrac) then
        call sedimentation_ice_TT(qitot(i,:,:),qirim(i,:,:),qiliq(i,:,:),nitot(i,:,:),    &
                               birim(i,:,:),zitot(i,:,:),prt_sol(i),prt_soli(i,:),        &
@@ -4833,7 +4830,7 @@ call cpu_time(timer_end(6))
                    qirim(i,k,iice) = 0.
                    birim(i,k,iice) = 0.
                 endif
-                if (qiliq(i,k,iice).lt.qsmall) qiliq(i,k,iice) = 0.
+                qiliq(i,k,iice) = merge(0., qiliq(i,k,iice), qiliq(i,k,iice).lt.qsmall)
 
                 diag_di(i,k,iice)   = f1pr15   ! used for merging
 
@@ -4848,7 +4845,7 @@ call cpu_time(timer_end(6))
                 qirim(i,k,iice) = 0.
                 qiliq(i,k,iice) = 0.
                 birim(i,k,iice) = 0.
-                if (log_3momentIce) zitot(i,k,iice) = 0
+                zitot(i,k,iice) = merge(0., zitot(i,k,iice), log_3momentIce)
                 diag_di(i,k,iice) = 0.
 
              endif qi_not_small_merge
@@ -5027,7 +5024,7 @@ call cpu_time(timer_end(6))
                 birim(i,k,iice) = 0.
              endif
 
-             if (qiliq(i,k,iice).lt.qsmall) qiliq(i,k,iice) = 0.
+             qiliq(i,k,iice) = merge(0., qiliq(i,k,iice), qiliq(i,k,iice).lt.qsmall)
   !==
 
   ! note that reflectivity from lookup table is normalized, so we need to multiply by N
@@ -5054,7 +5051,7 @@ call cpu_time(timer_end(6))
              qirim(i,k,iice) = 0.
              qiliq(i,k,iice) = 0.
              birim(i,k,iice) = 0.
-             if (log_3momentIce) zitot(i,k,iice) = 0
+             zitot(i,k,iice) = 0
              diag_di(i,k,iice) = 0.
 
           endif qi_not_small
@@ -10737,16 +10734,13 @@ else
     rho_rime = 0.
  endif
 
- !set upper constraint qi_rim <= qi_tot
- if (qi_rim.gt.(qi_tot-qi_liq) .and. rho_rime.gt.0.) then
-    qi_rim = qi_tot-qi_liq
-    bi_rim = qi_rim/rho_rime
- endif
-
- !impose consistency
- if (qi_rim.lt.qsmall) then
+  if (qi_rim.lt.qsmall) then
     qi_rim = 0.
     bi_rim = 0.
+ elseif (qi_rim.gt.(qi_tot-qi_liq) .and. rho_rime.gt.0.) then
+  !set upper constraint qi_rim <= qi_tot
+    qi_rim = qi_tot-qi_liq
+    bi_rim = qi_rim/rho_rime
  endif
 
 
@@ -11321,7 +11315,7 @@ else
  real, intent(in) :: rhofaci    ! air density correction factor for ice fall speed
  real, intent(in) :: lam,mu     ! PSD slope and shape parameters
 
-! Local variables:
+! Local:
  real, parameter  :: dD       = 1.e-3    ! diameter bin width [m]
  real, parameter  :: Dmax_psd = 150.e-3  ! maximum diameter in PSD to compute integral  [m]
  real, parameter  :: Ncrit    = 5.e-4    ! threshold physically observable number concentration [# m-3]

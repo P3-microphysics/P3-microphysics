@@ -28,7 +28,7 @@
 !__________________________________________________________________________________________!
 !                                                                                          !
 ! Version:       5.4.7 + sedi                                                              !
-! Last updated:  2025 Aug                                                                  !
+! Last updated:  2025 Sept                                                                 !
 !__________________________________________________________________________________________!
 
  MODULE microphy_p3
@@ -4608,11 +4608,11 @@ call cpu_time(timer_start(6))
 ! Sedimentation:
 
 ! Cloud:
-    call sedimentation_liquid(qc,nc,1,iSCF,prt_liq(i),rho(i,:),i_rho(i,:),i_dzq(i,:),    &
+    call sedimentation_liquid(qc(i,:),nc(i,:),1,iSCF,prt_liq(i),rho(i,:),i_rho(i,:),i_dzq(i,:),    &
                               dt,nk,ktop,kbot,kdir,acn=acn(i,:),dnu=dnu(:))
 
 ! Rain:
-    call sedimentation_liquid(qr,nr,2,iSPF,prt_liq(i),rho(i,:),i_rho(i,:),i_dzq(i,:),    &
+    call sedimentation_liquid(qr(i,:),nr(i,:),2,iSPF,prt_liq(i),rho(i,:),i_rho(i,:),i_dzq(i,:),    &
                               dt,nk,ktop,kbot,kdir,rhofacr=rhofacr(i,:))
 
 ! Ice:
@@ -10734,16 +10734,13 @@ else
     rho_rime = 0.
  endif
 
- !set upper constraint qi_rim <= qi_tot
- if (qi_rim.gt.(qi_tot-qi_liq) .and. rho_rime.gt.0.) then
-    qi_rim = qi_tot-qi_liq
-    bi_rim = qi_rim/rho_rime
- endif
-
- !impose consistency
- if (qi_rim.lt.qsmall) then
+  if (qi_rim.lt.qsmall) then
     qi_rim = 0.
     bi_rim = 0.
+ elseif (qi_rim.gt.(qi_tot-qi_liq) .and. rho_rime.gt.0.) then
+  !set upper constraint qi_rim <= qi_tot
+    qi_rim = qi_tot-qi_liq
+    bi_rim = qi_rim/rho_rime
  endif
 
 
@@ -11318,7 +11315,7 @@ else
  real, intent(in) :: rhofaci    ! air density correction factor for ice fall speed
  real, intent(in) :: lam,mu     ! PSD slope and shape parameters
 
-! Local variables:
+! Local:
  real, parameter  :: dD       = 1.e-3    ! diameter bin width [m]
  real, parameter  :: Dmax_psd = 150.e-3  ! maximum diameter in PSD to compute integral  [m]
  real, parameter  :: Ncrit    = 5.e-4    ! threshold physically observable number concentration [# m-3]
