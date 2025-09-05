@@ -1,4 +1,4 @@
-  MODULE param_module
+  MODULE param_module 
 
   implicit none
 
@@ -24,6 +24,7 @@
                        ww31,ww32,we31,we32,ws31,ws32,wn31,wn32)
       use input
       use constants
+      use index_module
       use init_terrain_module
       use bc_module
       use comm_module
@@ -35,32 +36,16 @@
 #endif
       use module_mp_thompson , only : thompson_init
       use module_mp_graupel
-      use module_mp_p3, only : p3_init
+      use mp_wsm6 , only : mp_wsm6_init
+      use microphy_p3, only : p3_init
       use module_mp_jensen_ishmael, only : jensen_ishmael_init
-      use module_mp_nssl_2mom, only:    &
-                        nssl_2mom_init, &
-                        rho_qr,         &
-                        cnor,           &
-                        rho_qs,         &
-                        cnos,           &
-                        rho_qh,         &
-                        cnoh,           &
-                        ccn,            &
-                        infall,         &
-                        alphah,         &
-                        alphahl,        &
-                        imurain,        &
-                        icdx,           &
-                        icdxhl,         &
-                        dfrz,           &
-                        hldnmn,         &
-                        iferwisventr,   &
-                        iehw,iehlw,     &
-                        ehw0,ehlw0,     &
-                        dmrauto,        &
-                        ioldlimiter
+      use module_mp_nssl_2mom, only: nssl_2mom_init, rho_qr, cnor, rho_qs,        &
+                        cnos, rho_qh, rho_qhl, cnoh, ccn, irenuc, infall, alphah, alphahl, &
+                        imurain, icdx, icdxhl, dfrz, hldnmn, iferwisventr,        &
+                        iehw, iehlw,ehw0, ehlw0, dmrauto, inucopt, ioldlimiter, ihlcnh
       use goddard_module, only : consat,consat2
       use lfoice_module, only : lfoice_init
+      use ccpp_kind_types,only: kind_phys
       implicit none
 
       real :: dt,dtlast
@@ -101,7 +86,7 @@
 !-----------------------------------------------------------------------
 
       integer i,j,k,n,m,nn,kst,ni1,ni2,ni3,nj1,nj2,nj3,nk1,nk2,nk3,vadv,p3stat
-      integer ival,jval,ii,jj
+      integer ival,jval,ii,jj,ltmp
       integer iterrain
       integer :: inum
       real :: var
@@ -129,6 +114,11 @@
       character(len=60) :: param_mp,param_sgs,param_pbl,param_sfclay,param_rad
 
       logical :: doit,getfall
+      logical :: nssl_hail_on = .false.
+      character(len=40) :: errmsg
+      integer :: errflg
+      real(kind=kind_phys) :: pi_phys
+
 #ifdef MPI
       integer :: ntmp1,ntmp2,ntmp3,ntmp4,reqs,reqs1,reqs2,reqs3,reqs4
       integer, dimension(MPI_STATUS_SIZE) :: status
@@ -142,9 +132,10 @@
                         cnor,           &
                         rho_qs,         &
                         cnos,           &
-                        rho_qh,         &
+                        rho_qh, rho_qhl,&
                         cnoh,           &
                         ccn,            &
+                        irenuc,         &
                         infall,         &
                         alphah,         &
                         alphahl,        &
@@ -156,8 +147,10 @@
                         iferwisventr,   &
                         iehw,iehlw,     &
                         ehw0,ehlw0,     &
+                        inucopt,        &
                         dmrauto,        &
-                        ioldlimiter
+                        ioldlimiter,    &
+                        ihlcnh
 
 !--------------------------------------------------------------
 
@@ -331,6 +324,7 @@
       call MPI_BCAST(ptype    ,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
       call MPI_BCAST(ihail    ,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
       call MPI_BCAST(iautoc   ,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
+      call MPI_BCAST(cuparam  ,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
       call MPI_BCAST(icor     ,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
       call MPI_BCAST(betaplane,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
       call MPI_BCAST(lspgrad  ,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
@@ -462,6 +456,7 @@
       call MPI_BCAST(output_qv     ,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
       call MPI_BCAST(output_qvpert ,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
       call MPI_BCAST(output_q      ,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
+      call MPI_BCAST(output_n_as_m3,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
       call MPI_BCAST(output_dbz    ,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
       call MPI_BCAST(output_buoyancy,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
       call MPI_BCAST(output_u      ,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
@@ -649,11 +644,13 @@
       call MPI_BCAST(rho_qs    ,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
       call MPI_BCAST(cnos      ,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
       call MPI_BCAST(rho_qh    ,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
+      call MPI_BCAST(rho_qhl   ,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
       call MPI_BCAST(cnoh      ,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
       call MPI_BCAST(alphah    ,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
       call MPI_BCAST(alphahl   ,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
       call MPI_BCAST(dfrz      ,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
       call MPI_BCAST(hldnmn    ,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
+      call MPI_BCAST(irenuc    ,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
       call MPI_BCAST(infall    ,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
       call MPI_BCAST(icdx      ,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
       call MPI_BCAST(icdxhl    ,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
@@ -663,8 +660,12 @@
       call MPI_BCAST(iehlw     ,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
       call MPI_BCAST(ehw0      ,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
       call MPI_BCAST(ehlw0     ,1,MPI_REAL,0,MPI_COMM_WORLD,ierr)
+      call MPI_BCAST(inucopt   ,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
       call MPI_BCAST(dmrauto   ,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
       call MPI_BCAST(ioldlimiter,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
+      call MPI_BCAST(ihlcnh    ,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
+      call MPI_BCAST(nssl_3moment,1,MPI_LOGICAL,0,MPI_COMM_WORLD,ierr)
+      call MPI_BCAST(nssl_density_on,1,MPI_LOGICAL,0,MPI_COMM_WORLD,ierr)
       ENDIF
 #endif
 
@@ -693,7 +694,7 @@
       betaplane = max( betaplane , 0 )
       betaplane = min( betaplane , 1 )
 
-      ! Cannot use beta plane for axisymmetric simulations, 
+      ! Cannot use beta plane for axisymmetric simulations,
       ! or 2d (x,z) simulations:
       if( axisymm.eq.1 .or. ny.le.3 )  betaplane = 0
 
@@ -704,6 +705,10 @@
         ! set to zero by default
         umove = 0.0
         vmove = 0.0
+        umovem1 = umove
+        umovem2 = umove
+        vmovem1 = vmove
+        vmovem2 = vmove
         imove = 1
         if( axisymm.eq.1 )then
           ! turn off for axisymmetric runs:
@@ -928,14 +933,15 @@
         eqtset = 1
       ENDIF
       !-----
-      IF( (ptype.eq.4.or.ptype.eq.50.or.ptype.eq.51.or.ptype.eq.52.or.ptype.eq.53.or.ptype.eq.55) .and. eqtset.eq.2 )THEN
+      IF( (ptype.eq.4.or.ptype.eq.50.or.ptype.eq.51.or.ptype.eq.52.or.ptype.eq.53.or.ptype.eq.54.or.   &
+      ptype.eq.55.or.ptype.eq.60.or.ptype.eq.61 .or. ptype.eq.62 .or. ptype.eq.63) .and. eqtset.eq.2 )THEN
         if(myid.eq.0)then
         print *,'  -------------------------------- '
         print *
         print *,'  ptype      = ',ptype
         print *,'  eqtset     = ',eqtset
         print *
-        print *,'  ptype=4,50,51,52,53,55 requires eqtset=1 '
+        print *,'  ptype=4,50,51,52,53,55,60,61,62,63 requires eqtset=1 '
         print *
         print *,'  ... setting eqtset to 1 ... '
         print *
@@ -1096,7 +1102,7 @@
         idiff = 0
       ENDIF
       !-----
-      IF( (ipbl.eq.3.or.ipbl.eq.4.or.ipbl.eq.5) .and. idiss.ge.1 )THEN
+      IF( (ipbl.eq.3.or.ipbl.eq.4.or.ipbl.eq.5) .and. idiss.ge.1 .and. cm1setup.ne.4  )THEN
         if(myid.eq.0)then
         print *,'  -------------------------------- '
         print *
@@ -1575,14 +1581,14 @@
         call stopcm1
       ENDIF
       !-----
-      IF(imoist.eq.1.and.output_dbz.eq.1.and.ptype.ne.2.and.ptype.ne.3.and.ptype.ne.5  &
+      IF(imoist.eq.1.and.output_dbz.eq.1.and.ptype.ne.2.and.ptype.ne.3.and.ptype.ne.5.and.ptype.ne.7  &
           .and. (.not. ptype.ge.26))then
         if(myid.eq.0)then
         print *
         print *,'  ptype      = ',ptype
         print *,'  output_dbz = ',output_dbz
         print *
-        print *,'  output_dbz is only available for ptype=2,3,5,26,27,28'
+        print *,'  output_dbz is only available for ptype=2,3,5,7,26,27,28,50-55'
         print *
         endif
         IF(ptype.eq.4)THEN
@@ -1708,7 +1714,7 @@
         print *
         print *,'  imoist  = ',imoist
         print *,'  ptype   = ',ptype
-        print *,'  nt_c    = ',nt_c   
+        print *,'  nt_c    = ',nt_c
         print *
         print *,'  nt_c is too small.  Please enter an appropriate value '
         print *,'  in the param3 section of namelist.input '
@@ -2205,6 +2211,22 @@
         call stopcm1
       ENDIF
       !-----
+      IF( cuparam.lt.0 .or. cuparam.gt.1 )THEN
+        if(myid.eq.0)then
+        print *
+        print *,'  cuparam  = ',cuparam
+        print *
+        print *,'  cuparam must be 0 or 1 '
+        print *
+        print *,'   stopping model .... '
+        print *
+        endif
+#ifdef MPI
+        call MPI_BARRIER (MPI_COMM_WORLD,ierr)
+#endif
+        call stopcm1
+      ENDIF
+      !-----
       IF( radopt.lt.0 .or. radopt.gt.2 )THEN
         if(myid.eq.0)then
         print *
@@ -2272,13 +2294,16 @@
         call stopcm1
       ENDIF
       !-----
-      IF( radopt.eq.2 .and. ( ptype.ne.3 .and. ptype.ne.5 .and. ptype.ne.50 .and. ptype.ne.51 .and. ptype.ne.52 .and. ptype.ne.53 .and. ptype.ne.55 )  )THEN
+      IF( radopt.eq.2 .and. ( ptype.ne.3 .and. ptype.ne.5 .and. ptype.ne.7 .and. ptype.ne.50 .and.  &
+                              ptype.ne.51 .and. ptype.ne.52 .and. ptype.ne.53 .and. &
+                              ptype.ne.55 .and. ptype.ne.60 .and. ptype.ne.61 .and. &
+                              ptype.ne.62 .and. ptype.ne.63 .and. ptype.ne.26 .and. ptype.ne.27) )THEN
         if(myid.eq.0)then
         print *
         print *,'  radopt   = ',radopt
         print *,'  ptype    = ',ptype
         print *
-        print *,'  radopt=2 requires ptype=3,5,50,51,52,53,55 (for now) '
+        print *,'  radopt=2 requires ptype=3,5,7,26,27,50,51,52,53,55 (for now) '
         print *
         print *,'   stopping model .... '
         print *
@@ -2697,6 +2722,7 @@
         if( ptype.eq.4  ) param_mp = 'Gilmore/Straka/Rasmussen version of LFO scheme'
         if( ptype.eq.5  ) param_mp = 'Morrison double moment'
         if( ptype.eq.6  ) param_mp = 'Rotunno-Emanuel water-only'
+        if( ptype.eq.7  ) param_mp = 'WSM6'
         if( ptype.eq.26 ) param_mp = 'NSSL 2-moment scheme (graupel-only, no hail)'
         if( ptype.eq.27 ) param_mp = 'NSSL 2-moment scheme (graupel and hail)'
         if( ptype.eq.28 ) param_mp = 'NSSL single-moment scheme (graupel-only)'
@@ -2704,7 +2730,12 @@
         if( ptype.eq.51 ) param_mp = 'Predicted Particle Property (P3)'
         if( ptype.eq.52 ) param_mp = 'Predicted Particle Property (P3)'
         if( ptype.eq.53 ) param_mp = 'Predicted Particle Property (P3)'
+        if( ptype.eq.54 ) param_mp = 'Predicted Particle Property (P3)'
         if( ptype.eq.55 ) param_mp = 'Jensen_ISHMAEL'
+        if( ptype.eq.60 ) param_mp = 'Predicted Particle Property (P3)'
+        if( ptype.eq.61 ) param_mp = 'Predicted Particle Property (P3)'
+        if( ptype.eq.62 ) param_mp = 'Predicted Particle Property (P3)'
+        if( ptype.eq.63 ) param_mp = 'Predicted Particle Property (P3)'
       endif
       if( idoles )then
         ! LES subgrid:
@@ -2792,6 +2823,9 @@
       if(dowr) write(outfile,171) '    planetary boundary layer :  ',param_pbl
       if(dowr) write(outfile,171) '    surface layer            :  ',param_sfclay
       if(dowr) write(outfile,171) '    lw/sw radiation          :  ',param_rad
+    if( cuparam.ge.1 )then
+      if(dowr) write(outfile,171) '    convection param.        :  ','new Tiedtke'
+    endif
       if(dowr) write(outfile,171)
       if(dowr) write(outfile,171)
 
@@ -2842,6 +2876,7 @@
       if(dowr) write(outfile,*) 'ptype     =',ptype
       if(dowr) write(outfile,*) 'ihail     =',ihail
       if(dowr) write(outfile,*) 'iautoc    =',iautoc
+      if(dowr) write(outfile,*) 'cuparam   =',cuparam
       if(dowr) write(outfile,*) 'icor      =',icor
       if(dowr) write(outfile,*) 'betaplane =',betaplane
       if(dowr) write(outfile,*) 'lspgrad   =',lspgrad
@@ -3021,6 +3056,13 @@
       if(dowr) write(outfile,*) '  pi_qp = ',pi_qp
       if(dowr) write(outfile,*)
 
+      pi_phys = 4.0_kind_phys*atan(1.0_kind_phys)
+
+      if(dowr) write(outfile,*)
+      if(dowr) write(outfile,*) '  kind_phys = ',kind_phys
+      if(dowr) write(outfile,*) '  pi_phys   = ',pi_phys
+      if(dowr) write(outfile,*)
+
 !--------------------------------------------------------------
 !  some parameters related to subgrid turbulence:
 
@@ -3044,7 +3086,7 @@
     !----------
     !  use average surface conditions to determine ust,mol,etc:
     !
-    !  For now, use this for a few well-established test cases. 
+    !  For now, use this for a few well-established test cases.
     !  In future: make this a namelist variable
 
     if( sfcmodel.eq.1 .or. sfcmodel.eq.5 )then
@@ -3083,6 +3125,14 @@
       budrain  = 1
       cloudvar = .false.
       rhovar   = .false.
+      ibtmp=1
+      ietmp=1
+      jbtmp=1
+      jetmp=1
+      kbtmp=1
+      ketmp=1
+      ntmp2d=1
+      ntmp1d=1
       !--- end: define defaults ----------------------------------
 
       IF(imoist.eq.1)THEN
@@ -3176,7 +3226,7 @@
 !-----------------------------------------------------------------------
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !-----------------------------------------------------------------------
-        ELSEIF((ptype.eq.2).or.(ptype.eq.4))THEN    ! Goddard-LFO or 
+        ELSEIF((ptype.eq.2).or.(ptype.eq.4))THEN    ! Goddard-LFO or
                                                     ! GSR-LFO scheme
 
           iice = 1    ! this means that ptype=2,4 are ice schemes
@@ -3526,7 +3576,7 @@
           if(dowr) write(outfile,*) '         numq   = ',numq
           if(dowr) write(outfile,*) '         ihail  = ',ihail
         if(inum.eq.1)then
-          if(dowr) write(outfile,*) '         assuming constant cloud droplet concentration' 
+          if(dowr) write(outfile,*) '         assuming constant cloud droplet concentration'
           if(dowr) write(outfile,*) '         ndcnst = ',ndcnst
         else
           if(dowr) write(outfile,*) '         predicting cloud droplet concentration'
@@ -3586,79 +3636,251 @@
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !-----------------------------------------------------------------------
 
-        ELSEIF ( ptype .eq. 26 ) THEN    ! ZVD scheme (with no hail category)
+        ELSEIF(ptype.eq.7)THEN    !  WSM6
+
+          ibtmp  = max( ibtmp  ,  1 )
+          ietmp  = max( ietmp  , ni )
+          kbtmp  = max( kbtmp  ,  1 )
+          ketmp  = max( ketmp  , nk )
+          ntmp2d = max( ntmp2d , 15 )
+          ntmp1d = max( ntmp1d ,  7 )
+
+          iice = 1    ! this means that ptype=7 is ice scheme
+
+          numq = 6    ! there are 6 q variables
+
+          nqv  = 1    ! qv is the first array
+          nql1 = 2    ! the first liquid variable is the second array
+          nql2 = 3    ! the last liquid variable is the third array
+          nqs1 = 4    ! the first solid variable is the fourth array
+          nqs2 = 6    ! the last solid variable is the sixth array
+
+          cloudvar(1) = .false.
+          cloudvar(2) = .true.
+          cloudvar(3) = .false.
+          cloudvar(4) = .true.
+          cloudvar(5) = .false.
+          cloudvar(6) = .false.
+
+          qname(1) = 'qv '
+          qname(2) = 'qc '
+          qname(3) = 'qr '
+          qname(4) = 'qi '
+          qname(5) = 'qs '
+          qname(6) = 'qg '
+
+          qunit(1) = 'kg/kg'
+          qunit(2) = 'kg/kg'
+          qunit(3) = 'kg/kg'
+          qunit(4) = 'kg/kg'
+          qunit(5) = 'kg/kg'
+          qunit(6) = 'kg/kg'
+
+          qmag( 1) = 1.0e-2
+          qmag( 2) = 1.0e-2
+          qmag( 3) = 1.0e-2
+          qmag( 4) = 1.0e-2
+          qmag( 5) = 1.0e-2
+          qmag( 6) = 1.0e-2
+
+          !----- budget stuff below here -----
+
+          nbudget = 10
+
+          budname(1) = 'tcond '
+          budname(2) = 'tevac '
+          budname(3) = 'tauto '
+          budname(4) = 'taccr '
+          budname(5) = 'tevar '
+          budname(6) = 'train '
+          budname(7) = 'erain '
+          budname(8) = 'qsfc  '
+          budname(9) = 'esfc  '
+          budname(10) = 'erad  '
+
+          budrain = 6
+
+            ! Note: using some values from wrf's module_model_constants
+            if(myid.eq.0) print *
+            if(myid.eq.0) print *,'  calling mp_wsm6_init ... '
+            call mp_wsm6_init(den0=1.28,       &
+                              denr=1000.0,     &
+                              dens=100.0,      &
+                              cl=4190.0,       &
+                              cpv=cpv,         &
+                              hail_opt=ihail,  &
+                              errmsg=errmsg,   &
+                              errflg=errflg)
+            if(myid.eq.0) print *,'  ... done '
+            if(myid.eq.0) print *
+
+!-----------------------------------------------------------------------
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!-----------------------------------------------------------------------
+
+        ELSEIF ( ptype .eq. 26 .or. ptype .eq. 27) THEN    ! NSSL variable density scheme (with no hail category)
+!        ELSEIF ( ptype .eq. 26 ) THEN    ! NSSL variable density scheme (with no hail category)
+
+          lv = 1
+          lc = 2
+          lr = 3
+          li = 4
+          ls = 5
+          lgh = 6
+          lhl = 0
+          lccn = 7
+          lvh = 0
+
+          IF ( ptype .eq. 26 ) THEN
+            nssl_hail_on = .false.
+            lhab = lgh
+          ELSE
+            nssl_hail_on = .true.
+            lhl = 7
+            lhab = lhl
+          ENDIF
 
           iice = 1    ! this means that ptype=26 is an ice scheme
           idm  = 1    ! this means that ptype=26 has at least one double moment
           idmplus = 1
 
-          numq = 13   ! number of variables
+          ! inucopt is not used yet
+          i = 0
+          IF ( inucopt == 1 .or. inucopt == 3 ) THEN
+           i = i + 1
+          ENDIF
+          IF ( inucopt == 2 .or. inucopt == 3 ) THEN
+           i = i + 1
+          ENDIF
+
+          j = 0
+          IF ( nssl_3moment ) THEN
+           j = 2 ! three extra variables for 3moment
+          ENDIF
+
+          k = 0
+          IF ( nssl_density_on ) THEN
+            k = 1
+          ENDIF
 
           nqv  = 1    ! qv is the first array
           nql1 = 2    ! the first liquid variable
           nql2 = 3    ! the last liquid variable
           nqs1 = 4    ! the first solid variable
-          nqs2 = 6    ! the last solid variable
-          nnc1 = 7    ! the first number concentration var
-          nnc2 = 12   ! the last number concentration var
-          nvl1 = 13   ! the first particle volume var
-          nvl2 = 13   ! the last particle volume var
+          nqs2 = lhab
+          ltmp = nqs2+1
+          nnc1 = ltmp    ! the first number concentration var (lccn)
 
-          cloudvar( 1) = .false.
-          cloudvar( 2) = .true.
-          cloudvar( 3) = .false.
-          cloudvar( 4) = .true.
-          cloudvar( 5) = .false.
-          cloudvar( 6) = .false.
-          cloudvar( 7) = .false.
-          cloudvar( 8) = .false.
-          cloudvar( 9) = .false.
-          cloudvar(10) = .false.
-          cloudvar(11) = .false.
-          cloudvar(12) = .false.
-          cloudvar(13) = .false.
+          lccn = nnc1
 
-          qname( 1) = 'qv '
-          qname( 2) = 'qc '
-          qname( 3) = 'qr '
-          qname( 4) = 'qi '
-          qname( 5) = 'qs '
-          qname( 6) = 'qg '
-          qname( 7) = 'ccn' ! CCN concentration
-          qname( 8) = 'ccw' ! droplet conc
-          qname( 9) = 'crw' ! rain conc
-          qname(10) = 'cci' ! ice crystal conc
-          qname(11) = 'csw' ! snow conc
-          qname(12) = 'chw' ! graupel conc
-          qname(13) = 'vhw' ! graupel volume
+          lnc = nnc1+1+i
+          lnr = nnc1+2+i
+          lni = nnc1+3+i
+          lns = nnc1+4+i
+          lnh = nnc1+5+i
 
-          qunit( 1) = 'kg/kg'
-          qunit( 2) = 'kg/kg'
-          qunit( 3) = 'kg/kg'
-          qunit( 4) = 'kg/kg'
-          qunit( 5) = 'kg/kg'
-          qunit( 6) = 'kg/kg'
-          qunit( 7) = '#/kg'
-          qunit( 8) = '#/kg'
-          qunit( 9) = '#/kg'
-          qunit(10) = '#/kg'
-          qunit(11) = '#/kg'
-          qunit(12) = '#/kg'
-          qunit(13) = 'm^3/kg'
+          IF ( nssl_hail_on ) THEN
+            lnhl = nnc1+6+i
+            ltmp = lnhl
+          ELSE
+            ltmp = lnh
+          ENDIF
 
-          rhovar( 1) = .false.
-          rhovar( 2) = .false.
-          rhovar( 3) = .false.
-          rhovar( 4) = .false.
-          rhovar( 5) = .false.
-          rhovar( 6) = .false.
-          rhovar( 7) = .true.
-          rhovar( 8) = .true.
-          rhovar( 9) = .true.
-          rhovar(10) = .true.
-          rhovar(11) = .true.
-          rhovar(12) = .true.
-          rhovar(13) = .true.
+          nnc2 = ltmp
+
+
+          IF ( nssl_density_on ) THEN
+            ltmp = ltmp + 1
+            lvh  = ltmp
+            nvl1 = ltmp ! the first particle volume var
+            IF ( nssl_hail_on ) THEN
+              ltmp = ltmp + 1
+              lvhl = ltmp
+            ENDIF
+            nvl2 = ltmp ! the last particle volume var
+          ENDIF
+
+          IF ( nssl_3moment ) THEN
+            lzr = ltmp+1
+            nzl1 = lzr    ! the first reflectivity var (rain)
+            lzh = ltmp+2
+            ltmp = lzh
+
+            IF ( nssl_hail_on ) THEN
+              ltmp = ltmp + 1
+              lzhl = ltmp
+            ENDIF
+
+            nzl2 = ltmp   ! the last reflectivity var
+          ENDIF
+
+          numq = ltmp   ! number of variables
+
+
+          cloudvar(lv) = .false.
+          cloudvar(lc) = .true.
+          cloudvar(lr) = .false.
+          cloudvar(li) = .true.
+          cloudvar(ls) = .false.
+          cloudvar(lgh) = .false.
+          cloudvar( lhab:numq) = .false.
+
+
+          qname(lv) = 'qv '
+          qname(lc) = 'qc '
+          qname(lr) = 'qr '
+          qname(li) = 'qi '
+          qname(ls) = 'qs '
+          qname(lgh) = 'qg '
+          IF ( nssl_hail_on ) qname(lhl) = 'qhl'
+          qname(lccn) = 'ccn' ! CCN concentration
+
+          i = 0
+          lccna = 1
+          lcina = 1
+          IF ( inucopt == 1 .or. inucopt == 3 ) THEN
+           i = i + 1
+          qname(lccn+i) = 'cna' ! activated CCN concentration
+          lccna = lccn+i
+          f_ccna = .true.
+          ENDIF
+          IF ( inucopt == 2 .or. inucopt == 3 ) THEN
+           i = i + 1
+          qname(lccn+i) = 'cia' ! activated CIN concentration
+          lcina = lccn+i
+          f_cina = .true.
+          ENDIF
+
+          qname(lnc) = 'ccw' ! droplet conc
+          qname(lnr) = 'crw' ! rain conc
+          qname(lni) = 'cci' ! ice crystal conc
+          qname(lns) = 'csw' ! snow conc
+          qname(lnh) = 'chw' ! graupel conc
+          IF ( nssl_hail_on ) qname(lnhl) = 'chl' ! graupel conc
+
+          IF ( nssl_density_on ) THEN
+           qname(lvh) = 'vhw' ! graupel volume
+           IF ( nssl_hail_on ) qname(lvhl) = 'vhl' ! hail volume
+          ENDIF
+
+          IF ( nssl_3moment ) THEN
+            qname(lzr) = 'zrw' ! rain reflectivity moment
+            qname(lzh) = 'zhw' ! graupel reflectivity moment
+            IF ( nssl_hail_on ) qname(lzhl) = 'zhl' ! hail reflectivity
+          ENDIF
+
+          qunit(lv:lhab) = 'kg/kg'
+
+          qunit(nnc1:nnc2) = '#/kg'
+          IF ( nssl_density_on ) THEN
+            qunit(nvl1:nvl2) = 'm^3/kg'
+          ENDIF
+          IF ( nssl_3moment ) THEN
+            qunit(nzl1:nzl2) = 'Z/m^3/kg'
+          ENDIF
+
+          rhovar(lv:lhab) = .false.
+          rhovar(lhab+1:numq) = .true.
 
           ! likely maximum value (order-of-magnitude)
           ! (needed for monotonic advection schemes)
@@ -3668,46 +3890,13 @@
           qmag( 4) = 0.01
           qmag( 5) = 0.01
           qmag( 6) = 0.01
-          qmag( 7) = 1.0e5
-          qmag( 8) = 1.0e5
-          qmag( 9) = 1.0e5
-          qmag(10) = 1.0e5
-          qmag(11) = 1.0e5
-          qmag(12) = 1.0e5
-          qmag(13) = 1.0e-5
+          qmag(nnc1:nnc2) = 1.e8
+          qmag( lnc) = 1.0e10
+          qmag( lni) = 3.0e9
+          IF ( nssl_3moment ) qmag(nzl1:nzl2) = 1.0e-12
+          IF ( nssl_density_on ) qmag(nvl1:nvl2) = 1.0e-5
+          qmag(:) = 1.e-12
 
-!          ipconc = 5
-!          lr = 4
-!          li = 5
-!          ls = 6
-!          lh = 7
-!          lg = lh
-!          lhab = lh
-!          lhl = 0
-!          lqe  = lhab
-!
-!          lccn = 8
-!          lnc  = 9
-!          lnr  = 10
-!          lni  = 11
-!          lns  = 12
-!          lnh  = 13
-!          lnhl = 0
-!          lss  = 14
-!          lvh  = 15
-!
-!          lsch = 0
-!          lschab = 0
-!          lscw = 0
-!          lscb = lscw
-!          lscni = 0
-!          lscpi = 0
-!          lsce = lscni
-!          lsceq= lschab
-!
-!          lsw  = 0
-!          lhw  = 0
-!          lhlw = 0
 
           !----- budget stuff below here -----
 
@@ -3726,213 +3915,51 @@
 
           budrain = 6
 
-          !----- initialize the ZVD scheme -----
+          !----- initialize the NSSL scheme -----
 
           if(dowr) write(outfile,*)
-          if(dowr) write(outfile,*) 'Calling index_module_init'
+          if(dowr) write(outfile,*) 'Calling nssl_2mom_init'
           if(dowr) write(outfile,*)
 
-!          write(0,*) 'option 26 currently not available'
-!          call stopcm1
-         CALL nssl_2mom_init(ipctmp=5,mixphase=0,ihvol=-1,eqtset_tmp=eqtset)
-!          call INDEX_MODULE_INIT(ptype)
+         IF ( nssl_3moment ) THEN
+!           CALL nssl_2mom_init(ipctmp=8,mixphase=0,ihvol=-1,eqtset_tmp=eqtset,myrank=myid,mpiroot=0)
+           CALL nssl_2mom_init(ipctmp=8,mixphase=0,nssl_hail_on=nssl_hail_on,nssl_density_on=nssl_density_on, &
+                     eqtset_tmp=eqtset,myrank=myid,mpiroot=0)
+         ELSE
+!           CALL nssl_2mom_init(ipctmp=5,mixphase=0,ihvol=-1,eqtset_tmp=eqtset,myrank=myid,mpiroot=0)
+           CALL nssl_2mom_init(ipctmp=5,mixphase=0,nssl_hail_on=nssl_hail_on,nssl_density_on=nssl_density_on, &
+                     eqtset_tmp=eqtset,myrank=myid,mpiroot=0)
+         ENDIF
 
           if(dowr) write(outfile,*)
-          if(dowr) write(outfile,*) 'Returned from index_module_init'
+          if(dowr) write(outfile,*) 'Returned from nssl_2mom_init'
           if(dowr) write(outfile,*)
 
           if(dowr) write(outfile,*)
           if(dowr) write(outfile,*) ' ----------------------------------------------- '
+          IF ( nssl_3moment ) THEN
+          if(dowr) write(outfile,*) '  using NSSL 3-moment scheme  '
+          ELSE
           if(dowr) write(outfile,*) '  using NSSL 2-moment scheme  '
-          if(dowr) write(outfile,*) '  (graupel-only, no hail; graupel density predicted ) '
+          ENDIF
+
+          IF ( nssl_hail_on ) THEN
+          if(dowr) write(outfile,*) '  (with hail ) '
+          ELSE
+          if(dowr) write(outfile,*) '  (graupel-only, no hail ) '
+          ENDIF
+          IF ( nssl_density_on ) THEN
+          if(dowr) write(outfile,*) '  (graupel/hail density predicted ) '
+          ENDIF
           if(dowr) write(outfile,*) ' ----------------------------------------------- '
           if(dowr) write(outfile,*)
+
 
 !-----------------------------------------------------------------------
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !-----------------------------------------------------------------------
 
-        ELSEIF ( ptype .eq. 27 ) THEN    ! ZVDH scheme (with hail)
-
-          iice = 1    ! this means that ptype=27 is an ice scheme
-          idm  = 1    ! this means that ptype=27 has at least one double moment
-          idmplus = 1
-
-          numq = 16   ! number of variables
-
-          nqv  = 1    ! qv is the first array
-          nql1 = 2    ! the first liquid variable
-          nql2 = 3    ! the last liquid variable
-          nqs1 = 4    ! the first solid variable
-          nqs2 = 7    ! the last solid variable
-          nnc1 = 8    ! the first number concentration var
-          nnc2 = 14   ! the last number concentration var
-          nvl1 = 15   ! the first particle volume var
-          nvl2 = 16   ! the last particle volume var
-
-          cloudvar( 1) = .false.
-          cloudvar( 2) = .true.
-          cloudvar( 3) = .false.
-          cloudvar( 4) = .true.
-          cloudvar( 5) = .false.
-          cloudvar( 6) = .false.
-          cloudvar( 7) = .false.
-          cloudvar( 8) = .false.
-          cloudvar( 9) = .false.
-          cloudvar(10) = .false.
-          cloudvar(11) = .false.
-          cloudvar(12) = .false.
-          cloudvar(13) = .false.
-          cloudvar(14) = .false.
-          cloudvar(15) = .false.
-          cloudvar(16) = .false.
-
-          qname( 1) = 'qv '
-          qname( 2) = 'qc '
-          qname( 3) = 'qr '
-          qname( 4) = 'qi '
-          qname( 5) = 'qs '
-          qname( 6) = 'qg '
-          qname( 7) = 'qhl'
-          qname( 8) = 'ccn' ! CCN concentration
-          qname( 9) = 'ccw' ! droplet conc
-          qname(10) = 'crw' ! rain conc
-          qname(11) = 'cci' ! ice crystal conc
-          qname(12) = 'csw' ! snow conc
-          qname(13) = 'chw' ! graupel conc
-          qname(14) = 'chl' ! hail conc
-          qname(15) = 'vhw' ! graupel volume
-          qname(16) = 'vhl' ! hail volume
-
-          qunit( 1) = 'kg/kg'
-          qunit( 2) = 'kg/kg'
-          qunit( 3) = 'kg/kg'
-          qunit( 4) = 'kg/kg'
-          qunit( 5) = 'kg/kg'
-          qunit( 6) = 'kg/kg'
-          qunit( 7) = 'kg/kg'
-          qunit( 8) = '#/kg'
-          qunit( 9) = '#/kg'
-          qunit(10) = '#/kg'
-          qunit(11) = '#/kg'
-          qunit(12) = '#/kg'
-          qunit(13) = '#/kg'
-          qunit(14) = '#/kg'
-          qunit(15) = 'm^3/kg'
-          qunit(16) = 'm^3/kg'
-
-          rhovar( 1) = .false.
-          rhovar( 2) = .false.
-          rhovar( 3) = .false.
-          rhovar( 4) = .false.
-          rhovar( 5) = .false.
-          rhovar( 6) = .false.
-          rhovar( 7) = .false.
-          rhovar( 8) = .true.
-          rhovar( 9) = .true.
-          rhovar(10) = .true.
-          rhovar(11) = .true.
-          rhovar(12) = .true.
-          rhovar(13) = .true.
-          rhovar(14) = .true.
-          rhovar(15) = .true.
-          rhovar(16) = .true.
-
-          ! likely maximum value (order-of-magnitude)
-          ! (needed for monotonic advection schemes)
-          qmag( 1) = 0.01
-          qmag( 2) = 0.01
-          qmag( 3) = 0.01
-          qmag( 4) = 0.01
-          qmag( 5) = 0.01
-          qmag( 6) = 0.01
-          qmag( 7) = 0.01
-          qmag( 8) = 1.0e5
-          qmag( 9) = 1.0e5
-          qmag(10) = 1.0e5
-          qmag(11) = 1.0e5
-          qmag(12) = 1.0e5
-          qmag(13) = 1.0e5
-          qmag(14) = 1.0e5
-          qmag(15) = 1.0e-5
-          qmag(16) = 1.0e-5
-
-!          ipconc = 5
-!          lr = 4
-!          li = 5
-!          ls = 6
-!          lh = 7
-!          lhl = 8
-!          lg = lh
-!          lhab = lhl
-!          lqe  = lhab
-!
-!          lccn = 9
-!          lnc  = 10
-!          lnr  = 11
-!          lni  = 12
-!          lns  = 13
-!          lnh  = 14
-!          lnhl = 15
-!          lss  = 16
-!          lvh  = 17
-!          lvhl = 18
-!
-!          lsch = 0
-!          lschab = 0
-!          lscw = 0
-!          lscb = lscw
-!          lscni = 0
-!          lscpi = 0
-!          lsce = lscni
-!          lsceq= lschab
-!
-!          lsw  = 0
-!          lhw  = 0
-!          lhlw = 0
-
-          !----- budget stuff below here -----
-
-          nbudget = 10
-
-          budname(1) = 'tcond '
-          budname(2) = 'tevac '
-          budname(3) = 'tauto '
-          budname(4) = 'taccr '
-          budname(5) = 'tevar '
-          budname(6) = 'train '
-          budname(7) = 'erain '
-          budname(8) = 'qsfc  '
-          budname(9) = 'esfc  '
-          budname(10) = 'erad  '
-
-          budrain = 6
-
-          !----- initialize the ZVD scheme -----
-
-!          if(dowr) write(outfile,*)
-!          if(dowr) write(outfile,*) 'Calling graupel_init'
-!          if(dowr) write(outfile,*)
-
-!          call INDEX_MODULE_INIT(ptype)
-         CALL nssl_2mom_init(ipctmp=5,mixphase=0,ihvol=1,eqtset_tmp=eqtset)
-
-!          if(dowr) write(outfile,*)
-!          if(dowr) write(outfile,*) 'Returned from graupel_init'
-!          if(dowr) write(outfile,*)
-
-          if(dowr) write(outfile,*)
-          if(dowr) write(outfile,*) ' ----------------------------------------------- '
-          if(dowr) write(outfile,*) '  using NSSL 2-moment scheme  '
-          if(dowr) write(outfile,*) '  (graupel and hail; graupel and hail density predicted ) '
-          if(dowr) write(outfile,*) ' ----------------------------------------------- '
-          if(dowr) write(outfile,*)
-
-!-----------------------------------------------------------------------
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!-----------------------------------------------------------------------
-
-        ELSEIF ( ptype .eq. 28 ) THEN    ! single moment ZIEG scheme (without hail)
+        ELSEIF ( ptype .eq. 28 ) THEN    ! single moment NSSL scheme (without hail)
 
           iice = 1    ! this means that ptype=28 is an ice scheme
           idm  = 0    ! this means that ptype=28 has at least one double moment
@@ -3983,38 +4010,6 @@
           qmag(5) = 0.01
           qmag(6) = 0.01
 
-!          ipconc = 0
-!          lr = 4
-!          li = 5
-!          ls = 6
-!          lh = 7
-!          lg = lh
-!          lhab = lh
-!          lhl = 0
-!          lqe  = lhab
-!
-!          lccn = 0
-!          lnc  = 0
-!          lnr  = 0
-!          lni  = 0
-!          lns  = 0
-!          lnh  = 0
-!          lnhl = 0
-!          lss  = 0
-!          lvh  = 0
-!
-!          lsch = 0
-!          lschab = 0
-!          lscw = 0
-!          lscb = lscw
-!          lscni = 0
-!          lscpi = 0
-!          lsce = lscni
-!          lsceq= lschab
-!
-!          lsw  = 0
-!          lhw  = 0
-!          lhlw = 0
 
           !----- budget stuff below here -----
 
@@ -4033,7 +4028,7 @@
 
           budrain = 6
 
-          !----- initialize the ZVD scheme -----
+          !----- initialize the NSSL scheme -----
 
 !          if(dowr) write(outfile,*)
 !          if(dowr) write(outfile,*) 'Calling graupel_init'
@@ -4057,8 +4052,8 @@
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !-----------------------------------------------------------------------
 
-
-        ELSEIF( ptype.eq.50 .or. ptype.eq.51 .or. ptype.eq.52 .or. ptype.eq.53 )THEN    ! P3
+        ELSEIF( ptype.eq.50 .or. ptype.eq.51 .or. ptype.eq.52 .or. ptype.eq.53 .or. ptype.eq.54 .or. ptype.eq.60 &
+                .or. ptype.eq.61 .or. ptype.eq.62 .or. ptype.eq.63) THEN    ! P3
 
           !----- initialize the P3 scheme -----
 
@@ -4069,6 +4064,7 @@
             call p3_init(lookup_file_dir='.',  &
                          nCat=1,               &
                          trplMomI=.false.,     &
+                         liqFrac=.false.,      &
                          model='WRF',          &
                          stat=p3stat,          &
                          abort_on_err=.false., &
@@ -4077,6 +4073,7 @@
             call p3_init(lookup_file_dir='.',  &
                          nCat=1,               &
                          trplMomI=.false.,     &
+                         liqFrac=.false.,      &
                          model='WRF',          &
                          stat=p3stat,          &
                          abort_on_err=.false., &
@@ -4085,6 +4082,7 @@
             call p3_init(lookup_file_dir='.',  &
                          nCat=2,               &
                          trplMomI=.false.,     &
+                         liqFrac=.false.,      &
                          model='WRF',          &
                          stat=p3stat,          &
                          abort_on_err=.false., &
@@ -4093,6 +4091,52 @@
             call p3_init(lookup_file_dir='.',  &
                          nCat=1,               &
                          trplMomI=.true.,      &
+                         liqFrac=.false.,      &
+                         model='WRF',          &
+                         stat=p3stat,          &
+                         abort_on_err=.false., &
+                         dowr=dowr)
+          elseif( ptype.eq.54 )then
+            call p3_init(lookup_file_dir='.',  &
+                         nCat=2,               &
+                         trplMomI=.true.,      &
+                         liqFrac=.false.,      &
+                         model='WRF',          &
+                         stat=p3stat,          &
+                         abort_on_err=.false., &
+                         dowr=dowr)
+          elseif( ptype.eq.60 )then
+            call p3_init(lookup_file_dir='.',  &
+                         nCat=1,               &
+                         trplMomI=.true.,      &
+                         liqFrac=.true.,       &
+                         model='WRF',          &
+                         stat=p3stat,          &
+                         abort_on_err=.false., &
+                         dowr=dowr)
+          elseif( ptype.eq.61 )then
+            call p3_init(lookup_file_dir='.',  &
+                         nCat=2,               &
+                         trplMomI=.true.,      &
+                         liqFrac=.true.,       &
+                         model='WRF',          &
+                         stat=p3stat,          &
+                         abort_on_err=.false., &
+                         dowr=dowr)
+          elseif( ptype.eq.62 )then
+            call p3_init(lookup_file_dir='.',  &
+                         nCat=3,               &
+                         trplMomI=.true.,      &
+                         liqFrac=.true.,       &
+                         model='WRF',          &
+                         stat=p3stat,          &
+                         abort_on_err=.false., &
+                         dowr=dowr)
+          elseif( ptype.eq.63 )then
+            call p3_init(lookup_file_dir='.',  &
+                         nCat=4,               &
+                         trplMomI=.true.,      &
+                         liqFrac=.true.,       &
                          model='WRF',          &
                          stat=p3stat,          &
                          abort_on_err=.false., &
@@ -4136,11 +4180,11 @@
           qname(1) = 'qv '
           qname(2) = 'qc '
           qname(3) = 'qr '
-          qname(4) = 'qi '
-          qname(5) = 'qni'
+          qname(4) = 'qi1'
+          qname(5) = 'ni1'
           qname(6) = 'qnr'
-          qname(7) = 'qir'
-          qname(8) = 'qib'
+          qname(7) = 'ri1'
+          qname(8) = 'bi1'
 
           qunit(1) = 'kg/kg'
           qunit(2) = 'kg/kg'
@@ -4164,7 +4208,8 @@
 
           ! for p3 arrays:
           np3a = 22
-          np3o =  3
+          np3a = np3a + nout2d + nout3d
+          np3o =  4
 
       !cccccccccccccccccccccccccccccccccccccccccccccccccccc!
         ELSEIF( ptype.eq.51 )THEN
@@ -4190,11 +4235,11 @@
           qname(1) = 'qv '
           qname(2) = 'qc '
           qname(3) = 'qr '
-          qname(4) = 'qi '
-          qname(5) = 'qni'
+          qname(4) = 'qi1'
+          qname(5) = 'ni1'
           qname(6) = 'qnr'
-          qname(7) = 'qir'
-          qname(8) = 'qib'
+          qname(7) = 'ri1'
+          qname(8) = 'bi1'
           qname(9) = 'qnc'
 
           qunit(1) = 'kg/kg'
@@ -4220,8 +4265,9 @@
           qmag(9) = 1.0e8
 
           ! for p3 arrays:
-          np3a = 23
-          np3o =  3
+          np3a = 23            ! 1-mom, no_liqfrac, 1-cat (no extra output)
+          np3a = np3a + nout2d + nout3d + 1  !(1 for dhmax_x)
+          np3o =  4            ! 1 x nCat; for vmi_(x), dmi_(x), rhoi_(x), dhmax_(x)
 
       !cccccccccccccccccccccccccccccccccccccccccccccccccccc!
         ELSEIF( ptype.eq.52 )THEN
@@ -4251,13 +4297,13 @@
           qname( 1) = 'qv '
           qname( 2) = 'qc '
           qname( 3) = 'qr '
-          qname( 4) = 'qi '
+          qname( 4) = 'qi1'
           qname( 5) = 'qi2'
           qname( 6) = 'nc '
           qname( 7) = 'nr '
-          qname( 8) = 'ni '
-          qname( 9) = 'ri '
-          qname(10) = 'bi '
+          qname( 8) = 'ni1'
+          qname( 9) = 'ri1'
+          qname(10) = 'bi1'
           qname(11) = 'ni2'
           qname(12) = 'ri2'
           qname(13) = 'bi2'
@@ -4293,8 +4339,9 @@
           qmag(13) = 1.0e-5
 
           ! for p3 arrays:
-          np3a = 30
-          np3o =  6
+          np3a = 30            ! 2-mom, no_liqfrac, 2-cat (no extra output)
+          np3a = np3a + nout2d + nout3d + 2  !(2 for dhmax_x)
+          np3o =  8            ! 2 x nCat; for vmi_(x), dmi_(x), rhoi_(x), dhmax_(x)
 
       !cccccccccccccccccccccccccccccccccccccccccccccccccccc!
 
@@ -4319,16 +4366,16 @@
           cloudvar(9) = .false.
           cloudvar(10) = .false.
 
-          qname(1) = 'qv '
-          qname(2) = 'qc '
-          qname(3) = 'qr '
-          qname(4) = 'qi '
-          qname(5) = 'qni'
-          qname(6) = 'qnr'
-          qname(7) = 'qir'
-          qname(8) = 'qib'
-          qname(9) = 'qnc'
-          qname(10) = 'qzi'
+          qname(1)  = 'qv '
+          qname(2)  = 'qc '
+          qname(3)  = 'qr '
+          qname(4)  = 'qi1'
+          qname(5)  = 'ni1'
+          qname(6)  = 'qnr'
+          qname(7)  = 'ri1'
+          qname(8)  = 'bi1'
+          qname(9)  = 'qnc'
+          qname(10) = 'zi1'
 
           qunit(1) = 'kg/kg'
           qunit(2) = 'kg/kg'
@@ -4355,8 +4402,508 @@
           qmag(10) = 1.0e-3
 
           ! for p3 arrays:
-          np3a = 24
-          np3o =  3
+          np3a = 24            ! 3-mom, no_liqfrac, 1-cat (incl. vmi_1, dmi_1, rhoi_1)
+          np3a = np3a + nout2d + nout3d + 1  !(1 for dhmax_x)
+          np3o =  4            ! 1 x nCat; for vmi_(x), dmi_(x), rhoi_(x), dhmax_(x)
+          np3a = np3a + 7      ! adding 7 additional 3d output fields
+
+      !cccccccccccccccccccccccccccccccccccccccccccccccccccc!
+
+        ELSEIF( ptype.eq.54 )THEN
+
+          numq = 15   ! there are 13 q variables
+
+          nqv  = 1    ! qv
+          nql1 = 2    ! the first liquid variable
+          nql2 = 3    ! the last liquid variable
+          nqs1 = 4    ! the first solid variable
+          nqs2 = 5    ! the last solid variable
+
+          cloudvar( 1) = .false.
+          cloudvar( 2) = .true.
+          cloudvar( 3) = .false.
+          cloudvar( 4) = .true.
+          cloudvar( 5) = .true.
+          cloudvar( 6) = .false.
+          cloudvar( 7) = .false.
+          cloudvar( 8) = .false.
+          cloudvar( 9) = .false.
+          cloudvar(10) = .false.
+          cloudvar(11) = .false.
+          cloudvar(12) = .false.
+          cloudvar(13) = .false.
+          cloudvar(14) = .false.
+          cloudvar(15) = .false.
+
+          qname( 1) = 'qv '
+          qname( 2) = 'qc '
+          qname( 3) = 'qr '
+          qname( 4) = 'qi1'
+          qname( 5) = 'qi2'
+          qname( 6) = 'nc '
+          qname( 7) = 'nr '
+          qname( 8) = 'ni1'
+          qname( 9) = 'ri1'
+          qname(10) = 'bi1'
+          qname(11) = 'ni2'
+          qname(12) = 'ri2'
+          qname(13) = 'bi2'
+          qname(14) = 'zi1'
+          qname(15) = 'zi2'
+
+          qunit( 1) = 'kg/kg'
+          qunit( 2) = 'kg/kg'
+          qunit( 3) = 'kg/kg'
+          qunit( 4) = 'kg/kg'
+          qunit( 5) = 'kg/kg'
+          qunit( 6) = '#/kg'
+          qunit( 7) = '#/kg'
+          qunit( 8) = '#/kg'
+          qunit( 9) = 'kg/kg'
+          qunit(10) = 'm^-3 kg^-1'
+          qunit(11) = '#/kg'
+          qunit(12) = 'kg/kg'
+          qunit(13) = 'm^-3 kg^-1'
+          qunit(14) = 'm^6/kg'
+          qunit(15) = 'm^6/kg'
+
+          ! likely maximum value (order-of-magnitude)
+          ! (needed for monotonic advection schemes)
+          qmag( 1) = 0.01
+          qmag( 2) = 0.01
+          qmag( 3) = 0.01
+          qmag( 4) = 0.01
+          qmag( 5) = 0.01
+          qmag( 6) = 1.0e5
+          qmag( 7) = 1.0e5
+          qmag( 8) = 1.0e5
+          qmag( 9) = 0.01
+          qmag(10) = 1.0e-5
+          qmag(11) = 1.0e5
+          qmag(12) = 0.01
+          qmag(13) = 1.0e-5
+          qmag(14) = 1.0e-3
+          qmag(15) = 1.0e-3
+
+          ! for p3 arrays:
+          np3a = 32            ! 2-mom, no_liqfrac, 2-cat (no extra output)
+          np3a = np3a + nout2d + nout3d + 2  !(2 for dhmax_x)
+          np3o =  8            ! 2 x nCat; for vmi_(x), dmi_(x), rhoi_(x), dhmax_(x)
+
+
+      !cccccccccccccccccccccccccccccccccccccccccccccccccccc!
+
+        ELSEIF( ptype.eq.60 )THEN
+
+          numq = 11   ! there are 11 q variables
+
+          nqv  = 1    ! qv
+          nql1 = 2    ! the first liquid variable
+          nql2 = 3    ! the last liquid variable
+          nqs1 = 4    ! the first solid variable
+          nqs2 = 4    ! the last solid variable
+
+          cloudvar(1) = .false.
+          cloudvar(2) = .true.
+          cloudvar(3) = .false.
+          cloudvar(4) = .true.
+          cloudvar(5) = .false.
+          cloudvar(6) = .false.
+          cloudvar(7) = .false.
+          cloudvar(8) = .false.
+          cloudvar(9) = .false.
+          cloudvar(10) = .false.
+          cloudvar(11) = .false.
+
+          qname(1)  = 'qv '
+          qname(2)  = 'qc '
+          qname(3)  = 'qr '
+          qname(4)  = 'qi1'
+          qname(5)  = 'ni1'
+          qname(6)  = 'qnr'
+          qname(7)  = 'ri1'
+          qname(8)  = 'bi1'
+          qname(9)  = 'qnc'
+          qname(10) = 'zi1'
+          qname(11) = 'li1'
+
+          qunit(1) = 'kg/kg'
+          qunit(2) = 'kg/kg'
+          qunit(3) = 'kg/kg'
+          qunit(4) = 'kg/kg'
+          qunit(5) = '#/kg'
+          qunit(6) = '#/kg'
+          qunit(7) = 'kg/kg'
+          qunit(8) = 'm^3 kg^-1'
+          qunit(9) = '#/kg'
+          qunit(10) = 'm(6) kg(-1)'
+          qunit(11) = 'kg/kg'
+
+          ! likely maximum value (order-of-magnitude)
+          ! (needed for monotonic advection schemes)
+          qmag(1) = 0.01
+          qmag(2) = 0.01
+          qmag(3) = 0.01
+          qmag(4) = 0.01
+          qmag(5) = 1.0e5
+          qmag(6) = 1.0e5
+          qmag(7) = 0.01
+          qmag(8) = 1.0e-5
+          qmag(9) = 1.0e8
+          qmag(10) = 1.0e-3
+          qmag(11) = 0.01
+
+          ! for p3 arrays:
+          np3a = 25            ! 3-mom, liqfrac, 1-cat (incl. vmi_1, dmi_1, rhoi_1)
+          np3a = np3a + nout2d + nout3d + 1  !(1 for dhmax_x)
+          np3o =  4            ! 1 x nCat; for vmi_(x), dmi_(x), rhoi_(x), dhmax_(x)
+
+          np3a = np3a + 7      ! adding 7 additional 3d output fields
+
+      !cccccccccccccccccccccccccccccccccccccccccccccccccccc!
+        ELSEIF( ptype.eq.61 )THEN
+
+          numq = 17   ! there are 17 q variables
+
+          nqv  = 1    ! qv
+          nql1 = 2    ! the first liquid variable
+          nql2 = 3    ! the last liquid variable
+          nqs1 = 4    ! the first solid variable
+          nqs2 = 5    ! the last solid variable
+
+          cloudvar( 1) = .false.
+          cloudvar( 2) = .true.
+          cloudvar( 3) = .false.
+          cloudvar( 4) = .true.
+          cloudvar( 5) = .true.
+          cloudvar( 6) = .false.
+          cloudvar( 7) = .false.
+          cloudvar( 8) = .false.
+          cloudvar( 9) = .false.
+          cloudvar(10) = .false.
+          cloudvar(11) = .false.
+          cloudvar(12) = .false.
+          cloudvar(13) = .false.
+          cloudvar(14) = .false.
+          cloudvar(15) = .false.
+          cloudvar(16) = .false.
+          cloudvar(17) = .false.
+
+          qname( 1) = 'qv '
+          qname( 2) = 'qc '
+          qname( 3) = 'qr '
+          qname( 4) = 'qi1'
+          qname( 5) = 'qi2'
+          qname( 6) = 'nc '
+          qname( 7) = 'nr '
+          qname( 8) = 'ni1'
+          qname( 9) = 'ri1'
+          qname(10) = 'bi1'
+          qname(11) = 'ni2'
+          qname(12) = 'ri2'
+          qname(13) = 'bi2'
+          qname(14) = 'zi1'
+          qname(15) = 'li1'
+          qname(16) = 'zi2'
+          qname(17) = 'li2'
+
+          qunit( 1) = 'kg/kg'
+          qunit( 2) = 'kg/kg'
+          qunit( 3) = 'kg/kg'
+          qunit( 4) = 'kg/kg'
+          qunit( 5) = 'kg/kg'
+          qunit( 6) = '#/kg'
+          qunit( 7) = '#/kg'
+          qunit( 8) = '#/kg'
+          qunit( 9) = 'kg/kg'
+          qunit(10) = 'm^-3 kg^-1'
+          qunit(11) = '#/kg'
+          qunit(12) = 'kg/kg'
+          qunit(13) = 'm^-3 kg^-1'
+          qunit(14) = 'm^6 kg^-1'
+          qunit(15) = 'kg/kg'
+          qunit(16) = 'm^6 kg^-1'
+          qunit(17) = 'kg/kg'
+
+          ! likely maximum value (order-of-magnitude)
+          ! (needed for monotonic advection schemes)
+          qmag( 1) = 0.01
+          qmag( 2) = 0.01
+          qmag( 3) = 0.01
+          qmag( 4) = 0.01
+          qmag( 5) = 0.01
+          qmag( 6) = 1.0e5
+          qmag( 7) = 1.0e5
+          qmag( 8) = 1.0e5
+          qmag( 9) = 0.01
+          qmag(10) = 1.0e-5
+          qmag(11) = 1.0e5
+          qmag(12) = 0.01
+          qmag(13) = 1.0e-5
+          qmag(14) = 1.0e-3
+          qmag(15) = 0.01
+          qmag(16) = 1.0e-3
+          qmag(17) = 0.01
+
+          ! for p3 arrays:
+          np3a = 34            ! 3-mom, liqfrac, 2-cat  (no extra output)
+          np3a = np3a + nout2d + nout3d + 2  !(2 for dhmax_x)
+          np3o =  8            ! 2 x nCat; for vmi_(x), dmi_(x), rhoi_(x), dhmax_(x)
+
+      !cccccccccccccccccccccccccccccccccccccccccccccccccccc!
+
+        ELSEIF( ptype.eq.62 )THEN
+
+          numq = 23   ! there are 17 q variables
+
+          nqv  = 1    ! qv
+          nql1 = 2    ! the first liquid variable
+          nql2 = 3    ! the last liquid variable
+          nqs1 = 4    ! the first solid variable
+          nqs2 = 6    ! the last solid variable
+
+          cloudvar( 1) = .false.
+          cloudvar( 2) = .true.
+          cloudvar( 3) = .false.
+          cloudvar( 4) = .true.
+          cloudvar( 5) = .true.
+          cloudvar( 6) = .true.
+          cloudvar( 7) = .false.
+          cloudvar( 8) = .false.
+          cloudvar( 9) = .false.
+          cloudvar(10) = .false.
+          cloudvar(11) = .false.
+          cloudvar(12) = .false.
+          cloudvar(13) = .false.
+          cloudvar(14) = .false.
+          cloudvar(15) = .false.
+          cloudvar(16) = .false.
+          cloudvar(17) = .false.
+          cloudvar(18) = .false.
+          cloudvar(19) = .false.
+          cloudvar(20) = .false.
+          cloudvar(21) = .false.
+          cloudvar(22) = .false.
+          cloudvar(23) = .false.
+
+          qname( 1) = 'qv '
+          qname( 2) = 'qc '
+          qname( 3) = 'qr '
+          qname( 4) = 'qi1'
+          qname( 5) = 'qi2'
+          qname( 6) = 'qi3'
+          qname( 7) = 'nc '
+          qname( 8) = 'nr '
+          qname( 9) = 'ni1'
+          qname(10) = 'ri1'
+          qname(11) = 'bi1'
+          qname(12) = 'ni2'
+          qname(13) = 'ri2'
+          qname(14) = 'bi2'
+          qname(15) = 'zi1'
+          qname(16) = 'li1'
+          qname(17) = 'zi2'
+          qname(18) = 'li2'
+          qname(19) = 'ni3'
+          qname(20) = 'ri3'
+          qname(21) = 'bi3'
+          qname(22) = 'zi3'
+          qname(23) = 'li3'
+
+          qunit( 1) = 'kg/kg'
+          qunit( 2) = 'kg/kg'
+          qunit( 3) = 'kg/kg'
+          qunit( 4) = 'kg/kg'
+          qunit( 5) = 'kg/kg'
+          qunit( 6) = 'kg/kg'
+          qunit( 7) = '#/kg'
+          qunit( 8) = '#/kg'
+          qunit( 9) = '#/kg'
+          qunit(10) = 'kg/kg'
+          qunit(11) = 'm^-3 kg^-1'
+          qunit(12) = '#/kg'
+          qunit(13) = 'kg/kg'
+          qunit(14) = 'm^-3 kg^-1'
+          qunit(15) = 'm^6 kg^-1'
+          qunit(16) = 'kg/kg'
+          qunit(17) = 'm^6 kg^-1'
+          qunit(18) = 'kg/kg'
+          qunit(19) = '#/kg'
+          qunit(20) = 'kg/kg'
+          qunit(21) = 'm^-3 kg^-1'
+          qunit(22) = 'm^6 kg^-1'
+          qunit(23) = 'kg/kg'
+
+          ! likely maximum value (order-of-magnitude)
+          ! (needed for monotonic advection schemes)
+          qmag( 1) = 0.01
+          qmag( 2) = 0.01
+          qmag( 3) = 0.01
+          qmag( 4) = 0.01
+          qmag( 5) = 0.01
+          qmag( 6) = 0.01
+          qmag( 7) = 1.0e5
+          qmag( 8) = 1.0e5
+          qmag( 9) = 1.0e5
+          qmag(10) = 0.01
+          qmag(11) = 1.0e-5
+          qmag(12) = 1.0e5
+          qmag(13) = 0.01
+          qmag(14) = 1.0e-5
+          qmag(15) = 1.0e-3
+          qmag(16) = 0.01
+          qmag(17) = 1.0e-3
+          qmag(18) = 0.01
+          qmag(19) = 1.0e5
+          qmag(20) = 0.01
+          qmag(21) = 1.0e-5
+          qmag(22) = 1.0e-3
+          qmag(23) = 0.01
+
+          ! for p3 arrays:
+          np3a = 43            ! 3-mom, liqfrac, 3-cat (no extra output)
+          np3a = np3a + nout2d + nout3d + 3  !(3 for dhmax_x)
+          np3o = 12            ! 3 x nCat; for vmi_(x), dmi_(x), rhoi_(x), dhmax_(x)
+
+      !cccccccccccccccccccccccccccccccccccccccccccccccccccc!
+
+        ELSEIF( ptype.eq.63 )THEN
+
+          numq = 29   ! there are 29 q variables
+
+          nqv  = 1    ! qv
+          nql1 = 2    ! the first liquid variable
+          nql2 = 3    ! the last liquid variable
+          nqs1 = 4    ! the first solid variable
+          nqs2 = 7    ! the last solid variable
+
+          cloudvar( 1) = .false.
+          cloudvar( 2) = .true.
+          cloudvar( 3) = .false.
+          cloudvar( 4) = .true.
+          cloudvar( 5) = .true.
+          cloudvar( 6) = .true.
+          cloudvar( 7) = .true.
+          cloudvar( 8) = .false.
+          cloudvar( 9) = .false.
+          cloudvar(10) = .false.
+          cloudvar(11) = .false.
+          cloudvar(12) = .false.
+          cloudvar(13) = .false.
+          cloudvar(14) = .false.
+          cloudvar(15) = .false.
+          cloudvar(16) = .false.
+          cloudvar(17) = .false.
+          cloudvar(18) = .false.
+          cloudvar(19) = .false.
+          cloudvar(20) = .false.
+          cloudvar(21) = .false.
+          cloudvar(22) = .false.
+          cloudvar(23) = .false.
+          cloudvar(24) = .false.
+          cloudvar(25) = .false.
+          cloudvar(26) = .false.
+          cloudvar(27) = .false.
+          cloudvar(28) = .false.
+          cloudvar(29) = .false.
+
+          qname( 1) = 'qv '
+          qname( 2) = 'qc '
+          qname( 3) = 'qr '
+          qname( 4) = 'qi1'
+          qname( 5) = 'qi2'
+          qname( 6) = 'qi3'
+          qname( 7) = 'qi4'
+          qname( 8) = 'nc '
+          qname( 9) = 'nr '
+          qname(10) = 'ni1'
+          qname(11) = 'ri1'
+          qname(12) = 'bi1'
+          qname(13) = 'ni2'
+          qname(14) = 'ri2'
+          qname(15) = 'bi2'
+          qname(16) = 'zi1'
+          qname(17) = 'li1'
+          qname(18) = 'zi2'
+          qname(19) = 'li2'
+          qname(20) = 'ni3'
+          qname(21) = 'ri3'
+          qname(22) = 'bi3'
+          qname(23) = 'zi3'
+          qname(24) = 'li3'
+          qname(25) = 'ni4'
+          qname(26) = 'ri4'
+          qname(27) = 'bi4'
+          qname(28) = 'zi4'
+          qname(29) = 'li4'
+
+
+          qunit( 1) = 'kg/kg'
+          qunit( 2) = 'kg/kg'
+          qunit( 3) = 'kg/kg'
+          qunit( 4) = 'kg/kg'
+          qunit( 5) = 'kg/kg'
+          qunit( 6) = 'kg/kg'
+          qunit( 7) = 'kg/kg'
+          qunit( 8) = '#/kg'
+          qunit( 9) = '#/kg'
+          qunit(10) = '#/kg'
+          qunit(11) = 'kg/kg'
+          qunit(12) = 'm^-3 kg^-1'
+          qunit(13) = '#/kg'
+          qunit(14) = 'kg/kg'
+          qunit(15) = 'm^-3 kg^-1'
+          qunit(16) = 'm^6 kg^-1'
+          qunit(17) = 'kg/kg'
+          qunit(18) = 'm^6 kg^-1'
+          qunit(19) = 'kg/kg'
+          qunit(20) = '#/kg'
+          qunit(21) = 'kg/kg'
+          qunit(22) = 'm^-3 kg^-1'
+          qunit(23) = 'm^6 kg^-1'
+          qunit(24) = 'kg/kg'
+          qunit(25) = '#/kg'
+          qunit(26) = 'kg/kg'
+          qunit(27) = 'm^-3 kg^-1'
+          qunit(28) = 'm^6 kg^-1'
+          qunit(29) = 'kg/kg'
+
+          ! likely maximum value (order-of-magnitude)
+          ! (needed for monotonic advection schemes)
+          qmag( 1) = 0.01
+          qmag( 2) = 0.01
+          qmag( 3) = 0.01
+          qmag( 4) = 0.01
+          qmag( 5) = 0.01
+          qmag( 6) = 0.01
+          qmag( 7) = 0.01
+          qmag( 8) = 1.0e5
+          qmag( 9) = 1.0e5
+          qmag(10) = 1.0e5
+          qmag(11) = 0.01
+          qmag(12) = 1.0e-5
+          qmag(13) = 1.0e5
+          qmag(14) = 0.01
+          qmag(15) = 1.0e-5
+          qmag(16) = 1.0e-3
+          qmag(17) = 0.01
+          qmag(18) = 1.0e-3
+          qmag(19) = 0.01
+          qmag(20) = 1.0e5
+          qmag(21) = 0.01
+          qmag(22) = 1.0e-5
+          qmag(23) = 1.0e-3
+          qmag(24) = 0.01
+          qmag(25) = 1.0e5
+          qmag(26) = 0.01
+          qmag(27) = 1.0e-5
+          qmag(28) = 1.0e-3
+          qmag(29) = 0.01
+
+          ! for p3 arrays:
+          np3a = 52            ! 3-mom, liqfrac, 4-cat  (no extra output)
+          np3a = np3a + nout2d + nout3d + 4  !(4 for dhmax_x)
+          np3o = 16            ! 4 x nCat for vmi_(x), dmi_(x), rhoi_(x), dhmax_(x)
 
         ENDIF
 
@@ -4904,6 +5451,22 @@
 !--------------------------------------------------------------
 !  Define dimensions for allocatable arrays
 
+      ibb=1
+      ieb=1
+      jbb=1
+      jeb=1
+      kbb=1
+      keb=1
+
+      use_pbl = .false.
+
+      ibmynn=1
+      iemynn=1
+      jbmynn=1
+      jemynn=1
+      kbmynn=1
+      kemynn=1
+
       if(imoist.eq.1)then
         ibm=ib
         iem=ie
@@ -4976,14 +5539,6 @@
         ker=1
       endif
 
-      ibpbl=1
-      iepbl=1
-      jbpbl=1
-      jepbl=1
-      kbpbl=1
-      kepbl=1
-      npbl=1
-
       if( (cm1setup.eq.2.or.cm1setup.eq.4) .and. ipbl.ge.1 )then
         ! for boundary-layer schemes:
         ibb=ib
@@ -4993,14 +5548,6 @@
         kbb=kb
         keb=ke
         use_pbl = .true.
-      else
-        ibb=1
-        ieb=1
-        jbb=1
-        jeb=1
-        kbb=1
-        keb=1
-        use_pbl = .false.
       endif
 
       if( ( idopbl .and. ( ipbl.eq.4 .or. ipbl.eq.5 ) ) .or. sfcmodel.eq.6 )then
@@ -5012,21 +5559,22 @@
         kbmynn=kb
         kemynn=ke
         iusetke = .true.
+        ibtmp=max( ibtmp , 1 )
+        ietmp=max( ietmp , ni )
+        kbtmp=max( kbtmp , 1 )
+        ketmp=max( ketmp , nk+1 )
+        ntmp2d=max( ntmp2d , 59 )
+        ntmp1d=max( ntmp1d ,  2 )
+      endif
 
-        ibpbl=ib
-        iepbl=ie
-        jbpbl=1
-        jepbl=1
-        kbpbl=kb
-        kepbl=ke+1
-        npbl = 57
-      else
-        ibmynn=1
-        iemynn=1
-        jbmynn=1
-        jemynn=1
-        kbmynn=1
-        kemynn=1
+      if( idopbl .and. ipbl.eq.1 )then
+        ! YSU
+        ibtmp = max( ibtmp , 1 )
+        ietmp = max( ietmp , ni )
+        kbtmp = max( kbtmp , 1 )
+        ketmp = max( ketmp , nk+1 )
+        ntmp2d = max( ntmp2d , 44 )
+        ntmp1d = max( ntmp1d ,  5 )
       endif
 
       !-----------------------------------------
@@ -5045,6 +5593,14 @@
         bl_mynn_mixqt      =   0      ! 0:mix moisture species separate,1: mix total water
         bl_mynn_output     =   1      ! 1:Allocate and output extra 3D arrays
         bl_mynn_tkeadvect  =  .true.  ! tke advection?  (T=yes)
+        if( ipbl.eq.4 )then
+          bl_mynn_closure    =  2.50_sp   ! flag to determine the closure level for the mynn
+        elseif( ipbl.eq.5 )then
+          bl_mynn_closure    =   3.00_sp  ! flag to determine the closure level for the mynn
+        endif
+        if(myid.eq.0) print *
+        if(myid.eq.0) print *,'  bl_mynn_closure = ',bl_mynn_closure
+        if(myid.eq.0) print *
       endif
       !-----------------------------------------
 
@@ -5057,13 +5613,11 @@
         kbmyj=kb
         kemyj=ke+1
 
-        ibpbl=ib
-        iepbl=ie
-        jbpbl=jb
-        jepbl=je
-        kbpbl=kb
-        kepbl=ke+1
-        npbl = 28
+        ibtmp=max( ibtmp , 1 )
+        ietmp=max( ietmp , ni )
+        kbtmp=max( kbtmp , 1 )
+        ketmp=max( ketmp , nk+1 )
+        ntmp2d=max( ntmp2d , 28 )
       else
         ibmyj=1
         iemyj=1
@@ -5083,6 +5637,15 @@
         iel=1
         jbl=1
         jel=1
+      endif
+
+      if( sfcmodel.eq.3 )then
+        ibtmp = max( ibtmp , 1 )
+        ietmp = max( ietmp , ni )
+        kbtmp = max( kbtmp , 1 )
+        ketmp = max( ketmp , nk )
+        ntmp2d = max( ntmp2d ,  6 )
+        ntmp1d = max( ntmp1d ,  3 )
       endif
 
       if( idoles .or. idopbl .or. ipbl.ge.1 .or. cm1setup.eq.3 )then
@@ -5136,6 +5699,28 @@
         jenba=1
         kbnba=1
         kenba=1
+      endif
+
+      if( cuparam.ge.1 )then
+        ibcu=ib
+        iecu=ie
+        jbcu=jb
+        jecu=je
+        kbcu=kb
+        kecu=ke
+        ibtmp = max( ibtmp ,    1 )
+        ietmp = max( ietmp ,   ni )
+        kbtmp = max( kbtmp ,    1 )
+        ketmp = max( ketmp , nk+1 )
+        ntmp2d = max( ntmp2d , 20 )
+        ntmp1d = max( ntmp1d ,  3 )
+      else
+        ibcu=1
+        iecu=1
+        jbcu=1
+        jecu=1
+        kbcu=1
+        kecu=1
       endif
 
       if(iptra.eq.1)then
@@ -5211,7 +5796,9 @@
 
       ! array indices for P3 microphysics:
       ! (use these arrays for ISHMAEL diag output, too)
-      if( imoist.eq.1 .and. ( ptype.eq.50 .or. ptype.eq.51 .or. ptype.eq.52 .or. ptype.eq.53 .or. ptype.eq.55 ) )then
+      if( imoist.eq.1 .and. ( ptype.eq.50 .or. ptype.eq.51 .or. ptype.eq.52 .or. &
+                              ptype.eq.53 .or. ptype.eq.54 .or. ptype.eq.55 .or. ptype.eq.60 .or. &
+                              ptype.eq.61 .or. ptype.eq.62 .or. ptype.eq.63) )then
         ibp3 = 1
         iep3 = ni
         jbp3 = 1
@@ -5278,7 +5865,7 @@
       td_melt  = 0
       td_frz   = 0
 
-      IF( output_thbudget.eq.1 .or.dodomaindiag )THEN
+      IF( output_thbudget.eq.1 )THEN
         ibdt = ib
         iedt = ie
         jbdt = jb
@@ -5464,7 +6051,7 @@
 
         endif
       ENDIF
-      IF( ( output_qvbudget.eq.1 .or. dodomaindiag ) .and. imoist.eq.1 )THEN
+      IF( output_qvbudget.eq.1 .and. imoist.eq.1 )THEN
         ibdq = ib
         iedq = ie
         jbdq = jb
@@ -5566,7 +6153,7 @@
       ud_lsw     = 0
       nutk       = 0
 
-      IF( output_ubudget.eq.1 .or. dodomaindiag )THEN
+      IF( output_ubudget.eq.1 )THEN
         ! 170721: to more easily calculate rtke budget, save budget terms
 
         ibdv = ib
@@ -5671,7 +6258,7 @@
       vd_lsw     = 0
       nvtk       = 0
 
-      IF( output_vbudget.eq.1 .or. dodomaindiag )THEN
+      IF( output_vbudget.eq.1 )THEN
         ! 170721: to more easily calculate rtke budget, save budget terms
 
         ibdv = ib
@@ -5773,7 +6360,7 @@
       wd_buoy    = 0
       nwtk       = 0
 
-      IF( output_wbudget.eq.1 .or. dodomaindiag )THEN
+      IF( output_wbudget.eq.1 )THEN
         ! 170721: to more easily calculate rtke budget, save budget terms
 
         ibdv = ib
@@ -5852,7 +6439,8 @@
       kd_adv   = 0
       kd_turb  = 0
 
-      IF( idopbl .and. dodomaindiag .and. iusetke )THEN
+      ! cm1r21.1: add idoles
+      IF( (idopbl.or.idoles) .and. dodomaindiag .and. iusetke )THEN
 
         ibdk = ib
         iedk = ie
@@ -6112,7 +6700,7 @@
 !!!      jbe2 = je
 !!!      kbb2 = kb
 !!!      kbe2 = ke
-
+!!!
 !!!      if(dowr) write(outfile,*) '  ibb2  = ',ibb2
 !!!      if(dowr) write(outfile,*) '  ibe2  = ',ibe2
 !!!      if(dowr) write(outfile,*) '  jbb2  = ',jbb2
@@ -6615,7 +7203,7 @@
       if(dowr) write(outfile,*)
 #endif
 
-  ! define grid, assuming no stretching 
+  ! define grid, assuming no stretching
   ! (we will correct the grid later if stretch_x or stretch_y >= 1)
 
     allocate( xfdp(1-ngxy:nx+ngxy+1) )
@@ -6712,6 +7300,7 @@
       if(dowr) write(outfile,*)
 
       if(dowr) write(outfile,*) 'cpdcv =',cpdcv
+      if(dowr) write(outfile,*) 'cvdcp =',cvdcp
       if(dowr) write(outfile,*) 'rovcp =',rovcp
       if(dowr) write(outfile,*) 'rddcv =',rddcv
       if(dowr) write(outfile,*) 'cvdrd =',cvdrd
@@ -6724,6 +7313,7 @@
       if(dowr) write(outfile,*) 'pnum  =',pnum
       if(dowr) write(outfile,*) 'xlv   =',xlv
       if(dowr) write(outfile,*) 'xls   =',xls
+      if(dowr) write(outfile,*) 'xlf   =',xlf
       if(dowr) write(outfile,*) 'lvdcp =',lvdcp
       if(dowr) write(outfile,*) 'condc =',condc
       if(dowr) write(outfile,*) 'cpl   =',cpl
@@ -6778,7 +7368,7 @@
 
 
       if(dowr) write(outfile,*)
- 
+
       if(dowr) write(outfile,130) 'ib,ibm,ibi,ibc,ibt=',ib,ibm,ibi,ibc,ibt
       if(dowr) write(outfile,130) 'ie,iem,iei,iec,iet=',ie,iem,iei,iec,iet
       if(dowr) write(outfile,130) 'jb,jbm,jbi,jbc,jbt=',jb,jbm,jbi,jbc,jbt
@@ -6861,19 +7451,27 @@
       if(dowr) write(outfile,135) 'kedk,kedp,kemynn  =',kedk,kedp,kemynn
 
       if(dowr) write(outfile,*)
-      if(dowr) write(outfile,137) 'ibmyj,ibpbl =     =',ibmyj,ibpbl
-      if(dowr) write(outfile,137) 'iemyj,iepbl =     =',iemyj,iepbl
-      if(dowr) write(outfile,137) 'jbmyj,jbpbl =     =',jbmyj,jbpbl
-      if(dowr) write(outfile,137) 'jemyj,jepbl =     =',jemyj,jepbl
-      if(dowr) write(outfile,137) 'kbmyj,kbpbl =     =',kbmyj,kbpbl
-      if(dowr) write(outfile,137) 'kemyj,kepbl =     =',kemyj,kepbl
-      if(dowr) write(outfile,139) 'npbl  =           =',npbl
+      if(dowr) write(outfile,137) 'ibmyj,ibtmp,ibcu  =',ibmyj,ibtmp,ibcu
+      if(dowr) write(outfile,137) 'iemyj,ietmp,iecu  =',iemyj,ietmp,iecu
+      if(dowr) write(outfile,137) 'jbmyj,jbtmp,jbcu  =',jbmyj,jbtmp,jbcu
+      if(dowr) write(outfile,137) 'jemyj,jetmp,jecu  =',jemyj,jetmp,jecu
+      if(dowr) write(outfile,137) 'kbmyj,kbtmp,kbcu  =',kbmyj,kbtmp,kbcu
+      if(dowr) write(outfile,137) 'kemyj,ketmp,kecu  =',kemyj,ketmp,kecu
+      if(dowr) write(outfile,*)
+      if(dowr) write(outfile,139) 'ntmp2d            =',ntmp2d
+      if(dowr) write(outfile,139) 'ntmp1d            =',ntmp1d
 
-137   format(1x,a19,2(4x,i5))
+137   format(1x,a19,3(4x,i5))
 139   format(1x,a19,1(4x,i5))
 
       if(dowr) write(outfile,*)
       if(dowr) write(outfile,*) '  use_pbl = ',use_pbl
+
+      if(dowr) write(outfile,*)
+      if(dowr) write(outfile,*) ' ib3d,ie3d,ib2d,ie2d = ',ib3d,ie3d,ib2d,ie2d
+      if(dowr) write(outfile,*) ' jb3d,je3d,jb2d,je2d = ',jb3d,je3d,jb2d,je2d
+      if(dowr) write(outfile,*) ' kb3d,ke3d           = ',kb3d,ke3d
+      if(dowr) write(outfile,*) ' nout3d,nout2d       = ',nout3d,nout2d
 
     !----------
 
@@ -7224,6 +7822,7 @@
 
           close(unit=40)
 
+        if( axisymm.ne.1 )then
           ! work outward from center of domain :
           xfdp(nx/2+1) = 0.5*(xhref(nx/2)+xhref(nx/2+1))
 
@@ -7233,6 +7832,13 @@
           do i=(nx/2),(1),(-1)
             xfdp(i) = 2.0*xhref(i) - xfdp(i+1)
           enddo
+        else
+          ! axisymm = 1
+          xfdp(1) = 0.0
+          do i=1,nx
+            xfdp(i+1) = 2.0*xhref(i) - xfdp(i)
+          enddo
+        endif
 
         endif
 
@@ -7269,8 +7875,8 @@
 !  End specify xfdp
 !-----------------------------------------------------------------------
 !
-!  Optional:  to use a different stretching function, or to use 
-!  arbitrarily located grid points, simply comment out the 
+!  Optional:  to use a different stretching function, or to use
+!  arbitrarily located grid points, simply comment out the
 !  "hard-wired" section above, and then specify values for xfref
 !  here.  Do not change anything below here!
 !
@@ -7638,8 +8244,8 @@
 !  End specify yfdp
 !-----------------------------------------------------------------------
 !
-!  Optional:  to use a different stretching function, or to use 
-!  arbitrarily located grid points, simply comment out the 
+!  Optional:  to use a different stretching function, or to use
+!  arbitrarily located grid points, simply comment out the
 !  "hard-wired" section above, and then specify values for yfref
 !  here.  Do not change anything below here!
 !
@@ -7922,10 +8528,10 @@
 ! kb = 0
 ! so ng = 1 and zfw1d(-ng+1:nz+ng)
 ! SUBROUTINE ZGRID(dz, dz_stretch, nz, nbndlyr, gzc, gze, ng, dzmax,ztopstr,rtop,dzmaxtop)
-       
-       nbndlyr = Int( str_bot/dz_bot + 0.01) - 1
-       CALL ZGRID(dz, dz_bot, ke, nbndlyr, gzc, gze, 1, dz_top,ztopstr,rtop,dzmaxtop)
-       
+
+       nbndlyr = Max(0,Int( str_bot/dz_bot + 0.01) - 1)
+       CALL ZGRID(dz, dz_bot, ke, nbndlyr, gzc, gze, 1, dz_top,ztopstr,rtop,dzmaxtop,myid)
+
          IF ( myid == 0 ) THEN
            DO k = 1,ke
              write(6,*) 'k,gzc,gze = ',k,gzc(k),gze(k)
@@ -7969,8 +8575,8 @@
         ! (note:  specify levels in meters ASL)
         ! See run/config_files/les_StratoCuDrizzle/input_grid_z for an example.
 
-        ! NOTE:  this section of code expects the model heights on HALF LEVELS 
-        !        (aka scalar levels), eg, 0.5*dz, 1.5*dz, 2.5*dz, etc 
+        ! NOTE:  this section of code expects the model heights on HALF LEVELS
+        !        (aka scalar levels), eg, 0.5*dz, 1.5*dz, 2.5*dz, etc
 
         if( myid.eq.0 )then
 
@@ -8035,8 +8641,8 @@
         ! User specifies w levels in a file called "input_grid_z"
         ! (note:  specify levels in meters ASL)
 
-        ! NOTE:  this section of code expects the model heights on FULL LEVELS 
-        !        (aka w levels), eg, 0.0*dz, 1.0*dz, 2.0*dz, 3.0*dz, etc 
+        ! NOTE:  this section of code expects the model heights on FULL LEVELS
+        !        (aka w levels), eg, 0.0*dz, 1.0*dz, 2.0*dz, 3.0*dz, etc
 
         if( myid.eq.0 )then
 
@@ -8107,14 +8713,14 @@
 !  End hard-wired analytic stretching function
 !-----------------------------------------------------------------------
 !
-!  Optional:  to use a different stretching function, or to use 
-!  arbitrarily located grid points, simply comment out the 
+!  Optional:  to use a different stretching function, or to use
+!  arbitrarily located grid points, simply comment out the
 !  "hard-wired" section above, and then specify values for zf
 !  here.  Do not change anything below here!
 !
-!  Note:  zf stores the location of the staggered w points. 
+!  Note:  zf stores the location of the staggered w points.
 !
-!  Note:  if you are using terrain, you need to also specify the nominal 
+!  Note:  if you are using terrain, you need to also specify the nominal
 !  locations of the zf points in the sigmaf array.
 !
 !-----------------------------------------------------------------------
@@ -8619,7 +9225,7 @@
           enddo
           enddo
         enddo
- 
+
         do j=jb,je
         do i=ib,ie
           do k=1,nk+1
@@ -8684,7 +9290,7 @@
         ENDIF
 
         ! 170803:  If you do not want/need the horizontal Rayleigh damper
-        !          on certain sides of the domain, then set the 
+        !          on certain sides of the domain, then set the
         !          appropriate variable below to .false.
 
         hrdamp_west   =  .true.
@@ -8928,8 +9534,10 @@
 
       endif
 
+    if( lspgrad.eq.3 )then
       ! for lspgrad = 3
       hurr_angle = dble(hurr_rotate) * ( pi_dp / 180.0d0 )
+    endif
 
 !--------------------------------------------------------------
 
@@ -9098,7 +9706,7 @@
           if(dowr) write(outfile,*) '  ... using Thompson microphysics scheme ... '
           if(dowr) write(outfile,*) '         numq   = ',numq
           if(dowr) write(outfile,*)
-          if(dowr) write(outfile,*) '         assuming constant cloud droplet concentration' 
+          if(dowr) write(outfile,*) '         assuming constant cloud droplet concentration'
           if(dowr) write(outfile,*) '         Nt_c   = ',Nt_c
           if(dowr) write(outfile,*)
           if(dowr) write(outfile,*) ' ----------------------------------------------- '
@@ -9137,8 +9745,13 @@
 
 !--------------------------------------------------------------
 
-      dtu0 = 1.0
-      dtv0 = 1.0
+      dtu0 = 0.0
+
+      do j=1,nj
+      do i=1,ni+1
+        dtu0(i,j) = 1.0
+      enddo
+      enddo
 
       if( ibw.eq.1 )then
         do j=1,nj
@@ -9150,6 +9763,16 @@
           dtu0(ni+1,j) = 0.0
         enddo
       endif
+
+    !.........................
+
+      dtv0 = 0.0
+
+      do j=1,nj+1
+      do i=1,ni
+        dtv0(i,j) = 1.0
+      enddo
+      enddo
 
       if( ibs.eq.1 )then
         do i=1,ni
@@ -9432,6 +10055,14 @@
 
         !-----------------------------------------------------
 
+        if(dowr) write(outfile,*)
+        if(dowr) write(outfile,*) '      irecywe = ',irecywe
+        if(dowr) write(outfile,*) '      jrecywe = ',jrecywe
+        if(dowr) write(outfile,*) '      irecysn = ',irecysn
+        if(dowr) write(outfile,*) '      jrecysn = ',jrecysn
+        if(dowr) write(outfile,*) '      krecy   = ',krecy
+        if(dowr) write(outfile,*) '      nrecy   = ',nrecy
+        if(dowr) write(outfile,*)
 
       ENDIF  ifrecycle
 
@@ -9473,8 +10104,11 @@
 
 !--------------------------------------------------------------
 
+      if(dowr) write(outfile,*)
+      if(dowr) write(outfile,*) '  dotimeavg = ',dotimeavg
+      if(dowr) write(outfile,*)
+
       IF( dotimeavg )THEN
-        if(dowr) write(outfile,*)
         if(dowr) write(outfile,*) '  ... using time averages ... '
         if(dowr) write(outfile,*)
         if(dowr) write(outfile,*) '      ibta,ieta      = ',ibta,ieta
@@ -9534,6 +10168,9 @@
       write(21,*) '  tconfig                   = ',tconfig
       write(21,*) '  bcturbs                   = ',bcturbs
       write(21,*) '  ptype                     = ',ptype
+      IF ( ptype.eq.26 .or. ptype.eq.27  ) THEN
+      write(21,*) '  nssl_3moment              = ',nssl_3moment
+      ENDIF
       write(21,*) '  wbc                       = ',wbc
       write(21,*) '  ebc                       = ',ebc
       write(21,*) '  sbc                       = ',sbc
@@ -9796,22 +10433,22 @@
 ! >>>>>>>>>>>>>>>>>>>>>>>>>>>>   SUBROUTINE ZGRID  <<<<<<<<<<<<<<<<<<<<<<<<<<< !
 !
 !-------------------------------------------------------------------------------
-! Creates the vertical grid using a geometric stretch 
+! Creates the vertical grid using a geometric stretch
 !
-! Option - set nbndlyr > 0 input deck.  A suggested value is ~ nz/4 to create a 
+! Option - set nbndlyr > 0 input deck.  A suggested value is ~ nz/4 to create a
 ! layer having constant resolution near the surface.
 !
 !-------------------------------------------------------------------------------
 
- SUBROUTINE ZGRID(dz, dz_stretch, nz, nbndlyr, gzc, gze, ng, dzmax,ztopstr,rtop,dzmaxtop)
+ SUBROUTINE ZGRID(dz, dz_stretch, nz, nbndlyr, gzc, gze, ng, dzmax,ztopstr,rtop,dzmaxtop,myid)
 
    implicit none
 
 
    real dz, dz_stretch
    real  dzmax,ztopstr,rtop,dzmaxtop
-   integer, intent(in) :: nbndlyr, nz, ng
-   double precision gzc(-ng+1:nz+ng), gze(-ng+1:nz+ng)  ! stay   real gzc(nz), gze(nz)  ??
+   integer, intent(in) :: nbndlyr, nz, ng, myid
+   double precision gzc(-ng+1:nz+ng), gze(-ng+1:nz+ng)
 
 !   real dzmax
 !   parameter( dzmax = 700. )
@@ -9846,13 +10483,17 @@
 
    write(6,*)
    IF( stretch .gt. 1.1 ) THEN
+    IF ( myid == 0 ) THEN
     write(6,*) 'STRETCH FAC TOO BIG! - NUMERICAL ERRORS WILL BE LARGE'
     write(6,*) 'STRETCH FAC  = ',stretch
     write(6,*) 'INCREASE NZ in namelist or increase dz_bot'
+    ENDIF
     call stopcm1
    ELSE
+    IF ( myid == 0 ) THEN
     write(6,*) 'ZGRID:  STRETCH FAC  = ',stretch
     write(6,*) 'ZGRID:  DOMAIN  HGT  = ',ZHEIGHT(dz_stretch,stretch,nz-1,dzmax,nbndlyr,ztopstr,rtop,dzmaxtop)
+    ENDIF
    ENDIF
 
    gze(1) = 0.0
@@ -9862,7 +10503,7 @@
 !    write(6,*) 'ZGRID: gze,gzc = ',k,gze(k+1),gzc(k)
    ENDDO
 
-   gzc(nz) = 2.*gzc(nz-1) - gzc(nz-2) 
+   gzc(nz) = 2.*gzc(nz-1) - gzc(nz-2)
 
 
   END SUBROUTINE ZGRID
@@ -9891,11 +10532,11 @@
   sum = 0.0d0
   dzmaxdp = dzmax
   dzmax2dp = dzmax2
-  
+
 !  zctop = 10000.
 !  ztopr = 1.09
 !  dzmax2 = 1000. ! 2*dzmax
-  
+
   n2 = 0
 
   DO k = 1,nz
@@ -9929,10 +10570,10 @@
       integer, intent(in) :: nlevels
 
 
-      !  To reduce memory usage, the time-averaging code is designed as a series 
+      !  To reduce memory usage, the time-averaging code is designed as a series
       !  of smaller time averages.
       !
-      !  Total length of time averge is ntim * rtim.  
+      !  Total length of time averge is ntim * rtim.
       !  (so, ntim = 5 with rtime = 60.0s  yields 300-s average
 
 
