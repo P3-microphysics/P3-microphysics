@@ -2202,9 +2202,8 @@ hostinclusionstring_m = 'spheroidal'
 
         ! calculate eff radius:
 
-         !eff(i_Qnorm,i_Fr) = sum1/(1.7321*916.7*sum2)
          !calculate effective size following Fu (1996)
-         !eff(i_Qnorm,i_Fr) = sum1/(1.1547*916.7*sum2)
+         !eff(i_Qnorm,i_Fr) = (1.1547*sum1)/(916.7*sum2)
         ! calculate for eff rad for twp ice:
           eff(i_Qnorm,i_Fr,i_Fl) = 3.*sum1/(4.*sum2*916.7)
 
