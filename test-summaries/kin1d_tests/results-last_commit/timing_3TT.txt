@@ -10,9 +10,9 @@
 
  Block Description              Time (ms)     % of p3_main
  ------------------             ---------     ------------
-   1 full p3_main              25.142450      100.000000
-   2 i_loop_main               25.031328       99.558029
-   3 k_loop_main (procs)       23.078213       91.789833
-   6 sedimentation              0.484648        1.927608
-   9 type_diags                 0.041628        0.165568
+   1 full p3_main              25.497618      100.000000
+   2 i_loop_main               25.381517       99.544662
+   3 k_loop_main (procs)       23.479996       92.087021
+   6 sedimentation              0.484247        1.899186
+   9 type_diags                 0.042896        0.168236
 
