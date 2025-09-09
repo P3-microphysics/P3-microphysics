@@ -115,7 +115,7 @@
                    i_rhow,qsmall,nsmall,bsmall,zsmall,cp,g,rd,rv,ep_2,i_cp,mw,osm,       &
                    vi,epsm,rhoa,map,ma,rr,bact,i_rm1,i_rm2,sig1,nanew1,f11,f21,sig2,     &
                    nanew2,f12,f22,pi,thrd,sxth,piov3,piov6,rho_rimeMin,                  &
-                   rho_rimeMax,i_rho_rimeMax,max_total_Ni,dbrk,nmltratio,minVIS,         &
+                   rho_rimeMax,i_rho_rimeMax,max_Ni,dbrk,nmltratio,minVIS,         &
                    maxVIS,mu_i_initial,mu_r_constant,inv_Drmax,Dmin_HM,Dinit_HM,trplpt,  &
                    liqfracsmall
 
@@ -208,7 +208,7 @@
  piov6 = pi*sxth
 
 ! maximum total ice concentration (sum of all categories)
- max_total_Ni = 2000.e+3  !(m)
+ max_Ni = 2000.e+3  !(m)
 
 ! switch for warm-rain parameterization
 ! = 1 Seifert and Beheng 2001
@@ -2751,7 +2751,7 @@ call cpu_time(timer_start(3))
        epsi_tot = 0.
        epsiw_tot = 0.
 
-       call impose_max_total_Ni(nitot(i,k,:),max_total_Ni,i_rho(i,k))
+       call impose_max_Ni(nitot(i,k,:),max_Ni,i_rho(i,k))
 
        iice_loop1: do iice = 1,nCat
 
@@ -4409,7 +4409,7 @@ call cpu_time(timer_start(3))
        enddo !iice-loop
 
        qv(i,k) = max(0., qv(i,k))
-       call impose_max_total_Ni(nitot(i,k,:),max_total_Ni,i_rho(i,k))
+       call impose_max_Ni(nitot(i,k,:),max_Ni,i_rho(i,k))
 
 !---------------------------------------------------------------------------------
 
@@ -4942,7 +4942,7 @@ call cpu_time(timer_end(6))
 
     ! ice:
 
-       call impose_max_total_Ni(nitot(i,k,:),max_total_Ni,i_rho(i,k))
+       call impose_max_Ni(nitot(i,k,:),max_Ni,i_rho(i,k))
 
        iice_loop_final_diagnostics:  do iice = 1,nCat
 
@@ -10742,29 +10742,44 @@ else
  end subroutine calc_bulkRhoRime
 
 !===========================================================================================
- subroutine impose_max_total_Ni(nitot_local,max_total_Ni,i_rho_local)
+
+ subroutine impose_max_Ni(nitot_local,max_Ni,i_rho_local)
 
 !--------------------------------------------------------------------------------
-! Impose maximum total ice number concentration (total of all ice categories).
-! If the sum of all nitot(:) exceeds maximum allowable, each category to preserve
-! ratio of number between categories.
+! Impose maximum ice number concentration on each ice category indivudually.
+! Note, with this approach the maximum total concentration (sum of all categories)
+! can in principle be nCat*max_Ni.
 !--------------------------------------------------------------------------------
 
  implicit none
 
 !arguments:
  real, intent(inout), dimension(:) :: nitot_local           !note: dimension (nCat)
- real, intent(in)                  :: max_total_Ni,i_rho_local
+ real, intent(in)                  :: max_Ni,i_rho_local
 
 !local variables:
  real                              :: dum
+ integer                           :: iice
 
- if (sum(nitot_local(:)).ge.1.e-20) then
-    dum = max_total_Ni*i_rho_local/sum(nitot_local(:))
-    nitot_local(:) = nitot_local(:)*min(dum,1.)
- endif
+ nitot_local(:) = min(nitot_local(:),max_Ni*i_rho_local)
 
- end subroutine impose_max_total_Ni
+!---
+! Previous apporach:
+!    Impose maximum total ice number concentration (total of all ice categories).
+!    If the sum of all nitot(:) exceeds maximum allowable, each category to preserve
+!    ratio of number between categories.
+!
+!  if (sum(nitot_local(:)).ge.1.e-20) then
+!     dum = max_total_Ni*i_rho_local/sum(nitot_local(:))
+!     nitot_local(:) = nitot_local(:)*min(dum,1.)
+!  endif
+!
+! Potential problem:
+!    This following approach can decrease the number for a category that already has
+!    small number, thereby creating unrealistic mean sizes and reflectivty values.
+!---
+
+ end subroutine impose_max_Ni
 
 !===========================================================================================
 

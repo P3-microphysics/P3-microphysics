@@ -3617,19 +3617,13 @@ call cpu_time(timer_start(3))
           supi_cld  = Qv_cld(k)/qvi(i,k)-1.!in-cloud  sub/sur-saturation w.r.t. ice in %
        endif
 
-
 !Note (BUG): Cholette (Jul 2022), remove *SCF(k) for ssat_cld and multiplication *CF for grid-mean qccon
-!          qccon = ((aaa*epsc*i_xx+(ssat_cld-aaa*i_xx)*i_dt*epsc*i_xx*(1.-sngl(dexp(-dble(xx*dt)))))/ab)*SCF(k)
-!          remove *SPF(k) for ssat_r and multiplication *SPF for grid-mean qccon
-!          qrcon = ((aaa*epsr*i_xx+(ssat_r-aaa*i_xx)*i_dt*epsr*i_xx*(1.-sngl(dexp(-dble(xx*dt)))))/ab)*SPF(k)
        if (qc(i,k).ge.qsmall) qccon = (aaa*epsc*i_xx+(ssat_cld*SCF(k)-aaa*i_xx)*i_dt*    &
-                                       epsc*i_xx*(1.-sngl(dexp(-dble(xx*dt)))))/ab
-       if (qr(i,k).ge.qsmall) qrcon = (aaa*epsr*i_xx+(ssat_r*SPF(k)-aaa*i_xx)*i_dt*epsr* &
-                                      i_xx*(1.-sngl(dexp(-dble(xx*dt)))))/ab
+                                       epsc*i_xx* sngl(1.d0-dexp(-dble(xx*dt))) )/ab
+       if (qr(i,k).ge.qsmall) qrcon = (aaa*epsr*i_xx+(ssat_r*SPF(k)-aaa*i_xx)*i_dt*      &
+                                       epsr*i_xx* sngl(1.d0-dexp(-dble(xx*dt))) )/ab
 
       !evaporate instantly for very small water contents
-      !if (sup_cld.lt.-0.001 .and. qc(i,k).lt.1.e-12)  qccon = -qc(i,k)*i_dt
-      !if (sup_r  .lt.-0.001 .and. qr(i,k).lt.1.e-12)  qrcon = -qr(i,k)*i_dt
        qccon = merge(-qc(i,k)*i_dt, qccon, sup_cld.lt.-0.001 .and. qc(i,k).lt.1.e-12)
        qrcon = merge(-qr(i,k)*i_dt, qrcon, sup_r  .lt.-0.001 .and. qr(i,k).lt.1.e-12)
 
@@ -3657,10 +3651,8 @@ call cpu_time(timer_start(3))
                  if (qiliq(i,k,iice)/qitot(i,k,iice).lt.0.01) then
                  !note: diffusional growth/decay rate: (stored as 'qidep' temporarily; may go to qisub below)
    !Note (BUG): Cholette (Jul 2022), remove *SCF(k) for ssat_cld and multiplication *CF for grid-mean qccon
-   !                 qidep(iice) = ((aaa*epsi(iice)*i_xx+(ssat_cld-aaa*i_xx)*i_dt*epsi(iice)*i_xx*               &
-   !                               (1.-dexp(-dble(xx*dt))))*i_abi+(qvs(i,k)-dumqvi)*epsi(iice)*i_abi)*SCF(k)
                     qidep(iice) = (aaa*epsi(iice)*i_xx+(ssat_cld*SCF(k)-aaa*i_xx)*i_dt*  &
-                                  epsi(iice)*i_xx*(1.-dexp(-dble(xx*dt))))*i_abi+        &
+                                  epsi(iice)*i_xx*sngl(1.d0-dexp(-dble(xx*dt))) )*i_abi+ &
                                   (qvs(i,k)-dumqvi)*epsi(iice)*i_abi
                  endif
               endif
@@ -3701,10 +3693,8 @@ call cpu_time(timer_start(3))
                  if ((qiliq(i,k,iice)/qitot(i,k,iice)).ge.0.01) then
               ! Condensation/evaporation fo qiliq
 !Note (BUG) Cholette (Jul 2022), remove *SCF(k) for ssat_cld and multiplication *CF for grid-mean qccon
-!                 qlcon(iice) = ((aaa*epsiw(iice)*i_xx+(ssat_cld-aaa*i_xx)*i_dt*epsiw(iice)*i_xx* &
-!                               (1.-dexp(-dble(xx*dt))))/ab)*SCF(k)
                     qlcon(iice) = (aaa*epsiw(iice)*i_xx+(ssat_cld*SCF(k)-aaa*i_xx)*i_dt* &
-                                   epsiw(iice)*i_xx*(1.-dexp(-dble(xx*dt))))/ab
+                                   epsiw(iice)*i_xx* sngl(1.d0-dexp(-dble(xx*dt))) )/ab
                  endif
               endif
 
@@ -10752,12 +10742,13 @@ else
  end subroutine calc_bulkRhoRime
 
 !===========================================================================================
+
  subroutine impose_max_total_Ni(nitot_local,max_total_Ni,i_rho_local)
 
 !--------------------------------------------------------------------------------
-! Impose maximum total ice number concentration (total of all ice categories).
-! If the sum of all nitot(:) exceeds maximum allowable, each category to preserve
-! ratio of number between categories.
+! Impose maximum ice number concentration on each ice category indivudually.
+! Note, with this approach the maximum total concentration (sum of all categories)
+! can in principle be nCat*max_total_Ni.
 !--------------------------------------------------------------------------------
 
  implicit none
@@ -10768,11 +10759,25 @@ else
 
 !local variables:
  real                              :: dum
+ integer                           :: iice
 
- if (sum(nitot_local(:)).ge.1.e-20) then
-    dum = max_total_Ni*i_rho_local/sum(nitot_local(:))
-    nitot_local(:) = nitot_local(:)*min(dum,1.)
- endif
+ nitot_local(:) = min(nitot_local(:),max_total_Ni*i_rho_local)
+
+!---
+! Previous apporach:
+!    Impose maximum total ice number concentration (total of all ice categories).
+!    If the sum of all nitot(:) exceeds maximum allowable, each category to preserve
+!    ratio of number between categories.
+!
+!  if (sum(nitot_local(:)).ge.1.e-20) then
+!     dum = max_total_Ni*i_rho_local/sum(nitot_local(:))
+!     nitot_local(:) = nitot_local(:)*min(dum,1.)
+!  endif
+!
+! Potential problem:
+!    This following approach can decrease the number for a category that already has
+!    small number, thereby creating unrealistic mean sizes and reflectivty values.
+!---
 
  end subroutine impose_max_total_Ni
 
