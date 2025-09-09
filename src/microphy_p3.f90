@@ -2155,8 +2155,8 @@ END subroutine p3_init
  real, dimension(nCat) :: Eii_fact,epsi,epsiw
  real :: eii ! temperature dependent aggregation efficiency
 
- real, dimension(its:ite,kts:kte,nCat) :: diam_ice,liquidfraction,rimefraction,          &
-            rimevolume,arr_lami,arr_mui,rimedensity
+ real, dimension(its:ite,kts:kte,nCat) :: diam_ice,liq_frac,rime_frac,          &
+            rimefrac_over_rhorime,arr_lami,arr_mui,rimedensity
 
  real, dimension(its:ite,kts:kte) :: i_dzq,i_rho,ze_ice,ze_rain,prec,acn,rho,rhofacr,    &
             rhofaci,xxls,xxlv,xlf,qvs,qvi,sup,supi,vtrmi1,tmparr1,mflux_r,mflux_i,i_exn
@@ -2389,10 +2389,10 @@ call cpu_time(timer_start(1))
  mu_r      = 0.
  diag_ze   = -99.
  diam_ice  = 0.
- rimefraction   = 0.
- rimevolume     = 0.
- liquidfraction = 0.
- rimedensity    = 0.
+ liq_frac  = 0.
+ rime_frac  = 0.
+ rimefrac_over_rhorime = 0.
+ rimedensity = 0.
  ze_ice    = 1.e-22
  ze_rain   = 1.e-22
  diag_effc = 10.e-6 ! default value
@@ -4193,33 +4193,34 @@ call cpu_time(timer_start(3))
 
 !======================================================================================!
 
-
 !---------------------------------------------------------------------------------
 ! update prognostic microphysics and thermodynamics variables
 !---------------------------------------------------------------------------------
 
    !-- ice-phase dependent processes:
 
-       ! compute fractions before update (assumed constant during ice-ice coll.)
        iice_loop2: do iice = 1,nCat
 
-        if ((qitot(i,k,iice)-qiliq(i,k,iice)).ge.qsmall) then
-         tmp1 = 1./(qitot(i,k,iice)-qiliq(i,k,iice))
-         rimevolume(i,k,iice) = birim(i,k,iice)*tmp1
-         rimefraction(i,k,iice) = qirim(i,k,iice)*tmp1
-         liquidfraction(i,k,iice) = qiliq(i,k,iice)/qitot(i,k,iice)
-        endif
+       ! compute fractions before update (assumed constant during ice-ice coll.)
+          if ((qitot(i,k,iice)-qiliq(i,k,iice)).ge.qsmall) then
+             tmp1 = 1./(qitot(i,k,iice)-qiliq(i,k,iice))   ! i.e. 1/(qidep+qirim)  [qidep is implicit]
+            !note: rimefrac_over_rhorime = rimefrac/rhorime = (qirim/(qidep+qirim)) / (qirim/birim);
+            !      used in birim-tendency calculations below (opimized; the two qirim's cancel)
+             rimefrac_over_rhorime(i,k,iice)  = birim(i,k,iice)*tmp1
+             rime_frac(i,k,iice)              = qirim(i,k,iice)*tmp1
+             liq_frac(i,k,iice)               = qiliq(i,k,iice)/qitot(i,k,iice)
+          endif
 
        ! calculate current mu_i (before updated from processes) which is used later to update mu_i
-        if (log_3momentIce) then
-           if (qitot(i,k,iice).ge.qsmall) then
-              dum1 = qitot(i,k,iice)*6./(f1pr16*pi)  !estimate of 3rd moment
-              mu_i_s(iice) = compute_mu_3mom_1(nitot(i,k,iice),dum1,zitot(i,k,iice),mu_i_max)  !polynomial approximation
-            ! mu_i_s(iice) = compute_mu_3mom_2(nitot(i,k,iice),dum1,zitot(i,k,iice),mu_i_max)  !analytic cubic root
-           else
-              mu_i_s(iice) = mu_i_initial
-           endif
-         endif
+          if (log_3momentIce) then
+             if (qitot(i,k,iice).ge.qsmall) then
+                tmp1 = qitot(i,k,iice)*6./(f1pr16*pi)  !estimate of 3rd moment
+                mu_i_s(iice) = compute_mu_3mom_1(nitot(i,k,iice),tmp1,zitot(i,k,iice),mu_i_max)  !polynomial approximation
+              ! mu_i_s(iice) = compute_mu_3mom_2(nitot(i,k,iice),tmp1,zitot(i,k,iice),mu_i_max)  !analytic cubic root
+             else
+                mu_i_s(iice) = mu_i_initial
+             endif
+          endif
 
        enddo iice_loop2
 
@@ -4227,9 +4228,7 @@ call cpu_time(timer_start(3))
 
           qc(i,k) = qc(i,k) + (-qchetc(iice)-qcheti(iice)-qccol(iice)-qcshd(iice)-       &
                     qccoll(iice)-qwgrth1c(iice)-qcmul(iice))*dt
-
           nc(i,k) = nc(i,k) + (-nccol(iice)-nchetc(iice)-ncheti(iice)-nccoll(iice))*dt
-
           qr(i,k) = qr(i,k) + (-qrcol(iice)+qrmlt(iice)-qrhetc(iice)-qrheti(iice)+       &
                     qcshd(iice)-qrmul(iice)-qrcoll(iice)+qlshd(iice)-qwgrth1r(iice))*dt
 
@@ -4243,22 +4242,21 @@ call cpu_time(timer_start(3))
                                  nimlt(iice)+nrshdr(iice)+ncshdc(iice))*dt
           endif
 
-         ! if ((qitot(i,k,iice)-qiliq(i,k,iice)).ge.qsmall) then ! not needed in 5.1.1.4.1
          ! add sink terms, assume density stays constant for sink terms
              birim(i,k,iice) = birim(i,k,iice) - (qisub(iice)+qrmlt(iice)+qimlt(iice))*  &
-                               dt*rimevolume(i,k,iice)
+                               dt*rimefrac_over_rhorime(i,k,iice)
              qirim(i,k,iice) = qirim(i,k,iice) - (qisub(iice)+qrmlt(iice)+qimlt(iice))*  &
-                               dt*rimefraction(i,k,iice)
+                               dt*rime_frac(i,k,iice)
              qiliq(i,k,iice) = qiliq(i,k,iice) + qimlt(iice)*dt
              qitot(i,k,iice) = qitot(i,k,iice) - (qisub(iice)+qrmlt(iice))*dt
          ! endif
 
-          dum             = (qrcol(iice)+qccol(iice)+qrhetc(iice)+qrheti(iice)+          &
+          tmp1             = (qrcol(iice)+qccol(iice)+qrhetc(iice)+qrheti(iice)+         &
                             qchetc(iice)+qcheti(iice)+qrmul(iice)+qcmul(iice))*dt
           qitot(i,k,iice) = qitot(i,k,iice) + (qidep(iice)+qinuc(iice)-qlshd(iice)-      &
                             qlevp(iice)+qlcon(iice)+qwgrth1c(iice)+qwgrth1r(iice)+       &
-                            qrcoll(iice)+qccoll(iice))*dt + dum
-          qirim(i,k,iice) = qirim(i,k,iice) + qifrz(iice)*dt + dum
+                            qrcoll(iice)+qccoll(iice))*dt + tmp1
+          qirim(i,k,iice) = qirim(i,k,iice) + qifrz(iice)*dt + tmp1
           birim(i,k,iice) = birim(i,k,iice) + ((qifrz(iice)+qrcol(iice))*                &
                             i_rho_rimeMax+(qccol(iice)+qcmul(iice))/rhorime_c(iice)+     &
                             (qrhetc(iice)+qrheti(iice)+qchetc(iice)+qcheti(iice)+        &
@@ -4266,7 +4264,6 @@ call cpu_time(timer_start(3))
           qiliq(i,k,iice) = qiliq(i,k,iice) + (qrcoll(iice)+qccoll(iice)-qifrz(iice)-    &
                             qlshd(iice)+qlcon(iice)-qlevp(iice)+qwgrth1c(iice)+          &
                             qwgrth1r(iice))*dt
-
           nitot(i,k,iice) = nitot(i,k,iice) + (ninuc(iice)-nimlt(iice)-nisub(iice)-      &
                             nislf(iice)+nrhetc(iice)+nrheti(iice)+nchetc(iice)+          &
                             ncheti(iice)+nimul(iice)-nlevp(iice))*dt
@@ -4283,18 +4280,18 @@ call cpu_time(timer_start(3))
              ! these are constant over the PSD
               !source for collector category
                 qirim(i,k,iice) = qirim(i,k,iice)+qicol(catcoll,iice)*dt*                &
-                                  rimefraction(i,k,catcoll)
+                                  rime_frac(i,k,catcoll)
                 birim(i,k,iice) = birim(i,k,iice)+qicol(catcoll,iice)*dt*                &
-                                  rimevolume(i,k,catcoll)
+                                  rimefrac_over_rhorime(i,k,catcoll)
                 qiliq(i,k,iice) = qiliq(i,k,iice)+qicol(catcoll,iice)*dt*                &
-                                  liquidfraction(i,k,catcoll)
+                                  liq_frac(i,k,catcoll)
               !sink for collectee category
                 qirim(i,k,catcoll) = qirim(i,k,catcoll)-qicol(catcoll,iice)*dt*          &
-                                     rimefraction(i,k,catcoll)
+                                     rime_frac(i,k,catcoll)
                 birim(i,k,catcoll) = birim(i,k,catcoll)-qicol(catcoll,iice)*dt*          &
-                                     rimevolume(i,k,catcoll)
+                                     rimefrac_over_rhorime(i,k,catcoll)
                 qiliq(i,k,catcoll) = qiliq(i,k,catcoll)-qicol(catcoll,iice)*dt*          &
-                                     liquidfraction(i,k,catcoll)
+                                     liq_frac(i,k,catcoll)
                 qitot(i,k,catcoll) = qitot(i,k,catcoll) - qicol(catcoll,iice)*dt
                 nitot(i,k,catcoll) = nitot(i,k,catcoll) - nicol(catcoll,iice)*dt
                 qitot(i,k,iice)    = qitot(i,k,iice)    + qicol(catcoll,iice)*dt
@@ -5314,24 +5311,24 @@ call cpu_time(timer_start(9))
              Q_grpl(i,k,iice)     = 0.
              Q_pellets(i,k,iice)  = 0.
              Q_hail(i,k,iice)     = 0.
-             rimefraction(i,k,iice)   = 0.
-             rimedensity(i,k,iice)    = 0.
-             liquidfraction(i,k,iice) = 0.
+             liq_frac(i,k,iice)   = 0.
+             rime_frac(i,k,iice)  = 0.
+             rimedensity(i,k,iice) = 0.
 
              if ((qitot(i,k,iice)-qiliq(i,k,iice)).ge.qsmall) then
 
-                rimefraction(i,k,iice) = qirim(i,k,iice)/(qitot(i,k,iice)-               &
+                rime_frac(i,k,iice) = qirim(i,k,iice)/(qitot(i,k,iice)-               &
                                          qiliq(i,k,iice))                     ! rime mass fraction
                 t_tmp   = th(i,kbot)*(pres(i,kbot)*1.e-5)**(rd*i_cp)          ! 1st level temperature
                 if (birim(i,k,iice).ge.bsmall) then
                    rimedensity(i,k,iice) = qirim(i,k,iice)/birim(i,k,iice)    ! rime density
                 endif
-                liquidfraction(i,k,iice) = qiliq(i,k,iice)/qitot(i,k,iice)    ! liquid fraction
+                liq_frac(i,k,iice) = qiliq(i,k,iice)/qitot(i,k,iice)    ! liquid fraction
 
-                if (liquidfraction(i,k,iice).ge.0.15) then
+                if (liq_frac(i,k,iice).ge.0.15) then
                    Q_wsnow(i,k,iice) = qitot(i,k,iice)
                 else
-                   if (rimefraction(i,k,iice).lt.0.6) then
+                   if (rime_frac(i,k,iice).lt.0.6) then
 !                       if (diag_di(i,k,iice).lt.0.002) then
 !                          Q_crystals(i,k,iice) = qitot(i,k,iice)
 !                       else
