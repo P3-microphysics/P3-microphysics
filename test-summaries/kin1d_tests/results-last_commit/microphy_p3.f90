@@ -116,7 +116,8 @@
                    vi,epsm,rhoa,map,ma,rr,bact,i_rm1,i_rm2,sig1,nanew1,f11,f21,sig2,     &
                    nanew2,f12,f22,pi,thrd,sxth,piov3,piov6,rho_rimeMin,                  &
                    rho_rimeMax,i_rho_rimeMax,max_total_Ni,dbrk,nmltratio,minVIS,         &
-                   maxVIS,mu_i_initial,mu_r_constant,inv_Drmax,Dmin_HM,Dinit_HM,trplpt
+                   maxVIS,mu_i_initial,mu_r_constant,inv_Drmax,Dmin_HM,Dinit_HM,trplpt,  &
+                   liqfracsmall
 
  integer :: n_iceCat = -1   !used for GEM interface
 
@@ -256,6 +257,8 @@
  nsmall = 1.e-16
  bsmall = qsmall*i_rho_rimeMax
  zsmall = 1.e-35
+
+ liqfracsmall = 0.01
 
 ! Bigg (1953)
 !bimm   = 100.
@@ -2536,7 +2539,8 @@ call cpu_time(timer_start(2))
           endif
 
           if (log_LiquidFrac .and. qitot(i,k,iice).ge.qsmall) then
-             if (qiliq(i,k,iice)/qitot(i,k,iice).gt.0.99) then
+             tmp1 = qiliq(i,k,iice)/qitot(i,k,iice)  !liquid fraction
+             if (tmp1.gt.(1.-liqfracsmall)) then
                 qr(i,k) = qr(i,k) + qitot(i,k,iice)
                 nr(i,k) = nr(i,k) + nitot(i,k,iice)
                 th(i,k) = th(i,k) - i_exn(i,k)*(qitot(i,k,iice)-qiliq(i,k,iice))*        &
@@ -2547,9 +2551,11 @@ call cpu_time(timer_start(2))
                 qiliq(i,k,iice) = 0.
                 birim(i,k,iice) = 0.
              endif
-             if (qiliq(i,k,iice)/qitot(i,k,iice).le.0.01) then
-                qr(i,k) = qr(i,k)+qiliq(i,k,iice)
-                qitot(i,k,iice) = qitot(i,k,iice) - qiliq(i,k,iice)
+             if (t(i,k).lt.trplpt .and. tmp1.le.liqfracsmall) then
+              !freeze small amount of liquid (qiliq) to rime
+                th(i,k) = th(i,k) + i_exn(i,k)*qiliq(i,k,iice)*xlf(i,k)*i_cp
+                birim(i,k,iice) = birim(i,k,iice) + qiliq(i,k,iice)*i_rho_rimeMax
+                qirim(i,k,iice) = qirim(i,k,iice) + qiliq(i,k,iice)
                 qiliq(i,k,iice) = 0.
              endif
           endif
@@ -4312,15 +4318,7 @@ call cpu_time(timer_start(3))
              birim(i,k,iice) = 0.
           endif
 
-          qiliq(i,k,iice) = max(qiliq(i,k,iice),0.)  !works for any log_LiquidFrac
-
-          if (qitot(i,k,iice).ge.qsmall) then
-             if (log_LiquidFrac .and. (qiliq(i,k,iice)/qitot(i,k,iice)).le.0.01) then
-                qr(i,k) = qr(i,k)+qiliq(i,k,iice)
-                qitot(i,k,iice) = qitot(i,k,iice) - qiliq(i,k,iice)
-                qiliq(i,k,iice) = 0.
-             endif
-          endif
+          qiliq(i,k,iice) = max(qiliq(i,k,iice),0.)
 
           ! densify ice during wet growth (assume total soaking)
             if (log_wetgrowth(iice)) then
@@ -4667,6 +4665,9 @@ call cpu_time(timer_end(6))
 ! End of sedimentation section
 !==========================================================================================!
 
+    if(log_LiquidFrac) call freeze_tiny_liqfrac(qitot,qiliq,qirim,birim,t,th,i_exn,xlf,  &
+                                              i_cp,i,ktop,kbot,kdir,nCat)
+
    !third and last call to compute_SCPF
     call compute_SCPF(Qc(i,:)+sum(Qitot(i,:,:),dim=2),Qr(i,:),Qv(i,:),Qvi(i,:),          &
                       Pres(i,:),ktop,kbot,kdir,SCF,iSCF,SPF,iSPF,SPF_clr,Qv_cld,Qv_clr,  &
@@ -4878,6 +4879,9 @@ call cpu_time(timer_end(6))
        enddo !k loop
 
     endif multicat
+
+    if(log_LiquidFrac) call freeze_tiny_liqfrac(qitot,qiliq,qirim,birim,t,th,i_exn,xlf,  &
+                                                i_cp,i,ktop,kbot,kdir,nCat)
 
 !...................................................
 ! note: This debug check is commented since small negative qx,nx values are possible here
@@ -11606,6 +11610,40 @@ else
       dmudt=(mu_new-mu_old)/dt
 
  end subroutine calculate_mu_change
+
+!======================================================================================!
+
+ subroutine freeze_tiny_liqfrac(qitot,qiliq,qirim,birim,t,th,i_exn,xlf,i_cp,i,           &
+                                ktop,kbot,kdir,nCat)
+
+ !---------------------------------------------
+ ! Freeze tiny amounts of liquid on ice to rime
+ !---------------------------------------------
+
+ !arguments:
+ real, intent(in),    dimension(:,:,:) :: qitot
+ real, intent(inout), dimension(:,:,:) :: qiliq,qirim,birim
+ real, intent(in),    dimension(:,:)   :: t,i_exn,xlf
+ real, intent(inout), dimension(:,:)   :: th
+ real, intent(in)                      :: i_cp
+ integer, intent(in)                   :: i,ktop,kbot,kdir,nCat
+ !local:
+ integer                               :: k,iice
+
+ do k = kbot,ktop,kdir
+    do iice = 1,nCat
+       if (qitot(i,k,iice).ge.qsmall) then
+          if (t(i,k).lt.trplpt .and. qiliq(i,k,iice)/qitot(i,k,iice).le.liqfracsmall) then
+             th(i,k) = th(i,k) + i_exn(i,k)*qiliq(i,k,iice)*xlf(i,k)*i_cp
+             birim(i,k,iice) = birim(i,k,iice) + qiliq(i,k,iice)*i_rho_rimeMax
+             qirim(i,k,iice) = qirim(i,k,iice) + qiliq(i,k,iice)
+             qiliq(i,k,iice) = 0.
+          endif
+       endif
+    enddo
+ enddo
+
+ end subroutine freeze_tiny_liqfrac
 
 !======================================================================================!
  subroutine find_top(k_qxtop,log_qxpresent,qx,ktop,kbot,kdir)
