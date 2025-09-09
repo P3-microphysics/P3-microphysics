@@ -27,7 +27,7 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.4.8                                                                     !
+! Version:       5.4.8 + cleanup_202509                                                    !
 ! Last updated:  2025 Sept                                                                 !
 !__________________________________________________________________________________________!
 
@@ -116,7 +116,7 @@
                    vi,epsm,rhoa,map,ma,rr,bact,i_rm1,i_rm2,sig1,nanew1,f11,f21,sig2,     &
                    nanew2,f12,f22,pi,thrd,sxth,piov3,piov6,rho_rimeMin,                  &
                    rho_rimeMax,i_rho_rimeMax,max_total_Ni,dbrk,nmltratio,minVIS,         &
-                   maxVIS,mu_i_initial,mu_r_constant,inv_Drmax,Dmin_HM,Dinit_HM
+                   maxVIS,mu_i_initial,mu_r_constant,inv_Drmax,Dmin_HM,Dinit_HM,trplpt
 
  integer :: n_iceCat = -1   !used for GEM interface
 
@@ -151,7 +151,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.4.8'
+ character(len=1024), parameter :: version_p3                    = '5.4.8+cleanup_202509'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.9-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '6.9-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.2'
@@ -224,13 +224,14 @@
  kr     = 5.78e+3
 
 ! physical constants
+ trplpt = 273.15
  cp     = 1005.
  i_cp = 1./cp
  g      = 9.816
  rd     = 287.15
  rv     = 461.51
  ep_2   = 0.622
- rhosur = 100000./(rd*273.15)
+ rhosur = 100000./(rd*trplpt)
  rhosui = 60000./(rd*253.15)
  ar     = 841.99667
  br     = 0.8
@@ -279,7 +280,7 @@
  mu_i_initial = 10.
 
 ! saturation pressure at T = 0 C
- e0    = polysvp1(273.15,0)
+ e0    = polysvp1(trplpt,0)
 
  cons1 = piov6*rhow
  cons2 = 4.*piov3*rhow
@@ -1649,7 +1650,7 @@ END subroutine p3_init
 
     !supercooled LWC:
       do k = 1,nk
-         if (temp(i,k)<273.15) then
+         if (temp(i,k)<trplpt) then
             tmp1 = pres(i,k)/(287.15*temp(i,k))  !air density
             diag_slw(i,k) = tmp1*(qc(i,k)+qr(i,k))
          else
@@ -2465,7 +2466,7 @@ call cpu_time(timer_start(2))
      !calculate some time-varying atmospheric variables
        rho(i,k)     = pres(i,k)/(rd*t(i,k))
        i_rho(i,k) = 1./rho(i,k)
-       xxlv(i,k)    = 3.1484e6-2370.*273.15 !t(i,k), use constant Lv
+       xxlv(i,k)    = 3.1484e6-2370.*trplpt !t(i,k), use constant Lv
        xxls(i,k)    = xxlv(i,k)+0.3337e6
        xlf(i,k)     = xxls(i,k)-xxlv(i,k)
      ! max statement added below for first calculation when t_old is zero before t_old is set at end of p3 main
@@ -2493,8 +2494,8 @@ call cpu_time(timer_start(2))
 ! then calculate microphysical processes even if there is no existing condensate
 ! Note only theta is updated from clipping and not temp, though temp is used for subsequent calculations.
 ! This change is tiny and therefore neglected.
-       if ((t(i,k).lt.273.15 .and. supi(i,k).ge.-0.05) .or.                              &
-           (t(i,k).ge.273.15 .and. sup(i,k).ge.-0.05 ) .and. (.not. SCPF_on))            &
+       if ((t(i,k).lt.trplpt .and. supi(i,k).ge.-0.05) .or.                              &
+           (t(i,k).ge.trplpt .and. sup(i,k).ge.-0.05 ) .and. (.not. SCPF_on))            &
            log_nucleationPossible = .true.
 
     !--- apply mass clipping if dry and mass is sufficiently small
@@ -2554,7 +2555,7 @@ call cpu_time(timer_start(2))
           endif
 
           if (qitot(i,k,iice).ge.qsmall .and. qitot(i,k,iice).lt.1.e-8 .and.             &
-           t(i,k).ge.273.15) then
+           t(i,k).ge.trplpt) then
              qr(i,k) = qr(i,k) + qitot(i,k,iice)
              nr(i,k) = nr(i,k) + nitot(i,k,iice)
              th(i,k) = th(i,k) - i_exn(i,k)*(qitot(i,k,iice)-qiliq(i,k,iice))*xlf(i,k)*  &
@@ -2628,8 +2629,8 @@ call cpu_time(timer_start(3))
        !The test below is skipped if SCPF is used since now, if SCF>0 somewhere, then nucleation is possible
        if ( (     SCPF_on) .and. log_exitlevel .and. (SCF(k).lt.0.01) ) goto 555 !i.e. skip all process rates
        if ( (.not.SCPF_on) .and. log_exitlevel .and.                                     &
-          ((t(i,k).lt.273.15 .and. supi(i,k).lt.-0.05) .or.                              &
-           (t(i,k).ge.273.15 .and. sup(i,k) .lt.-0.05))) goto 555   !i.e. skip all process rates
+          ((t(i,k).lt.trplpt .and. supi(i,k).lt.-0.05) .or.                              &
+           (t(i,k).ge.trplpt .and. sup(i,k) .lt.-0.05))) goto 555   !i.e. skip all process rates
 
     ! initialize warm-phase process rates
        qcacc   = 0.;     qrevp   = 0.;     qccon   = 0.
@@ -2727,9 +2728,9 @@ call cpu_time(timer_start(3))
 !       endif
        if (t(i,k).lt.253.15) then
           eii = 0.001
-       else if (t(i,k).ge.253.15.and.t(i,k).lt.273.15) then
+       else if (t(i,k).ge.253.15.and.t(i,k).lt.trplpt) then
           eii = 0.001+(t(i,k)-253.15)*(0.3-0.001)*0.05
-       else if (t(i,k).ge.273.15) then
+       else if (t(i,k).ge.trplpt) then
           eii = 0.3
        endif
 
@@ -2915,7 +2916,7 @@ call cpu_time(timer_start(3))
 ! here we multiply rates by air density, air density fallspeed correction
 ! factor, and collection efficiency since these parameters are not
 ! included in lookup table calculations
-! for T < 273.15, assume collected cloud water and rain mass is instantly frozen
+! for T < trplpt, assume collected cloud water and rain mass is instantly frozen
 ! note 'f1pr' values are normalized, so we need to multiply by N
 
 ! note with scpf_on, qccol, nccol, qccoll, nccoll are grid-mean
@@ -2923,7 +2924,7 @@ call cpu_time(timer_start(3))
 ! eci is a constant, rho(i,k) is grid-mean, nitot*iSCF is in-cloud
 ! (qc*iSCF*nitot*iSCF)*SCF = (qc*nitot)*iSCF to obtain grid-mean qccol
 
-          if (qitot(i,k,iice).ge.qsmall .and. qc(i,k).ge.qsmall .and. t(i,k).le.273.15) then
+          if (qitot(i,k,iice).ge.qsmall .and. qc(i,k).ge.qsmall .and. t(i,k).le.trplpt) then
              tmp1 = eci*rho(i,k)*iSCF(k)
              qccol(iice) = rhofaci(i,k)*f1pr04*qc(i,k)*nitot(i,k,iice)*tmp1
              nccol(iice) = rhofaci(i,k)*f1pr04*nc(i,k)*nitot(i,k,iice)*tmp1
@@ -2932,7 +2933,7 @@ call cpu_time(timer_start(3))
              endif
           endif
 
-          if (qitot(i,k,iice).ge.qsmall .and. qr(i,k).ge.qsmall .and. t(i,k).le.273.15) then
+          if (qitot(i,k,iice).ge.qsmall .and. qr(i,k).ge.qsmall .and. t(i,k).le.trplpt) then
            ! note: f1pr08 and logn0r are already calculated as log_10 (in-precip)
            ! note: (SPF(k)-SPF_clr(k)) is SPF_cld(k)
              tmp1 = rho(i,k)*rhofaci(i,k)*eri*iSCF(k)*(SPF(k)-SPF_clr(k))
@@ -2948,11 +2949,11 @@ call cpu_time(timer_start(3))
 ! collection of liquid phases (cloud and rain) at T>0
 !.......................
 
-          ! for T > 273.15, assume cloud water is collected and shed as rain drops
+          ! for T > trplpt, assume cloud water is collected and shed as rain drops
           liqfrac_1: if (log_LiquidFrac) then
 
           ! assume cloud water is collected by qiliq
-             if (qitot(i,k,iice).ge.qsmall .and. qc(i,k).ge.qsmall .and. t(i,k).gt.273.15) then
+             if (qitot(i,k,iice).ge.qsmall .and. qc(i,k).ge.qsmall .and. t(i,k).gt.trplpt) then
                 tmp1 = eci*rho(i,k)*iSCF(k)
                 qccoll(iice) = rhofaci(i,k)*f1pr04*qc(i,k)*nitot(i,k,iice)*tmp1
                 nccoll(iice) = rhofaci(i,k)*f1pr04*nc(i,k)*nitot(i,k,iice)*tmp1
@@ -2961,7 +2962,7 @@ call cpu_time(timer_start(3))
                 endif
              endif
              ! assume collected rain by qiliq
-             if (qitot(i,k,iice).ge.qsmall .and. qr(i,k).ge.qsmall .and. t(i,k).gt.273.15) then
+             if (qitot(i,k,iice).ge.qsmall .and. qr(i,k).ge.qsmall .and. t(i,k).gt.trplpt) then
                 ! note: f1pr08 and logn0r are already calculated as log_10
                 tmp1 = rho(i,k)*rhofaci(i,k)*eri*iSCF(k)*(SPF(k)-SPF_clr(k))
                 qrcoll(iice) = 10.**(f1pr08+logn0r(i,k))*nitot(i,k,iice)*tmp1
@@ -2974,7 +2975,7 @@ call cpu_time(timer_start(3))
           else  ! liqfrac_1
 
           ! assume cloud water is collected and shed as rain drops (original code)
-             if (qitot(i,k,iice).ge.qsmall .and. qc(i,k).ge.qsmall .and. t(i,k).gt.273.15) then
+             if (qitot(i,k,iice).ge.qsmall .and. qc(i,k).ge.qsmall .and. t(i,k).gt.trplpt) then
              ! sink for cloud water mass and number, note qcshed is source for rain mass
                 tmp1 = eci*rho(i,k)*nitot(i,k,iice)*iSCF(k)
                 qcshd(iice) = rhofaci(i,k)*f1pr04*qc(i,k)*tmp1
@@ -2986,7 +2987,7 @@ call cpu_time(timer_start(3))
              endif
              ! assume collected rain number is shed as 1 mm drops (original code)
              ! collection of rain above freezing does not impact total rain mass
-             if (qitot(i,k,iice).ge.qsmall .and. qr(i,k).ge.qsmall .and. t(i,k).gt.273.15) then
+             if (qitot(i,k,iice).ge.qsmall .and. qr(i,k).ge.qsmall .and. t(i,k).gt.trplpt) then
              ! rain number sink due to collection
                 nrcol(iice)  = 10.**(f1pr07 + logn0r(i,k))*rho(i,k)*rhofaci(i,k)*eri*    &
                                nitot(i,k,iice)*iSCF(k)*(SPF(k)-SPF_clr(k))
@@ -3113,14 +3114,14 @@ call cpu_time(timer_start(3))
           liqfrac_2: if (log_LiquidFrac) then
           ! some portion of the melted water stays into qiliq --> qimlt(iice) (D>Dth)
           ! the other portion melts into rain --> qrmlt(iice) (D<=Dth)
-             if ((qitot(i,k,iice)-qiliq(i,k,iice)).ge.qsmall .and. t(i,k).gt.273.15) then
+             if ((qitot(i,k,iice)-qiliq(i,k,iice)).ge.qsmall .and. t(i,k).gt.trplpt) then
                 qsat0 = 0.622*e0/(pres(i,k)-e0)
                 tmp1 = 0.
                 qrmlt(iice) = ((f1pr24+f1pr25*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)* &
-                              ((t(i,k)-273.15)*kap-rho(i,k)*xxlv(i,k)*dv*(qsat0-         &
+                              ((t(i,k)-trplpt)*kap-rho(i,k)*xxlv(i,k)*dv*(qsat0-         &
                               Qv_cld(k)))*2.*pi/xlf(i,k)+tmp1)*nitot(i,k,iice)
                 qimlt(iice) = ((f1pr26+f1pr27*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)* &
-                              ((t(i,k)-273.15)*kap-rho(i,k)*xxlv(i,k)*dv*(qsat0-         &
+                              ((t(i,k)-trplpt)*kap-rho(i,k)*xxlv(i,k)*dv*(qsat0-         &
                               Qv_cld(k)))*2.*pi/xlf(i,k)+tmp1)*nitot(i,k,iice)
                 qrmlt(iice) = max(qrmlt(iice),0.)
                 qimlt(iice) = max(qimlt(iice),0.)
@@ -3136,30 +3137,30 @@ call cpu_time(timer_start(3))
                               qiliq(i,k,iice)))
                 if (log_3momentIce) then
                    zimlt(iice) = -((f1pr24*f1pr32+f1pr25*f1pr33*sc**thrd*(rhofaci(i,k)*  &
-                                 rho(i,k)/mu)**0.5)*((t(i,k)-273.15)*kap-rho(i,k)*       &
+                                 rho(i,k)/mu)**0.5)*((t(i,k)-trplpt)*kap-rho(i,k)*       &
                                  xxlv(i,k)*dv*(qsat0-Qv_cld(k)))*2.*pi/xlf(i,k)+tmp1)
                 endif
              endif
 
           else   !liqfrac_2
 
-             if (qitot(i,k,iice).ge.qsmall .and. t(i,k).gt.273.15) then
+             if (qitot(i,k,iice).ge.qsmall .and. t(i,k).gt.trplpt) then
                 qsat0 = 0.622*e0/(pres(i,k)-e0)
-           !  tmp1=cpw/xlf(i,k)*(t(i,k)-273.15)*(pracsw1+qcshd(iice))
+           !  tmp1=cpw/xlf(i,k)*(t(i,k)-trplpt)*(pracsw1+qcshd(iice))
            ! currently enhanced melting from collision is neglected
-           ! tmp1=cpw/xlf(i,k)*(t(i,k)-273.15)*(pracsw1)
+           ! tmp1=cpw/xlf(i,k)*(t(i,k)-trplpt)*(pracsw1)
                 tmp1 = 0.
            ! qrmlt(iice)=(f1pr05+f1pr14*sc**0.3333*(rhofaci(i,k)*rho(i,k)/mu)**0.5)* &
-           !       (t(i,k)-273.15)*2.*pi*kap/xlf(i,k)+tmp1
+           !       (t(i,k)-trplpt)*2.*pi*kap/xlf(i,k)+tmp1
            ! include RH dependence
                 qrmlt(iice) = ((f1pr05+f1pr14*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)* &
-                              ((t(i,k)-273.15)*kap-rho(i,k)*xxlv(i,k)*dv*(qsat0-         &
+                              ((t(i,k)-trplpt)*kap-rho(i,k)*xxlv(i,k)*dv*(qsat0-         &
                               Qv_cld(k)))*2.*pi/xlf(i,k)+tmp1)*nitot(i,k,iice)
                 qrmlt(iice) = max(qrmlt(iice),0.)
                 nimlt(iice) = qrmlt(iice)*(nitot(i,k,iice)/qitot(i,k,iice))
                 if (log_3momentIce .and. log_full3mom) then
                    zimlt(iice) = -((f1pr05*f1pr30+f1pr14*f1pr31*sc**thrd*(rhofaci(i,k)*  &
-                                 rho(i,k)/mu)**0.5)*((t(i,k)-273.15)*kap-rho(i,k)*       &
+                                 rho(i,k)/mu)**0.5)*((t(i,k)-trplpt)*kap-rho(i,k)*       &
                                  xxlv(i,k)*dv*(qsat0-Qv_cld(k)))*2.*pi/xlf(i,k)+tmp1)
                 endif
              endif
@@ -3173,11 +3174,11 @@ call cpu_time(timer_start(3))
     ! note 'f1pr' values are normalized, so we need to multiply by N
 
           if (qitot(i,k,iice).ge.qsmall .and. (qc(i,k)+qr(i,k)).ge.1.e-6 .and.           &
-              t(i,k).lt.273.15) then
+              t(i,k).lt.trplpt) then
 
              qsat0  = 0.622*e0/(pres(i,k)-e0)
              qwgrth(iice) = ((f1pr05+f1pr14*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*   &
-                            ((t(i,k)-273.15)*(-kap)+rho(i,k)*xxls(i,k)*dv*(qsat0-        &
+                            ((t(i,k)-trplpt)*(-kap)+rho(i,k)*xxls(i,k)*dv*(qsat0-        &
                             Qv_cld(k))*2.*pi/xlf(i,k)))*nitot(i,k,iice)
              qwgrth(iice) = max(qwgrth(iice),0.)
 
@@ -3267,10 +3268,10 @@ call cpu_time(timer_start(3))
 
           if (qiliq(i,k,iice).ge.qsmall .and. qitot(i,k,iice).ge.qsmall) then
           ! Refreezing
-             if (t(i,k).lt.273.15) then
+             if (t(i,k).lt.trplpt) then
                qsat0  = 0.622*e0/(pres(i,k)-e0)
                qifrz(iice) = ((f1pr05+f1pr14*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**0.5)*  &
-                             ((t(i,k)-273.15)*(-kap)+rho(i,k)*xxls(i,k)*dv*(qsat0-       &
+                             ((t(i,k)-trplpt)*(-kap)+rho(i,k)*xxls(i,k)*dv*(qsat0-       &
                              Qv_cld(k))*2.*pi/xlf(i,k)))*nitot(i,k,iice)
                qifrz(iice) = min(max(qifrz(iice),0.),qiliq(i,k,iice)*i_dt)
              endif
@@ -3303,13 +3304,13 @@ call cpu_time(timer_start(3))
       ! Compute rime density: (based on parameterization of Cober and List, 1993 [JAS])
       ! for simplicty use mass-weighted ice and droplet/rain fallspeeds
 
-        ! if (qitot(i,k,iice).ge.qsmall .and. t(i,k).lt.273.15) then
+        ! if (qitot(i,k,iice).ge.qsmall .and. t(i,k).lt.trplpt) then
         !  NOTE:  condition applicable for cloud only; modify when rain is added back
-          if (qccol(iice).ge.qsmall .and. t(i,k).lt.273.15) then
+          if (qccol(iice).ge.qsmall .and. t(i,k).lt.trplpt) then
 
            ! get mass-weighted mean ice fallspeed
              vtrmi1(i,k) = f1pr02*rhofaci(i,k)
-             iTc   = 1./min(-0.001,t(i,k)-273.15)
+             iTc   = 1./min(-0.001,t(i,k)-trplpt)
 
           ! cloud:
              if (qc(i,k).ge.qsmall) then
@@ -3350,7 +3351,7 @@ call cpu_time(timer_start(3))
           else
              rhorime_c(iice) = 400.
 !            rhorime_r(iice) = 400.
-          endif ! qi > qsmall and T < 273.15
+          endif ! qi > qsmall and T < trplpt
 
     !--------------------
        enddo iice_loop1
@@ -3365,22 +3366,22 @@ call cpu_time(timer_start(3))
 !         dum=7.37*t(i,k)/(288.*10.*pres(i,k))/100.
 !         dap=4.*pi*1.38e-23*t(i,k)*(1.+dum/rin)/ &
 !                (6.*pi*rin*mu)
-!         nacnt=exp(-2.80+0.262*(273.15-t(i,k)))*1000.
+!         nacnt=exp(-2.80+0.262*(trplpt-t(i,k)))*1000.
 
        if (qc(i,k).ge.qsmall .and. t(i,k).le.269.15) then
 !         qchetc(iice) = pi*pi/3.*Dap*Nacnt*rhow*cdist1(i,k)*gamma(mu_c(i,k)+5.)/lamc(i,k)**4
 !         nchetc(iice) = 2.*pi*Dap*Nacnt*cdist1(i,k)*gamma(mu_c(i,k)+2.)/lamc(i,k)
 ! for future: calculate gamma(mu_c+4) in one place since its used multiple times
           dum   = (1./lamc(i,k))**3
-!         qcheti(iice_dest) = cons6*cdist1(i,k)*gamma(7.+pgam(i,k))*exp(aimm*(273.15-t(i,k)))*dum**2
-!         ncheti(iice_dest) = cons5*cdist1(i,k)*gamma(pgam(i,k)+4.)*exp(aimm*(273.15-t(i,k)))*dum
+!         qcheti(iice_dest) = cons6*cdist1(i,k)*gamma(7.+pgam(i,k))*exp(aimm*(trplpt-t(i,k)))*dum**2
+!         ncheti(iice_dest) = cons5*cdist1(i,k)*gamma(pgam(i,k)+4.)*exp(aimm*(trplpt-t(i,k)))*dum
 
-!           Q_nuc = cons6*cdist1(i,k)*gamma(7.+mu_c(i,k))*exp(aimm*(273.15-t(i,k)))*dum**2
-!           N_nuc = cons5*cdist1(i,k)*gamma(mu_c(i,k)+4.)*exp(aimm*(273.15-t(i,k)))*dum
-!          tmp1 = cdist1(i,k)*exp(aimm*(273.15-t(i,k)))
+!           Q_nuc = cons6*cdist1(i,k)*gamma(7.+mu_c(i,k))*exp(aimm*(trplpt-t(i,k)))*dum**2
+!           N_nuc = cons5*cdist1(i,k)*gamma(mu_c(i,k)+4.)*exp(aimm*(trplpt-t(i,k)))*dum
+!          tmp1 = cdist1(i,k)*exp(aimm*(trplpt-t(i,k)))
 !          Q_nuc = cons6*gamma(7.+mu_c(i,k))*tmp1*dum**2
 !          N_nuc = cons5*gamma(mu_c(i,k)+4.)*tmp1*dum
-           tmpdbl1  = dexp(dble(aimm*(273.15-t(i,k))))
+           tmpdbl1  = dexp(dble(aimm*(trplpt-t(i,k))))
            tmpdbl2  = dble(dum)
            Q_nuc = cons6*cdist1(i,k)*gamma(7.+mu_c(i,k))*tmpdbl1*tmpdbl2**2
            N_nuc = cons5*cdist1(i,k)*gamma(mu_c(i,k)+4.)*tmpdbl1*tmpdbl2
@@ -3409,11 +3410,11 @@ call cpu_time(timer_start(3))
 
        if (qr(i,k)*iSPF(k).ge.qsmall.and.t(i,k).le.269.15) then
 
-!         Q_nuc = cons6*exp(log(cdistr(i,k))+log(gamma(7.+mu_r(i,k)))-6.*log(lamr(i,k)))*exp(aimm*(273.15-t(i,k)))*SPF(k)
-!         N_nuc = cons5*exp(log(cdistr(i,k))+log(gamma(mu_r(i,k)+4.))-3.*log(lamr(i,k)))*exp(aimm*(273.15-t(i,k)))*SPF(k)
+!         Q_nuc = cons6*exp(log(cdistr(i,k))+log(gamma(7.+mu_r(i,k)))-6.*log(lamr(i,k)))*exp(aimm*(trplpt-t(i,k)))*SPF(k)
+!         N_nuc = cons5*exp(log(cdistr(i,k))+log(gamma(mu_r(i,k)+4.))-3.*log(lamr(i,k)))*exp(aimm*(trplpt-t(i,k)))*SPF(k)
           tmpdbl1 = dexp(dble(log(cdistr(i,k))+log(gamma(7.+mu_r(i,k)))-6.*log(lamr(i,k))))
           tmpdbl2 = dexp(dble(log(cdistr(i,k))+log(gamma(mu_r(i,k)+4.))-3.*log(lamr(i,k))))
-          tmpdbl3 = dexp(dble(aimm*(273.15-t(i,k))))
+          tmpdbl3 = dexp(dble(aimm*(trplpt-t(i,k))))
           Q_nuc = cons6*sngl(tmpdbl1*tmpdbl3)*SPF(k)
           N_nuc = cons5*sngl(tmpdbl2*tmpdbl3)*SPF(k)
 
@@ -3539,7 +3540,7 @@ call cpu_time(timer_start(3))
        !if (log_LiquidFrac) then
          xx   = epsc + epsr + epsi_tot*(1.+xxls(i,k)*i_cp*dqsdT)*i_abi + epsiw_tot
        !else
-       !  if (t(i,k).lt.273.15) then
+       !  if (t(i,k).lt.trplpt) then
        !     xx   = epsc + epsr + epsi_tot*(1.+xxls(i,k)*i_cp*dqsdT)*i_abi
        !  else
        !     xx   = epsc + epsr
@@ -3581,7 +3582,7 @@ call cpu_time(timer_start(3))
          aaa = (qv(i,k)-qv_old(i,k))*i_dt - dqsdT*(-dum*g*i_cp)-(qvs(i,k)-dumqvi)*     &
                (1.+xxls(i,k)*i_cp*dqsdT)*i_abi*epsi_tot
        !else
-       !  if (t(i,k).lt.273.15) then
+       !  if (t(i,k).lt.trplpt) then
        !     aaa = (qv(i,k)-qv_old(i,k))*i_dt - dqsdT*(-dum*g*i_cp)-(qvs(i,k)-dumqvi)* &
        !           (1.+xxls(i,k)*i_cp*dqsdT)*i_abi*epsi_tot
        !  else
@@ -3725,7 +3726,7 @@ call cpu_time(timer_start(3))
 
        ! else
 
-       !   if (qitot(i,k,iice).ge.qsmall .and. t(i,k).lt.273.15) then
+       !   if (qitot(i,k,iice).ge.qsmall .and. t(i,k).lt.trplpt) then
             !note: diffusional growth/decay rate: (stored as 'qidep' temporarily; may go to qisub below)
 !Note (BUG) Cholette (Jul 2022), remove *SCF(k) for ssat_cld and multiplication *CF for grid-mean qccon
 !             qidep(iice) = ((aaa*epsi(iice)*i_xx+(ssat_cld-aaa*i_xx)*i_dt*epsi(iice)*i_xx*                      &
@@ -3786,7 +3787,7 @@ call cpu_time(timer_start(3))
 
        if (t(i,k).lt.258.15 .and. supi_cld.ge.0.05) then
 !         dum = exp(-0.639+0.1296*100.*supi(i,k))*1000.*i_rho(i,k)        !Meyers et al. (1992)
-          dum = 0.005*exp(0.304*(273.15-t(i,k)))*1000.*i_rho(i,k)         !Cooper (1986)
+          dum = 0.005*exp(0.304*(trplpt-t(i,k)))*1000.*i_rho(i,k)         !Cooper (1986)
           dum = min(dum,100.e3*i_rho(i,k)*SCF(k))
           N_nuc = max(0.,(dum-sum(nitot(i,k,:)))*i_dt)
 
@@ -3813,7 +3814,7 @@ call cpu_time(timer_start(3))
 
        if (sup_cld.gt.1.e-6) then
           dum1  = 1./bact**0.5
-          sigvl = 0.0761 - 1.55e-4*(t(i,k)-273.15)
+          sigvl = 0.0761 - 1.55e-4*(t(i,k)-trplpt)
           aact  = 2.*mw/(rhow*rr*t(i,k))*sigvl
           sm1   = 2.*dum1*(aact*thrd*i_rm1)**1.5
           sm2   = 2.*dum1*(aact*thrd*i_rm2)**1.5
@@ -9945,12 +9946,12 @@ else
 
 !-------------------------------------------
 
-      if (i_type.EQ.1 .and. T.lt.273.15) then
+      if (i_type.EQ.1 .and. T.lt.trplpt) then
 ! ICE
 
 ! use Goff-Gratch for T < 195.8 K and Flatau et al. equal or above 195.8 K
          if (t.ge.195.8) then
-            dt=t-273.15
+            dt=t-trplpt
             polysvp1 = a0i + dt*(a1i+dt*(a2i+dt*(a3i+dt*(a4i+dt*(a5i+dt*(a6i+dt*(a7i+a8i*dt)))))))
             polysvp1 = polysvp1*100.
          else
@@ -9959,12 +9960,12 @@ else
                 alog10(6.1071))*100.
          end if
 
-      elseif (i_type.EQ.0 .or. T.ge.273.15) then
+      elseif (i_type.EQ.0 .or. T.ge.trplpt) then
 ! LIQUID
 
 ! use Goff-Gratch for T < 202.0 K and Flatau et al. equal or above 202.0 K
          if (t.ge.202.0) then
-            dt = t-273.15
+            dt = t-trplpt
             polysvp1 = a0 + dt*(a1+dt*(a2+dt*(a3+dt*(a4+dt*(a5+dt*(a6+dt*(a7+a8*dt)))))))
             polysvp1 = polysvp1*100.
          else

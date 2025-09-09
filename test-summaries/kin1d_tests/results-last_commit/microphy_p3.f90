@@ -27,7 +27,7 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.4.7 + sedi                                                              !
+! Version:       5.4.8 + cleanup_202509                                                    !
 ! Last updated:  2025 Sept                                                                 !
 !__________________________________________________________________________________________!
 
@@ -116,8 +116,7 @@
                    vi,epsm,rhoa,map,ma,rr,bact,i_rm1,i_rm2,sig1,nanew1,f11,f21,sig2,     &
                    nanew2,f12,f22,pi,thrd,sxth,piov3,piov6,rho_rimeMin,                  &
                    rho_rimeMax,i_rho_rimeMax,max_total_Ni,dbrk,nmltratio,minVIS,         &
-                   maxVIS,mu_i_initial,mu_r_constant,inv_Drmax,Dmin_HM,Dinit_HM,         &
-                   liqfracsmall,trplpt
+                   maxVIS,mu_i_initial,mu_r_constant,inv_Drmax,Dmin_HM,Dinit_HM,trplpt
 
  integer :: n_iceCat = -1   !used for GEM interface
 
@@ -152,7 +151,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.4.7+sedi'
+ character(len=1024), parameter :: version_p3                    = '5.4.8+cleanup_202509'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.9-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '6.9-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.2'
@@ -212,9 +211,10 @@
 
 ! switch for warm-rain parameterization
 ! = 1 Seifert and Beheng 2001
-! = 2 Khairoutdinov and Kogan 2000
-! = 3 Kogan 2013
- iparam = 2
+! = 2 Beheng 1994
+! = 3 Khairoutdinov and Kogan 2000
+! = 4 Kogan 2013
+ iparam = 3
 
 ! droplet concentration (m-3)
  nccnst = 200.e+6
@@ -256,8 +256,6 @@
  nsmall = 1.e-16
  bsmall = qsmall*i_rho_rimeMax
  zsmall = 1.e-35
-
- liqfracsmall = 0.01
 
 ! Bigg (1953)
 !bimm   = 100.
@@ -2155,7 +2153,7 @@ END subroutine p3_init
  real :: eii ! temperature dependent aggregation efficiency
 
  real, dimension(its:ite,kts:kte,nCat) :: diam_ice,liquidfraction,rimefraction,          &
-            i_rhoi,arr_lami,arr_mui,rimedensity
+            rimevolume,arr_lami,arr_mui,rimedensity
 
  real, dimension(its:ite,kts:kte) :: i_dzq,i_rho,ze_ice,ze_rain,prec,acn,rho,rhofacr,    &
             rhofaci,xxls,xxlv,xlf,qvs,qvi,sup,supi,vtrmi1,tmparr1,mflux_r,mflux_i,i_exn
@@ -2389,7 +2387,7 @@ call cpu_time(timer_start(1))
  diag_ze   = -99.
  diam_ice  = 0.
  rimefraction   = 0.
- i_rhoi     = 0.
+ rimevolume     = 0.
  liquidfraction = 0.
  rimedensity    = 0.
  ze_ice    = 1.e-22
@@ -2538,8 +2536,7 @@ call cpu_time(timer_start(2))
           endif
 
           if (log_LiquidFrac .and. qitot(i,k,iice).ge.qsmall) then
-             tmp1 = qiliq(i,k,iice)/qitot(i,k,iice)  !liquid fraction
-             if (tmp1.gt.(1.-liqfracsmall)) then
+             if (qiliq(i,k,iice)/qitot(i,k,iice).gt.0.99) then
                 qr(i,k) = qr(i,k) + qitot(i,k,iice)
                 nr(i,k) = nr(i,k) + nitot(i,k,iice)
                 th(i,k) = th(i,k) - i_exn(i,k)*(qitot(i,k,iice)-qiliq(i,k,iice))*        &
@@ -2550,11 +2547,9 @@ call cpu_time(timer_start(2))
                 qiliq(i,k,iice) = 0.
                 birim(i,k,iice) = 0.
              endif
-             if (t(i,k).lt.trplpt .and. tmp1.le.liqfracsmall) then
-              !freeze small amount of liquid (qiliq) to rime
-                th(i,k) = th(i,k) + i_exn(i,k)*qiliq(i,k,iice)*xlf(i,k)*i_cp
-                birim(i,k,iice) = birim(i,k,iice) + qiliq(i,k,iice)*i_rho_rimeMax
-                qirim(i,k,iice) = qirim(i,k,iice) + qiliq(i,k,iice)
+             if (qiliq(i,k,iice)/qitot(i,k,iice).le.0.01) then
+                qr(i,k) = qr(i,k)+qiliq(i,k,iice)
+                qitot(i,k,iice) = qitot(i,k,iice) - qiliq(i,k,iice)
                 qiliq(i,k,iice) = 0.
              endif
           endif
@@ -3623,8 +3618,8 @@ call cpu_time(timer_start(3))
 !          qrcon = ((aaa*epsr*i_xx+(ssat_r-aaa*i_xx)*i_dt*epsr*i_xx*(1.-sngl(dexp(-dble(xx*dt)))))/ab)*SPF(k)
        if (qc(i,k).ge.qsmall) qccon = (aaa*epsc*i_xx+(ssat_cld*SCF(k)-aaa*i_xx)*i_dt*    &
                                        epsc*i_xx*(1.-sngl(dexp(-dble(xx*dt)))))/ab
-       if (qr(i,k).ge.qsmall) qrcon = (aaa*epsr*i_xx+(ssat_r  *SPF(k)-aaa*i_xx)*i_dt*    &
-                                       epsr*i_xx*(1.-sngl(dexp(-dble(xx*dt)))))/ab
+       if (qr(i,k).ge.qsmall) qrcon = (aaa*epsr*i_xx+(ssat_r*SPF(k)-aaa*i_xx)*i_dt*epsr* &
+                                      i_xx*(1.-sngl(dexp(-dble(xx*dt)))))/ab
 
       !evaporate instantly for very small water contents
       !if (sup_cld.lt.-0.001 .and. qc(i,k).lt.1.e-12)  qccon = -qc(i,k)*i_dt
@@ -3659,7 +3654,7 @@ call cpu_time(timer_start(3))
    !                 qidep(iice) = ((aaa*epsi(iice)*i_xx+(ssat_cld-aaa*i_xx)*i_dt*epsi(iice)*i_xx*               &
    !                               (1.-dexp(-dble(xx*dt))))*i_abi+(qvs(i,k)-dumqvi)*epsi(iice)*i_abi)*SCF(k)
                     qidep(iice) = (aaa*epsi(iice)*i_xx+(ssat_cld*SCF(k)-aaa*i_xx)*i_dt*  &
-                                  epsi(iice)*i_xx*(1.-sngl(dexp(-dble(xx*dt)))))*i_abi+  &
+                                  epsi(iice)*i_xx*(1.-dexp(-dble(xx*dt))))*i_abi+        &
                                   (qvs(i,k)-dumqvi)*epsi(iice)*i_abi
                  endif
               endif
@@ -3703,7 +3698,7 @@ call cpu_time(timer_start(3))
 !                 qlcon(iice) = ((aaa*epsiw(iice)*i_xx+(ssat_cld-aaa*i_xx)*i_dt*epsiw(iice)*i_xx* &
 !                               (1.-dexp(-dble(xx*dt))))/ab)*SCF(k)
                     qlcon(iice) = (aaa*epsiw(iice)*i_xx+(ssat_cld*SCF(k)-aaa*i_xx)*i_dt* &
-                                   epsiw(iice)*i_xx*(1.-sngl(dexp(-dble(xx*dt)))))/ab
+                                   epsiw(iice)*i_xx*(1.-dexp(-dble(xx*dt))))/ab
                  endif
               endif
 
@@ -3872,6 +3867,26 @@ call cpu_time(timer_start(3))
 
           elseif (iparam.eq.2) then
 
+            !Beheng (1994)
+!Note (BUG), needs to be in-cloud condition
+             if (nc(i,k)*iSCF(k)*rho(i,k)*1.e-6 .lt. 100.) then
+                qcaut = 6.e+28*i_rho(i,k)*mu_c(i,k)**(-1.7)*(1.e-6*rho(i,k)*nc(i,k)*     &
+                        iSCF(k))**(-3.3)*(1.e-3*rho(i,k)*qc(i,k)*iSCF(k))**(4.7)*SCF(k)
+             else
+               !2D interpolation of tabled logarithmic values
+                dum   = 41.46 + (nc(i,k)*iSCF(k)*1.e-6*rho(i,k)-100.)*(37.53-41.46)*5.e-3
+                dum1  = 39.36 + (nc(i,k)*iSCF(k)*1.e-6*rho(i,k)-100.)*(30.72-39.36)*5.e-3
+                qcaut = dum+(mu_c(i,k)-5.)*(dum1-dum)*0.1
+              ! 1000/rho is for conversion from g cm-3/s to kg/kg
+                qcaut = exp(qcaut)*(1.e-3*rho(i,k)*qc(i,k)*iSCF(k))**4.7*1000.*          &
+                        i_rho(i,k)*SCF(k)
+!               qcaut = dexp(dble(qcaut))*(1.e-3*rho(i,k)*qc(i,k)*iSCF(k))**4.7*1000.*   &
+!                       i_rho(i,k)*SCF(k)
+             endif
+             ncautc = 7.7e+9*qcaut
+
+          elseif (iparam.eq.3) then
+
            !Khroutdinov and Kogan (2000)
              dum   = qc(i,k)*iSCF(k)
              qcaut = 1350.*dum**2.47*(nc(i,k)*iSCF(k)*1.e-6*rho(i,k))**(-1.79)*SCF(k)
@@ -3879,7 +3894,7 @@ call cpu_time(timer_start(3))
              ncautr = qcaut*cons3
              ncautc = qcaut*nc(i,k)/qc(i,k)
 
-          elseif (iparam.eq.3) then
+          elseif (iparam.eq.4) then
 
            !Kogan (2013)
              dum = qc(i,k)*iSCF(k)
@@ -3903,7 +3918,11 @@ call cpu_time(timer_start(3))
            !Seifert and Beheng (2001)
              ncslf = -kc*(1.e-3*rho(i,k)*qc(i,k)*iSCF(k))**2*(nu(i,k)+2.)/(nu(i,k)+1.)*  &
                      1.e+6*i_rho(i,k)*SCF(k)+ncautc
-          elseif (iparam.eq.2 .or. iparam.eq.3) then
+          elseif (iparam.eq.2) then
+           !Beheng (994)
+             ncslf = -5.5e+16*i_rho(i,k)*mu_c(i,k)**(-0.63)*(1.e-3*rho(i,k)*qc(i,k)*     &
+                     iSCF(k))**2*SCF(k)
+          elseif (iparam.eq.3.or.iparam.eq.4) then
             !Khroutdinov and Kogan (2000)
              ncslf = 0.
           endif
@@ -3924,11 +3943,18 @@ call cpu_time(timer_start(3))
              ncacc = qcacc*rho(i,k)*0.001*(nc(i,k)*rho(i,k)*1.e-6)/(qc(i,k)*rho(i,k)*    &  !note: (nc*iSCF)/(qc*iSCF) = nc/qc
                      0.001)*1.e+6*i_rho(i,k)
           elseif (iparam.eq.2) then
+           !Beheng (994)
+             dum2  = (SPF(k)-SPF_clr(k)) !in-cloud Precipitation fraction
+             dum   = (qc(i,k)*iSCF(k)*qr(i,k)*iSPF(k))
+             qcacc = 6.*rho(i,k)*dum*dum2
+             ncacc = qcacc*rho(i,k)*1.e-3*(nc(i,k)*rho(i,k)*1.e-6)/(qc(i,k)*rho(i,k)*    &   !note: (nc*iSCF)/(qc*iSCF) = nc/qc
+                     1.e-3)*1.e+6*i_rho(i,k)
+          elseif (iparam.eq.3) then
             !Khroutdinov and Kogan (2000)
              dum2  = (SPF(k)-SPF_clr(k)) !in-cloud Precipitation fraction
              qcacc = 67.*(qc(i,k)*iSCF(k)*qr(i,k)*iSPF(k))**1.15 *dum2
              ncacc = qcacc*nc(i,k)/qc(i,k)
-          elseif (iparam.eq.3) then
+          elseif (iparam.eq.4) then
             !Kogan (2013)
              dum2 = (SPF(k)-SPF_clr(k)) !in-cloud Precipitation fraction
              qcacc = 8.53*(qc(i,k)*iSCF(k))**1.05*(qr(i,k)*iSPF(k))**0.98 *dum2
@@ -3963,9 +3989,9 @@ call cpu_time(timer_start(3))
 
           if (iparam.eq.1.) then
              nrslf = dum*kr*1.e-3*qr(i,k)*iSPF(k)*nr(i,k)*iSPF(k)*rho(i,k)*SPF(k)
-          elseif (iparam.eq.2) then
+          elseif (iparam.eq.2 .or. iparam.eq.3) then
              nrslf = dum*5.78*nr(i,k)*iSPF(k)*qr(i,k)*iSPF(k)*rho(i,k)*SPF(k)
-          elseif (iparam.eq.3) then
+          elseif (iparam.eq.4) then
              nrslf = dum*205.*(qr(i,k)*iSPF(k))**1.55*(nr(i,k)*1.e-6*rho(i,k)*           &
                      iSPF(k))**0.6*1.e6/rho(i,k)*SPF(k)       ! 1.e6 converts cm-3 to m-3
           endif
@@ -4178,24 +4204,27 @@ call cpu_time(timer_start(3))
 
    !-- ice-phase dependent processes:
 
-       iice_loop2: do iice = 1,nCat
        ! compute fractions before update (assumed constant during ice-ice coll.)
-          if ((qitot(i,k,iice)-qiliq(i,k,iice)).ge.qsmall) then
-             tmp1 = 1./(qitot(i,k,iice)-qiliq(i,k,iice))  ! 1/(deposition + rime mass mixing ratios)
-             i_rhoi(i,k,iice)         = birim(i,k,iice)*tmp1
-             rimefraction(i,k,iice)   = qirim(i,k,iice)*tmp1
-             liquidfraction(i,k,iice) = qiliq(i,k,iice)/qitot(i,k,iice)
-          endif
+       iice_loop2: do iice = 1,nCat
+
+        if ((qitot(i,k,iice)-qiliq(i,k,iice)).ge.qsmall) then
+         tmp1 = 1./(qitot(i,k,iice)-qiliq(i,k,iice))
+         rimevolume(i,k,iice) = birim(i,k,iice)*tmp1
+         rimefraction(i,k,iice) = qirim(i,k,iice)*tmp1
+         liquidfraction(i,k,iice) = qiliq(i,k,iice)/qitot(i,k,iice)
+        endif
+
        ! calculate current mu_i (before updated from processes) which is used later to update mu_i
-          if (log_3momentIce) then
-             if (qitot(i,k,iice).ge.qsmall) then
-                dum1 = qitot(i,k,iice)*6./(f1pr16*pi)  !estimate of 3rd moment
-                mu_i_s(iice) = compute_mu_3mom_1(nitot(i,k,iice),dum1,zitot(i,k,iice),mu_i_max)  !polynomial approximation
-              ! mu_i_s(iice) = compute_mu_3mom_2(nitot(i,k,iice),dum1,zitot(i,k,iice),mu_i_max)  !analytic cubic root
-             else
-                mu_i_s(iice) = mu_i_initial
-             endif
-          endif
+        if (log_3momentIce) then
+           if (qitot(i,k,iice).ge.qsmall) then
+              dum1 = qitot(i,k,iice)*6./(f1pr16*pi)  !estimate of 3rd moment
+              mu_i_s(iice) = compute_mu_3mom_1(nitot(i,k,iice),dum1,zitot(i,k,iice),mu_i_max)  !polynomial approximation
+            ! mu_i_s(iice) = compute_mu_3mom_2(nitot(i,k,iice),dum1,zitot(i,k,iice),mu_i_max)  !analytic cubic root
+           else
+              mu_i_s(iice) = mu_i_initial
+           endif
+         endif
+
        enddo iice_loop2
 
        iice_loop3: do iice = 1,nCat
@@ -4218,9 +4247,10 @@ call cpu_time(timer_start(3))
                                  nimlt(iice)+nrshdr(iice)+ncshdc(iice))*dt
           endif
 
+         ! if ((qitot(i,k,iice)-qiliq(i,k,iice)).ge.qsmall) then ! not needed in 5.1.1.4.1
          ! add sink terms, assume density stays constant for sink terms
              birim(i,k,iice) = birim(i,k,iice) - (qisub(iice)+qrmlt(iice)+qimlt(iice))*  &
-                               dt*i_rhoi(i,k,iice)
+                               dt*rimevolume(i,k,iice)
              qirim(i,k,iice) = qirim(i,k,iice) - (qisub(iice)+qrmlt(iice)+qimlt(iice))*  &
                                dt*rimefraction(i,k,iice)
              qiliq(i,k,iice) = qiliq(i,k,iice) + qimlt(iice)*dt
@@ -4259,14 +4289,14 @@ call cpu_time(timer_start(3))
                 qirim(i,k,iice) = qirim(i,k,iice)+qicol(catcoll,iice)*dt*                &
                                   rimefraction(i,k,catcoll)
                 birim(i,k,iice) = birim(i,k,iice)+qicol(catcoll,iice)*dt*                &
-                                  i_rhoi(i,k,catcoll)
+                                  rimevolume(i,k,catcoll)
                 qiliq(i,k,iice) = qiliq(i,k,iice)+qicol(catcoll,iice)*dt*                &
                                   liquidfraction(i,k,catcoll)
               !sink for collectee category
                 qirim(i,k,catcoll) = qirim(i,k,catcoll)-qicol(catcoll,iice)*dt*          &
                                      rimefraction(i,k,catcoll)
                 birim(i,k,catcoll) = birim(i,k,catcoll)-qicol(catcoll,iice)*dt*          &
-                                     i_rhoi(i,k,catcoll)
+                                     rimevolume(i,k,catcoll)
                 qiliq(i,k,catcoll) = qiliq(i,k,catcoll)-qicol(catcoll,iice)*dt*          &
                                      liquidfraction(i,k,catcoll)
                 qitot(i,k,catcoll) = qitot(i,k,catcoll) - qicol(catcoll,iice)*dt
@@ -4283,6 +4313,14 @@ call cpu_time(timer_start(3))
           endif
 
           qiliq(i,k,iice) = max(qiliq(i,k,iice),0.)  !works for any log_LiquidFrac
+
+          if (qitot(i,k,iice).ge.qsmall) then
+             if (log_LiquidFrac .and. (qiliq(i,k,iice)/qitot(i,k,iice)).le.0.01) then
+                qr(i,k) = qr(i,k)+qiliq(i,k,iice)
+                qitot(i,k,iice) = qitot(i,k,iice) - qiliq(i,k,iice)
+                qiliq(i,k,iice) = 0.
+             endif
+          endif
 
           ! densify ice during wet growth (assume total soaking)
             if (log_wetgrowth(iice)) then
@@ -4317,7 +4355,7 @@ call cpu_time(timer_start(3))
        qr(i,k) = qr(i,k) + (qcacc+qcaut+qrcon-qrevp)*dt
 
        nc(i,k) = nc(i,k) + (-ncacc-ncautc+ncslf+ncnuc)*dt
-       if (iparam.eq.1) then
+       if (iparam.eq.1 .or. iparam.eq.2) then
           nr(i,k) = nr(i,k) + (0.5*ncautc-nrslf-nrevp)*dt
        else
           nr(i,k) = nr(i,k) + (ncautr-nrslf-nrevp)*dt
@@ -4571,12 +4609,12 @@ call cpu_time(timer_start(6))
 ! Sedimentation:
 
 ! Cloud:
-    call sedimentation_liquid(qc(i,:),nc(i,:),1,iSCF,prt_liq(i),rho(i,:),i_rho(i,:),     &
-                              i_dzq(i,:),dt,nk,ktop,kbot,kdir,acn=acn(i,:),dnu=dnu(:))
+    call sedimentation_liquid(qc(i,:),nc(i,:),1,iSCF,prt_liq(i),rho(i,:),i_rho(i,:),i_dzq(i,:),    &
+                              dt,nk,ktop,kbot,kdir,acn=acn(i,:),dnu=dnu(:))
 
 ! Rain:
-    call sedimentation_liquid(qr(i,:),nr(i,:),2,iSPF,prt_liq(i),rho(i,:),i_rho(i,:),     &
-                              i_dzq(i,:),dt,nk,ktop,kbot,kdir,rhofacr=rhofacr(i,:))
+    call sedimentation_liquid(qr(i,:),nr(i,:),2,iSPF,prt_liq(i),rho(i,:),i_rho(i,:),i_dzq(i,:),    &
+                              dt,nk,ktop,kbot,kdir,rhofacr=rhofacr(i,:))
 
 ! Ice:
     if (log_3momentIce .and. log_LiquidFrac) then
@@ -4628,9 +4666,6 @@ call cpu_time(timer_end(6))
 
 ! End of sedimentation section
 !==========================================================================================!
-
-    if(log_LiquidFrac) call freeze_tiny_liqfrac(qitot,qiliq,qirim,birim,t,th,i_exn,xlf,  &
-                                              i_cp,i,ktop,kbot,kdir,nCat)
 
    !third and last call to compute_SCPF
     call compute_SCPF(Qc(i,:)+sum(Qitot(i,:,:),dim=2),Qr(i,:),Qv(i,:),Qvi(i,:),          &
@@ -4843,9 +4878,6 @@ call cpu_time(timer_end(6))
        enddo !k loop
 
     endif multicat
-
-    if(log_LiquidFrac) call freeze_tiny_liqfrac(qitot,qiliq,qirim,birim,t,th,i_exn,xlf,  &
-                                                i_cp,i,ktop,kbot,kdir,nCat)
 
 !...................................................
 ! note: This debug check is commented since small negative qx,nx values are possible here
@@ -10719,9 +10751,9 @@ else
  subroutine impose_max_total_Ni(nitot_local,max_total_Ni,i_rho_local)
 
 !--------------------------------------------------------------------------------
-! Impose maximum ice number concentration on each ice category indivudually.
-! Note, with this approach the maximum total concentration (sum of all categories)
-! can in principle be nCat*max_total_Ni.
+! Impose maximum total ice number concentration (total of all ice categories).
+! If the sum of all nitot(:) exceeds maximum allowable, each category to preserve
+! ratio of number between categories.
 !--------------------------------------------------------------------------------
 
  implicit none
@@ -10732,25 +10764,11 @@ else
 
 !local variables:
  real                              :: dum
- integer                           :: iice
 
- nitot_local(:) = min(nitot_local(:),max_total_Ni*i_rho_local)
-
-!---
-! Previous apporach:
-!    Impose maximum total ice number concentration (total of all ice categories).
-!    If the sum of all nitot(:) exceeds maximum allowable, each category to preserve
-!    ratio of number between categories.
-!
-!  if (sum(nitot_local(:)).ge.1.e-20) then
-!     dum = max_total_Ni*i_rho_local/sum(nitot_local(:))
-!     nitot_local(:) = nitot_local(:)*min(dum,1.)
-!  endif
-!
-! Potential problem:
-!    This following approach can decrease the number for a category that already has
-!    small number, thereby creating unrealistic mean sizes and reflectivty values.
-!---
+ if (sum(nitot_local(:)).ge.1.e-20) then
+    dum = max_total_Ni*i_rho_local/sum(nitot_local(:))
+    nitot_local(:) = nitot_local(:)*min(dum,1.)
+ endif
 
  end subroutine impose_max_total_Ni
 
@@ -11588,40 +11606,6 @@ else
       dmudt=(mu_new-mu_old)/dt
 
  end subroutine calculate_mu_change
-
-!======================================================================================!
-
- subroutine freeze_tiny_liqfrac(qitot,qiliq,qirim,birim,t,th,i_exn,xlf,i_cp,i,           &
-                                ktop,kbot,kdir,nCat)
-
- !---------------------------------------------
- ! Freeze tiny amounts of liquid on ice to rime
- !---------------------------------------------
-
- !arguments:
- real, intent(in),    dimension(:,:,:) :: qitot
- real, intent(inout), dimension(:,:,:) :: qiliq,qirim,birim
- real, intent(in),    dimension(:,:)   :: t,i_exn,xlf
- real, intent(inout), dimension(:,:)   :: th
- real, intent(in)                      :: i_cp
- integer, intent(in)                   :: i,ktop,kbot,kdir,nCat
- !local:
- integer                               :: k,iice
-
- do k = kbot,ktop,kdir
-    do iice = 1,nCat
-       if (qitot(i,k,iice).ge.qsmall) then
-          if (t(i,k).lt.trplpt .and. qiliq(i,k,iice)/qitot(i,k,iice).le.liqfracsmall) then
-             th(i,k) = th(i,k) + i_exn(i,k)*qiliq(i,k,iice)*xlf(i,k)*i_cp
-             birim(i,k,iice) = birim(i,k,iice) + qiliq(i,k,iice)*i_rho_rimeMax
-             qirim(i,k,iice) = qirim(i,k,iice) + qiliq(i,k,iice)
-             qiliq(i,k,iice) = 0.
-          endif
-       endif
-    enddo
- enddo
-
- end subroutine freeze_tiny_liqfrac
 
 !======================================================================================!
  subroutine find_top(k_qxtop,log_qxpresent,qx,ktop,kbot,kdir)
