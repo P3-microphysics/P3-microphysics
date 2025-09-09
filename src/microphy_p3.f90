@@ -207,8 +207,8 @@
  piov3 = pi*thrd
  piov6 = pi*sxth
 
-! maximum total ice concentration (sum of all categories)
- max_Ni = 2000.e+3  !(m)
+! maximum ice number concentration (per category)
+ max_Ni = 2000.e+3  !(m-3)
 
 ! switch for warm-rain parameterization
 ! = 1 Seifert and Beheng 2001
@@ -3645,124 +3645,78 @@ call cpu_time(timer_start(3))
 
        iice_loop_depsub:  do iice = 1,nCat
 
-       ! if (log_LiquidFrac) then
-
-              if (qitot(i,k,iice).ge.qsmall) then
-                 if (qiliq(i,k,iice)/qitot(i,k,iice).lt.0.01) then
+          if (qitot(i,k,iice).ge.qsmall) then
+             if (qiliq(i,k,iice)/qitot(i,k,iice).lt.0.01) then
                  !note: diffusional growth/decay rate: (stored as 'qidep' temporarily; may go to qisub below)
    !Note (BUG): Cholette (Jul 2022), remove *SCF(k) for ssat_cld and multiplication *CF for grid-mean qccon
                     qidep(iice) = (aaa*epsi(iice)*i_xx+(ssat_cld*SCF(k)-aaa*i_xx)*i_dt*  &
                                   epsi(iice)*i_xx*sngl(1.d0-dexp(-dble(xx*dt))) )*i_abi+ &
                                   (qvs(i,k)-dumqvi)*epsi(iice)*i_abi
-                 endif
-              endif
+             endif
+          endif
 
             !for very small ice contents in dry air, sublimate all ice instantly
-              if (qitot(i,k,iice).ge.qsmall) then
-                 if (supi_cld.lt.-0.001 .and. qitot(i,k,iice).lt.1.e-12 .and.            &
-                   (qiliq(i,k,iice)/qitot(i,k,iice)).lt.0.01) then
-                     qidep(iice) = -(qitot(i,k,iice)-qiliq(i,k,iice))*i_dt
-                 endif
-              endif
-
-              !note: 'clbfact_dep' and 'clbfact_sub' calibration factors for ice deposition and sublimation
-              !   These are adjustable ad hoc factors used to increase or decrease deposition and/or
-              !   sublimation rates.  The representation of the ice capacitances are highly simplified
-              !   and the appropriate values in the diffusional growth equation are uncertain.
-
-              if (qidep(iice).lt.0.) then
-              !note: limit to saturation adjustment (for dep and subl) is applied later
-                 qisub(iice) = -qidep(iice)
-                 qisub(iice) = qisub(iice)*clbfact_sub
-                 qisub(iice) = min(qisub(iice), (qitot(i,k,iice)-qiliq(i,k,iice))*i_dt)
-                 nisub(iice) = qisub(iice)*(nitot(i,k,iice)/(qitot(i,k,iice)-            &
-                               qiliq(i,k,iice)))
-                 qidep(iice) = 0.
-                 if (log_3momentIce .and. log_full3mom .and. epsi(iice).gt.0.) then
-                    zisub(iice) = -epsizsb(iice)/epsi(iice)*qisub(iice)
-                 endif
-              else
-                 qidep(iice) = qidep(iice)*clbfact_dep
-                 qidep(iice) = min(qidep(iice), qv(i,k)*i_dt)
-                 if (log_3momentIce .and. log_full3mom .and. epsi(iice).gt.0.) then
-                    zidep(iice) = epsiz(iice)/epsi(iice)*qidep(iice)
-                 endif
-              endif
-
-              if (qitot(i,k,iice).ge.qsmall) then
-                 if ((qiliq(i,k,iice)/qitot(i,k,iice)).ge.0.01) then
-              ! Condensation/evaporation fo qiliq
-!Note (BUG) Cholette (Jul 2022), remove *SCF(k) for ssat_cld and multiplication *CF for grid-mean qccon
-                    qlcon(iice) = (aaa*epsiw(iice)*i_xx+(ssat_cld*SCF(k)-aaa*i_xx)*i_dt* &
-                                   epsiw(iice)*i_xx* sngl(1.d0-dexp(-dble(xx*dt))) )/ab
-                 endif
-              endif
-
-              if (sup_cld.lt.-0.001 .and. qitot(i,k,iice).lt.1.e-12 .and.                 &
-               qitot(i,k,iice).ge.qsmall .and. (qiliq(i,k,iice)/qitot(i,k,iice)).ge.0.01) &
-               qlcon(iice) = -qiliq(i,k,iice)*i_dt
-
-              if (qlcon(iice).lt.0.) then
-                 qlevp(iice) = -qlcon(iice)
-                 qlevp(iice) = min(qlevp(iice),qiliq(i,k,iice)*i_dt)
-                 nlevp(iice) = qlevp(iice)*nitot(i,k,iice)/qitot(i,k,iice)
-                 qlcon(iice) = 0.
-
-                 if (log_3momentIce.and.epsiw(iice).gt.0.)                               &
-                  zisub(iice) = -epsizsb(iice)/epsiw(iice)*qlevp(iice)
-
-              else
-                 qlcon(iice) = min(qlcon(iice), qv(i,k)*i_dt)
-
-                 if (log_3momentIce .and. epsiw(iice).gt.0. .and.                        &
-                  (qiliq(i,k,iice)/qitot(i,k,iice)).ge.0.01)                             &
-                  zidep(iice) = epsiz(iice)/epsiw(iice)*qlcon(iice)
-
-              endif
-
-       ! else
-
-       !   if (qitot(i,k,iice).ge.qsmall .and. t(i,k).lt.trplpt) then
-            !note: diffusional growth/decay rate: (stored as 'qidep' temporarily; may go to qisub below)
-!Note (BUG) Cholette (Jul 2022), remove *SCF(k) for ssat_cld and multiplication *CF for grid-mean qccon
-!             qidep(iice) = ((aaa*epsi(iice)*i_xx+(ssat_cld-aaa*i_xx)*i_dt*epsi(iice)*i_xx*                      &
-!                           (1.-sngl(dexp(-dble(xx*dt)))))*i_abi+(qvs(i,k)-dumqvi)*epsi(iice)*i_abi)*SCF(k)
-       !      qidep(iice) = (aaa*epsi(iice)*i_xx+(ssat_cld*SCF(k)-aaa*i_xx)*i_dt*epsi(iice)*i_xx*   &
-       !                    (1.-sngl(dexp(-dble(xx*dt)))))*i_abi+(qvs(i,k)-dumqvi)*epsi(iice)*i_abi
-       !   endif
-
-         !for very small ice contents in dry air, sublimate all ice instantly
-       !   if (supi_cld.lt.-0.001 .and. qitot(i,k,iice).lt.1.e-12) &
-       !      qidep(iice) = -qitot(i,k,iice)*i_dt
+          if (qitot(i,k,iice).ge.qsmall) then
+             if (supi_cld.lt.-0.001 .and. qitot(i,k,iice).lt.1.e-12 .and.                &
+              (qiliq(i,k,iice)/qitot(i,k,iice)).lt.0.01) then
+                qidep(iice) = -(qitot(i,k,iice)-qiliq(i,k,iice))*i_dt
+             endif
+          endif
 
           !note: 'clbfact_dep' and 'clbfact_sub' calibration factors for ice deposition and sublimation
           !   These are adjustable ad hoc factors used to increase or decrease deposition and/or
           !   sublimation rates.  The representation of the ice capacitances are highly simplified
           !   and the appropriate values in the diffusional growth equation are uncertain.
 
-       !   if (qidep(iice).lt.0.) then
-       !    !note: limit to saturation adjustment (for dep and subl) is applied later
-       !      qisub(iice) = -qidep(iice)
-       !      qisub(iice) = qisub(iice)*clbfact_sub
-       !      qisub(iice) = min(qisub(iice), qitot(i,k,iice)*i_dt)
-       !      nisub(iice) = qisub(iice)*(nitot(i,k,iice)/qitot(i,k,iice))
-       !      qidep(iice) = 0.
+          if (qidep(iice).lt.0.) then
+            !note: limit to saturation adjustment (for dep and subl) is applied later
+             qisub(iice) = -qidep(iice)
+             qisub(iice) = qisub(iice)*clbfact_sub
+             qisub(iice) = min(qisub(iice), (qitot(i,k,iice)-qiliq(i,k,iice))*i_dt)
+             nisub(iice) = qisub(iice)*(nitot(i,k,iice)/(qitot(i,k,iice)-                &
+                           qiliq(i,k,iice)))
+             qidep(iice) = 0.
+             if (log_3momentIce .and. log_full3mom .and. epsi(iice).gt.0.) then
+                zisub(iice) = -epsizsb(iice)/epsi(iice)*qisub(iice)
+             endif
+          else
+             qidep(iice) = qidep(iice)*clbfact_dep
+             qidep(iice) = min(qidep(iice), qv(i,k)*i_dt)
+             if (log_3momentIce .and. log_full3mom .and. epsi(iice).gt.0.) then
+                    zidep(iice) = epsiz(iice)/epsi(iice)*qidep(iice)
+             endif
+          endif
 
-       !      if (log_3momentIce.and.epsi(iice).gt.0.) then
-       !         zisub(iice) = -epsizsb(iice)/epsi(iice)*qisub(iice)
-       !      endif
+          if (qitot(i,k,iice).ge.qsmall) then
+             if ((qiliq(i,k,iice)/qitot(i,k,iice)).ge.0.01) then
+              ! Condensation/evaporation fo qiliq
+!Note (BUG) Cholette (Jul 2022), remove *SCF(k) for ssat_cld and multiplication *CF for grid-mean qccon
+                qlcon(iice) = (aaa*epsiw(iice)*i_xx+(ssat_cld*SCF(k)-aaa*i_xx)*i_dt*     &
+                               epsiw(iice)*i_xx* sngl(1.d0-dexp(-dble(xx*dt))) )/ab
+             endif
+          endif
 
-       !   else
-       !      qidep(iice) = qidep(iice)*clbfact_dep
-       !      qidep(iice) = min(qidep(iice), qv(i,k)*i_dt)
+          if (sup_cld.lt.-0.001 .and. qitot(i,k,iice).lt.1.e-12                             &
+           .and. qitot(i,k,iice).ge.qsmall .and. (qiliq(i,k,iice)/qitot(i,k,iice)).ge.0.01) &
+           qlcon(iice) = -qiliq(i,k,iice)*i_dt
 
-       !      if (log_3momentIce.and.epsi(iice).gt.0.) then
-       !         zidep(iice) = epsiz(iice)/epsi(iice)*qidep(iice)
-       !      endif
+          if (qlcon(iice).lt.0.) then
+             qlevp(iice) = -qlcon(iice)
+             qlevp(iice) = min(qlevp(iice),qiliq(i,k,iice)*i_dt)
+             nlevp(iice) = qlevp(iice)*nitot(i,k,iice)/qitot(i,k,iice)
+             qlcon(iice) = 0.
 
-       !   endif
+             if (log_3momentIce.and.epsiw(iice).gt.0.)                                  &
+              zisub(iice) = -epsizsb(iice)/epsiw(iice)*qlevp(iice)
 
-       ! endif ! log_LiquidFrac
+          else
+             qlcon(iice) = min(qlcon(iice), qv(i,k)*i_dt)
+
+             if (log_3momentIce .and. epsiw(iice).gt.0.                                 &
+              .and. (qiliq(i,k,iice)/qitot(i,k,iice)).ge.0.01)                          &
+              zidep(iice) = epsiz(iice)/epsiw(iice)*qlcon(iice)
+
+          endif
 
        enddo iice_loop_depsub
 
@@ -4594,12 +4548,12 @@ call cpu_time(timer_start(6))
 ! Sedimentation:
 
 ! Cloud:
-    call sedimentation_liquid(qc(i,:),nc(i,:),1,iSCF,prt_liq(i),rho(i,:),i_rho(i,:),i_dzq(i,:),    &
-                              dt,nk,ktop,kbot,kdir,acn=acn(i,:),dnu=dnu(:))
+    call sedimentation_liquid(qc(i,:),nc(i,:),1,iSCF,prt_liq(i),rho(i,:),i_rho(i,:),     &
+                              i_dzq(i,:),dt,nk,ktop,kbot,kdir,acn=acn(i,:),dnu=dnu(:))
 
 ! Rain:
-    call sedimentation_liquid(qr(i,:),nr(i,:),2,iSPF,prt_liq(i),rho(i,:),i_rho(i,:),i_dzq(i,:),    &
-                              dt,nk,ktop,kbot,kdir,rhofacr=rhofacr(i,:))
+    call sedimentation_liquid(qr(i,:),nr(i,:),2,iSPF,prt_liq(i),rho(i,:),i_rho(i,:),     &
+                              i_dzq(i,:),dt,nk,ktop,kbot,kdir,rhofacr=rhofacr(i,:))
 
 ! Ice:
     if (log_3momentIce .and. log_LiquidFrac) then
@@ -5323,7 +5277,7 @@ call cpu_time(timer_start(9))
                 if (birim(i,k,iice).ge.bsmall) then
                    rimedensity(i,k,iice) = qirim(i,k,iice)/birim(i,k,iice)    ! rime density
                 endif
-                liq_frac(i,k,iice) = qiliq(i,k,iice)/qitot(i,k,iice)    ! liquid fraction
+                liq_frac(i,k,iice) = qiliq(i,k,iice)/qitot(i,k,iice)          ! liquid fraction
 
                 if (liq_frac(i,k,iice).ge.0.15) then
                    Q_wsnow(i,k,iice) = qitot(i,k,iice)
@@ -10743,7 +10697,7 @@ else
  subroutine impose_max_Ni(nitot_local,max_Ni,i_rho_local)
 
 !--------------------------------------------------------------------------------
-! Impose maximum ice number concentration on each ice category indivudually.
+! Impose maximum ice number concentration on each ice category individually.
 ! Note, with this approach the maximum total concentration (sum of all categories)
 ! can in principle be nCat*max_Ni.
 !--------------------------------------------------------------------------------
