@@ -110,14 +110,14 @@
  real, parameter :: mu_i_max = 20.
 
  ! physical and mathematical constants
- real           :: rhosur,rhosui,ar,br,f1r,f2r,ecr,rhow,kr,kc,bimm,aimm,rin,mi0,nccnst,  &
+ real           :: rhosur,rhosui,ar,br,f1r,f2r,ecr,rhow,kr,kc,bimm,aimm,rin,mi0,trplpt,  &
                    eci,eri,bcn,cpw,e0,cons1,cons2,cons3,cons4,cons5,cons6,cons7,cons8,   &
                    i_rhow,qsmall,nsmall,bsmall,zsmall,cp,g,rd,rv,ep_2,i_cp,mw,osm,       &
                    vi,epsm,rhoa,map,ma,rr,bact,i_rm1,i_rm2,sig1,nanew1,f11,f21,sig2,     &
-                   nanew2,f12,f22,pi,thrd,sxth,piov3,piov6,rho_rimeMin,                  &
-                   rho_rimeMax,i_rho_rimeMax,max_Ni,dbrk,nmltratio,minVIS,         &
-                   maxVIS,mu_i_initial,mu_r_constant,inv_Drmax,Dmin_HM,Dinit_HM,trplpt,  &
-                   liqfracsmall
+                   nanew2,f12,f22,pi,thrd,sxth,piov3,piov6,rho_rimeMin,liqfracsmall,     &
+                   rho_rimeMax,i_rho_rimeMax,max_Ni,dbrk,nmltratio,minVIS,               &
+                   maxVIS,mu_i_initial,mu_r_constant,inv_Drmax,Dmin_HM,Dinit_HM,         &
+                   nccnst_1,nccnst_2,nccnst_3
 
  integer :: n_iceCat = -1   !used for GEM interface
 
@@ -217,10 +217,10 @@
 ! = 4 Kogan 2013
  iparam = 3
 
-! specified droplet concentration (m-3; used for 1-moment cloud only)
-!nccnst =   80.e+6  ! typical maritime value, 80 cm-3
- nccnst =  200.e+6  ! typical mid-latitude conteinental, 200 cm-3
-!nccnst = 1000.e+6  ! polluted/urban, 1000 cm-3
+! specified cloud droplet concentration (m-3; used for 1-moment cloud only)
+ nccnst_1 =   80.e+6  ! typical maritime value            (  80 cm-3)
+ nccnst_2 =  200.e+6  ! typical mid-latitude conteinental ( 200 cm-3)
+ nccnst_3 = 1000.e+6  ! polluted/urban                    (1000 cm-3)
 
 ! parameters for Seifert and Beheng (2001) autoconversion/accretion
  kc     = 9.44e+9
@@ -1948,8 +1948,8 @@ END subroutine p3_init
                     diag_ze,diag_effc,diag_effi,diag_vmi,diag_di,diag_rhoi,n_diag_2d,     &
                     diag_2d,n_diag_3d,diag_3d,log_predictNc,model,clbfact_dep,            &
                     clbfact_sub,debug_on,scpf_on,scpf_pfrac,scpf_resfact,SCF_out,         &
-                    log_3momentIce,log_LiquidFrac,prt_drzl,prt_rain,prt_crys,prt_snow,    &
-                    prt_grpl,prt_pell,prt_hail,prt_sndp,prt_wsnow,qi_type,                &
+                    log_3momentIce,log_LiquidFrac,nccnst_in,prt_drzl,prt_rain,prt_crys,   &
+                    prt_snow,prt_grpl,prt_pell,prt_hail,prt_sndp,prt_wsnow,qi_type,       &
                     diag_vis,diag_vis1,diag_vis2,diag_vis3,diag_dhmax,timer,              &
                     timer_description)
 
@@ -2024,6 +2024,8 @@ END subroutine p3_init
  logical, intent(in)                                  :: log_LiquidFrac ! .T. for prognostic liquid-fraction
  logical, intent(in)                                  :: debug_on       ! switch for internal debug checks
  character(len=*), intent(in)                         :: model          ! driving model
+
+ real, intent(in),  optional                          :: nccnst_in     ! 1-mom cloud concentration     # m-3
 
  real, intent(out), dimension(its:ite), optional      :: prt_drzl      ! precip rate, drizzle          m s-1
  real, intent(out), dimension(its:ite), optional      :: prt_rain      ! precip rate, rain             m s-1
@@ -2172,7 +2174,7 @@ END subroutine p3_init
             prt_accum,fluxdiv_qx,fluxdiv_nx,Co_max,dt_sub,fluxdiv_zit,D_new,Q_nuc,N_nuc, &
             deltaD_init,dum1c,dum4c,dum5c,dumt,qcon_satadj,qdep_satadj,sources,sinks,    &
             timeScaleFactor,dt_left,qv_tmp,t_tmp,dum1z,dum7c,dum7,fluxdiv_qil,epsiw_tot, &
-            dum8,tmp3,tmp4
+            dum8,tmp3,tmp4,nccnst
 
  double precision :: tmpdbl1,tmpdbl2,tmpdbl3
 
@@ -2215,7 +2217,7 @@ END subroutine p3_init
  real    :: f1pr27   ! melting staying on ice (ventilation term)
  real    :: f1pr28   ! shedding of mixed-phase ice
 
-! full 3-moment quantities from lookup table
+! full 3-moment-ice quantities from lookup table
  real    :: f1pr29   ! zi tendency riming
  real    :: f1pr30   ! zi tendency vapor deposition term 1
  real    :: f1pr31   ! zi tendency vapor deposition term 2
@@ -2227,7 +2229,7 @@ END subroutine p3_init
  real    :: f1pr37   ! zi tendency sublimation term 1
  real    :: f1pr38   ! zi tendency sublimation term 1
 
-! for full 3-moment
+! for full 3-moment-ice
  real, dimension(nCat) :: epsiz,epsizsb
 
 ! quantities related to diagnostic hydrometeor/precipitation types
@@ -2318,7 +2320,7 @@ timer_description(1) = 'full p3_main'
 call cpu_time(timer_start(1))
 #endif
 
- tmp1 = uzpl(1,1)    !avoids compiler warning for unused variable 'uzpl'
+ tmp1 = uzpl(1,1)     !avoids compiler warning for unused variable (since code using 'uzpl' is currently commented)
 
  ! direction of vertical leveling:
  if (trim(model)=='GEM' .or. trim(model)=='KIN1D') then
@@ -2333,7 +2335,22 @@ call cpu_time(timer_start(1))
 
  nk = abs(kte-kts)+1
 
-  ! convert advected (dynamics) variable to zitot (6th moment):
+ ! Select fixed number concentration for 1-moment cloud
+ !   note: nc(i,k) is the cloud number mixing ratio; for log_predictNc = .F. (i.e. 1-moment cloud)
+ !         nc is still used but os updated as nc = nccnst/rho in appropriate locations in this
+ !         subroutine.
+ if (.not.log_predictNc) then
+    if (present(nccnst_in)) then
+       nccnst = nccnst_in ! passed in from driving model
+    else
+      !nccnst = nccnst_1  ! maritime
+       nccnst = nccnst_2  ! mid-latitude continental
+      !nccnst = nccnst_3  ! polluted/urban
+      !nccnst = SPECIFY   ! user-specified (units: # m-3; if unable to specify in driving model)
+    endif
+ endif
+
+ ! Convert advected (dynamics) variable to zitot (6th moment):
  !   This is done to preserve appropriate ratios between prognostic
  !   moments; for details, see Morrison et al. (2016), MWR
  if (log_3momentIce) then
@@ -2462,9 +2479,9 @@ call cpu_time(timer_start(2))
     log_hydrometeorsPresent = .false.
     log_nucleationPossible  = .false.
 
-    rho(:,:)   = pres(:,:)/(rd*t(:,:))
-    i_rho(:,:) = 1./rho(:,:)
-    if (.not.(log_predictNc)) nc(:,:) = nccnst*i_rho(:,:)
+    rho(i,:)   = pres(i,:)/(rd*t(i,:))
+    i_rho(i,:) = 1./rho(i,:)
+    if (.not.(log_predictNc)) nc(i,:) = nccnst*i_rho(i,:)
 
     k_loop_1: do k = kbot,ktop,kdir
 
@@ -3762,19 +3779,7 @@ call cpu_time(timer_start(3))
 !.................................................................
 ! droplet activation
 
-       if (.not.(log_predictNc) .and. sup_cld.gt.1.e-6 .and. it.gt.1) then
-       ! 1-moment cloud: make sure droplet mass is present if conditions are supersaturated
-       !   note: not applied at the first time step, since saturation adjustment is applied at first step
-          tmp1   = nccnst*i_rho(i,k)*cons7-qc(i,k)
-          tmp1   = max(0.,tmp1*iSCF(k))         ! in-cloud value
-          dumqvs = qv_sat(t(i,k),pres(i,k),0)
-          dqsdT  = xxlv(i,k)*dumqvs/(rv*t(i,k)*t(i,k))
-          ab     = 1. + dqsdT*xxlv(i,k)*i_cp
-          tmp1   = max(0.,min(tmp1,(Qv_cld(k)-dumqvs)/ab))  ! limit overdepletion of supersaturation
-          qcnuc  = tmp1*i_dt*SCF(k)
-          qcnuc  = max(qcnuc,0.)
-
-       elseif (log_predictNc .and. sup_cld.gt.1.e-6) then
+       if (log_predictNc .and. sup_cld.gt.1.e-6) then
        ! 2-moment cloud: alculate droplet activation explicitly from supersaturation
        !   note: also applied at the first time step (number only; mass is already added by sat. adj., below)
           tmp1  = 1./bact**0.5
@@ -3793,6 +3798,18 @@ call cpu_time(timer_start(3))
         ! exclude mass increase from droplet activation during first time step:
         ! (since this is already accounted for by saturation adjustment below)
           qcnuc = merge(ncnuc*cons7, 0., it.gt.1)
+
+       elseif (.not.(log_predictNc) .and. sup_cld.gt.1.e-6 .and. it.gt.1) then
+       ! 1-moment cloud: make sure droplet mass is present if conditions are supersaturated
+       !   note: not applied at the first time step, since saturation adjustment is applied at first step
+          tmp1   = nccnst*i_rho(i,k)*cons7-qc(i,k)
+          tmp1   = max(0.,tmp1*iSCF(k))         ! in-cloud value
+          dumqvs = qv_sat(t(i,k),pres(i,k),0)
+          dqsdT  = xxlv(i,k)*dumqvs/(rv*t(i,k)*t(i,k))
+          ab     = 1. + dqsdT*xxlv(i,k)*i_cp
+          tmp1   = max(0.,min(tmp1,(Qv_cld(k)-dumqvs)/ab))  ! limit overdepletion of supersaturation
+          qcnuc  = tmp1*i_dt*SCF(k)
+          qcnuc  = max(qcnuc,0.)
 
        endif
 
@@ -4049,16 +4066,12 @@ call cpu_time(timer_start(3))
           qwgrth1c = qwgrth1c*ratio
           qccoll = qccoll*ratio
          !qchetc = qchetc*ratio !currently not used
-         !if (log_predictNc) then
-         ! note: the conditional is present for strict code logic but commented for efficiency
-         !  (4 unused multiplications are cheaper than one IF)
            ncautc = ncautc*ratio
            ncacc  = ncacc*ratio
            nccol  = nccol*ratio
            ncheti = ncheti*ratio
           !nchetc = nchetc*ratio
            nccoll = nccoll*ratio
-         !endif
        endif
 
 ! rain
@@ -4200,7 +4213,6 @@ call cpu_time(timer_start(3))
 
           qc(i,k) = qc(i,k) + (-qchetc(iice)-qcheti(iice)-qccol(iice)-qcshd(iice)-       &
                     qccoll(iice)-qwgrth1c(iice)-qcmul(iice))*dt
-         !if (log_predictNc) &   !unnecessary since changes to nc will be discarded if .not.log_predictNc
           nc(i,k) = nc(i,k) + (-nccol(iice)-nchetc(iice)-ncheti(iice)-nccoll(iice))*dt
           qr(i,k) = qr(i,k) + (-qrcol(iice)+qrmlt(iice)-qrhetc(iice)-qrheti(iice)+       &
                     qcshd(iice)-qrmul(iice)-qrcoll(iice)+qlshd(iice)-qwgrth1r(iice))*dt
@@ -4311,7 +4323,6 @@ call cpu_time(timer_start(3))
    !-- warm-phase only processes:
        qc(i,k) = qc(i,k) + (-qcacc-qcaut+qcnuc+qccon-qcevp)*dt
        qr(i,k) = qr(i,k) + (qcacc+qcaut+qrcon-qrevp)*dt
-      !if (log_predictNc) &   !unnecessary since changes to nc will be discarded if .not.log_predictNc
        nc(i,k) = nc(i,k) + (-ncacc-ncautc+ncslf+ncnuc)*dt
        if (iparam.eq.1 .or. iparam.eq.2) then
           nr(i,k) = nr(i,k) + (0.5*ncautc-nrslf-nrevp)*dt
@@ -4523,6 +4534,7 @@ call cpu_time(timer_end(3))
        where (qitot(:,:,:).lt.qsmall) zitot(:,:,:) = 0.
     endif
 
+    if (.not.log_predictNc) nc(i,:) = nccnst*i_rho(i,:)
 
     !NOTE: At this point, it is possible to have negative (but small) nc, nr, nitot.  This is not
     !      a problem; those values get clipped to zero or assigned a minumum value in the sedimentation
@@ -4625,10 +4637,10 @@ call cpu_time(timer_end(6))
 ! End of sedimentation section
 !==========================================================================================!
 
-    if(log_LiquidFrac) call freeze_tiny_liqfrac(qitot,qiliq,qirim,birim,t,th,i_exn,xlf,  &
+    if (log_LiquidFrac) call freeze_tiny_liqfrac(qitot,qiliq,qirim,birim,t,th,i_exn,xlf,  &
                                               i_cp,i,ktop,kbot,kdir,nCat)
 
-    if(.not.log_predictNc) nc(:,:) = nccnst*i_rho(:,:)
+    if (.not.log_predictNc) nc(i,:) = nccnst*i_rho(i,:)
 
    !third and last call to compute_SCPF
     call compute_SCPF(Qc(i,:)+sum(Qitot(i,:,:),dim=2),Qr(i,:),Qv(i,:),Qvi(i,:),          &
@@ -4842,10 +4854,10 @@ call cpu_time(timer_end(6))
 
     endif multicat
 
-    if(log_LiquidFrac) call freeze_tiny_liqfrac(qitot,qiliq,qirim,birim,t,th,i_exn,xlf,  &
-                                                i_cp,i,ktop,kbot,kdir,nCat)
+    if (log_LiquidFrac) call freeze_tiny_liqfrac(qitot,qiliq,qirim,birim,t,th,i_exn,xlf,  &
+                                                 i_cp,i,ktop,kbot,kdir,nCat)
 
-    if(.not.log_predictNc) nc(:,:) = nccnst*i_rho(:,:)
+    if (.not.log_predictNc) nc(i,:) = nccnst*i_rho(i,:)
 
 !...................................................
 ! note: This debug check is commented since small negative qx,nx values are possible here
