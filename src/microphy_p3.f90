@@ -92,13 +92,13 @@
  real, dimension(iisize,rimsize,densize,iisize,rimsize,densize)     :: itabcolli112
 
 ! integer switch for warm rain autoconversion/accretion schemes
- integer :: iparam
+ integer :: autoAccr_param
 
 ! number of diagnostic ice-phase hydrometeor types
  integer, public, parameter :: n_qiType = 6
 
 ! droplet spectral shape parameter for mass spectra, used for Seifert and Beheng (2001)
-! warm rain autoconversion/accretion option only (iparam = 1)
+! warm rain autoconversion/accretion option only (autoAccr_param = 1)
  real, dimension(16) :: dnu
 
 ! lookup table values for rain shape parameter mu_r
@@ -134,7 +134,7 @@
 !------------------------------------------------------------------------------------------!
 
 #ifdef ECCCGEM
- use iso_c_binding
+!  use iso_c_binding
  use rpn_comm_itf_mod
 #endif
 
@@ -175,7 +175,7 @@
 !------------------------------------------------------------------------------------------!
 
  read_path = lookup_file_dir           ! path for lookup tables from official model library
-!read_path = '/MY/LOOKUP_TABLE/PATH'   ! path for lookup tables from specified location
+!read_path = '/MY/LOOKUP_TABLE/PATH'   ! path for lookup tables from user-specified location
 
  if (trplMomI) then
    lookup_file_1 = trim(read_path)//'/'//'p3_lookupTable_1.dat-v'//trim(version_intended_table_1_3mom)
@@ -210,21 +210,20 @@
 ! maximum ice number concentration (per category)
  max_Ni = 2000.e+3  !(m-3)
 
-! switch for warm-rain parameterization
+! switch for warm-rain (autoconversion/accretion) parameterization
 ! = 1 Seifert and Beheng 2001
-! = 2 Beheng 1994
-! = 3 Khairoutdinov and Kogan 2000
-! = 4 Kogan 2013
- iparam = 3
+! = 2 Khairoutdinov and Kogan 2000
+! = 3 Kogan 2013
+ autoAccr_param = 2
+
+! parameters for Seifert and Beheng (2001) autoconversion/accretion
+ kc     = 9.44e+9
+ kr     = 5.78e+3
 
 ! specified cloud droplet concentration (m-3; used for 1-moment cloud only)
  nccnst_1 =   80.e+6  ! typical maritime value            (  80 cm-3)
  nccnst_2 =  200.e+6  ! typical mid-latitude conteinental ( 200 cm-3)
  nccnst_3 = 1000.e+6  ! polluted/urban                    (1000 cm-3)
-
-! parameters for Seifert and Beheng (2001) autoconversion/accretion
- kc     = 9.44e+9
- kr     = 5.78e+3
 
 ! physical constants
  trplpt = 273.15
@@ -246,8 +245,7 @@
  i_rhow = 1./rhow  !inverse of (max.) density of liquid water
  mu_r_constant = 0.  !fixed shape parameter for mu_r
 
-! inv_Drmax = 1./0.0008 ! inverse of maximum allowed rain number-weighted mean diameter (old value)
- inv_Drmax = 1./0.002 ! inverse of maximum allowed rain number-weighted mean diameter in m
+ inv_Drmax = 1./0.002  ! inverse of maximum allowed rain number-weighted mean diameter (m-1)
 
 ! limits for rime density [kg m-3]
  rho_rimeMin     =  50.
@@ -331,7 +329,7 @@
  maxVIS  = 99.e+3          ! maximum visibility  (m)
 
 ! parameters for droplet mass spectral shape, used by Seifert and Beheng (2001)
-! warm rain scheme only (iparam = 1)
+! warm rain scheme only (autoAccr_param = 1)
  dnu(1)  =  0.
  dnu(2)  = -0.557
  dnu(3)  = -0.430
@@ -3835,8 +3833,7 @@ call cpu_time(timer_start(3))
 !Note (BUG), needs to be in-cloud condition
        qc_not_small_1: if (qc(i,k)*iSCF(k).ge.1.e-8) then
 
-          if (iparam.eq.1) then
-
+          if (autoAccr_param.eq.1) then
             !Seifert and Beheng (2001)
              dum   = 1.-qc(i,k)*iSCF(k)/(qc(i,k)*iSCF(k)+qr(i,k)*iSPF(k)*(SPF(k)-SPF_clr(k)))
              dum1  = 600.*dum**0.68*(1.-dum**0.68)**3
@@ -3846,28 +3843,7 @@ call cpu_time(timer_start(3))
                       dum1/(1.-dum)**2)*1000.*i_rho(i,k)*SCF(k)
              ncautc = qcaut*7.6923076e+9
 
-          elseif (iparam.eq.2) then
-
-            !Beheng (1994)
-!Note (BUG), needs to be in-cloud condition
-             if (nc(i,k)*iSCF(k)*rho(i,k)*1.e-6 .lt. 100.) then
-                qcaut = 6.e+28*i_rho(i,k)*mu_c(i,k)**(-1.7)*(1.e-6*rho(i,k)*nc(i,k)*     &
-                        iSCF(k))**(-3.3)*(1.e-3*rho(i,k)*qc(i,k)*iSCF(k))**(4.7)*SCF(k)
-             else
-               !2D interpolation of tabled logarithmic values
-                dum   = 41.46 + (nc(i,k)*iSCF(k)*1.e-6*rho(i,k)-100.)*(37.53-41.46)*5.e-3
-                dum1  = 39.36 + (nc(i,k)*iSCF(k)*1.e-6*rho(i,k)-100.)*(30.72-39.36)*5.e-3
-                qcaut = dum+(mu_c(i,k)-5.)*(dum1-dum)*0.1
-              ! 1000/rho is for conversion from g cm-3/s to kg/kg
-                qcaut = exp(qcaut)*(1.e-3*rho(i,k)*qc(i,k)*iSCF(k))**4.7*1000.*          &
-                        i_rho(i,k)*SCF(k)
-!               qcaut = dexp(dble(qcaut))*(1.e-3*rho(i,k)*qc(i,k)*iSCF(k))**4.7*1000.*   &
-!                       i_rho(i,k)*SCF(k)
-             endif
-             ncautc = 7.7e+9*qcaut
-
-          elseif (iparam.eq.3) then
-
+          elseif (autoAccr_param.eq.2) then
            !Khroutdinov and Kogan (2000)
              dum   = qc(i,k)*iSCF(k)
              qcaut = 1350.*dum**2.47*(nc(i,k)*iSCF(k)*1.e-6*rho(i,k))**(-1.79)*SCF(k)
@@ -3875,8 +3851,7 @@ call cpu_time(timer_start(3))
              ncautr = qcaut*cons3
              ncautc = qcaut*nc(i,k)/qc(i,k)
 
-          elseif (iparam.eq.4) then
-
+          elseif (autoAccr_param.eq.3) then
            !Kogan (2013)
              dum = qc(i,k)*iSCF(k)
              qcaut = 7.98e10*dum**4.22*(nc(i,k)*iSCF(k)*1.e-6*rho(i,k))**(-3.01)*SCF(k)
@@ -3895,16 +3870,12 @@ call cpu_time(timer_start(3))
 
        if (qc(i,k).ge.qsmall) then
 
-          if (iparam.eq.1) then
+          if (autoAccr_param.eq.1) then
            !Seifert and Beheng (2001)
              ncslf = -kc*(1.e-3*rho(i,k)*qc(i,k)*iSCF(k))**2*(nu(i,k)+2.)/(nu(i,k)+1.)*  &
                      1.e+6*i_rho(i,k)*SCF(k)+ncautc
-          elseif (iparam.eq.2) then
-           !Beheng (994)
-             ncslf = -5.5e+16*i_rho(i,k)*mu_c(i,k)**(-0.63)*(1.e-3*rho(i,k)*qc(i,k)*     &
-                     iSCF(k))**2*SCF(k)
-          elseif (iparam.eq.3.or.iparam.eq.4) then
-            !Khroutdinov and Kogan (2000)
+          elseif (autoAccr_param.eq.2 .or. autoAccr_param.eq.3) then
+            !Khroutdinov and Kogan (2000) or Kogan (2013)
              ncslf = 0.
           endif
 
@@ -3915,7 +3886,7 @@ call cpu_time(timer_start(3))
 
        if (qr(i,k).ge.qsmall .and. qc(i,k).ge.qsmall) then
 
-          if (iparam.eq.1) then
+          if (autoAccr_param.eq.1) then
            !Seifert and Beheng (2001)
              dum2  = (SPF(k)-SPF_clr(k)) !in-cloud Precipitation fraction
              dum   = 1.-qc(i,k)*iSCF(k)/(qc(i,k)*iSCF(k)+qr(i,k)*iSPF(k))
@@ -3923,19 +3894,12 @@ call cpu_time(timer_start(3))
              qcacc = kr*rho(i,k)*0.001*qc(i,k)*iSCF(k)*qr(i,k)*iSPF(k)*dum1*dum2
              ncacc = qcacc*rho(i,k)*0.001*(nc(i,k)*rho(i,k)*1.e-6)/(qc(i,k)*rho(i,k)*    &  !note: (nc*iSCF)/(qc*iSCF) = nc/qc
                      0.001)*1.e+6*i_rho(i,k)
-          elseif (iparam.eq.2) then
-           !Beheng (994)
-             dum2  = (SPF(k)-SPF_clr(k)) !in-cloud Precipitation fraction
-             dum   = (qc(i,k)*iSCF(k)*qr(i,k)*iSPF(k))
-             qcacc = 6.*rho(i,k)*dum*dum2
-             ncacc = qcacc*rho(i,k)*1.e-3*(nc(i,k)*rho(i,k)*1.e-6)/(qc(i,k)*rho(i,k)*    &   !note: (nc*iSCF)/(qc*iSCF) = nc/qc
-                     1.e-3)*1.e+6*i_rho(i,k)
-          elseif (iparam.eq.3) then
+          elseif (autoAccr_param.eq.2) then
             !Khroutdinov and Kogan (2000)
              dum2  = (SPF(k)-SPF_clr(k)) !in-cloud Precipitation fraction
              qcacc = 67.*(qc(i,k)*iSCF(k)*qr(i,k)*iSPF(k))**1.15 *dum2
              ncacc = qcacc*nc(i,k)/qc(i,k)
-          elseif (iparam.eq.4) then
+          elseif (autoAccr_param.eq.3) then
             !Kogan (2013)
              dum2 = (SPF(k)-SPF_clr(k)) !in-cloud Precipitation fraction
              qcacc = 8.53*(qc(i,k)*iSCF(k))**1.05*(qr(i,k)*iSPF(k))**0.98 *dum2
@@ -3968,11 +3932,11 @@ call cpu_time(timer_start(3))
 !            dum = 2.-dexp(dble(2300.*(dum2-dum1)))
           endif
 
-          if (iparam.eq.1.) then
+          if (autoAccr_param.eq.1.) then
              nrslf = dum*kr*1.e-3*qr(i,k)*iSPF(k)*nr(i,k)*iSPF(k)*rho(i,k)*SPF(k)
-          elseif (iparam.eq.2 .or. iparam.eq.3) then
+          elseif (autoAccr_param.eq.2) then
              nrslf = dum*5.78*nr(i,k)*iSPF(k)*qr(i,k)*iSPF(k)*rho(i,k)*SPF(k)
-          elseif (iparam.eq.4) then
+          elseif (autoAccr_param.eq.3) then
              nrslf = dum*205.*(qr(i,k)*iSPF(k))**1.55*(nr(i,k)*1.e-6*rho(i,k)*           &
                      iSPF(k))**0.6*1.e6/rho(i,k)*SPF(k)       ! 1.e6 converts cm-3 to m-3
           endif
@@ -4324,14 +4288,11 @@ call cpu_time(timer_start(3))
        qc(i,k) = qc(i,k) + (-qcacc-qcaut+qcnuc+qccon-qcevp)*dt
        qr(i,k) = qr(i,k) + (qcacc+qcaut+qrcon-qrevp)*dt
        nc(i,k) = nc(i,k) + (-ncacc-ncautc+ncslf+ncnuc)*dt
-       if (iparam.eq.1 .or. iparam.eq.2) then
-          nr(i,k) = nr(i,k) + (0.5*ncautc-nrslf-nrevp)*dt
-       else
-          nr(i,k) = nr(i,k) + (ncautr-nrslf-nrevp)*dt
-       endif
+       nr(i,k) = nr(i,k) + dt*merge((0.5*ncautc-nrslf-nrevp), (ncautr-nrslf-nrevp),      &
+                                    autoAccr_param.eq.1)
 
        qv(i,k) = qv(i,k) + (-qcnuc-qccon-qrcon+qcevp+qrevp)*dt
-       th(i,k) = th(i,k) + i_exn(i,k)*((qcnuc+qccon+qrcon-qcevp-qrevp)*xxlv(i,k)*       &
+       th(i,k) = th(i,k) + i_exn(i,k)*((qcnuc+qccon+qrcon-qcevp-qrevp)*xxlv(i,k)*        &
                  i_cp)*dt
    !==
 
@@ -4342,7 +4303,7 @@ call cpu_time(timer_start(3))
                if (qiliq(i,k,iice)/qitot(i,k,iice).gt.0.99) then
                   qr(i,k) = qr(i,k) + qitot(i,k,iice)
                   nr(i,k) = nr(i,k) + nitot(i,k,iice)
-                  th(i,k) = th(i,k) - i_exn(i,k)*(qitot(i,k,iice)-qiliq(i,k,iice))*     &
+                  th(i,k) = th(i,k) - i_exn(i,k)*(qitot(i,k,iice)-qiliq(i,k,iice))*      &
                                        xlf(i,k)*i_cp
                   qitot(i,k,iice) = 0.
                   nitot(i,k,iice) = 0.
@@ -10564,7 +10525,7 @@ else
           mu_c = min(mu_c,15.)
 
         ! interpolate for mass distribution spectral shape parameter (for SB warm processes)
-          if (iparam.eq.1) then
+          if (autoAccr_param.eq.1) then
              dumi = int(mu_c)
              nu   = dnu(dumi)+(dnu(dumi+1)-dnu(dumi))*(mu_c-dumi)
           endif
