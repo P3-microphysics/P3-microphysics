@@ -1,4 +1,4 @@
-
+!
 !__________________________________________________________________________________________!
 ! This module contains the Predicted Particle Property (P3) bulk microphysics scheme.      !
 !                                                                                          !
@@ -15,7 +15,7 @@
 !   Cholette et al. (2019)        [J. Atmos. Sci., 76, 561-582]    - liquid fraction ice   !
 !   Jouan et al. (2020)           [W. Forecasting, 35, 2541-2565]  - cloud fraction        !
 !   Milbrandt et al. (2021)       [J. Atmos. Sci., 78, 439-458]    - triple-moment ice     !
-!   Cholette et al. (2023)        [J.A.M.E.S, 15(4), e2022MS003328 - trplMomIce + liqFrac  !
+! !   Cholette et al. (2023)        [J.A.M.E.S, 15(4), e2022MS003328 - trplMomIce + liqFrac  !
 !   Morrison et al. (2025         [J.A.M.E.S, 17, e2024MS004644    - full trplMomIce       !
 !                                                                                          !
 ! For questions or bug reports, please contact:                                            !
@@ -27,7 +27,7 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.4.8 + cleanup_202509_v007 + 1momcld                                     !
+! Version:       5.4.8 + cleanup_202509                                                    !
 ! Last updated:  2025 Sept                                                                 !
 !__________________________________________________________________________________________!
 
@@ -115,7 +115,7 @@
                    i_rhow,qsmall,nsmall,bsmall,zsmall,cp,g,rd,rv,ep_2,i_cp,mw,osm,       &
                    vi,epsm,rhoa,map,ma,rr,bact,i_rm1,i_rm2,sig1,nanew1,f11,f21,sig2,     &
                    nanew2,f12,f22,pi,thrd,sxth,piov3,piov6,rho_rimeMin,liqfracsmall,     &
-                   rho_rimeMax,i_rho_rimeMax,max_Ni,dbrk,nmltratio,minVIS,               &
+                   rho_rimeMax,i_rho_rimeMax,max_Ni,dbrk,nmltratio,minVIS,qsmall_dry,    &
                    maxVIS,mu_i_initial,mu_r_constant,inv_Drmax,Dmin_HM,Dinit_HM,         &
                    nccnst_1,nccnst_2,nccnst_3
 
@@ -152,7 +152,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.4.8+cleanup+1momcld'
+ character(len=1024), parameter :: version_p3                    = '5.4.8+cleanup'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.9-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '6.9-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.2'
@@ -253,10 +253,11 @@
  i_rho_rimeMax = 1./rho_rimeMax
 
 ! minium allowable prognostic variables
- qsmall = 1.e-14
- nsmall = 1.e-16
- bsmall = qsmall*i_rho_rimeMax
- zsmall = 1.e-35
+ qsmall     = 1.e-14
+ qsmall_dry = 1.e-12
+ nsmall     = 1.e-16
+ zsmall     = 1.e-35
+ bsmall     = qsmall*i_rho_rimeMax
 
  liqfracsmall = 0.01
 
@@ -2519,7 +2520,7 @@ call cpu_time(timer_start(2))
     !--- apply mass clipping if dry and mass is sufficiently small
     !    (implying all mass is expected to evaporate/sublimate in one time step)
 
-       if (qc(i,k).lt.qsmall .or. (qc(i,k).lt.1.e-8 .and. sup(i,k).lt.-0.1)) then
+       if (qc(i,k).lt.qsmall .or. (qc(i,k).lt.qsmall_dry .and. sup(i,k).lt.-0.1)) then
           qv(i,k) = qv(i,k) + qc(i,k)
           th(i,k) = th(i,k) - i_exn(i,k)*qc(i,k)*xxlv(i,k)*i_cp
           qc(i,k) = 0.
@@ -2528,7 +2529,7 @@ call cpu_time(timer_start(2))
           log_hydrometeorsPresent = .true.    ! updated further down
        endif
 
-       if (qr(i,k).lt.qsmall .or. (qr(i,k).lt.1.e-8 .and. sup(i,k).lt.-0.1)) then
+       if (qr(i,k).lt.qsmall .or. (qr(i,k).lt.qsmall_dry .and. sup(i,k).lt.-0.1)) then
           qv(i,k) = qv(i,k) + qr(i,k)
           th(i,k) = th(i,k) - i_exn(i,k)*qr(i,k)*xxlv(i,k)*i_cp
           qr(i,k) = 0.
@@ -2538,7 +2539,7 @@ call cpu_time(timer_start(2))
        endif
 
        do iice = 1,nCat
-          if (qitot(i,k,iice).lt.qsmall .or. (qitot(i,k,iice).lt.1.e-8 .and.             &
+          if (qitot(i,k,iice).lt.qsmall .or. (qitot(i,k,iice).lt.qsmall_dry .and.        &
            supi(i,k).lt.-0.1)) then
              qv(i,k) = qv(i,k) + qitot(i,k,iice)
              th(i,k) = th(i,k) - i_exn(i,k)*(qitot(i,k,iice)-qiliq(i,k,iice))*           &
@@ -2575,7 +2576,7 @@ call cpu_time(timer_start(2))
              endif
           endif
 
-          if (qitot(i,k,iice).ge.qsmall .and. qitot(i,k,iice).lt.1.e-8 .and.             &
+          if (qitot(i,k,iice).ge.qsmall .and. qitot(i,k,iice).lt.qsmall_dry .and.        &
            t(i,k).ge.trplpt) then
              qr(i,k) = qr(i,k) + qitot(i,k,iice)
              nr(i,k) = nr(i,k) + nitot(i,k,iice)
@@ -3831,7 +3832,7 @@ call cpu_time(timer_start(3))
 ! autoconversion
 
 !Note (BUG), needs to be in-cloud condition
-       qc_not_small_1: if (qc(i,k)*iSCF(k).ge.1.e-8) then
+       qc_not_small_1: if (qc(i,k)*iSCF(k).ge.qsmall_dry) then
 
           if (autoAccr_param.eq.1) then
             !Seifert and Beheng (2001)
