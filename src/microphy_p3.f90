@@ -2556,9 +2556,21 @@ call cpu_time(timer_start(2))
              log_hydrometeorsPresent = .true.    ! final update
           endif
 
-          if (log_LiquidFrac .and. qitot(i,k,iice).ge.qsmall) then
-             tmp1 = qiliq(i,k,iice)/qitot(i,k,iice)  !liquid fraction
-             if (tmp1.gt.(1.-liqfracsmall)) then
+          if (log_LiquidFrac .and. qiliq(i,k,iice).ge.0.                                 &
+                             .and. qitot(i,k,iice).ge.qsmall) then
+
+             tmp1 = qiliq(i,k,iice)/qitot(i,k,iice)
+             if (t(i,k).lt.trplpt .and. tmp1.le.liqfracsmall) then
+
+             !freeze small amount of liquid (qiliq) to rime
+                th(i,k) = th(i,k) + i_exn(i,k)*qiliq(i,k,iice)*xlf(i,k)*i_cp
+                birim(i,k,iice) = birim(i,k,iice) + qiliq(i,k,iice)*i_rho_rimeMax
+                qirim(i,k,iice) = qirim(i,k,iice) + qiliq(i,k,iice)
+                qiliq(i,k,iice) = 0.
+
+             elseif (tmp1.gt.(1.-liqfracsmall)) then
+
+             !completely melt all nearly-melted ice
                 qr(i,k) = qr(i,k) + qitot(i,k,iice)
                 nr(i,k) = nr(i,k) + nitot(i,k,iice)
                 th(i,k) = th(i,k) - i_exn(i,k)*(qitot(i,k,iice)-qiliq(i,k,iice))*        &
@@ -2569,17 +2581,12 @@ call cpu_time(timer_start(2))
                 qiliq(i,k,iice) = 0.
                 birim(i,k,iice) = 0.
              endif
-             if (t(i,k).lt.trplpt .and. tmp1.le.liqfracsmall) then
-              !freeze small amount of liquid (qiliq) to rime
-                th(i,k) = th(i,k) + i_exn(i,k)*qiliq(i,k,iice)*xlf(i,k)*i_cp
-                birim(i,k,iice) = birim(i,k,iice) + qiliq(i,k,iice)*i_rho_rimeMax
-                qirim(i,k,iice) = qirim(i,k,iice) + qiliq(i,k,iice)
-                qiliq(i,k,iice) = 0.
-             endif
+
           endif
 
-          if (qitot(i,k,iice).ge.qsmall .and. qitot(i,k,iice).lt.qsmall_dry .and.        &
-           t(i,k).ge.trplpt) then
+          if (qitot(i,k,iice).ge.qsmall .and. qitot(i,k,iice).lt.qsmall_dry              &
+                                        .and. t(i,k).ge.trplpt) then
+            !completely melt all tiny quantities of ice if T>0C
              qr(i,k) = qr(i,k) + qitot(i,k,iice)
              nr(i,k) = nr(i,k) + nitot(i,k,iice)
              th(i,k) = th(i,k) - i_exn(i,k)*(qitot(i,k,iice)-qiliq(i,k,iice))*xlf(i,k)*  &
