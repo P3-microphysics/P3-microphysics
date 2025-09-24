@@ -2598,7 +2598,7 @@ call cpu_time(timer_start(2))
              birim(i,k,iice) = 0.
           endif
 
-          qiliq(i,i,iice) = max(0., qiliq(i,i,iice))
+          qiliq(i,k,iice) = max(0., qiliq(i,k,iice))
 
        enddo  !iice-loop
 
