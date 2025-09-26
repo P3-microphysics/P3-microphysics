@@ -2652,7 +2652,7 @@ call cpu_time(timer_start(3))
 
 
      ! if relatively dry and no hydrometeors at this level, skip to end of k-loop (i.e. skip this level)
-       log_exitlevel = merge(.false., .true., qc(i,k).ge.qsmall .or. qr(i,k).ge.qsmall)
+       log_exitlevel = qc(i,k).lt.qsmall .and. qr(i,k).lt.qsmall
        do iice = 1,nCat
           log_exitlevel = merge(.false., log_exitlevel, qitot(i,k,iice).ge.qsmall)
        enddo
@@ -2733,9 +2733,9 @@ call cpu_time(timer_start(3))
 !----------------------------------------------------------------------
 
 ! skip micro process calculations except nucleation/acvtivation if there no hydrometeors are present
-       log_exitlevel = merge(.false., .true., qc(i,k).ge.qsmall .or. qr(i,k).ge.qsmall)
+       log_exitlevel = qc(i,k).lt.qsmall .and. qr(i,k).lt.qsmall
        do iice = 1,nCat
-          log_exitlevel = merge(.false., log_exitlevel, qitot(i,k,iice).ge.qsmall)
+          log_exitlevel = merge(log_exitlevel, .false., qitot(i,k,iice).lt.qsmall)
        enddo
        if (log_exitlevel) goto 444   !i.e. skip to nucleation
 
