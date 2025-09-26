@@ -27,7 +27,7 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.4.8 + cleanup_202509                                                    !
+! Version:       5.4.8 + cleanup_202509 + bugfixwrf                                        !
 ! Last updated:  2025 Sept                                                                 !
 !__________________________________________________________________________________________!
 
@@ -930,7 +930,7 @@ END subroutine p3_init
    logical, parameter                :: log_scpf      = .false.  ! switch for activation of SCPF scheme
    logical, parameter                :: log_debug     = .false.  ! switch for internal real-time debug checking
 
-   real, dimension(ims:ime, kms:kme) :: cldfrac                  ! cloud fraction computed by SCPF
+   real, dimension(its:ite, kts:kte) :: cldfrac                  ! cloud fraction computed by SCPF
    real                              :: scpf_pfrac               ! precipitation fraction factor (SCPF)
    real                              :: scpf_resfact             ! model resolution factor (SCPF)
    real, parameter                   :: clbfact_dep   = 1.0      ! calibration factor for deposition
@@ -1007,7 +1007,7 @@ END subroutine p3_init
                       n_diag2d,diag2d(its:ite,1:n_diag2d),n_diag3d,diag3d(its:ite,kts:kte,1:n_diag3d), &
                       log_predictNc,trim(model),clbfact_dep,clbfact_sub,log_debug,log_scpf,    &
                       scpf_pfrac,scpf_resfact,cldfrac,log_3momIce,log_liqFrac,                 &
-                      diag_dhmax = diag_dhmax )
+                      diag_dhmax = diag_dhmax)
 
      !surface precipitation output:
       dum1 = 1000.*dt
@@ -2321,7 +2321,7 @@ timer_description(1) = 'full p3_main'
 call cpu_time(timer_start(1))
 #endif
 
- tmp1 = uzpl(1,1)     !avoids compiler warning for unused variable (since code using 'uzpl' is currently commented)
+ tmp1 = uzpl(its,kts)     !avoids compiler warning for unused variable (since code using 'uzpl' is currently commented)
 
  ! direction of vertical leveling:
  if (trim(model)=='GEM' .or. trim(model)=='KIN1D') then
@@ -2598,7 +2598,7 @@ call cpu_time(timer_start(2))
              birim(i,k,iice) = 0.
           endif
 
-          qiliq(i,i,iice) = max(0., qiliq(i,i,iice))
+          qiliq(i,k,iice) = max(0., qiliq(i,k,iice))
 
        enddo  !iice-loop
 
@@ -4502,7 +4502,7 @@ call cpu_time(timer_end(3))
 !==
 
     if (log_3momentIce) then
-       where (qitot(:,:,:).lt.qsmall) zitot(:,:,:) = 0.
+       where (qitot(i,:,:).lt.qsmall) zitot(i,:,:) = 0.
     endif
 
     if (.not.log_predictNc) nc(i,:) = nccnst*i_rho(i,:)
@@ -4608,7 +4608,8 @@ call cpu_time(timer_end(6))
 ! End of sedimentation section
 !==========================================================================================!
 
-    if (log_LiquidFrac) call freeze_tiny_liqfrac(qitot,qiliq,qirim,birim,t,th,i_exn,xlf,  &
+    if (log_LiquidFrac) call freeze_tiny_liqfrac(qitot(i,:,:),qiliq(i,:,:), &
+                            qirim(i,:,:),birim(i,:,:),t(i,:),th(i,:),i_exn(i,:),xlf(i,:),  &
                                               i_cp,i,ktop,kbot,kdir,nCat)
 
     if (.not.log_predictNc) nc(i,:) = nccnst*i_rho(i,:)
@@ -4825,8 +4826,9 @@ call cpu_time(timer_end(6))
 
     endif multicat
 
-    if (log_LiquidFrac) call freeze_tiny_liqfrac(qitot,qiliq,qirim,birim,t,th,i_exn,xlf,  &
-                                                 i_cp,i,ktop,kbot,kdir,nCat)
+    if (log_LiquidFrac) call freeze_tiny_liqfrac(qitot(i,:,:),qiliq(i,:,:), &  
+                      qirim(i,:,:),birim(i,:,:),t(i,:),th(i,:),i_exn(i,:),xlf(i,:),  &
+                      i_cp,i,ktop,kbot,kdir,nCat)                                                             
 
     if (.not.log_predictNc) nc(i,:) = nccnst*i_rho(i,:)
 
@@ -5015,8 +5017,9 @@ call cpu_time(timer_end(6))
 
      ! if qr is very small then set Nr to 0 (needs to be done here after call
      ! to ice lookup table because a minimum Nr of nsmall will be set otherwise even if qr=0)
-       where(qr(:,:).lt.qsmall) nr(:,:) = 0.
-
+!       where(qr(:,:).lt.qsmall) nr(:,:) = 0.
+       if (qr(i,k).lt.qsmall) nr(i,k) = 0.
+       
     enddo k_loop_final_diagnostics
 
     if (debug_on) then
@@ -5389,8 +5392,6 @@ call cpu_time(timer_end(1))
 #ifdef TIMING_P3
 timer(:) = timer_end(:) - timer_start(:)
 #endif
-
-!.....................................................................................
 
  return
 
@@ -11583,10 +11584,10 @@ else
  !---------------------------------------------
 
  !arguments:
- real, intent(in),    dimension(:,:,:) :: qitot
- real, intent(inout), dimension(:,:,:) :: qiliq,qirim,birim
- real, intent(in),    dimension(:,:)   :: t,i_exn,xlf
- real, intent(inout), dimension(:,:)   :: th
+ real, intent(in),    dimension(:,:) :: qitot
+ real, intent(inout), dimension(:,:) :: qiliq,qirim,birim
+ real, intent(in),    dimension(:)   :: t,i_exn,xlf
+ real, intent(inout), dimension(:)   :: th
  real, intent(in)                      :: i_cp
  integer, intent(in)                   :: i,ktop,kbot,kdir,nCat
  !local:
@@ -11594,12 +11595,12 @@ else
 
  do k = kbot,ktop,kdir
     do iice = 1,nCat
-       if (qitot(i,k,iice).ge.qsmall) then
-          if (t(i,k).lt.trplpt .and. qiliq(i,k,iice)/qitot(i,k,iice).le.liqfracsmall) then
-             th(i,k) = th(i,k) + i_exn(i,k)*qiliq(i,k,iice)*xlf(i,k)*i_cp
-             birim(i,k,iice) = birim(i,k,iice) + qiliq(i,k,iice)*i_rho_rimeMax
-             qirim(i,k,iice) = qirim(i,k,iice) + qiliq(i,k,iice)
-             qiliq(i,k,iice) = 0.
+       if (qitot(k,iice).ge.qsmall) then
+          if (t(k).lt.trplpt .and. qiliq(k,iice)/qitot(k,iice).le.liqfracsmall) then
+             th(k) = th(k) + i_exn(k)*qiliq(k,iice)*xlf(k)*i_cp
+             birim(k,iice) = birim(k,iice) + qiliq(k,iice)*i_rho_rimeMax
+             qirim(k,iice) = qirim(k,iice) + qiliq(k,iice)
+             qiliq(k,iice) = 0.
           endif
        endif
     enddo
