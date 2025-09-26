@@ -4608,8 +4608,8 @@ call cpu_time(timer_end(6))
 ! End of sedimentation section
 !==========================================================================================!
 
-    if (log_LiquidFrac) call freeze_tiny_liqfrac(qitot,qiliq,qirim,birim,t,th,i_exn,xlf,  &
-                                              i_cp,i,ktop,kbot,kdir,nCat)
+    if (log_LiquidFrac) call freeze_tiny_liqfrac(qitot(i,:,:),qiliq(i,:,:),qirim(i,:,:), &
+       birim(i,:,:),t(i,:),  th(i,:),i_exn(i,:),xlf(i,:),i_cp,i,ktop,kbot,kdir,nCat)
 
     if (.not.log_predictNc) nc(i,:) = nccnst*i_rho(i,:)
 
@@ -4825,8 +4825,8 @@ call cpu_time(timer_end(6))
 
     endif multicat
 
-    if (log_LiquidFrac) call freeze_tiny_liqfrac(qitot,qiliq,qirim,birim,t,th,i_exn,xlf,  &
-                                                 i_cp,i,ktop,kbot,kdir,nCat)
+    if (log_LiquidFrac) call freeze_tiny_liqfrac(qitot(i,:,:),qiliq(i,:,:),qirim(i,:,:), &
+       birim(i,:,:),t(i,:),  th(i,:),i_exn(i,:),xlf(i,:),i_cp,i,ktop,kbot,kdir,nCat)
 
     if (.not.log_predictNc) nc(i,:) = nccnst*i_rho(i,:)
 
@@ -11578,28 +11578,31 @@ else
  subroutine freeze_tiny_liqfrac(qitot,qiliq,qirim,birim,t,th,i_exn,xlf,i_cp,i,           &
                                 ktop,kbot,kdir,nCat)
 
- !---------------------------------------------
- ! Freeze tiny amounts of liquid on ice to rime
- !---------------------------------------------
+ !-----------------------------------------------------------------------------------
+ ! Freeze tiny amounts of liquid on ice to rime.
+ !
+ ! note: qitot (etc.) are (i,k,iice) arrays in p3_main but are passed in as (k,iice)
+ ! arrays.  Similar, t etc. is a (i,k) array in p3_main bug bassed in as a(k) array.
+ !-----------------------------------------------------------------------------------
 
  !arguments:
- real, intent(in),    dimension(:,:,:) :: qitot
- real, intent(inout), dimension(:,:,:) :: qiliq,qirim,birim
- real, intent(in),    dimension(:,:)   :: t,i_exn,xlf
- real, intent(inout), dimension(:,:)   :: th
- real, intent(in)                      :: i_cp
- integer, intent(in)                   :: i,ktop,kbot,kdir,nCat
+ real, intent(in),    dimension(:,:) :: qitot
+ real, intent(inout), dimension(:,:) :: qiliq,qirim,birim
+ real, intent(in),    dimension(:)   :: t,i_exn,xlf
+ real, intent(inout), dimension(:)   :: th
+ real, intent(in)                    :: i_cp
+ integer, intent(in)                 :: i,ktop,kbot,kdir,nCat
  !local:
- integer                               :: k,iice
+ integer                             :: k,iice
 
  do k = kbot,ktop,kdir
     do iice = 1,nCat
-       if (qitot(i,k,iice).ge.qsmall) then
-          if (t(i,k).lt.trplpt .and. qiliq(i,k,iice)/qitot(i,k,iice).le.liqfracsmall) then
-             th(i,k) = th(i,k) + i_exn(i,k)*qiliq(i,k,iice)*xlf(i,k)*i_cp
-             birim(i,k,iice) = birim(i,k,iice) + qiliq(i,k,iice)*i_rho_rimeMax
-             qirim(i,k,iice) = qirim(i,k,iice) + qiliq(i,k,iice)
-             qiliq(i,k,iice) = 0.
+       if (qitot(k,iice).ge.qsmall) then
+          if (t(k).lt.trplpt .and. qiliq(k,iice)/qitot(k,iice).le.liqfracsmall) then
+             th(k) = th(k) + i_exn(k)*qiliq(k,iice)*xlf(k)*i_cp
+             birim(k,iice) = birim(k,iice) + qiliq(k,iice)*i_rho_rimeMax
+             qirim(k,iice) = qirim(k,iice) + qiliq(k,iice)
+             qiliq(k,iice) = 0.
           endif
        endif
     enddo
