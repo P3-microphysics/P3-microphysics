@@ -3841,7 +3841,7 @@ call cpu_time(timer_start(3))
 ! autoconversion
 
 !Note (BUG), needs to be in-cloud condition
-       qc_not_small_1: if (qc(i,k)*iSCF(k).ge.qsmall_dry) then
+       qc_not_small_1: if (qc(i,k)*iSCF(k).ge.1.e-8) then
 
           if (autoAccr_param.eq.1) then
             !Seifert and Beheng (2001)
