@@ -15,7 +15,7 @@
 !   Cholette et al. (2019)        [J. Atmos. Sci., 76, 561-582]    - liquid fraction ice   !
 !   Jouan et al. (2020)           [W. Forecasting, 35, 2541-2565]  - cloud fraction        !
 !   Milbrandt et al. (2021)       [J. Atmos. Sci., 78, 439-458]    - triple-moment ice     !
-! !   Cholette et al. (2023)        [J.A.M.E.S, 15(4), e2022MS003328 - trplMomIce + liqFrac  !
+!   Cholette et al. (2023)        [J.A.M.E.S, 15(4), e2022MS003328 - trplMomIce + liqFrac  !
 !   Morrison et al. (2025         [J.A.M.E.S, 17, e2024MS004644    - full trplMomIce       !
 !                                                                                          !
 ! For questions or bug reports, please contact:                                            !
@@ -930,7 +930,7 @@ END subroutine p3_init
    logical, parameter                :: log_scpf      = .false.  ! switch for activation of SCPF scheme
    logical, parameter                :: log_debug     = .false.  ! switch for internal real-time debug checking
 
-   real, dimension(ims:ime, kms:kme) :: cldfrac                  ! cloud fraction computed by SCPF
+   real, dimension(its:ite, kts:kte) :: cldfrac                  ! cloud fraction computed by SCPF
    real                              :: scpf_pfrac               ! precipitation fraction factor (SCPF)
    real                              :: scpf_resfact             ! model resolution factor (SCPF)
    real, parameter                   :: clbfact_dep   = 1.0      ! calibration factor for deposition
@@ -1007,7 +1007,7 @@ END subroutine p3_init
                       n_diag2d,diag2d(its:ite,1:n_diag2d),n_diag3d,diag3d(its:ite,kts:kte,1:n_diag3d), &
                       log_predictNc,trim(model),clbfact_dep,clbfact_sub,log_debug,log_scpf,    &
                       scpf_pfrac,scpf_resfact,cldfrac,log_3momIce,log_liqFrac,                 &
-                      diag_dhmax = diag_dhmax )
+                      diag_dhmax = diag_dhmax)
 
      !surface precipitation output:
       dum1 = 1000.*dt
@@ -2321,7 +2321,7 @@ timer_description(1) = 'full p3_main'
 call cpu_time(timer_start(1))
 #endif
 
- tmp1 = uzpl(1,1)     !avoids compiler warning for unused variable (since code using 'uzpl' is currently commented)
+ tmp1 = uzpl(its,kts)     !avoids compiler warning for unused variable (since code using 'uzpl' is currently commented)
 
  ! direction of vertical leveling:
  if (trim(model)=='GEM' .or. trim(model)=='KIN1D') then
@@ -4502,7 +4502,7 @@ call cpu_time(timer_end(3))
 !==
 
     if (log_3momentIce) then
-       where (qitot(:,:,:).lt.qsmall) zitot(:,:,:) = 0.
+       where (qitot(i,:,:).lt.qsmall) zitot(i,:,:) = 0.
     endif
 
     if (.not.log_predictNc) nc(i,:) = nccnst*i_rho(i,:)
@@ -5015,7 +5015,8 @@ call cpu_time(timer_end(6))
 
      ! if qr is very small then set Nr to 0 (needs to be done here after call
      ! to ice lookup table because a minimum Nr of nsmall will be set otherwise even if qr=0)
-       where(qr(:,:).lt.qsmall) nr(:,:) = 0.
+!       where(qr(:,:).lt.qsmall) nr(:,:) = 0.
+       if (qr(i,k).lt.qsmall) nr(i,k) = 0.
 
     enddo k_loop_final_diagnostics
 
@@ -5389,8 +5390,6 @@ call cpu_time(timer_end(1))
 #ifdef TIMING_P3
 timer(:) = timer_end(:) - timer_start(:)
 #endif
-
-!.....................................................................................
 
  return
 
