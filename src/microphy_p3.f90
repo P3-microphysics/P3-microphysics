@@ -11688,9 +11688,10 @@ else
 
  qx_present: if (log_qxpresent) then
 
-    dt_left   = dt  !time remaining for sedi over full model (mp) time step
-    prt_accum = 0.
-    k_qxbot   = k_bottom(qx(:)*iSxF(:),ktop,kbot,kdir)
+    dt_left       = dt  !time remaining for sedi over full model (mp) time step
+    prt_accum     = 0.  !precip rate for individual category
+    k_qxbot       = k_bottom(qx(:),ktop,kbot,kdir)
+    flux_qx(kbot) = 0.  !to prevent NaN in calculation of prt_accum below
 
     substep_sedi_r: do while (dt_left.gt.1.e-4)
 
@@ -11822,9 +11823,10 @@ else
 
     qi_present: if (log_qxpresent) then
 
-       dt_left   = dt  !time remaining for sedi over full model (mp) time step
-       prt_accum = 0.  !precip rate for individual category
-       k_qxbot   = k_bottom(qit(:,iice),ktop,kbot,kdir)
+       dt_left        = dt  !time remaining for sedi over full model (mp) time step
+       prt_accum      = 0.  !precip rate for individual category
+       k_qxbot        = k_bottom(qit(:,iice),ktop,kbot,kdir)
+       flux_qit(kbot) = 0.  !to prevent NaN in calculation of prt_accum below
 
        substep_sedi: do while (dt_left.gt.1.e-4)
 
@@ -11973,9 +11975,10 @@ else
 
     qi_present: if (log_qxpresent) then
 
-       dt_left   = dt  !time remaining for sedi over full model (mp) time step
-       prt_accum = 0.  !precip rate for individual category
-       k_qxbot   = k_bottom(qit(:,iice),ktop,kbot,kdir)
+       dt_left        = dt  !time remaining for sedi over full model (mp) time step
+       prt_accum      = 0.  !precip rate for individual category
+       k_qxbot        = k_bottom(qit(:,iice),ktop,kbot,kdir)
+       flux_qit(kbot) = 0.  !to prevent NaN in calculation of prt_accum below
 
        substep_sedi: do while (dt_left.gt.1.e-4)
 
@@ -12123,9 +12126,10 @@ else
 
     qi_present: if (log_qxpresent) then
 
-       dt_left   = dt  !time remaining for sedi over full model (mp) time step
-       prt_accum = 0.  !precip rate for individual category
-       k_qxbot   = k_bottom(qit(:,iice),ktop,kbot,kdir)
+       dt_left        = dt  !time remaining for sedi over full model (mp) time step
+       prt_accum      = 0.  !precip rate for individual category
+       k_qxbot        = k_bottom(qit(:,iice),ktop,kbot,kdir)
+       flux_qit(kbot) = 0.  !to prevent NaN in calculation of prt_accum below
 
        substep_sedi: do while (dt_left.gt.1.e-4)
 
@@ -12255,9 +12259,10 @@ else
 
     qi_present: if (log_qxpresent) then
 
-       dt_left   = dt  !time remaining for sedi over full model (mp) time step
-       prt_accum = 0.  !precip rate for individual category
-       k_qxbot   = k_bottom(qit(:,iice),ktop,kbot,kdir)
+       dt_left        = dt  !time remaining for sedi over full model (mp) time step
+       prt_accum      = 0.  !precip rate for individual category
+       k_qxbot        = k_bottom(qit(:,iice),ktop,kbot,kdir)
+       flux_qit(kbot) = 0.  !to prevent NaN in calculation of prt_accum below
 
        substep_sedi: do while (dt_left.gt.1.e-4)
 
