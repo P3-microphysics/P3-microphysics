@@ -4551,33 +4551,32 @@ call cpu_time(timer_start(6))
 
 ! Cloud:
     call sedimentation_liquid(qc(i,:),nc(i,:),1,iSCF,prt_liq(i),rho(i,:),i_rho(i,:),     &
-                              i_dzq(i,:),dt,nk,ktop,kbot,kdir,acn=acn(i,:),dnu=dnu(:))
+                              i_dzq(i,:),dt,ktop,kbot,kdir,acn=acn(i,:),dnu=dnu(:))
 
 ! Rain:
     call sedimentation_liquid(qr(i,:),nr(i,:),2,iSPF,prt_liq(i),rho(i,:),i_rho(i,:),     &
-                              i_dzq(i,:),dt,nk,ktop,kbot,kdir,rhofacr=rhofacr(i,:))
+                              i_dzq(i,:),dt,ktop,kbot,kdir,rhofacr=rhofacr(i,:))
 
 ! Ice:
     if (log_3momentIce .and. log_LiquidFrac) then
        call sedimentation_ice_TT(qitot(i,:,:),qirim(i,:,:),qiliq(i,:,:),nitot(i,:,:),    &
                               birim(i,:,:),zitot(i,:,:),prt_sol(i),prt_soli(i,:),        &
-                              rho(i,:),i_rho(i,:),rhofaci(i,:),i_dzq,nk,nCat,ktop,kbot,  &
-                              kdir,dt)
+                              rho(i,:),i_rho(i,:),rhofaci(i,:),i_dzq(i,:),ktop,kbot,kdir,dt)
 
     elseif (log_3momentIce .and. .not. log_LiquidFrac) then
        call sedimentation_ice_TF(qitot(i,:,:),qirim(i,:,:),nitot(i,:,:),birim(i,:,:),    &
                               zitot(i,:,:),prt_sol(i),prt_soli(i,:),rho(i,:),i_rho(i,:), &
-                              rhofaci(i,:),i_dzq,nk,nCat,ktop,kbot,kdir,dt)
+                              rhofaci(i,:),i_dzq(i,:),ktop,kbot,kdir,dt)
 
     elseif (.not. log_3momentIce .and. log_LiquidFrac) then
        call sedimentation_ice_FT(qitot(i,:,:),qirim(i,:,:),qiliq(i,:,:),nitot(i,:,:),    &
                               birim(i,:,:),prt_sol(i),prt_soli(i,:),rho(i,:),i_rho(i,:), &
-                              rhofaci(i,:),i_dzq,nk,nCat,ktop,kbot,kdir,dt)
+                              rhofaci(i,:),i_dzq(i,:),ktop,kbot,kdir,dt)
 
     elseif (.not. log_3momentIce .and. .not. log_LiquidFrac) then
        call sedimentation_ice_FF(qitot(i,:,:),qirim(i,:,:),nitot(i,:,:),birim(i,:,:),    &
                               prt_sol(i),prt_soli(i,:),rho(i,:),i_rho(i,:),rhofaci(i,:), &
-                              i_dzq,nk,nCat,ktop,kbot,kdir,dt)
+                              i_dzq(i,:),ktop,kbot,kdir,dt)
     endif
 
 ! note: This debug check is commented since small negative qx,nx values are possible here
@@ -11661,27 +11660,29 @@ else
  end function k_bottom
 
 !======================================================================================!
- subroutine sedimentation_liquid(qx,nx,liq_type,iSxF,prt_liq,rho,i_rho,i_dz,dt,nk,ktop,  &
+ subroutine sedimentation_liquid(qx,nx,liq_type,iSxF,prt_liq,rho,i_rho,i_dz,dt,ktop,     &
                                  kbot,kdir,acn,dnu,rhofacr)
 
  !----------------------------------------------------------------------
  ! Perform full sedimentation step for mass and number of cloud or rain
  !----------------------------------------------------------------------
 
+ implicit none
+
 !arguments:
- real, intent(inout), dimension(nk)        :: qx,nx
- real, intent(inout)                       :: prt_liq
- real, intent(in)                          :: dt
- real, intent(in), dimension(nk)           :: rho,i_rho,i_dz,iSxF
- real, intent(in), dimension(nk), optional :: acn,rhofacr
- real, intent(in), dimension(:),  optional :: dnu
- integer, intent(in)                       :: liq_type,nk,ktop,kbot,kdir
+ real, intent(inout), dimension(:)        :: qx,nx
+ real, intent(inout)                      :: prt_liq
+ real, intent(in)                         :: dt
+ real, intent(in), dimension(:)           :: rho,i_rho,i_dz,iSxF
+ real, intent(in), dimension(:), optional :: acn,rhofacr
+ real, intent(in), dimension(:), optional :: dnu
+ integer, intent(in)                      :: liq_type,ktop,kbot,kdir
 
 !local variables:
- real, dimension(nk) :: V_qx,V_nx,flux_qx,flux_nx
+ real, dimension(size(qx)) :: V_qx,V_nx,flux_qx,flux_nx
  real                :: dt_left,dt_sub,prt_accum,Co_max,mu_c,dum,lamc,mu_r,lamr,rdumii,  &
                         rdumjj,dum1,dum2,dum3,i_dum3,tmp1
- integer             :: k,k_qxtop,k_qxbot,k_temp,tmpint1,dumii,dumjj
+ integer             :: nk,k,k_qxtop,k_qxbot,k_temp,tmpint1,dumii,dumjj
  logical             :: log_qxpresent
 
  call find_top(k_qxtop,log_qxpresent,qx(:)*iSxF(:),ktop,kbot,kdir)
@@ -11783,7 +11784,7 @@ else
 
 !======================================================================================!
  subroutine sedimentation_ice_TT(qit,qir,qil,nit,bir,zit,prt_sol,prt_soli,rho,i_rho,     &
-                                 rhofac,i_dz,nk,nCat,ktop,kbot,kdir,dt)
+                                 rhofac,i_dz,ktop,kbot,kdir,dt)
 
  !--------------------------------------------------------------------------
  ! Performs full sedimentation step for all prognostic ice variables.
@@ -11797,13 +11798,16 @@ else
  ! Version:  3-moment ice (T), liqFrac (T)
  !--------------------------------------------------------------------------
 
+ implicit none
+
 !arguments:
- real, intent(inout), dimension(nk,nCat) :: qit,qir,qil,nit,bir,zit
- real, intent(inout)                     :: prt_sol
- real, intent(inout), dimension(nCat)    :: prt_soli
- integer, intent(in)                     :: nk,nCat,ktop,kbot,kdir
- real,    intent(in)                     :: dt
- real,    intent(in), dimension(nk)      :: rho,i_rho,rhofac,i_dz
+! real, intent(inout), dimension(nk,nCat) :: qit,qir,qil,nit,bir,zit
+ real, intent(inout), dimension(:,:)  :: qit,qir,qil,nit,bir,zit
+ real, intent(inout)                  :: prt_sol
+ real, intent(inout), dimension(:)    :: prt_soli
+ integer, intent(in)                  :: ktop,kbot,kdir
+ real,    intent(in)                  :: dt
+ real,    intent(in), dimension(:)    :: rho,i_rho,rhofac,i_dz
 
 !local variables:
  integer :: iice,k,k_qxtop,k_qxbot,dumi,dumjj,dumii,dumll,dumzz,tmpint1,k_temp
@@ -11811,13 +11815,13 @@ else
  real    :: dt_left,prt_accum,Co_max,rhop,dum1,dum4,dum5,dum7,mu_i,f1pr16,dum6,          &
             f1pr01,f1pr02,f1pr09,f1pr10,f1pr19,tmp1,tmp2,dt_sub
 
- real, dimension(nk) :: V_qit,V_nit,V_zit,flux_qit,flux_qir,flux_qil,flux_nit,flux_bir,  &
-                        flux_zit
- real,    dimension(n_args_r) :: args_r
- integer, dimension(n_args_i) :: args_i
+ real, dimension(size(qit,dim=1)) :: V_qit,V_nit,V_zit,flux_qit,flux_qir,flux_qil,       &
+                                     flux_nit,flux_bir,flux_zit
+ real,    dimension(n_args_r)     :: args_r
+ integer, dimension(n_args_i)     :: args_i
 
 
- iice_loop_sedi_ice:  do iice = 1,nCat
+ iice_loop_sedi_ice:  do iice = 1,size(qit,dim=2)  !i.e. 1,nCat
 
     call find_top(k_qxtop,log_qxpresent,qit(:,iice),ktop,kbot,kdir)
 
@@ -11939,7 +11943,7 @@ else
 
 !======================================================================================!
  subroutine sedimentation_ice_TF(qit,qir,nit,bir,zit,prt_sol,prt_soli,rho,i_rho,rhofac,  &
-                                 i_dz,nk,nCat,ktop,kbot,kdir,dt)
+                                 i_dz,ktop,kbot,kdir,dt)
 
  !--------------------------------------------------------------------------
  ! Performs full sedimentation step for all prognostic ice variables.
@@ -11949,13 +11953,15 @@ else
  ! Version:  3-moment ice (T), no liqFrac (F)
  !--------------------------------------------------------------------------
 
+ implicit none
+
 !arguments:
- real, intent(inout), dimension(nk,nCat) :: qit,qir,nit,bir,zit
- real, intent(inout) :: prt_sol
- real, intent(inout), dimension(nCat) :: prt_soli
- integer, intent(in) :: nk,nCat,ktop,kbot,kdir
- real,    intent(in) :: dt
- real, intent(in), dimension(nk) :: rho,i_rho,rhofac,i_dz
+ real, intent(inout), dimension(:,:) :: qit,qir,nit,bir,zit
+ real, intent(inout)                 :: prt_sol
+ real, intent(inout), dimension(:)   :: prt_soli
+ integer, intent(in)                 :: ktop,kbot,kdir
+ real,    intent(in)                 :: dt
+ real, intent(in), dimension(:)      :: rho,i_rho,rhofac,i_dz
 
 !local variables:
  integer :: iice,k,k_qxtop,k_qxbot,dumi,dumjj,dumii,dumll,dumzz,tmpint1,k_temp
@@ -11963,13 +11969,13 @@ else
  real    :: dt_left,prt_accum,Co_max,rhop,dum1,dum4,dum5,dum7,mu_i,f1pr16,dum6,          &
             f1pr01,f1pr02,f1pr09,f1pr10,f1pr19,tmp1,tmp2,dt_sub
 
- real, dimension(nk) :: V_qit,V_nit,V_zit,flux_qit,flux_qir,flux_qil,flux_nit,flux_bir,  &
+ real, dimension(size(qit,dim=1)) :: V_qit,V_nit,V_zit,flux_qit,flux_qir,flux_qil,flux_nit,flux_bir,  &
                         flux_zit
  real,    dimension(n_args_r) :: args_r
  integer, dimension(n_args_i) :: args_i
 
 
- iice_loop_sedi_ice:  do iice = 1,nCat
+ iice_loop_sedi_ice:  do iice = 1,size(qit,dim=2)  !i.e. 1,nCat
 
     call find_top(k_qxtop,log_qxpresent,qit(:,iice),ktop,kbot,kdir)
 
@@ -12092,7 +12098,7 @@ else
 
 !======================================================================================!
  subroutine sedimentation_ice_FT(qit,qir,qil,nit,bir,prt_sol,prt_soli,rho,i_rho,rhofac,  &
-                                 i_dz,nk,nCat,ktop,kbot,kdir,dt)
+                                 i_dz,ktop,kbot,kdir,dt)
 
  !--------------------------------------------------------------------------
  ! Performs full sedimentation step for all prognostic ice variables.
@@ -12102,25 +12108,28 @@ else
  ! Version:  2-moment ice (F), liqFrac (T)
  !--------------------------------------------------------------------------
 
+ implicit none
+
 !arguments:
- real, intent(inout), dimension(nk,nCat) :: qit,qir,qil,nit,bir
- real, intent(inout)                     :: prt_sol
- real, intent(inout), dimension(nCat)    :: prt_soli
- integer, intent(in)                     :: nk,nCat,ktop,kbot,kdir
- real,    intent(in)                     :: dt
- real, intent(in), dimension(nk)         :: rho,i_rho,rhofac,i_dz
+ real, intent(inout), dimension(:,:) :: qit,qir,qil,nit,bir
+ real, intent(inout)                 :: prt_sol
+ real, intent(inout), dimension(:)   :: prt_soli
+ integer, intent(in)                 :: ktop,kbot,kdir
+ real,    intent(in)                 :: dt
+ real, intent(in), dimension(:)      :: rho,i_rho,rhofac,i_dz
 
 !local variables:
  integer :: iice,k,k_qxtop,k_qxbot,dumi,dumjj,dumii,dumll,tmpint1,k_temp
  logical :: log_qxpresent
  real    :: dt_left,prt_accum,Co_max,rhop,dum1,dum4,dum5,dum7,f1pr16,dum6,               &
             f1pr01,f1pr02,f1pr09,f1pr10,f1pr19,tmp1,tmp2,dt_sub
- real,    dimension(nk) :: V_qit,V_nit,flux_qit,flux_qir,flux_qil,flux_nit,flux_bir
+ real,    dimension(size(qit,dim=1)) :: V_qit,V_nit,flux_qit,flux_qir,flux_qil,          &
+                                        flux_nit,flux_bir
  real,    dimension(n_args_r) :: args_r
  integer, dimension(n_args_i) :: args_i
 
 
- iice_loop_sedi_ice:  do iice = 1,nCat
+ iice_loop_sedi_ice:  do iice = 1,size(qit,dim=2)  !i.e. 1,nCat
 
     call find_top(k_qxtop,log_qxpresent,qit(:,iice),ktop,kbot,kdir)
 
@@ -12225,7 +12234,7 @@ else
 
 !======================================================================================!
  subroutine sedimentation_ice_FF(qit,qir,nit,bir,prt_sol,prt_soli,rho,i_rho,rhofac,      &
-                                 i_dz,nk,nCat,ktop,kbot,kdir,dt)
+                                 i_dz,ktop,kbot,kdir,dt)
 
  !--------------------------------------------------------------------------
  ! Performs full sedimentation step for all prognostic ice variables.
@@ -12235,25 +12244,27 @@ else
  ! Version:  2-moment ice (F), no liqFrac (F)
  !--------------------------------------------------------------------------
 
+ implicit none
+
 !arguments:
- real, intent(inout), dimension(nk,nCat) :: qit,qir,nit,bir
- real, intent(inout) :: prt_sol
- real, intent(inout), dimension(nCat) :: prt_soli
- integer, intent(in) :: nk,nCat,ktop,kbot,kdir
- real,    intent(in) :: dt
- real, intent(in), dimension(nk) :: rho,i_rho,rhofac,i_dz
+ real, intent(inout), dimension(:,:) :: qit,qir,nit,bir
+ real, intent(inout)                 :: prt_sol
+ real, intent(inout), dimension(:)   :: prt_soli
+ integer, intent(in)                 :: ktop,kbot,kdir
+ real,    intent(in)                 :: dt
+ real, intent(in), dimension(:)      :: rho,i_rho,rhofac,i_dz
 
 !local variables:
  integer :: iice,k,k_qxtop,k_qxbot,dumi,dumjj,dumii,dumll,dumzz,tmpint1,k_temp
  logical :: log_qxpresent
  real    :: dt_left,prt_accum,Co_max,rhop,dum1,dum4,dum5,dum7,mu_i,f1pr16,dum6,          &
             f1pr01,f1pr02,f1pr09,f1pr10,f1pr19,tmp1,tmp2,dt_sub
- real, dimension(nk) :: V_qit,V_nit,flux_qit,flux_qir,flux_nit,flux_bir
- real,    dimension(n_args_r) :: args_r
- integer, dimension(n_args_i) :: args_i
+ real, dimension(size(qit,dim=1)) :: V_qit,V_nit,flux_qit,flux_qir,flux_nit,flux_bir
+ real,    dimension(n_args_r)     :: args_r
+ integer, dimension(n_args_i)     :: args_i
 
 
- iice_loop_sedi_ice:  do iice = 1,nCat
+ iice_loop_sedi_ice:  do iice = 1,size(qit,dim=2)  !i.e. 1,nCat
 
     call find_top(k_qxtop,log_qxpresent,qit(:,iice),ktop,kbot,kdir)
 
