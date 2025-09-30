@@ -500,8 +500,7 @@
             has_reqi = 1
             has_reqs = 1
           endif
-          if( ptype.eq.50 .or. ptype.eq.51 .or. ptype.eq.52 .or. ptype.eq.53 .or. ptype.eq.54 .or. ptype.eq.60 &
-              .or. ptype.eq.61 .or. ptype.eq.62 .or. ptype.eq.63 )then
+          if( ptype.eq.50 .or. ptype.eq.51 .or. ptype.eq.52 .or. ptype.eq.53 .or. ptype.eq.54)then
             ! P3 microphysics
             ! use eff arrays from P3 scheme:
             mp_physics = ptype

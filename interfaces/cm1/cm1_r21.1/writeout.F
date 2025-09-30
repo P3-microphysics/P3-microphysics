@@ -136,7 +136,7 @@
       real, dimension(ibl:iel,jbl:jel), intent(in) :: mavail,tmn,tml,hml,huml,hvml,hfx,qfx,gsw,glw
       real, dimension(ibl:iel,jbl:jel,num_soil_layers), intent(in) :: tslb
       real, dimension(ibm:iem,jbm:jem,kbm:kem,numq), intent(in) :: qa
-      real, intent(in), dimension(ibp3:iep3,kbp3:kep3,np3a) :: p3a
+      real, intent(in), dimension(ibp3:iep3,kbp3:kep3,1,np3a) :: p3a
       real, intent(in), dimension(ibp3:iep3,jbp3:jep3,kbp3:kep3,np3o) :: p3o
       real, dimension(ibc:iec,jbc:jec,kbc:kec), intent(in) :: kmh,kmv,khh,khv
       real, dimension(ibc:iec,jbc:jec,kbc:kec), intent(in) :: cme
@@ -3631,8 +3631,7 @@
 
     IF( imoist.eq.1 .and. numq.gt.1 )THEN
     if(output_q      .eq.1)then
-      if ( ptype.eq.50 .or. ptype.eq.51 .or. ptype.eq.52 .or. ptype.eq.53 .or. ptype.eq.54 .or.  &
-           ptype.eq.60 .or. ptype.eq.61 .or. ptype.eq.62 .or. ptype.eq.63) then
+      if ( ptype.eq.50 .or. ptype.eq.51 .or. ptype.eq.52 .or. ptype.eq.53 .or. ptype.eq.54) then
         n_out = n_out + 1
         name_output(n_out) = 'p3_vmi1'
         desc_output(n_out) = 'P3: mass-weighted mean fallspeed, ice category 1'
@@ -3657,8 +3656,7 @@
 
     IF( imoist.eq.1 .and. numq.gt.1 )THEN
     if(output_q      .eq.1)then
-      if ( ptype.eq.50 .or. ptype.eq.51 .or. ptype.eq.52 .or. ptype.eq.53 .or. ptype.eq.54 .or.  &
-           ptype.eq.60 .or. ptype.eq.61 .or. ptype.eq.62 .or. ptype.eq.63) then
+      if ( ptype.eq.50 .or. ptype.eq.51 .or. ptype.eq.52 .or. ptype.eq.53 .or. ptype.eq.54) then
         n_out = n_out + 1
         name_output(n_out) = 'p3_dmi1'
         desc_output(n_out) = 'P3: mass-weighted mean diameter, ice category 1'
@@ -3683,8 +3681,7 @@
 
     IF( imoist.eq.1 .and. numq.gt.1 )THEN
     if(output_q      .eq.1)then
-      if ( ptype.eq.50 .or. ptype.eq.51 .or. ptype.eq.52 .or. ptype.eq.53 .or. ptype.eq.54 .or.  &
-           ptype.eq.60 .or. ptype.eq.61 .or. ptype.eq.62 .or. ptype.eq.63) then
+      if ( ptype.eq.50 .or. ptype.eq.51 .or. ptype.eq.52 .or. ptype.eq.53 .or. ptype.eq.54) then
         n_out = n_out + 1
         name_output(n_out) = 'p3_rhoi1'
         desc_output(n_out) = 'P3: mean ice density, ice category 1'
@@ -3709,12 +3706,11 @@
 
     IF( imoist.eq.1 .and. numq.gt.1 )THEN
     if(output_q      .eq.1)then
-      if ( ptype.eq.50 .or. ptype.eq.51 .or. ptype.eq.52 .or. ptype.eq.53 .or. ptype.eq.54 .or.  &
-           ptype.eq.60 .or. ptype.eq.61 .or. ptype.eq.62 .or. ptype.eq.63) then
+      if ( ptype.eq.50 .or. ptype.eq.51 .or. ptype.eq.52 .or. ptype.eq.53 .or. ptype.eq.54) then
         n_out = n_out + 1
         name_output(n_out) = 'p3_dhmax1'
         desc_output(n_out) = 'P3: max. hail size, ice category 1'
-        unit_output(n_out) = 'kg/m3'
+        unit_output(n_out) = 'm'
         grid_output(n_out) = 's'     ! s=scalar pts (3d) ; u=u pts (3d) ; v=v pts (3d) ; w=w pts (3d) ; 2=2d scalar pts
 
           !$omp parallel do default(shared)  &
@@ -3722,7 +3718,7 @@
           do k=1,maxk
           do j=1,nj
           do i=1,ni
-            dum1(i,j,k) = p3o(i,j,k,3)
+            dum1(i,j,k) = p3o(i,j,k,4)
           enddo
           enddo
           enddo
@@ -3735,7 +3731,7 @@
 
     IF( imoist.eq.1 .and. numq.gt.1 )THEN
     if(output_q      .eq.1)then
-      if (ptype.eq.61 .or. ptype.eq.62 .or. ptype.eq.63) then
+      if ( ptype.eq.52 .or. ptype.eq.53 .or. ptype.eq.54) then
         n_out = n_out + 1
         name_output(n_out) = 'p3_vmi2'
         desc_output(n_out) = 'P3: mass-weighted mean fallspeed, ice category 2'
@@ -3747,7 +3743,7 @@
           do k=1,maxk
           do j=1,nj
           do i=1,ni
-            dum1(i,j,k) = p3o(i,j,k,1)
+            dum1(i,j,k) = p3o(i,j,k,5)
           enddo
           enddo
           enddo
@@ -3760,7 +3756,7 @@
 
     IF( imoist.eq.1 .and. numq.gt.1 )THEN
     if(output_q      .eq.1)then
-      if ( ptype.eq.61 .or. ptype.eq.62 .or. ptype.eq.63 ) then
+      if ( ptype.eq.52 .or. ptype.eq.53 .or. ptype.eq.54) then
         n_out = n_out + 1
         name_output(n_out) = 'p3_dmi2'
         desc_output(n_out) = 'P3: mass-weighted mean diameter, ice category 2'
@@ -3772,7 +3768,7 @@
           do k=1,maxk
           do j=1,nj
           do i=1,ni
-            dum1(i,j,k) = p3o(i,j,k,2)
+            dum1(i,j,k) = p3o(i,j,k,6)
           enddo
           enddo
           enddo
@@ -3785,7 +3781,7 @@
 
     IF( imoist.eq.1 .and. numq.gt.1 )THEN
     if(output_q      .eq.1)then
-      if ( ptype.eq.61 .or. ptype.eq.62 .or. ptype.eq.63 ) then
+      if ( ptype.eq.52 .or. ptype.eq.53 .or. ptype.eq.54) then
         n_out = n_out + 1
         name_output(n_out) = 'p3_rhoi2'
         desc_output(n_out) = 'P3: mean ice density, ice category 2'
@@ -3797,7 +3793,7 @@
           do k=1,maxk
           do j=1,nj
           do i=1,ni
-            dum1(i,j,k) = p3o(i,j,k,3)
+            dum1(i,j,k) = p3o(i,j,k,7)
           enddo
           enddo
           enddo
@@ -3810,11 +3806,11 @@
 
     IF( imoist.eq.1 .and. numq.gt.1 )THEN
     if(output_q      .eq.1)then
-      if ( ptype.eq.61 .or. ptype.eq.62 .or. ptype.eq.63 ) then
+      if ( ptype.eq.52 .or. ptype.eq.53 .or. ptype.eq.54) then
         n_out = n_out + 1
         name_output(n_out) = 'p3_dhmax2'
         desc_output(n_out) = 'P3: max. hail size, ice category 2'
-        unit_output(n_out) = 'kg/m3'
+        unit_output(n_out) = 'm'
         grid_output(n_out) = 's'     ! s=scalar pts (3d) ; u=u pts (3d) ; v=v pts (3d) ; w=w pts (3d) ; 2=2d scalar pts
 
           !$omp parallel do default(shared)  &
@@ -3822,7 +3818,7 @@
           do k=1,maxk
           do j=1,nj
           do i=1,ni
-            dum1(i,j,k) = p3o(i,j,k,3)
+            dum1(i,j,k) = p3o(i,j,k,8)
           enddo
           enddo
           enddo
@@ -3835,7 +3831,7 @@
 
     IF( imoist.eq.1 .and. numq.gt.1 )THEN
     if(output_q      .eq.1)then
-      if ( ptype.eq.62 .or. ptype.eq.63 ) then
+      if ( ptype.eq.53 .or. ptype.eq.54) then
         n_out = n_out + 1
         name_output(n_out) = 'p3_vmi3'
         desc_output(n_out) = 'P3: mass-weighted mean fallspeed, ice category 3'
@@ -3847,7 +3843,7 @@
           do k=1,maxk
           do j=1,nj
           do i=1,ni
-            dum1(i,j,k) = p3o(i,j,k,1)
+            dum1(i,j,k) = p3o(i,j,k,9)
           enddo
           enddo
           enddo
@@ -3860,7 +3856,7 @@
 
     IF( imoist.eq.1 .and. numq.gt.1 )THEN
     if(output_q      .eq.1)then
-      if ( ptype.eq.62 .or. ptype.eq.63 ) then
+      if ( ptype.eq.53 .or. ptype.eq.54) then
         n_out = n_out + 1
         name_output(n_out) = 'p3_dmi3'
         desc_output(n_out) = 'P3: mass-weighted mean diameter, ice category 3'
@@ -3872,7 +3868,7 @@
           do k=1,maxk
           do j=1,nj
           do i=1,ni
-            dum1(i,j,k) = p3o(i,j,k,2)
+            dum1(i,j,k) = p3o(i,j,k,10)
           enddo
           enddo
           enddo
@@ -3885,7 +3881,7 @@
 
     IF( imoist.eq.1 .and. numq.gt.1 )THEN
     if(output_q      .eq.1)then
-      if ( ptype.eq.62 .or. ptype.eq.63 ) then
+      if ( ptype.eq.53 .or. ptype.eq.54) then
         n_out = n_out + 1
         name_output(n_out) = 'p3_rhoi3'
         desc_output(n_out) = 'P3: mean ice density, ice category 3'
@@ -3897,7 +3893,7 @@
           do k=1,maxk
           do j=1,nj
           do i=1,ni
-            dum1(i,j,k) = p3o(i,j,k,3)
+            dum1(i,j,k) = p3o(i,j,k,11)
           enddo
           enddo
           enddo
@@ -3910,11 +3906,11 @@
 
     IF( imoist.eq.1 .and. numq.gt.1 )THEN
     if(output_q      .eq.1)then
-      if ( ptype.eq.62 .or. ptype.eq.63 ) then
+      if ( ptype.eq.53 .or. ptype.eq.54) then
         n_out = n_out + 1
         name_output(n_out) = 'p3_dhmax3'
         desc_output(n_out) = 'P3: max. hail size, ice category 3'
-        unit_output(n_out) = 'kg/m3'
+        unit_output(n_out) = 'm'
         grid_output(n_out) = 's'     ! s=scalar pts (3d) ; u=u pts (3d) ; v=v pts (3d) ; w=w pts (3d) ; 2=2d scalar pts
 
           !$omp parallel do default(shared)  &
@@ -3922,7 +3918,7 @@
           do k=1,maxk
           do j=1,nj
           do i=1,ni
-            dum1(i,j,k) = p3o(i,j,k,3)
+            dum1(i,j,k) = p3o(i,j,k,12)
           enddo
           enddo
           enddo
@@ -3935,7 +3931,7 @@
 
     IF( imoist.eq.1 .and. numq.gt.1 )THEN
     if(output_q      .eq.1)then
-      if ( ptype.eq.63 ) then
+      if ( ptype.eq.54 ) then
         n_out = n_out + 1
         name_output(n_out) = 'p3_vmi4'
         desc_output(n_out) = 'P3: mass-weighted mean fallspeed, ice category 4'
@@ -3947,7 +3943,7 @@
           do k=1,maxk
           do j=1,nj
           do i=1,ni
-            dum1(i,j,k) = p3o(i,j,k,1)
+            dum1(i,j,k) = p3o(i,j,k,13)
           enddo
           enddo
           enddo
@@ -3960,7 +3956,7 @@
 
     IF( imoist.eq.1 .and. numq.gt.1 )THEN
     if(output_q      .eq.1)then
-      if ( ptype.eq.63 ) then
+      if ( ptype.eq.54 ) then
         n_out = n_out + 1
         name_output(n_out) = 'p3_dmi4'
         desc_output(n_out) = 'P3: mass-weighted mean diameter, ice category 4'
@@ -3972,7 +3968,7 @@
           do k=1,maxk
           do j=1,nj
           do i=1,ni
-            dum1(i,j,k) = p3o(i,j,k,2)
+            dum1(i,j,k) = p3o(i,j,k,14)
           enddo
           enddo
           enddo
@@ -3985,7 +3981,7 @@
 
     IF( imoist.eq.1 .and. numq.gt.1 )THEN
     if(output_q      .eq.1)then
-      if ( ptype.eq.63 ) then
+      if ( ptype.eq.54 ) then
         n_out = n_out + 1
         name_output(n_out) = 'p3_rhoi4'
         desc_output(n_out) = 'P3: mean ice density, ice category 4'
@@ -3997,7 +3993,7 @@
           do k=1,maxk
           do j=1,nj
           do i=1,ni
-            dum1(i,j,k) = p3o(i,j,k,3)
+            dum1(i,j,k) = p3o(i,j,k,15)
           enddo
           enddo
           enddo
@@ -4010,11 +4006,11 @@
 
     IF( imoist.eq.1 .and. numq.gt.1 )THEN
     if(output_q      .eq.1)then
-      if ( ptype.eq.63 ) then
+      if ( ptype.eq.54 ) then
         n_out = n_out + 1
         name_output(n_out) = 'p3_dhmax4'
         desc_output(n_out) = 'P3: max. hail size, ice category 4'
-        unit_output(n_out) = 'kg/m3'
+        unit_output(n_out) = 'm'
         grid_output(n_out) = 's'     ! s=scalar pts (3d) ; u=u pts (3d) ; v=v pts (3d) ; w=w pts (3d) ; 2=2d scalar pts
 
           !$omp parallel do default(shared)  &
@@ -4022,7 +4018,7 @@
           do k=1,maxk
           do j=1,nj
           do i=1,ni
-            dum1(i,j,k) = p3o(i,j,k,3)
+            dum1(i,j,k) = p3o(i,j,k,16)
           enddo
           enddo
           enddo

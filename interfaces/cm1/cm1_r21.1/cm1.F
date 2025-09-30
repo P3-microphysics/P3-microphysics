@@ -115,7 +115,7 @@
       real, dimension(:,:,:), allocatable :: tha,th3d,thten,thten1,thterm
       real, dimension(:,:,:), allocatable :: qpten,qtten,qvten,qcten
       real, dimension(:,:,:,:), allocatable :: qa,q3d,qten
-      real, dimension(:,:,:), allocatable :: p3a
+      real, dimension(:,:,:,:), allocatable :: p3a
       real, dimension(:,:,:,:), allocatable :: p3o
       real, dimension(:,:,:), allocatable :: kmh,kmv,khh,khv,cme,csm,ce1,ce2
       real, dimension(:,:,:), allocatable :: tkea,tke3d,tketen
@@ -407,8 +407,7 @@
 !    No other changes are necessary:  output file will contain the
 !    variables "out1", "out2", "out3", ... etc.
 
-!     nout3d =   0
-      nout3d =   10
+      nout3d =   0
 
 !----------------------------------------------------------------------
 !  For arbitrary 2d output array:
@@ -422,10 +421,10 @@
 !    No other changes are necessary:  output file will contain the
 !    variables "out2d1", "out2d2", "out2d3", ... etc.
 
-!     nout2d =   0
-      nout2d =   2
+      nout2d =   0
 
 !----------------------------------------------------------------------
+
 !  Initialize MPI
 
       myid=0
@@ -487,6 +486,13 @@
       ! note:  read remainder of namelist sections in param.F !
 
 !----------------------------------------------------------------------
+
+     !for P3 microphysics scheme:
+      if (ptype.eq.50 .or. ptype.eq.51 .or. ptype.eq.52 .or. ptype.eq.53 .or. ptype.eq.54) then
+         nout2d = 2
+         nout3d = 3
+         nwrite = 0  ! to start numbering of individual output files at 0 
+      endif
 
       IF( procfiles )THEN
 #ifdef MPI
@@ -1695,7 +1701,7 @@
       allocate(   qten(ibm:iem,jbm:jem,kbm:kem,numq) )
       qten = 0.0
 
-      allocate( p3a(ibp3:iep3,kbp3:kep3,np3a) )
+      allocate( p3a(ibp3:iep3,kbp3:kep3,1,np3a) )
       p3a = 0.0
       allocate( p3o(ibp3:iep3,jbp3:jep3,kbp3:kep3,np3o) )
       p3o = 0.0
