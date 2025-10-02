@@ -27,8 +27,8 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.4.8 + cleanup_202509                                                    !
-! Last updated:  2025 Sept                                                                 !
+! Version:       5.4.8 + cleanup_202509 + wrffixesv2                                       !
+! Last updated:  2025 Oct                                                                  !
 !__________________________________________________________________________________________!
 
  MODULE microphy_p3
@@ -115,7 +115,8 @@
                    i_rhow,qsmall,nsmall,bsmall,zsmall,cp,g,rd,rv,ep_2,i_cp,mw,osm,       &
                    vi,epsm,rhoa,map,ma,rr,bact,i_rm1,i_rm2,sig1,nanew1,f11,f21,sig2,     &
                    nanew2,f12,f22,pi,thrd,sxth,piov3,piov6,rho_rimeMin,liqfracsmall,     &
-                   rho_rimeMax,i_rho_rimeMax,max_Ni,dbrk,nmltratio,minVIS,qsmall_dry,    &
+                   rho_rimeMax,i_rho_rimeMax,max_Ni,dbrk,nmltratio,minVIS,               &
+                   qsmall_dry1,qsmall_dry2,                                              &
                    maxVIS,mu_i_initial,mu_r_constant,inv_Drmax,Dmin_HM,Dinit_HM,         &
                    nccnst_1,nccnst_2,nccnst_3
 
@@ -254,7 +255,8 @@
 
 ! minium allowable prognostic variables
  qsmall     = 1.e-14
- qsmall_dry = 1.e-12
+ qsmall_dry1 = 1.e-8
+ qsmall_dry2 = 1.e-12     
  nsmall     = 1.e-16
  zsmall     = 1.e-35
  bsmall     = qsmall*i_rho_rimeMax
@@ -2155,7 +2157,8 @@ END subroutine p3_init
 
  real, dimension(nCat) :: Eii_fact,epsi,epsiw
  real :: eii ! temperature dependent aggregation efficiency
-
+ real :: qsmall_dry ! threshold mixing ratio below which all mass is evaporated/sublimated in dry conditions
+      
  real, dimension(its:ite,kts:kte,nCat) :: diam_ice,liq_frac,rime_frac,          &
             rimefrac_over_rhorime,arr_lami,arr_mui,rimedensity
 
@@ -2321,6 +2324,17 @@ timer_description(1) = 'full p3_main'
 call cpu_time(timer_start(1))
 #endif
 
+! set qsmall_dry to determine threshold mixing ratio below which all mass is sublimated/evaporated in dry conditions
+! for the "fast" P3 configuration (no liquid fraction, no triple moment, one category), set qsmall_dry to a larger value
+! for all other configurations, set qsmall_dry to a smaller value. Using improves the P3 run time by several %
+! and impacts the radar reflectivity field by removing areas of small reflectivity,
+! but otherwise has no noticeable impact on simulations.       
+ if (Ncat.eq.1.and..not.(log_3momentIce).and..not.(log_LiquidFrac)) then
+      qsmall_dry = qsmall_dry1
+ else     
+      qsmall_dry = qsmall_dry2
+ endif
+      
  tmp1 = uzpl(its,kts)     !avoids compiler warning for unused variable (since code using 'uzpl' is currently commented)
 
  ! direction of vertical leveling:
