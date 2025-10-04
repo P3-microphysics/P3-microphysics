@@ -27,7 +27,7 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.4.8 + cleanup_202509 + wrffixesv3                                       !
+! Version:       5.4.8 + cleanup_202509 + wrffixesv4                                       !
 ! Last updated:  2025 Oct                                                                  !
 !__________________________________________________________________________________________!
 
@@ -333,22 +333,22 @@
 
 ! parameters for droplet mass spectral shape, used by Seifert and Beheng (2001)
 ! warm rain scheme only (autoAccr_param = 1)
- dnu(1)  =  0.
- dnu(2)  = -0.557
- dnu(3)  = -0.430
- dnu(4)  = -0.307
- dnu(5)  = -0.186
- dnu(6)  = -0.067
- dnu(7)  =  0.050
- dnu(8)  =  0.167
- dnu(9)  =  0.282
- dnu(10) =  0.397
- dnu(11) =  0.512
- dnu(12) =  0.626
- dnu(13) =  0.739
- dnu(14) =  0.853
- dnu(15) =  0.966
- dnu(16) =  0.966
+  dnu(1)  = -0.947   
+  dnu(2)  = -0.871   
+  dnu(3)  = -0.783   
+  dnu(4)  = -0.688   
+  dnu(5)  = -0.588   
+  dnu(6)  = -0.486   
+  dnu(7)  = -0.382   
+  dnu(8)  = -0.277   
+  dnu(9)  = -0.171   
+  dnu(10) = -0.064   
+  dnu(11) = 0.044    
+  dnu(12) = 0.152    
+  dnu(13) = 0.260    
+  dnu(14) = 0.369    
+  dnu(15) = 0.478    
+  dnu(16) = 0.588 
 
 !------------------------------------------------------------------------------------------!
 ! read in ice microphysics table
@@ -10561,7 +10561,7 @@ else
 
         ! interpolate for mass distribution spectral shape parameter (for SB warm processes)
           if (autoAccr_param.eq.1) then
-             dumi = int(mu_c)
+             dumi = int(mu_c)+1
              nu   = dnu(dumi)+(dnu(dumi+1)-dnu(dumi))*(mu_c-dumi)
           endif
 
