@@ -27,7 +27,7 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.4.8 + cleanup_202509 + wrffixesv2                                       !
+! Version:       5.4.8 + cleanup_202509 + wrffixesv3                                       !
 ! Last updated:  2025 Oct                                                                  !
 !__________________________________________________________________________________________!
 
@@ -2337,6 +2337,10 @@ call cpu_time(timer_start(1))
       
  tmp1 = uzpl(its,kts)     !avoids compiler warning for unused variable (since code using 'uzpl' is currently commented)
 
+ if (log_3momentIce) then     
+    mu_i_s(:) = mu_i_initial    ! initialize mu_i
+ endif
+      
  ! direction of vertical leveling:
  if (trim(model)=='GEM' .or. trim(model)=='KIN1D') then
     ktop = kts        !k of top level
@@ -2862,6 +2866,8 @@ call cpu_time(timer_start(3))
                                    zitot(i,k,iice),dum1,dum4,dum5,dum7,dumjj,dumii,dumll, &
                                    dumi,zsize,zqsize)
 
+                mu_i_s(iice) = mu_i
+                                   
                 call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0.,        &
                                   dumzz,dumjj,dumii,dumll,dumi,0)
 
@@ -4185,15 +4191,15 @@ call cpu_time(timer_start(3))
           endif
 
        ! calculate current mu_i (before updated from processes) which is used later to update mu_i
-          if (log_3momentIce) then
-             if (qitot(i,k,iice).ge.qsmall) then
-                tmp1 = qitot(i,k,iice)*6./(f1pr16*pi)  !estimate of 3rd moment
-                mu_i_s(iice) = compute_mu_3mom_1(nitot(i,k,iice),tmp1,zitot(i,k,iice),mu_i_max)  !polynomial approximation
-              ! mu_i_s(iice) = compute_mu_3mom_2(nitot(i,k,iice),tmp1,zitot(i,k,iice),mu_i_max)  !analytic cubic root
-             else
-                mu_i_s(iice) = mu_i_initial
-             endif
-          endif
+!          if (log_3momentIce) then
+!             if (qitot(i,k,iice).ge.qsmall) then
+!                tmp1 = qitot(i,k,iice)*6./(f1pr16*pi)  !estimate of 3rd moment
+!                mu_i_s(iice) = compute_mu_3mom_1(nitot(i,k,iice),tmp1,zitot(i,k,iice),mu_i_max)  !polynomial approximation
+!              ! mu_i_s(iice) = compute_mu_3mom_2(nitot(i,k,iice),tmp1,zitot(i,k,iice),mu_i_max)  !analytic cubic root
+!             else
+!                mu_i_s(iice) = mu_i_initial
+!             endif
+!          endif
 
        enddo iice_loop2
 
@@ -4413,7 +4419,7 @@ call cpu_time(timer_start(3))
                 G_rate_tot = zqccol(iice) + zidep(iice) + zisub(iice) + zishd(iice) +    &
                              zimlt(iice) + zislf(iice) + zqrcol(iice)
 
-            ! get updated density to estimate M3 from Qitot
+            ! get indices to calculate updated bulk density
                 call calc_bulkRhoRime(dumqi,dumqr,dumql,dumbi,rhop)
                 call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,  &
                      dum7,isize,rimsize,liqsize,densize,dumqi,dumni,dumqr,dumql,rhop)
@@ -4422,11 +4428,15 @@ call cpu_time(timer_start(3))
                 dumzi_old = dumzi
                 do iana = 1,niter_mui
 
+            ! calculate updated density from LUT3 with updated/iterated value of dumzi (since mu_i is unknown)
                    call get_mui_rhoi(mu_i,rholt3,dum6,dumzz,dumqi,dumni,dumzi,dum1,      &
                                   dum4,dum5,dum7,dumjj,dumii,dumll,dumi,zsize,zqsize)
+            ! calculate third moment M3 from updated density
+            ! NOTE: We don't calculate M3 directly from the lookup table because of large interoplation errors.
+            !       It's more accurate to estimate M3 from density and updated Qitot (dumqi).                      
                    dum3 = 6./(rholt3*pi)*dumqi
 
-                  ! update dummy zi based on updated density (and thus 3rd moment):
+                  ! update dummy zi based on updated M3:
                    G_new = G_of_mu(mu_i_s(iice)) + G_rate_tot*dt
                    dumzi = G_new*dum3**2/dumni
                    dumzi = max(dumzi,zsmall)
@@ -4442,7 +4452,10 @@ call cpu_time(timer_start(3))
 !..............................
 ! old (simplified) method with group 1 processes (where mu_i does not change due to these processes)
 
-              !get updated density to estimate M3 from Qitot
+! Get updated density to estimate M3 from updated Qitot (dumqi)
+! Here we know mu_i (mu_i_s) and it does not change from the processes.
+! Thus, we can get the updated density using the original lookup table with mu_i known (specified)                
+                
                 call calc_bulkRhoRime(dumqi,dumqr,dumql,dumbi,rhop)
                 call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,  &
                        dum7,isize,rimsize,liqsize,densize,dumqi,dumni,dumqr,dumql,rhop)
