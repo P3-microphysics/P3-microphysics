@@ -27,7 +27,7 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.4.9-rc1                                                                 !
+! Version:       5.4.9-rc2                                                                 !
 ! Last updated:  2025 Oct                                                                  !
 !__________________________________________________________________________________________!
 
@@ -153,7 +153,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.4.9-rc1'
+ character(len=1024), parameter :: version_p3                    = '5.4.9-rc2'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.9-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '6.9-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.2'
@@ -256,7 +256,7 @@
 ! minium allowable prognostic variables
  qsmall     = 1.e-14
  qsmall_dry1 = 1.e-8
- qsmall_dry2 = 1.e-12     
+ qsmall_dry2 = 1.e-12
  nsmall     = 1.e-16
  zsmall     = 1.e-35
  bsmall     = qsmall*i_rho_rimeMax
@@ -333,22 +333,22 @@
 
 ! parameters for droplet mass spectral shape, used by Seifert and Beheng (2001)
 ! warm rain scheme only (autoAccr_param = 1)
-  dnu(1)  = -0.947   
-  dnu(2)  = -0.871   
-  dnu(3)  = -0.783   
-  dnu(4)  = -0.688   
-  dnu(5)  = -0.588   
-  dnu(6)  = -0.486   
-  dnu(7)  = -0.382   
-  dnu(8)  = -0.277   
-  dnu(9)  = -0.171   
-  dnu(10) = -0.064   
-  dnu(11) = 0.044    
-  dnu(12) = 0.152    
-  dnu(13) = 0.260    
-  dnu(14) = 0.369    
-  dnu(15) = 0.478    
-  dnu(16) = 0.588 
+  dnu(1)  = -0.947
+  dnu(2)  = -0.871
+  dnu(3)  = -0.783
+  dnu(4)  = -0.688
+  dnu(5)  = -0.588
+  dnu(6)  = -0.486
+  dnu(7)  = -0.382
+  dnu(8)  = -0.277
+  dnu(9)  = -0.171
+  dnu(10) = -0.064
+  dnu(11) = 0.044
+  dnu(12) = 0.152
+  dnu(13) = 0.260
+  dnu(14) = 0.369
+  dnu(15) = 0.478
+  dnu(16) = 0.588
 
 !------------------------------------------------------------------------------------------!
 ! read in ice microphysics table
@@ -910,7 +910,7 @@ END subroutine p3_init
    real, dimension(its:ite, kts:kte, n_iceCat) :: diag_dhmax
 
    real, dimension(ims:ime, kms:kme,n_iceCat)  :: zitot   ! ice mixing ratio, reflectivity [m6 kg-1]
-   real, dimension(ims:ime, kms:kme,n_iceCat)  :: qiliq   ! liquid mixing ratio on ice     [kg k1-1]
+   real, dimension(ims:ime, kms:kme,n_iceCat)  :: qiliq   ! liquid mixing ratio on ice     [kg kg-1]
 
    real, dimension(its:ite)                    :: pcprt_liq,pcprt_sol
    real                                        :: dum1,dum2,dum3,dum4
@@ -2151,7 +2151,7 @@ END subroutine p3_init
  real, dimension(nCat) :: Eii_fact,epsi,epsiw
  real :: eii ! temperature dependent aggregation efficiency
  real :: qsmall_dry ! threshold mixing ratio below which all mass is evaporated/sublimated in dry conditions
-      
+
  real, dimension(its:ite,kts:kte,nCat) :: diam_ice,liq_frac,rime_frac,          &
             rimefrac_over_rhorime,arr_lami,arr_mui,rimedensity
 
@@ -2321,19 +2321,19 @@ call cpu_time(timer_start(1))
 ! for the "fast" P3 configuration (no liquid fraction, no triple moment, one category), set qsmall_dry to a larger value
 ! for all other configurations, set qsmall_dry to a smaller value. Using improves the P3 run time by several %
 ! and impacts the radar reflectivity field by removing areas of small reflectivity,
-! but otherwise has no noticeable impact on simulations.       
+! but otherwise has no noticeable impact on simulations.
  if (Ncat.eq.1.and..not.(log_3momentIce).and..not.(log_LiquidFrac)) then
       qsmall_dry = qsmall_dry1
- else     
+ else
       qsmall_dry = qsmall_dry2
  endif
-      
+
  tmp1 = uzpl(its,kts)     !avoids compiler warning for unused variable (since code using 'uzpl' is currently commented)
 
- if (log_3momentIce) then     
+ if (log_3momentIce) then
     mu_i_s(:) = mu_i_initial    ! initialize mu_i
  endif
-      
+
  ! direction of vertical leveling:
  if (trim(model)=='GEM' .or. trim(model)=='KIN1D') then
     ktop = kts        !k of top level
@@ -2860,7 +2860,7 @@ call cpu_time(timer_start(3))
                                    dumi,zsize,zqsize)
 
                 mu_i_s(iice) = mu_i
-                                   
+
                 call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0.,        &
                                   dumzz,dumjj,dumii,dumll,dumi,0)
 
@@ -3734,9 +3734,12 @@ call cpu_time(timer_start(3))
              endif
           endif
 
-          if (sup_cld.lt.-0.001 .and. qitot(i,k,iice).lt.1.e-12                             &
-           .and. qitot(i,k,iice).ge.qsmall .and. (qiliq(i,k,iice)/qitot(i,k,iice)).ge.0.01) &
-           qlcon(iice) = -qiliq(i,k,iice)*i_dt
+          if (qitot(i,k,iice).ge.qsmall) then
+             if (supi_cld.lt.-0.001 .and. qitot(i,k,iice).lt.1.e-12 .and.                &
+              (qiliq(i,k,iice)/qitot(i,k,iice)).ge.0.01) then
+                qlcon(iice) = -qiliq(i,k,iice)*i_dt
+             endif
+          endif
 
           if (qlcon(iice).lt.0.) then
              qlevp(iice) = -qlcon(iice)
@@ -3769,7 +3772,7 @@ call cpu_time(timer_start(3))
           sup_cld  = sup(i,k)
           supi_cld = supi(i,k)
        else
-          supi_cld= Qv_cld(k)/qvi(i,k)-1.!in-cloud sub/suoer-saturation w.r.t. ice in %
+          supi_cld= Qv_cld(k)/qvi(i,k)-1.!in-cloud sub/super-saturation w.r.t. ice in %
           sup_cld = Qv_cld(k)/qvs(i,k)-1.!in-cloud sub/super-saturation w.r.t. liq in %
        endif
 
@@ -4426,7 +4429,7 @@ call cpu_time(timer_start(3))
                                   dum4,dum5,dum7,dumjj,dumii,dumll,dumi,zsize,zqsize)
             ! calculate third moment M3 from updated density
             ! NOTE: We don't calculate M3 directly from the lookup table because of large interoplation errors.
-            !       It's more accurate to estimate M3 from density and updated Qitot (dumqi).                      
+            !       It's more accurate to estimate M3 from density and updated Qitot (dumqi).
                    dum3 = 6./(rholt3*pi)*dumqi
 
                   ! update dummy zi based on updated M3:
@@ -4447,8 +4450,8 @@ call cpu_time(timer_start(3))
 
 ! Get updated density to estimate M3 from updated Qitot (dumqi)
 ! Here we know mu_i (mu_i_s) and it does not change from the processes.
-! Thus, we can get the updated density using the original lookup table with mu_i known (specified)                
-                
+! Thus, we can get the updated density using the original lookup table with mu_i known (specified)
+
                 call calc_bulkRhoRime(dumqi,dumqr,dumql,dumbi,rhop)
                 call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,  &
                        dum7,isize,rimsize,liqsize,densize,dumqi,dumni,dumqr,dumql,rhop)
