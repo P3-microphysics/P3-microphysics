@@ -2416,14 +2416,14 @@ call cpu_time(timer_start(1))
  mflux_i   = 0.
  prec      = 0.
  mu_r      = 0.
- diag_ze   = -99.
+ diag_ze   = -99.        !not used; avoids possible uninialized value
+ ze_ice    = 6.2946e-29  !m^3 m-6; corresponds to -99 dbZ (for zero hydrometeors)
+ ze_rain   = 6.2946e-29  !m^3 m-6; corresponds to -99 dbZ (for zero hydrometeors)
  diam_ice  = 0.
  liq_frac  = 0.
  rime_frac  = 0.
  rimefrac_over_rhorime = 0.
  rimedensity = 0.
- ze_ice    = 1.e-22
- ze_rain   = 1.e-22
  diag_effc = 10.e-6 ! default value
 !diag_effr = 25.e-6 ! default value
  diag_effi = 25.e-6 ! default value
@@ -2638,7 +2638,7 @@ call cpu_time(timer_start(3))
   do i = its,ite
 
     log_hydrometeorsPresent = qc(i,k).ge.qsmall .or. qr(i,k).ge.qsmall .or.              &
-                              sum(qitot(i,k,:)).ge.qsmall*nCat
+                              maxval(qitot(i,k,:)).ge.qsmall
 
     log_nucleationPossible = ( ((t(i,k).lt.trplpt .and. supi(i,k).ge.-0.05) .or.         &
                                 (t(i,k).ge.trplpt .and. sup(i,k) .ge.-0.05 )) .or.       &
@@ -2725,7 +2725,7 @@ call cpu_time(timer_start(3))
 !----------------------------------------------------------------------
 
        log_hydrometeorsPresent = qc(i,k).ge.qsmall .or. qr(i,k).ge.qsmall .or.           &
-                                 sum(qitot(i,k,:)).ge.qsmall*nCat
+                                 maxval(qitot(i,k,:)).ge.qsmall
 
        growth_decay_processes: if (log_hydrometeorsPresent) then
        ! if no hydrometeors present, skip growth/decay processes (for existing hydrometeors)
@@ -2798,27 +2798,27 @@ call cpu_time(timer_start(3))
 
                 trplmomice_1: if (.not. log_3momentIce) then
 
-                ! call to lookup table interpolation subroutines to get process rates
-                  call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum7,0.,0.,0.,0.,       &
-                                    dumjj,dumii,dumll,dumi,0,0)
+                 ! call to lookup table interpolation subroutines to get process rates
+                   call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum7,0.,0.,0.,0.,      &
+                                     dumjj,dumii,dumll,dumi,0,0)
 
-                  f1pr02 = proc_from_LUT_main2mom( 2,args_r,args_i)
-                  f1pr03 = proc_from_LUT_main2mom( 3,args_r,args_i)
-                  f1pr04 = proc_from_LUT_main2mom( 4,args_r,args_i)
-                  f1pr05 = proc_from_LUT_main2mom( 5,args_r,args_i)
-                  f1pr09 = proc_from_LUT_main2mom( 7,args_r,args_i)
-                  f1pr10 = proc_from_LUT_main2mom( 8,args_r,args_i)
-                  f1pr14 = proc_from_LUT_main2mom(10,args_r,args_i)
-                  f1pr16 = proc_from_LUT_main2mom(12,args_r,args_i)
-                  if (log_LiquidFrac) then
-                     f1pr24 = proc_from_LUT_main2mom(15,args_r,args_i)
-                     f1pr25 = proc_from_LUT_main2mom(16,args_r,args_i)
-                     f1pr26 = proc_from_LUT_main2mom(17,args_r,args_i)
-                     f1pr27 = proc_from_LUT_main2mom(18,args_r,args_i)
-                     f1pr28 = proc_from_LUT_main2mom(19,args_r,args_i)
-                  endif
+                   f1pr02 = proc_from_LUT_main2mom( 2,args_r,args_i)
+                   f1pr03 = proc_from_LUT_main2mom( 3,args_r,args_i)
+                   f1pr04 = proc_from_LUT_main2mom( 4,args_r,args_i)
+                   f1pr05 = proc_from_LUT_main2mom( 5,args_r,args_i)
+                   f1pr09 = proc_from_LUT_main2mom( 7,args_r,args_i)
+                   f1pr10 = proc_from_LUT_main2mom( 8,args_r,args_i)
+                   f1pr14 = proc_from_LUT_main2mom(10,args_r,args_i)
+                   f1pr16 = proc_from_LUT_main2mom(12,args_r,args_i)
+                   if (log_LiquidFrac) then
+                      f1pr24 = proc_from_LUT_main2mom(15,args_r,args_i)
+                      f1pr25 = proc_from_LUT_main2mom(16,args_r,args_i)
+                      f1pr26 = proc_from_LUT_main2mom(17,args_r,args_i)
+                      f1pr27 = proc_from_LUT_main2mom(18,args_r,args_i)
+                      f1pr28 = proc_from_LUT_main2mom(19,args_r,args_i)
+                   endif
 
-             ! ice-rain collection processes
+                  ! ice-rain collection processes
                    if (qr(i,k).ge.qsmall) then
                      call args_for_LUT(args_r,args_i,dum1,dum3,dum4,dum5,dum7,0.,0.,0.,  &
                                        dumjj,dumii,dumll,dumj,dumi,0)
@@ -2842,7 +2842,7 @@ call cpu_time(timer_start(3))
 
                    mu_i_s(iice) = mu_i
 
-                   call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0.,     &
+                   call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0.,    &
                                      dumzz,dumjj,dumii,dumll,dumi,0)
 
                    f1pr02 = proc_from_LUT_main3mom( 2,args_r,args_i)
@@ -4554,31 +4554,35 @@ call cpu_time(timer_start(6))
  do i = its,ite
 
 ! Cloud:
-    call sedimentation_liquid(qc(i,:),nc(i,:),1,iSCF(i,:),prt_liq(i),rho(i,:),i_rho(i,:), &
-                              i_dzq(i,:),dt,ktop,kbot,kdir,acn=acn(i,:),dnu=dnu(:))
+    if (maxval(qc(i,:)) .ge. qsmall)                                                     &
+       call sedimentation_liquid(qc(i,:),nc(i,:),1,iSCF(i,:),prt_liq(i),rho(i,:),        &
+                       i_rho(i,:),i_dzq(i,:),dt,ktop,kbot,kdir,acn=acn(i,:),dnu=dnu(:))
 
 ! Rain:
-    call sedimentation_liquid(qr(i,:),nr(i,:),2,iSPF(i,:),prt_liq(i),rho(i,:),i_rho(i,:), &
-                              i_dzq(i,:),dt,ktop,kbot,kdir,rhofacr=rhofacr(i,:))
+    if (maxval(qr(i,:)) .ge. qsmall)                                                     &
+       call sedimentation_liquid(qr(i,:),nr(i,:),2,iSPF(i,:),prt_liq(i),rho(i,:),        &
+                       i_rho(i,:),i_dzq(i,:),dt,ktop,kbot,kdir,rhofacr=rhofacr(i,:))
 
 ! Ice:
-    if (log_3momentIce .and. log_LiquidFrac) then
+    log_tmp1 = maxval(qitot(i,:,:)) .ge. qsmall
+
+    if (log_3momentIce .and. log_LiquidFrac .and. log_tmp1) then
        call sedimentation_ice_TT(qitot(i,:,:),qirim(i,:,:),qiliq(i,:,:),nitot(i,:,:),    &
                               birim(i,:,:),zitot(i,:,:),prt_sol(i),prt_soli(i,:),        &
                               rho(i,:),i_rho(i,:),rhofaci(i,:),i_dzq(i,:),ktop,kbot,     &
                               kdir,dt)
 
-    elseif (log_3momentIce .and. .not. log_LiquidFrac) then
+    elseif (log_3momentIce .and. .not.log_LiquidFrac .and. log_tmp1) then
        call sedimentation_ice_TF(qitot(i,:,:),qirim(i,:,:),nitot(i,:,:),birim(i,:,:),    &
                               zitot(i,:,:),prt_sol(i),prt_soli(i,:),rho(i,:),i_rho(i,:), &
                               rhofaci(i,:),i_dzq(i,:),ktop,kbot,kdir,dt)
 
-    elseif (.not. log_3momentIce .and. log_LiquidFrac) then
+    elseif (.not. log_3momentIce .and. log_LiquidFrac .and. log_tmp1) then
        call sedimentation_ice_FT(qitot(i,:,:),qirim(i,:,:),qiliq(i,:,:),nitot(i,:,:),    &
                               birim(i,:,:),prt_sol(i),prt_soli(i,:),rho(i,:),i_rho(i,:), &
                               rhofaci(i,:),i_dzq(i,:),ktop,kbot,kdir,dt)
 
-    elseif (.not. log_3momentIce .and. .not. log_LiquidFrac) then
+    elseif (.not. log_3momentIce .and. .not. log_LiquidFrac .and. log_tmp1) then
        call sedimentation_ice_FF(qitot(i,:,:),qirim(i,:,:),nitot(i,:,:),birim(i,:,:),    &
                               prt_sol(i),prt_soli(i,:),rho(i,:),i_rho(i,:),rhofaci(i,:), &
                               i_dzq(i,:),ktop,kbot,kdir,dt)
@@ -4907,7 +4911,6 @@ call cpu_time(timer_end(6))
          ! non-exponential rain:
           ze_rain(i,k) = rho(i,k)*nr(i,k)*(mu_r(i,k)+6.)*(mu_r(i,k)+5.)*(mu_r(i,k)+4.)*  &
                         (mu_r(i,k)+3.)*(mu_r(i,k)+2.)*(mu_r(i,k)+1.)/lamr(i,k)**6
-          ze_rain(i,k) = max(ze_rain(i,k),1.e-22)
        else
           qv(i,k) = qv(i,k)+qr(i,k)
           th(i,k) = th(i,k)-i_exn(i,k)*qr(i,k)*xxlv(i,k)*i_cp
@@ -5005,7 +5008,6 @@ call cpu_time(timer_end(6))
           ! note factor of air density below is to convert from m^6/kg to m^6/m^3
           ! original ze_ice
              ze_ice(i,k) = ze_ice(i,k) + f1pr13*nitot(i,k,iice)*rho(i,k)
-             ze_ice(i,k) = max(ze_ice(i,k),1.e-22)
 
           else  !from 'if qi_not_small'
 
