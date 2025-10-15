@@ -27,7 +27,7 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.5.0-rc3 + cleanup                                                       !
+! Version:       5.5.0-rc4                                                                 !
 ! Last updated:  2025 Oct                                                                  !
 !__________________________________________________________________________________________!
 
@@ -2164,7 +2164,7 @@ END subroutine p3_init
  real, dimension(kts:kte) :: V_qr,V_qit,V_nit,V_nr,V_qc,V_nc,V_zit,flux_qit,flux_qx,     &
             flux_nx,flux_nit,flux_qir,flux_bir,flux_zit,flux_qil
 
- real                     :: ssat_cld,ssat_clr,ssat_r,supi_cld,sup_cld,sup_r
+ real    :: ssat_cld,ssat_clr,ssat_r,supi_cld,sup_cld,sup_r
 
  real    :: lammax,lammin,mu,dv,sc,dqsdT,ab,kap,epsr,epsc,xx,aaa,epsilon,sigvl,epsi_tot, &
             aact,sm1,sm2,uu1,uu2,dum,dum1,dum2,dumqv,dumqvs,dums,ratio,qsat0,dum3,dum4,  &
@@ -2181,7 +2181,7 @@ END subroutine p3_init
             dumic,dumiic,dumjjc,catcoll,k_qxbot,k_qxtop,dumll,dumllc,dumzq
 
  logical :: log_nucleationPossible,log_hydrometeorsPresent,log_predictSsat,              &
-            log_hmossopOn,log_qxpresent,log_tmp1,log_tmp2
+            log_hmossopOn,log_outputTimestep,log_tmp1,log_tmp2
 
 ! quantities related to process rates/parameters, interpolated from lookup tables:
 
@@ -2232,7 +2232,7 @@ END subroutine p3_init
  real, dimension(nCat) :: epsiz,epsizsb
 
 ! quantities related to diagnostic hydrometeor/precipitation types
- real,    parameter                       :: freq3DtypeDiag     = 60.     !frequency (min) for full-column diagnostics
+ real,    parameter                       :: freq3DtypeDiag     = 5.     !frequency (min) for full-column diagnostics
  real,    parameter                       :: thres_raindrop     = 100.e-6 !size threshold for drizzle vs. rain
  real,    dimension(its:ite,kts:kte)      :: Q_drizzle,Q_rain
  real,    dimension(its:ite,kts:kte,nCat) :: Q_crystals,Q_snow,Q_wsnow,Q_grpl,Q_pellets,Q_hail
@@ -4791,11 +4791,6 @@ call cpu_time(timer_end(6))
 
                 endif
 
-              !--this should already be done in s/r 'calc_bulkRhoRime'
-                if (qirim(i,k,iice).lt.qsmall) then
-                   qirim(i,k,iice) = 0.
-                   birim(i,k,iice) = 0.
-                endif
                 qiliq(i,k,iice) = merge(0., qiliq(i,k,iice), qiliq(i,k,iice).lt.qsmall)
 
                 diag_di(i,k,iice)   = f1pr15   ! used for merging
@@ -4872,9 +4867,8 @@ call cpu_time(timer_end(6))
 !       if (global_status /= STATUS_OK) return
 !    endif
 
-!...................................................
-! final checks to ensure consistency of mass/number
-! and compute diagnostic fields for output
+!......................................................................................
+! final checks to ensure consistency of mass/number and compute outputdiagnostic fields
 
  k_loop_final_diagnostics: do k = kbot,ktop,kdir
   do i = its,ite
@@ -4919,7 +4913,6 @@ call cpu_time(timer_end(6))
        endif
 
     ! ice:
-
        call impose_max_Ni(nitot(i,k,:),max_Ni,i_rho(i,k))
 
        iice_loop_final_diagnostics:  do iice = 1,nCat
@@ -4989,24 +4982,17 @@ call cpu_time(timer_end(6))
              if (log_3momentIce) call apply_mui_bounds_to_zi(zitot(i,k,iice),            &
                                       qitot(i,k,iice),nitot(i,k,iice),f1pr16)
 
-  !--this should already be done in s/r 'calc_bulkRhoRime'
-             if (qirim(i,k,iice).lt.qsmall) then
-                qirim(i,k,iice) = 0.
-                birim(i,k,iice) = 0.
-             endif
-
              qiliq(i,k,iice) = merge(0., qiliq(i,k,iice), qiliq(i,k,iice).lt.qsmall)
 
-  ! note that reflectivity from lookup table is normalized, so we need to multiply by N
              diag_vmi(i,k,iice)  = f1pr02*rhofaci(i,k)
-             diag_effi(i,k,iice) = f1pr06 ! units are in m
+             diag_effi(i,k,iice) = f1pr06  !units are in m
              diag_di(i,k,iice)   = f1pr15
              diag_rhoi(i,k,iice) = f1pr16
              arr_lami(i,k,iice)  = f1pr22  !local only (not for output)
              arr_mui(i,k,iice)   = f1pr23  !local only
 
-          ! note factor of air density below is to convert from m^6/kg to m^6/m^3
-          ! original ze_ice
+          ! note: air density factor below converts from m^6/kg to m^6/m^3
+          ! also, reflectivity from lookup table is normalized, so need to multiply by N
              ze_ice(i,k) = ze_ice(i,k) + f1pr13*nitot(i,k,iice)*rho(i,k)
 
           else  !from 'if qi_not_small'
@@ -5027,8 +5013,7 @@ call cpu_time(timer_end(6))
 
        enddo iice_loop_final_diagnostics
 
-     ! sum ze components and convert to dBZ
-       diag_ze(i,k) = 10.*log10((ze_ice(i,k)+ze_rain(i,k))*1.e+18)
+       diag_ze(i,k) = 10.*log10((ze_ice(i,k)+ze_rain(i,k))*1.e+18)  ! convert to dBZ
 
      ! if qr is very small then set nr to 0 (needs to be done here after call
      ! to ice lookup table because a minimum nr of nsmall will be set otherwise even if qr=0
@@ -5072,14 +5057,8 @@ call cpu_time(timer_end(6))
  if (SCPF_on) then
     SCF_out(:,:) = SCF(:,:)
  else
-    do k = kbot,ktop,kdir
-     do i = its,ite
-         SCF_out(i,k) = merge(1., 0., qc(i,k).ge.qsmall)
-         do iice = 1,nCat
-            SCF_out(i,k) = merge(1., SCF_out(i,k), qitot(i,k,iice).ge.qsmall)
-         enddo
-    enddo
-   enddo
+   SCF_out(:,:) = merge(1., 0., qc(:,:).ge.qsmall)
+   SCF_out(:,:) = merge(1., SCF_out(:,:), any(qitot(:,:,: ) >= qsmall, dim=3))
  endif
 
 !     if (debug_on) then
@@ -5165,11 +5144,6 @@ call cpu_time(timer_end(6))
 
 !.....................................................
 
-! output mu tendencies and G rates for full 3-moment
-
-!.....................................................
-! ! !  i_loop_main: do i = its,ite  !MAIN I LOOP
-! ! !  enddo i_loop_main
 
 #ifdef TIMING_P3
 !timer_description(2) = 'i_loop_main'
@@ -5200,8 +5174,10 @@ timer_description(9) = 'type_diags'
 call cpu_time(timer_start(9))
 #endif
 
+ log_outputTimestep = freq3DtypeDiag>0. .and. mod(it*dt,freq3DtypeDiag*60.)==0.
+
 !--- diagnostics CM1 only:
- if ( freq3DtypeDiag>0. .and. mod(it*dt,freq3DtypeDiag*60.)==0. .and. trim(model)=='CM1') then
+ if (log_outputTimestep .and. trim(model)=='CM1') then
     diag_3d(:,:,1) = sum(qitot(:,:,:))
 !   diag_2d(:,1)   = prt_liq(:)
 !   diag_2d(:,2)   = prt_sol(:)
@@ -5242,13 +5218,9 @@ call cpu_time(timer_start(9))
 
     if (present(qi_type)) qi_type(:,:,:) = 0.
 
-    if (freq3DtypeDiag>0. .and. mod(it*dt,freq3DtypeDiag*60.)==0.) then
-      !diagnose hydrometeor types for full columns
-       ktop_typeDiag = ktop
-    else
-      !diagnose hydrometeor types at bottom level only (for specific precip rates)
-       ktop_typeDiag = kbot
-    endif
+   ! compute hydrometeor type diagnostics for full columns on output timesteps only;
+   ! otherwise only calculate at bottom level (for precipitation rates)
+    ktop_typeDiag = merge(ktop, kbot, log_outputTimestep)
 
     i_loop_typediag: do i = its,ite
 
