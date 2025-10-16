@@ -27,7 +27,7 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.5.0-rc4                                                                 !
+! Version:       5.5.0-rc5                                                                 !
 ! Last updated:  2025 Oct                                                                  !
 !__________________________________________________________________________________________!
 
@@ -1134,10 +1134,10 @@ END subroutine p3_init
 !==================================================================================================!
 #ifdef ECCCGEM
 
- function mp_p3_wrapper_gem(ttend,qtend,qctend,qrtend,qitend,                                     &
-                              qvap_m,qvap,temp_m,temp,dt,dt_max,ww,psfc,gztherm,gzmom,sigma,kount,&
-                              ni,nk,prt_liq,prt_sol,prt_drzl,prt_rain,prt_crys,prt_snow,          &
-                              prt_grpl,prt_pell,prt_hail,prt_sndp,prt_wsnow,diag_Zet,diag_Zec,    &
+ function mp_p3_wrapper_gem(ttend,qtend,qctend,qrtend,qitend,                                       &
+                              qvap_m,qvap,temp_m,temp,dt,dt_max,ww,psfc,gztherm,gzmom,sigma,kount,  &
+                              ni,nk,prt_liq,prt_sol,prt_drzl,prt_rain,prt_crys,prt_snow,            &
+                              prt_grpl,prt_pell,prt_hail,prt_sndp,prt_wsnow,diag_Zet,diag_Zec,      &
                               diag_effc,qc_m,qc,nc,qr_m,qr,nr,n_diag_2d,diag_2d,n_diag_3d,diag_3d,  &
                               clbfact_dep,clbfact_sub,debug_on,diag_hcb,diag_hsn,diag_vis,          &
                               diag_vis1,diag_vis2,diag_vis3,diag_slw,                               &
@@ -1490,7 +1490,7 @@ END subroutine p3_init
       sn3_ave(:)  = 0.
       pe1_ave(:)  = 0.
       pe2_ave(:)  = 0.
-      ws_ave(:)  = 0.
+      ws_ave(:)   = 0.
       snd_ave(:)  = 0.
    endif
 
@@ -1513,12 +1513,21 @@ END subroutine p3_init
                    diag_Zet,diag_effc,diag_effi,diag_vmi,diag_di,diag_rhoi,n_diag_2d,diag_2d,   &
                    n_diag_3d,diag_3d,log_predictNc,trim(model),clbfact_dep,clbfact_sub,         &
                    debug_on,scpf_on,scpf_pfrac,scpf_resfact,cldfrac,log_trplMomI,log_liqFrac,   &
-                   prt_drzl,prt_rain,prt_crys,prt_snow,prt_grpl,prt_pell,prt_hail,prt_sndp,     &
-                   prt_wsnow,qi_type,                                                           &
-                   diag_vis  = diag_vis,                                                        &
-                   diag_vis1 = diag_vis1,                                                       &
-                   diag_vis2 = diag_vis2,                                                       &
-                   diag_vis3 = diag_vis3,                                                       &
+!                  nccnst     = nccnst,                                                         &
+                   prt_drzl   = prt_drzl,                                                       &
+                   prt_rain   = prt_rain,                                                       &
+                   prt_crys   = prt_crys,                                                       &
+                   prt_snow   = prt_snow,                                                       &
+                   prt_grpl   = prt_grpl,                                                       &
+                   prt_pell   = prt_pell,                                                       &
+                   prt_hail   = prt_hail,                                                       &
+                   prt_sndp   = prt_sndp,                                                       &
+                   prt_wsnow  = prt_wsnow,                                                      &
+                   qi_type    = qi_type,                                                        &
+                   diag_vis   = diag_vis,                                                       &
+                   diag_vis1  = diag_vis1,                                                      &
+                   diag_vis2  = diag_vis2,                                                      &
+                   diag_vis3  = diag_vis3,                                                      &
                    diag_dhmax = diag_dhmax)
 
 
@@ -1571,11 +1580,7 @@ END subroutine p3_init
    birim_1(:,:) = birim(:,:,1)
    if (associated(zitot_1)) zitot_1(:,:) = zitot(:,:,1)
    if (associated(qiliq_1)) qiliq_1(:,:) = qiliq(:,:,1)
-   where (qitot_1(:,:) >= SMALL_ICE_MASS)
-      diag_effi_1(:,:) = diag_effi(:,:,1)
-   elsewhere
-      diag_effi_1(:,:) = 0.
-   endwhere
+   diag_effi_1(:,:) = merge(diag_effi(:,:,1), 0., qitot_1(:,:) >= SMALL_ICE_MASS)
 
    if (n_iceCat >= 2) then
       qitot_2(:,:) = qitot(:,:,2)
@@ -1584,11 +1589,7 @@ END subroutine p3_init
       birim_2(:,:) = birim(:,:,2)
       if (associated(zitot_2)) zitot_2(:,:) = zitot(:,:,2)
       if (associated(qiliq_2)) qiliq_2(:,:) = qiliq(:,:,2)
-      where (qitot_2(:,:) >= SMALL_ICE_MASS)
-         diag_effi_2(:,:) = diag_effi(:,:,2)
-      elsewhere
-         diag_effi_2(:,:) = 0.
-      endwhere
+      diag_effi_2(:,:) = merge(diag_effi(:,:,2), 0., qitot_2(:,:) >= SMALL_ICE_MASS)
 
       if (n_iceCat >= 3) then
          qitot_3(:,:) = qitot(:,:,3)
@@ -1597,11 +1598,7 @@ END subroutine p3_init
          birim_3(:,:) = birim(:,:,3)
          if (associated(zitot_3)) zitot_3(:,:) = zitot(:,:,3)
          if (associated(qiliq_3)) qiliq_3(:,:) = qiliq(:,:,3)
-         where (qitot_3(:,:) >= SMALL_ICE_MASS)
-            diag_effi_3(:,:) = diag_effi(:,:,3)
-         elsewhere
-            diag_effi_3(:,:) = 0.
-         endwhere
+         diag_effi_3(:,:) = merge(diag_effi(:,:,3), 0., qitot_3(:,:) >= SMALL_ICE_MASS)
 
          if (n_iceCat == 4) then
             qitot_4(:,:) = qitot(:,:,4)
@@ -1610,11 +1607,8 @@ END subroutine p3_init
             birim_4(:,:) = birim(:,:,4)
             if (associated(zitot_4)) zitot_4(:,:) = zitot(:,:,4)
             if (associated(qiliq_4)) qiliq_4(:,:) = qiliq(:,:,4)
-            where (qitot_4(:,:) >= SMALL_ICE_MASS)
-               diag_effi_4(:,:) = diag_effi(:,:,4)
-            elsewhere
-               diag_effi_4(:,:) = 0.
-            endwhere
+            diag_effi_4(:,:) = merge(diag_effi(:,:,4), 0., qitot_4(:,:) >= SMALL_ICE_MASS)
+
          endif
       endif
    endif
@@ -2015,7 +2009,7 @@ END subroutine p3_init
  real, intent(out),   dimension(its:ite,n_diag_2d)         :: diag_2d    ! user-defined 2D diagnostic fields
  real, intent(out),   dimension(its:ite,kts:kte,n_diag_3d) :: diag_3d    ! user-defined 3D diagnostic fields
 
- integer, intent(in)                                  :: it             ! time step counter (starts at 1 for first step)
+ integer, intent(in)                                  :: it              ! time step counter (starts at 1 for first step)
 
  logical, intent(in)                                  :: log_predictNc  ! .T. for two-moment (.F. for one-moment) cloud
  logical, intent(in)                                  :: log_3momentIce ! .T. for three-moment (.F. for two-moment) ice
@@ -2035,7 +2029,7 @@ END subroutine p3_init
  real, intent(out), dimension(its:ite), optional      :: prt_sndp      ! precip rate, unmelted snow    m s-1
  real, intent(out), dimension(its:ite), optional      :: prt_wsnow     ! precip rate, very wet snow    m s-1
 
- real, intent(out), dimension(its:ite,kts:kte,nCat),     optional :: diag_dhmax ! maximum hail size                      m
+ real, intent(out), dimension(its:ite,kts:kte,nCat),     optional :: diag_dhmax ! maximum hail size    m
  real, intent(out), dimension(its:ite,kts:kte,n_qiType), optional :: qi_type    ! mass mixing ratio, diagnosed ice type  kg kg-1
 
  logical, intent(in)                                  :: scpf_on       ! Switch to activate SCPF
