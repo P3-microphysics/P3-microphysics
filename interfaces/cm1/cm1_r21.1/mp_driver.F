@@ -15,7 +15,7 @@
 
 
     subroutine mp_driver(nstep,dt,qbudget,asq,bsq,xh,ruh,xf,ruf,yh,rvh,yf,rvf,  &
-                         mh,rmh,c1,c2,zh,mf,rmf,zf,rain,prate,pi0,th0,rho0,prs0,qv0,   &
+                         mh,rmh,c1,c2,zh,mf,rmf,zf,rain,hail,prate,srate,pi0,th0,rho0,prs0,qv0,   &
                          rho,prs,dum1,dum2,dum3,dum4,dum5,dum6,dum7,dum8,  &
                          w3d,ppi,pp3d,ppten,sten,tha,th3d,thten,qa,q3d,qten,  &
                          p3a,p3o,dum2d1,dum2d2,dum2d3,dum2d4,dum2d5,  &
@@ -34,7 +34,7 @@
     use lfoice_module, only : lfo_ice_drive,lfoice_init
     use module_mp_graupel , only : mp_graupel
     use module_mp_nssl_2mom, only : nssl_2mom_driver
-    use microphy_p3, only : mp_p3_wrapper_wrf
+    use microphy_p3, only : mp_p3_wrapper_wrfcm1
     use module_mp_jensen_ishmael , only : mp_jensen_ishmael
     use mp_wsm6 , only : refl10cm_wsm6,mp_wsm6_init
     use mmm_physics_wrapper_module, only : mp_wsm6_wrapper,mp_wsm6_effectRad_wrapper
@@ -51,8 +51,8 @@
     real, intent(in), dimension(jb:je+1) :: yf,rvf
     real, intent(in), dimension(ib:ie,jb:je,kb:ke) :: mh,rmh,c1,c2,zh
     real, intent(in), dimension(ib:ie,jb:je,kb:ke+1) :: mf,rmf,zf
-    real, intent(inout), dimension(ib:ie,jb:je,nrain) :: rain
-    real, intent(inout), dimension(ib:ie,jb:je) :: prate
+    real, intent(inout), dimension(ib:ie,jb:je,nrain) :: rain,hail
+    real, intent(inout), dimension(ib:ie,jb:je) :: prate,srate
     real, intent(in), dimension(ib:ie,jb:je,kb:ke) :: pi0,th0,rho0,prs0,qv0
     real, intent(inout), dimension(ib:ie,jb:je,kb:ke) :: rho,prs
     real, intent(inout), dimension(ib:ie,jb:je,kb:ke) :: dum1,dum2,dum3,dum4,dum5,dum6,dum7,dum8
@@ -62,11 +62,11 @@
     real, intent(inout), dimension(ibm:iem,jbm:jem,kbm:kem,numq) :: qa,q3d,qten
     real, intent(inout), dimension(ibp3:iep3,kbp3:kep3,1,np3a) :: p3a
     real, intent(inout), dimension(ibp3:iep3,jbp3:jep3,kbp3:kep3,np3o) :: p3o
-      double precision, intent(inout), dimension(ib:ie,jb:je) :: dum2d1,dum2d2,dum2d3,dum2d4,dum2d5
+    double precision, intent(inout), dimension(ib:ie,jb:je) :: dum2d1,dum2d2,dum2d3,dum2d4,dum2d5
     real, intent(inout), dimension(ibr:ier,jbr:jer,kbr:ker) :: effc,effi,effs,effr,effg,effis
     real, intent(inout) , dimension(ibdt:iedt,jbdt:jedt,kbdt:kedt,ntdiag) :: tdiag
     real, intent(inout) , dimension(ibdq:iedq,jbdq:jedq,kbdq:kedq,nqdiag) :: qdiag
-    real, intent(inout) , dimension(ib2d:ie2d,jb2d:je2d,nout2d) :: out2d
+    real, intent(inout) , dimension(ib2d:ie2d,jb2d:je2d,nout2d)           :: out2d
     real, intent(inout) , dimension(ib3d:ie3d,jb3d:je3d,kb3d:ke3d,nout3d) :: out3d
     real, intent(inout), dimension(ibtmp:ietmp,kbtmp:ketmp  ,ntmp2d ) :: tmp2d
     real, intent(inout), dimension(ibtmp:ietmp,ntmp1d) :: tmp1d
@@ -84,6 +84,8 @@
     character(len=40) :: errmsg
     integer :: errflg
     real, dimension(kbtmp:ketmp) :: p1d,t1d,qv1d,qr1d,qs1d,qg1d,dbz1d,zp
+
+    character(len=16), parameter :: model = 'CM1'
 
     !........
 
@@ -971,7 +973,7 @@
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
 !-----------------------------------------------------------------------------------
-!  ptype  configuration
+!  ptype  p3 configuration
 !  -----  ----------------------------------------------
 !   50    1-mom-cld,  2-mom-rain,  2-mom-ice,  1-ice-category
 !   51    2-mom-cld,  2-mom-rain,  3-mom-ice,  1-ice-category,  liq-frac
@@ -1020,7 +1022,7 @@
               enddo
               enddo
 
-              call mp_p3_wrapper_wrf( th     = p3a(:,:,1,1),                   &
+              call mp_p3_wrapper_wrfcm1( th  = p3a(:,:,1,1),                   &
                                qv            = p3a(:,:,1,2),                   &
                                qc            = p3a(:,:,1,3),                   &
                                qr            = p3a(:,:,1,4),                   &
@@ -1033,19 +1035,23 @@
                                w             = p3a(:,:,1,11),                  &
                                dt            = dt,                             &
                                itimestep     = nstep,                          &
-                               rainnc        = p3a(:,1,1,12),                  &
-                               snownc        = p3a(:,1,1,13),                  &
-                              !snownc        = dum1(:,:,4),                    &
-                               rainncv       = dum1(:,:,2),                    &
+
+                               rainncv       = p3a(:,1,1,12),                  &
+                               snowncv       = p3a(:,1,1,13),                  &
+                               rainnc        = dum1(:,:,2),                    &
+                               snownc        = dum1(:,:,5),                    &
                                sr            = dum1(:,:,3),                    &
-                               snowncv       = dum1(:,:,5),                    &
                                ids=1, ide=ni, jds=1, jde=1, kds=1, kde=nk ,    &
                                ims=1, ime=ni, jms=1, jme=1, kms=1, kme=nk ,    &
                                its=1, ite=ni, jts=1, jte=1, kts=1, kte=nk ,    &
                                diag_zdbz     = p3a(:,:,1,14),                  &
                                diag_effc     = p3a(:,:,1,15),                  &
                                diag_effi_ave = p3a(:,:,1,16),                  &
-                  n_iceCat      = 1,                              &
+                               model         = model,                          &
+                               n_diag2d      = nout2d,                         &
+                               n_diag3d      = nout3d,                         &
+
+                               n_iceCat      = 1,                              &
 
                                qit_1         = p3a(:,:,1,17),                  &
                                qni_1         = p3a(:,:,1,18),                  &
@@ -1144,7 +1150,7 @@
               enddo
               enddo
 
-              call mp_p3_wrapper_wrf( th     = p3a(:,:,1,1),                   &
+              call mp_p3_wrapper_wrfcm1( th  = p3a(:,:,1,1),                   &
                                qv            = p3a(:,:,1,2),                   &
                                qc            = p3a(:,:,1,3),                   &
                                qr            = p3a(:,:,1,4),                   &
@@ -1157,19 +1163,22 @@
                                w             = p3a(:,:,1,11),                  &
                                dt            = dt,                             &
                                itimestep     = nstep,                          &
-                               rainnc        = p3a(:,1,1,12),                  &
-                               snownc        = p3a(:,1,1,13),                  &
-                              !snownc        = dum1(:,:,4),                    &
-                               rainncv       = dum1(:,:,2),                    &
+                               rainncv       = p3a(:,1,1,12),                  &
+                               snowncv       = p3a(:,1,1,13),                  &
+                               rainnc        = dum1(:,:,2),                    &
+                               snownc        = dum1(:,:,5),                    &
                                sr            = dum1(:,:,3),                    &
-                               snowncv       = dum1(:,:,5),                    &
                                ids=1, ide=ni, jds=1, jde=1, kds=1, kde=nk ,    &
                                ims=1, ime=ni, jms=1, jme=1, kms=1, kme=nk ,    &
                                its=1, ite=ni, jts=1, jte=1, kts=1, kte=nk ,    &
                                diag_zdbz     = p3a(:,:,1,14),                  &
                                diag_effc     = p3a(:,:,1,15),                  &
                                diag_effi_ave = p3a(:,:,1,16),                  &
-                  n_iceCat      = 1,                              &
+                               model         = model,                          &
+                               n_diag2d      = nout2d,                         &
+                               n_diag3d      = nout3d,                         &
+
+                               n_iceCat      = 1,                              &
 
                                qit_1         = p3a(:,:,1,17),                  &
                                qni_1         = p3a(:,:,1,18),                  &
@@ -1283,7 +1292,7 @@
               enddo
               enddo
 
-              call mp_p3_wrapper_wrf( th     = p3a(:,:,1,1),                   &
+              call mp_p3_wrapper_wrfcm1( th  = p3a(:,:,1,1),                   &
                                qv            = p3a(:,:,1,2),                   &
                                qc            = p3a(:,:,1,3),                   &
                                qr            = p3a(:,:,1,4),                   &
@@ -1296,19 +1305,22 @@
                                w             = p3a(:,:,1,11),                  &
                                dt            = dt,                             &
                                itimestep     = nstep,                          &
-                               rainnc        = p3a(:,1,1,12),                  &
-                               snownc        = p3a(:,1,1,13),                  &
-                              !snownc        = dum1(:,:,4),                    &
-                               rainncv       = dum1(:,:,2),                    &
+                               rainncv       = p3a(:,1,1,12),                  &
+                               snowncv       = p3a(:,1,1,13),                  &
+                               rainnc        = dum1(:,:,2),                    &
+                               snownc        = dum1(:,:,5),                    &
                                sr            = dum1(:,:,3),                    &
-                               snowncv       = dum1(:,:,5),                    &
                                ids=1, ide=ni, jds=1, jde=1, kds=1, kde=nk ,    &
                                ims=1, ime=ni, jms=1, jme=1, kms=1, kme=nk ,    &
                                its=1, ite=ni, jts=1, jte=1, kts=1, kte=nk ,    &
                                diag_zdbz     = p3a(:,:,1,14),                  &
                                diag_effc     = p3a(:,:,1,15),                  &
                                diag_effi_ave = p3a(:,:,1,16),                  &
-                  n_iceCat      = 2,                              &
+                               model         = model,                          &
+                               n_diag2d      = nout2d,                         &
+                               n_diag3d      = nout3d,                         &
+
+                               n_iceCat      = 2,                              &
 
                                qit_1         = p3a(:,:,1,17),                  &
                                qni_1         = p3a(:,:,1,18),                  &
@@ -1453,7 +1465,7 @@
               enddo
               enddo
 
-              call mp_p3_wrapper_wrf( th     = p3a(:,:,1,1),                   &
+              call mp_p3_wrapper_wrfcm1( th  = p3a(:,:,1,1),                   &
                                qv            = p3a(:,:,1,2),                   &
                                qc            = p3a(:,:,1,3),                   &
                                qr            = p3a(:,:,1,4),                   &
@@ -1466,19 +1478,22 @@
                                w             = p3a(:,:,1,11),                  &
                                dt            = dt,                             &
                                itimestep     = nstep,                          &
-                               rainnc        = p3a(:,1,1,12),                  &
-                               snownc        = p3a(:,1,1,13),                  &
-                              !snownc        = dum1(:,:,4),                    &
-                               rainncv       = dum1(:,:,2),                    &
+                               rainncv       = p3a(:,1,1,12),                  &
+                               snowncv       = p3a(:,1,1,13),                  &
+                               rainnc        = dum1(:,:,2),                    &
+                               snownc        = dum1(:,:,5),                    &
                                sr            = dum1(:,:,3),                    &
-                               snowncv       = dum1(:,:,5),                    &
                                ids=1, ide=ni, jds=1, jde=1, kds=1, kde=nk ,    &
                                ims=1, ime=ni, jms=1, jme=1, kms=1, kme=nk ,    &
                                its=1, ite=ni, jts=1, jte=1, kts=1, kte=nk ,    &
                                diag_zdbz     = p3a(:,:,1,14),                  &
                                diag_effc     = p3a(:,:,1,15),                  &
                                diag_effi_ave = p3a(:,:,1,16),                  &
-                  n_iceCat      = 3,                              &
+                               model         = model,                          &
+                               n_diag2d      = nout2d,                         &
+                               n_diag3d      = nout3d,                         &
+
+                               n_iceCat      = 3,                              &
 
                                qit_1         = p3a(:,:,1,17),                  &
                                qni_1         = p3a(:,:,1,18),                  &
@@ -1654,7 +1669,7 @@
               enddo
               enddo
 
-              call mp_p3_wrapper_wrf( th     = p3a(:,:,1,1),                   &
+              call mp_p3_wrapper_wrfcm1( th  = p3a(:,:,1,1),                   &
                                qv            = p3a(:,:,1,2),                   &
                                qc            = p3a(:,:,1,3),                   &
                                qr            = p3a(:,:,1,4),                   &
@@ -1667,19 +1682,22 @@
                                w             = p3a(:,:,1,11),                  &
                                dt            = dt,                             &
                                itimestep     = nstep,                          &
-                               rainnc        = p3a(:,1,1,12),                  &
-                               snownc        = p3a(:,1,1,13),                  &
-                              !snownc        = dum1(:,:,4),                    &
-                               rainncv       = dum1(:,:,2),                    &
+                               rainncv       = p3a(:,1,1,12),                  &
+                               snowncv       = p3a(:,1,1,13),                  &
+                               rainnc        = dum1(:,:,2),                    &
+                               snownc        = dum1(:,:,5),                    &
                                sr            = dum1(:,:,3),                    &
-                               snowncv       = dum1(:,:,5),                    &
                                ids=1, ide=ni, jds=1, jde=1, kds=1, kde=nk ,    &
                                ims=1, ime=ni, jms=1, jme=1, kms=1, kme=nk ,    &
                                its=1, ite=ni, jts=1, jte=1, kts=1, kte=nk ,    &
                                diag_zdbz     = p3a(:,:,1,14),                  &
                                diag_effc     = p3a(:,:,1,15),                  &
                                diag_effi_ave = p3a(:,:,1,16),                  &
-                  n_iceCat      = 4,                              &
+                               model         = model,                          &
+                               n_diag2d      = nout2d,                         &
+                               n_diag3d      = nout3d,                         &
+
+                               n_iceCat      = 4,                              &
 
                                qit_1         = p3a(:,:,1,17),                  &
                                qni_1         = p3a(:,:,1,18),                  &
@@ -1821,23 +1839,26 @@
 
          !------   code common to all configs of P3:  ------
 
+           do i=1,ni
+              prate(i,j) = p3a(i,1,1,12)*rdt
+              srate(i,j) = p3a(i,1,1,13)*rdt
+           enddo
+
            if (axisymm.eq.1) then
               do i=1,ni
-                 prate(i,j) = p3a(i,1,1,12)*rdt
                  qbudget(6) = qbudget(6) + p3a(i,1,1,12)*ruh(i)*rvh(j)*dx*dy*dum3(i,j,1)/rho(i,j,1)
               enddo
            else
               do i=1,ni
-                 prate(i,j) = p3a(i,1,1,12)*rdt
                  qbudget(6) = qbudget(6) + p3a(i,1,1,12)*ruh(i)*rvh(j)*dx*dy
               enddo
            endif
 
            do n=1,nrain
            do i=1,ni
-             ! convert from mm to cm:
-              rain(i,j,n) = rain(i,j,n) + 0.1*p3a(i,1,1,12)  !actually, total precip
-             !snow(i,j,n) = snow(i,j,n) + 0.1*p3a(i,1,1,13)
+             ! factor of 0.1 is to convert from mm to cm:
+              rain(i,j,n) = rain(i,j,n) + 0.1*prate(i,j)*dt  !total (liquid + solid) precipitation (not just rain :))
+              hail(i,j,n) = hail(i,j,n) + 0.1*srate(i,j)*dt  !solid precipitation (not just snow :))
            enddo
            enddo
 

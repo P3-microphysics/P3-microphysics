@@ -4947,6 +4947,7 @@
 
       output_interp  = max(0,min(1,output_interp))*iterrain
       output_rain    = max(0,min(1,output_rain))
+      output_hail    = max(0,min(1,output_hail))
       output_sws     = max(0,min(1,output_sws))
       output_svs     = max(0,min(1,output_svs))
       output_sps     = max(0,min(1,output_sps))
@@ -5024,6 +5025,7 @@
 !!!      endif
       if(imoist.eq.0)then
         output_rain=0
+        output_hail=0
         output_srs=0
         output_sgs=0
         output_qv=0
@@ -5086,6 +5088,7 @@
       if(dowr) write(outfile,*) 'output_filetype  =',output_filetype
       if(dowr) write(outfile,*) 'output_interp    =',output_interp
       if(dowr) write(outfile,*) 'output_rain      =',output_rain
+      if(dowr) write(outfile,*) 'output_hail      =',output_hail
       if(dowr) write(outfile,*) 'output_sws       =',output_sws
       if(dowr) write(outfile,*) 'output_svs       =',output_svs
       if(dowr) write(outfile,*) 'output_sps       =',output_sps

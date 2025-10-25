@@ -112,9 +112,9 @@
               cs3we,cs3sn,ct3we,ct3sn,cv3we,cu3sn,cw3we,cw3sn,cs3weq,cs3snq,  &
               output_format,output_filetype,output_interp,                    &
               restart_format,restart_filetype,                                &
-              output_rain,output_sws,output_svs,output_sps,output_srs,        &
+              output_rain,output_hail,output_sws,output_svs,output_sps,       &
               output_sgs,output_sus,output_shs,output_coldpool,output_zs,     &
-              output_psfc,                                                    &
+              output_psfc,output_srs,                                         &
               output_basestate,output_sfcflx,output_sfcparams,output_sfcdiags,&
               output_zh,output_th,output_thpert,output_prs,output_prspert,    &
               output_pi,output_pipert,output_rho,output_rhopert,output_tke,   &
@@ -292,8 +292,8 @@
       namelist /param9/                                                       &
               output_format,output_filetype,                                  &
               output_interp,                                                  &
-              output_rain,output_sws,output_svs,output_sps,output_srs,        &
-              output_sgs,output_sus,output_shs,output_coldpool,               &
+              output_rain,output_hail,output_sws,output_svs,output_sps,       &
+              output_srs,output_sgs,output_sus,output_shs,output_coldpool,    &
               output_sfcflx,output_sfcparams,output_sfcdiags,                 &
               output_psfc,output_zs,output_zh,output_basestate,               &
               output_th,output_thpert,output_prs,output_prspert,              &

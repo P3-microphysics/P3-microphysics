@@ -27,7 +27,7 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.5.0-rc5                                                                 !
+! Version:       5.5.0-rc6                                                                 !
 ! Last updated:  2025 Oct                                                                  !
 !__________________________________________________________________________________________!
 
@@ -833,11 +833,11 @@ END subroutine p3_init
 
   !--- output:
 
-  ! rainnc         --   accumulated surface precip (mm)
-  ! rainncv        --   one time step accumulated surface precip (mm)
-  ! sr             --   ice to total surface precip ratio
-  ! snownc         --   accumulated surface ice precip (mm)
+  ! rainncv        --   one time step accumulated total (solid + liquid) surface precip (mm)
   ! snowncv        --   one time step accumulated surface ice precip (mm)
+  ! rainnc         --   accumulated total surface precip (mm)
+  ! snownc         --   accumulated surface ice precip (mm)
+  ! sr             --   ice to total surface precip ratio
   ! ids...kte      --   integer domain/tile bounds
   ! diag_zdbz      --   reflectivity (dBZ)
   ! diag_effc      --   cloud droplet effective radius (m)
@@ -1005,12 +1005,12 @@ END subroutine p3_init
                       diag_dhmax = diag_dhmax)
 
      !surface precipitation output:
-      dum1 = 1000.*dt
-      rainnc(its:ite,j)  = rainnc(its:ite,j) + (pcprt_liq(:) + pcprt_sol(:))*dum1  ! conversion from m/s to mm/time step
-      rainncv(its:ite,j) = (pcprt_liq(:) + pcprt_sol(:))*dum1                ! conversion from m/s to mm/time step
-      snownc(its:ite,j)  = snownc(its:ite,j) + pcprt_sol(:)*dum1                   ! conversion from m/s to mm/time step
-      snowncv(its:ite,j) = pcprt_sol(:)*dum1                                 ! conversion from m/s to mm/time step
-      sr(its:ite,j)      = pcprt_sol(:)/(pcprt_liq(:)+pcprt_sol(:)+1.e-12)   ! solid-to-total ratio
+      dum1 = 1000.*dt     ! to convert rates from mm/s to mm/time step
+      rainncv(its:ite,j) = (pcprt_liq(:) + pcprt_sol(:))*dum1      ! total (liquid + solid) precip "rate" (accumulation per time step)
+      snowncv(its:ite,j) = pcprt_sol(:)*dum1                       ! solid (only) precip "rate" (accumulation per time step)
+      rainnc(its:ite,j)  = rainnc(its:ite,j) + rainncv(its:ite,j)  ! accumulated (entire integration) total precipitation
+      snownc(its:ite,j)  = snownc(its:ite,j) + snowncv(its:ite,j)  ! accumulated (entire integration) solid precipitation
+      sr(its:ite,j)      = pcprt_sol(:)/(pcprt_liq(:)+pcprt_sol(:)+1.e-12)         ! solid-to-total ratio
 
       if (log_predictNc) nc(:,:,j) = nc_loc(:,:)
 

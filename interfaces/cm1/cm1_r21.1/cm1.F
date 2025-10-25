@@ -99,9 +99,10 @@
       real, dimension(:,:,:), allocatable :: dum1,dum2,dum3,dum4,dum5,dum6,dum7,dum8,dum9
       real, dimension(:,:), allocatable :: zs,gz,rgz,gzu,rgzu,gzv,rgzv,dzdx,dzdy
       real, dimension(:,:,:), allocatable :: gx,gxu,gy,gyv
-      real, dimension(:,:,:), allocatable :: rain,raincv,sws,svs,sps,srs,sgs,sus,shs
+      real, dimension(:,:,:), allocatable :: rain,raincv,hail,sws,svs,sps,srs,sgs,sus,shs
       real, dimension(:,:), allocatable :: tsk,znt,rznt,zntmp,ust,stau,tst,qst,z0t,z0q,thflux,qvflux,  &
-                                           cd,ch,cq,u1,v1,s1,t1,xland,psfc,tlh,f2d,psmth,prate,pratecv,ustt,ut,vt,st,cm0
+                                           cd,ch,cq,u1,v1,s1,t1,xland,psfc,tlh,f2d,psmth,prate,pratecv, &
+                                           srate,sratecv,ustt,ut,vt,st,cm0
       real, dimension(:,:), allocatable :: radbcw,radbce
       real, dimension(:,:), allocatable :: radbcs,radbcn
       real, dimension(:,:), allocatable :: dtu,dtu0,dtv,dtv0
@@ -491,7 +492,7 @@
       if (ptype.eq.50 .or. ptype.eq.51 .or. ptype.eq.52 .or. ptype.eq.53 .or. ptype.eq.54) then
          nout2d = 2
          nout3d = 3
-         nwrite = 0  ! to start numbering of individual output files at 0 
+         nwrite = 0  ! to start numbering of individual output files at 0
       endif
 
       IF( procfiles )THEN
@@ -880,6 +881,8 @@
       psmth = 0.0
       allocate(  prate(ib:ie,jb:je) )
       prate = 0.0
+      allocate(  srate(ib:ie,jb:je) )
+      srate = 0.0
       allocate(  pratecv(ib:ie,jb:je) )
       pratecv = 0.0
 
@@ -1492,6 +1495,8 @@
 #endif
       allocate(   rain(ib:ie,jb:je,nrain) )
       rain = 0.0
+      allocate(   hail(ib:ie,jb:je,nrain) )
+      hail = 0.0
       allocate( raincv(ib:ie,jb:je,nrain) )
       raincv = 0.0
       allocate(    sws(ib:ie,jb:je,nrain) )
@@ -2400,7 +2405,7 @@
                         zh,mh,rmh,zf,mf,rmf,rho0s,pi0s,prs0s,             &
                         pi0,prs0,rho0,thv0,th0,rth0,qv0,                  &
                         u0,v0,qc0,qi0,rr0,rf0,rrf0,                       &
-                        rain,sws,svs,sps,srs,sgs,sus,shs,                 &
+                        rain,hail,sws,svs,sps,srs,sgs,sus,shs,            &
                         thflux,qvflux,cd,ch,cq,f2d,                       &
                         dum1,dum2,dum3,dum4,divx,rho,prs,                 &
                         rru,ua,u3d,uten,uten1,rrv,va,v3d,vten,vten1,      &
@@ -2682,9 +2687,9 @@
                               qbudget,asq,bsq,qname,                               &
                               xfref,xhref,yfref,yhref,xh,xf,yh,yf,zh,zf,sigma,sigmaf,zs, &
                               th0,prs0,pi0,rho0,qv0,u0,v0,                         &
-                              rain,raincv,sws,svs,sps,srs,sgs,sus,shs,             &
+                              rain,raincv,hail,sws,svs,sps,srs,sgs,sus,shs,        &
                               tsk,znt,ust,cd,ch,cq,u1,v1,s1,t1,thflux,qvflux,      &
-                              prate,ustt,ut,vt,st,                                 &
+                              prate,srate,ustt,ut,vt,st,                           &
                               radbcw,radbce,radbcs,radbcn,                         &
                               rho,prs,ua,uten,va,vten,wa,ppi,tha,qa,tkea,          &
                               swten,lwten,thraten,radsw,rnflx,radswnet,radlwin,rad2d,      &
@@ -3422,7 +3427,7 @@
         call pdefq(    0.0,asq(1),ruh,rvh,rmh,rho,q3d(ib,jb,kb,1))
       else
         call   mp_driver(nstep,dt,qbudget,asq,bsq,xh,ruh,xf,ruf,yh,rvh,yf,rvf,  &
-                         mh,rmh,c1,c2,zh,mf,rmf,zf,rain,prate,pi0,th0,rho0,prs0,qv0,   &
+                         mh,rmh,c1,c2,zh,mf,rmf,zf,rain,hail,prate,srate,pi0,th0,rho0,prs0,qv0,   &
                          rho,prs,dum1,dum2,dum3,dum4,dum5,dum6,dum7,dum8,  &
                          w3d,ppi,pp3d,ppten,sten,tha,th3d,thten,qa,q3d,qten,   &
                          p3a,p3o,dum2d1,dum2d2,dum2d3,dum2d4,dum2d5,  &
@@ -3446,7 +3451,7 @@
                    pi0,rho0,prs0,thv0,th0,rth0,qv0,qc0,              &
                    qi0,rr0,rf0,rrf0,                                 &
                    zs,gz,rgz,gzu,rgzu,gzv,rgzv,dzdx,dzdy,            &
-                   rain,raincv,sws,svs,sps,srs,sgs,sus,shs,          &
+                   rain,raincv,hail,sws,svs,sps,srs,sgs,sus,shs,     &
                    dum1,dum2,dum3,dum4,dum5,dum6,dum7,dum8,          &
                    divx,rho,rr,rf,prs,                               &
                    u0,rru,ua,u3d,uten,uten1,                         &
@@ -3875,7 +3880,7 @@
                           dum1,dum2,dum3,dum4,dum5,ppten,prs,                 &
                           ua,va,wa,ppi,tha,qa,qten,kmh,kmv,khh,khv,tkea,qke,  &
                           tke_myj,xkzh,xkzq,xkzm,                             &
-                          pta,u10,v10,hpbl,prate,reset,nstatout,restarted)
+                          pta,u10,v10,hpbl,prate,srate,reset,nstatout,restarted)
         nrec = nrec + 1
         nstatout = nstatout + 1
         if( statfrq.gt.0.0 .and. ( .not. restarted ) )then
@@ -3954,10 +3959,10 @@
                         xh,xf,uf,yh,yf,vf,xfref,yfref,                                         &
                         rds,sigma,rdsf,sigmaf,zh,zf,mf,gx,gy,wprof,                            &
                         pi0,prs0,rho0,rr0,rf0,rrf0,th0,qv0,u0,v0,thv0,rth0,qc0,qi0,            &
-                        zs,rgzu,rgzv,rain,raincv,sws,svs,sps,srs,sgs,sus,shs,thflux,qvflux,psfc,      &
+                        zs,rgzu,rgzv,rain,raincv,hail,sws,svs,sps,srs,sgs,sus,shs,thflux,qvflux,psfc,      &
                         rxh,arh1,arh2,uh,ruh,rxf,arf1,arf2,vh,rvh,mh,rmh,rmf,rr,rf,            &
                         gz,rgz,gzu,gzv,gxu,gyv,dzdx,dzdy,c1,c2,                                &
-                        cd,ch,cq,tlh,f2d,psmth,prate,ustt,cm0,                                 &
+                        cd,ch,cq,tlh,f2d,psmth,prate,srate,ustt,cm0,                           &
                         dum1,dum2,dum3,dum4,dum5,dum6,dum7,dum8,dum9,                          &
                         t11,t12,t13,t22,t23,t33,rho,prs,divx,                                  &
                         rru,u3d,uten,uten1,rrv,v3d,vten,vten1,rrw,w3d,wten,pp3d,th3d,phi2,     &
@@ -4077,7 +4082,7 @@
                    qi0,rr0,rf0,rrf0,                                           &
                    zs,gz,rgz,gzu,rgzu,gzv,rgzv,dzdx,dzdy,gx,gxu,gy,gyv,        &
                    tsk,znt,ust,stau,tst,qst,z0t,z0q,thflux,qvflux,             &
-                   cd,ch,cq,u1,v1,s1,xland,psfc,tlh,prate,ustt,ut,vt,st,       &
+                   cd,ch,cq,u1,v1,s1,xland,psfc,tlh,prate,srate,ustt,ut,vt,st, &
                    dum1,dum2,dum3,dum4,dum5,dum6,dum7,dum8,dum9,               &
                    divx,rho,rr,rf,prs,t11,t12,t13,t22,t23,t33,                 &
                    m11,m12,m13,m22,m23,m33,                                    &
@@ -4087,7 +4092,7 @@
                    pp3d,sadv,ppten ,sten,th3d,thten,thten1,thterm,phi2,        &
                    q3d,qten,kmh,kmv,khh,khv,cme,csm,ce1,ce2,tkea,tke3d,tketen, &
                    nm,defv,defh,lenscl,dissten,epst,epsd1,epsd2,pt3d,          &
-                   rain,raincv,hfx,qfx,u10,v10,s10,t2,q2,th2,mznt,             &
+                   rain,raincv,hail,hfx,qfx,u10,v10,s10,t2,q2,th2,mznt,        &
                    hpbl,wspd,zol,mol,rmol,br,brcr,phim,phih,psim,psih,         &
                    thpten,qvpten,qcpten,qipten,upten,vpten,qnipten,qncpten,xkzh,xkzq,xkzm, &
                    qsfc,o30,zir,swten,lwten,swtenc,lwtenc,cldfra,              &
@@ -4154,8 +4159,8 @@
                    q3d,qten,kmh,kmv,khh,khv,tkea,tke3d,tketen,                 &
                    nm,defv,defh,dissten,                                       &
                    thpten,qvpten,qcpten,qipten,upten,vpten,xkzh,xkzq,xkzm,     &
-                   rain,raincv,u10,v10,s10,br,brcr,hpbl,t2,q2,hfx,qfx,prate,cm0, &
-                   swten,lwten,cldfra,qke,                                     &
+                   rain,raincv,hail,u10,v10,s10,br,brcr,hpbl,t2,q2,hfx,qfx,prate,   &
+                   srate,cm0,swten,lwten,cldfra,qke,                           &
                    lwupt,lwuptc,lwdnt,lwdntc,lwupb,lwupbc,lwdnb,lwdnbc,        &
                    swupt,swuptc,swdnt,swdntc,swupb,swupbc,swdnb,swdnbc,        &
                    lwcf,swcf,wprof,dumk1,dumk2,                                &
@@ -4218,7 +4223,7 @@
                    q3d,qten,kmh,kmv,khh,khv,cme,csm,ce1,ce2,tkea,tke3d,tketen, &
                    nm,defv,defh,lenscl,dissten,                                &
                    thpten,qvpten,qcpten,qipten,upten,vpten,xkzh,xkzq,xkzm,     &
-                   rain,raincv,u10,v10,s10,br,brcr,hpbl,prate,                 &
+                   rain,raincv,hail,u10,v10,s10,br,brcr,hpbl,prate,srate,      &
                    swten,lwten,cldfra,qke,qke_adv,el_pbl,edmf_a,               &
                    tdiag,qdiag,udiag,vdiag,wdiag,pdiag,out2d,out3d,getdbz,getvt, &
                    effc,effi,effs,effr,effg,effis,                             &
@@ -4271,9 +4276,9 @@
                                qbudget,asq,bsq,qname,                               &
                                xfref,xhref,yfref,yhref,xh,xf,yh,yf,zh,zf,sigma,sigmaf,zs, &
                                th0,prs0,pi0,rho0,qv0,u0,v0,                         &
-                               rain,raincv,sws,svs,sps,srs,sgs,sus,shs,             &
+                               rain,raincv,hail,sws,svs,sps,srs,sgs,sus,shs,        &
                                tsk,znt,ust,cd,ch,cq,u1,v1,s1,t1,thflux,qvflux,      &
-                               prate,ustt,ut,vt,st,                                 &
+                               prate,srate,ustt,ut,vt,st,                           &
                                radbcw,radbce,radbcs,radbcn,                         &
                                rho,prs,ua,uten,va,vten,wa,ppi,tha,qa,tkea,          &
                                swten,lwten,thraten,radsw,rnflx,radswnet,radlwin,rad2d,      &

@@ -23,10 +23,10 @@
                         xh,xf,uf,yh,yf,vf,xfref,yfref,                                         &
                         rds,sigma,rdsf,sigmaf,zh,zf,mf,gx,gy,wprof,                            &
                         pi0,prs0,rho0,rr0,rf0,rrf0,th0,qv0,u0,v0,thv0,rth0,qc0,qi0,            &
-                        zs,rgzu,rgzv,rain,raincv,sws,svs,sps,srs,sgs,sus,shs,thflux,qvflux,psfc,      &
-                        rxh,arh1,arh2,uh,ruh,rxf,arf1,arf2,vh,rvh,mh,rmh,rmf,rr,rf,            &
+                        zs,rgzu,rgzv,rain,raincv,hail,sws,svs,sps,srs,sgs,sus,shs,             &
+                        thflux,qvflux,psfc,rxh,arh1,arh2,uh,ruh,rxf,arf1,arf2,vh,rvh,mh,rmh,rmf,rr,rf,&
                         gz,rgz,gzu,gzv,gxu,gyv,dzdx,dzdy,c1,c2,                                &
-                        cd,ch,cq,tlh,f2d,psmth,prate,ustt,cm0,                                 &
+                        cd,ch,cq,tlh,f2d,psmth,prate,srate,ustt,cm0,                           &
                         dum1,dum2,dum3,dum4,dum5,dum6,dum7,dum8,dum9,                          &
                         t11,t12,t13,t22,t23,t33,rho,prs,divx,                                  &
                         rru,ua ,dumu,ugr  ,rrv,va ,dumv,vgr  ,rrw,wa ,dumw,ppi ,tha ,phi2,     &
@@ -103,8 +103,8 @@
       real, dimension(ib:ie,jb:je,kb:ke), intent(in) :: pi0,prs0,rho0,rr0,rf0,rrf0,th0,qv0,thv0,rth0,qc0,qi0
       real, dimension(ib:ie,jb:je), intent(in) :: zs
       real, dimension(itb:ite,jtb:jte), intent(in) :: rgzu,rgzv
-      real, dimension(ib:ie,jb:je,nrain), intent(in) :: rain,raincv,sws,svs,sps,srs,sgs,sus,shs
-      real, dimension(ib:ie,jb:je), intent(in) :: xland,psfc,psmth,thflux,qvflux,cd,ch,cq,tlh,f2d,prate,ustt,cm0
+      real, dimension(ib:ie,jb:je,nrain), intent(in) :: rain,raincv,hail,sws,svs,sps,srs,sgs,sus,shs
+      real, dimension(ib:ie,jb:je), intent(in) :: xland,psfc,psmth,thflux,qvflux,cd,ch,cq,tlh,f2d,prate,srate,ustt,cm0
       real, intent(in), dimension(ib:ie) :: rxh,arh1,arh2,uh,ruh
       real, intent(in), dimension(ib:ie+1) :: rxf,arf1,arf2
       real, intent(in), dimension(jb:je) :: vh,rvh
@@ -361,12 +361,25 @@
     if(output_rain   .eq.1)then
       n_out = n_out + 1
       name_output(n_out) = 'rain    '
-      desc_output(n_out) = 'accumulated surface rainfall'
+      desc_output(n_out) = 'accumulated surface total precipitation'
       unit_output(n_out) = 'cm'
       grid_output(n_out) = '2'     ! s=scalar pts (3d) ; u=u pts (3d) ; v=v pts (3d) ; w=w pts (3d) ; 2=2d scalar pts
       cmpr_output(n_out) = .true.
 
         call   write2d(rain(ib,jb,1),fnum,srec,nwrite,nloop,dat1,dat2,dat3,reqt,myi1p,myi2p,myj1p,myj2p,ncid,time_index,name_output(n_out),levs_output(n_out))
+    endif
+
+  !.............................................
+
+    if(output_hail   .eq.1)then
+      n_out = n_out + 1
+      name_output(n_out) = 'hail    '
+      desc_output(n_out) = 'accumulated surface solid precipitation'
+      unit_output(n_out) = 'cm'
+      grid_output(n_out) = '2'     ! s=scalar pts (3d) ; u=u pts (3d) ; v=v pts (3d) ; w=w pts (3d) ; 2=2d scalar pts
+      cmpr_output(n_out) = .true.
+
+        call   write2d(hail(ib,jb,1),fnum,srec,nwrite,nloop,dat1,dat2,dat3,reqt,myi1p,myi2p,myj1p,myj2p,ncid,time_index,name_output(n_out),levs_output(n_out))
     endif
 
   !.............................................
@@ -387,7 +400,7 @@
     if(output_rain   .eq.1)then
       n_out = n_out + 1
       name_output(n_out) = 'prate'
-      desc_output(n_out) = 'surface precipitation rate'
+      desc_output(n_out) = 'surface total precipitation rate'
       unit_output(n_out) = 'kg/m2/s'
       grid_output(n_out) = '2'     ! s=scalar pts (3d) ; u=u pts (3d) ; v=v pts (3d) ; w=w pts (3d) ; 2=2d scalar pts
       cmpr_output(n_out) = .true.
@@ -397,6 +410,27 @@
           do j=1,nj
           do i=1,ni
             dum2d(i,j) = prate(i,j)
+          enddo
+          enddo
+
+        call   write2d(dum2d,fnum,srec,nwrite,nloop,dat1,dat2,dat3,reqt,myi1p,myi2p,myj1p,myj2p,ncid,time_index,name_output(n_out),levs_output(n_out))
+    endif
+
+  !.............................................
+
+    if(output_hail   .eq.1)then
+      n_out = n_out + 1
+      name_output(n_out) = 'srate'
+      desc_output(n_out) = 'surface solid precipitation rate'
+      unit_output(n_out) = 'kg/m2/s'
+      grid_output(n_out) = '2'     ! s=scalar pts (3d) ; u=u pts (3d) ; v=v pts (3d) ; w=w pts (3d) ; 2=2d scalar pts
+      cmpr_output(n_out) = .true.
+
+          !$omp parallel do default(shared)  &
+          !$omp private(i,j)
+          do j=1,nj
+          do i=1,ni
+            dum2d(i,j) = srate(i,j)
           enddo
           enddo
 
@@ -558,6 +592,28 @@
           do j=1,nj
           do i=1,ni
             dum2d(i,j) = rain(i,j,2)
+          enddo
+          enddo
+
+        call   write2d(dum2d,fnum,srec,nwrite,nloop,dat1,dat2,dat3,reqt,myi1p,myi2p,myj1p,myj2p,ncid,time_index,name_output(n_out),levs_output(n_out))
+      endif
+    endif
+
+  !.............................................
+
+    if(nrain.eq.2)then
+      if(output_hail   .eq.1)then
+        n_out = n_out + 1
+        name_output(n_out) = 'hail2   '
+        desc_output(n_out) = 'translated surface solid precipitation'
+        unit_output(n_out) = 'cm'
+        grid_output(n_out) = '2'     ! s=scalar pts (3d) ; u=u pts (3d) ; v=v pts (3d) ; w=w pts (3d) ; 2=2d scalar pts
+
+          !$omp parallel do default(shared)  &
+          !$omp private(i,j)
+          do j=1,nj
+          do i=1,ni
+            dum2d(i,j) = hail(i,j,2)
           enddo
           enddo
 
