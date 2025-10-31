@@ -27,7 +27,7 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.5.0-rc6                                                                 !
+! Version:       5.5.0-rc7                                                                 !
 ! Last updated:  2025 Oct                                                                  !
 !__________________________________________________________________________________________!
 
@@ -2175,7 +2175,7 @@ END subroutine p3_init
             dumic,dumiic,dumjjc,catcoll,k_qxbot,k_qxtop,dumll,dumllc,dumzq
 
  logical :: log_nucleationPossible,log_hydrometeorsPresent,log_predictSsat,              &
-            log_hmossopOn,log_outputTimestep,log_tmp1,log_tmp2
+            log_hmossopOn,log_outputStep,log_outputStep_cm1,log_tmp1,log_tmp2
 
 ! quantities related to process rates/parameters, interpolated from lookup tables:
 
@@ -2226,7 +2226,8 @@ END subroutine p3_init
  real, dimension(nCat) :: epsiz,epsizsb
 
 ! quantities related to diagnostic hydrometeor/precipitation types
- real,    parameter                       :: freq3DtypeDiag     = 5.     !frequency (min) for full-column diagnostics
+ real,    parameter                       :: freq3DtypeDiag     = 60.     !frequency (min) for full-column diagnostics
+ real,    parameter                       :: freq3DtypeDiag_cm1 =  5.     !frequency (min) for full-column diagnostics (CM1 only)
  real,    parameter                       :: thres_raindrop     = 100.e-6 !size threshold for drizzle vs. rain
  real,    dimension(its:ite,kts:kte)      :: Q_drizzle,Q_rain
  real,    dimension(its:ite,kts:kte,nCat) :: Q_crystals,Q_snow,Q_wsnow,Q_grpl,Q_pellets,Q_hail
@@ -4936,14 +4937,16 @@ call cpu_time(timer_end(6))
                 f1pr13 = proc_from_LUT_main2mom( 9,args_r,args_i)
                 f1pr15 = proc_from_LUT_main2mom(11,args_r,args_i)
                 f1pr16 = proc_from_LUT_main2mom(12,args_r,args_i)
+                if (log_typeDiags) then
+                   f1pr22 = proc_from_LUT_main2mom(13,args_r,args_i)
+                   f1pr23 = proc_from_LUT_main2mom(14,args_r,args_i)
+                endif
 
              else ! trplmomice_3
 
                 call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,  &
                           dum7,isize,rimsize,liqsize,densize,qitot(i,k,iice),            &
                           nitot(i,k,iice),qirim(i,k,iice),qiliq(i,k,iice),rhop)
-
-             ! get Znorm indices
 
              !impose lower limits to prevent taking log of # < 0
                 zitot(i,k,iice) = max(zitot(i,k,iice),zsmall)
@@ -4982,8 +4985,8 @@ call cpu_time(timer_end(6))
              diag_effi(i,k,iice) = f1pr06  !units are in m
              diag_di(i,k,iice)   = f1pr15
              diag_rhoi(i,k,iice) = f1pr16
-             arr_lami(i,k,iice)  = f1pr22  !local only (not for output)
-             arr_mui(i,k,iice)   = f1pr23  !local only
+             arr_lami(i,k,iice)  = f1pr22  !local use only (not for output)
+             arr_mui(i,k,iice)   = f1pr23  !local use only
 
           ! note: air density factor below converts from m^6/kg to m^6/m^3
           ! also, reflectivity from lookup table is normalized, so need to multiply by N
@@ -5168,22 +5171,22 @@ timer_description(9) = 'type_diags'
 call cpu_time(timer_start(9))
 #endif
 
- log_outputTimestep = freq3DtypeDiag>0. .and. mod(it*dt,freq3DtypeDiag*60.)==0.
+ log_outputStep     = freq3DtypeDiag>0.     .and. mod(it*dt,freq3DtypeDiag*60.)==0.
+ log_outputStep_cm1 = freq3DtypeDiag_cm1>0. .and. mod(it*dt,freq3DtypeDiag_cm1*60.)==0.
 
-!--- diagnostics CM1 only:
- if (log_outputTimestep .and. trim(model)=='CM1') then
-    diag_3d(:,:,1) = sum(qitot(:,:,:))
-!   diag_2d(:,1)   = prt_liq(:)
-!   diag_2d(:,2)   = prt_sol(:)
+!--- diagnostics CM1 and KIN1D only:
+ if ((log_outputStep_cm1 .and. trim(model)=='CM1') .or. trim(model)=='KIN1D') then
+    diag_3d(:,:,1) = sum(qitot(:,:,:),dim=3)
     do k = ktop,kbot,-kdir
-       do i = its,ite
-          do iice = 1,nCat
-            !note: the function maxHailSize is quite expensive
-             diag_dhmax(i,k,iice) = maxHailSize(rho(i,k),nitot(i,k,iice),rhofaci(i,k),    &
-                                                arr_lami(i,k,iice),arr_mui(i,k,iice))
-          enddo
-          diag_3d(i,k,2) = maxval(diag_dhmax(i,k,:))
-       enddo
+     do i = its,ite
+         do iice = 1,nCat
+           !note: the function maxHailSize is quite expensive
+            tmp1 = qirim(i,k,iice)/max(qsmall,qitot(i,k,iice))  !rime fraction
+            diag_dhmax(i,k,iice) = maxHailSize(rho(i,k),nitot(i,k,iice),rhofaci(i,k),    &
+                                               arr_lami(i,k,iice),arr_mui(i,k,iice),     &
+                                               diag_rhoi(i,k,iice),tmp1)
+         enddo
+     enddo
     enddo
  endif
 !---
@@ -5214,7 +5217,7 @@ call cpu_time(timer_start(9))
 
    ! compute hydrometeor type diagnostics for full columns on output timesteps only;
    ! otherwise only calculate at bottom level (for precipitation rates)
-    ktop_typeDiag = merge(ktop, kbot, log_outputTimestep)
+    ktop_typeDiag = merge(ktop, kbot, log_outputStep)
 
     i_loop_typediag: do i = its,ite
 
@@ -5294,8 +5297,12 @@ call cpu_time(timer_start(9))
                            Q_hail(i,k,iice) = qitot(i,k,iice)
                           !note: The function maxHailSize is very expensive (to be replaced)
                           !      Use for diagnostics only (uncommment line below)
-                          !if (log_typeDiags) diag_dhmax(i,k,iice) = maxHailSize(rho(i,k),       &
-                          !      nitot(i,k,iice),rhofaci(i,k),arr_lami(i,k,iice),arr_mui(i,k,iice))
+                          !if (log_typeDiags) then
+                          !   tmp1 = qirim(i,k,iice)/max(qsmall,qitot(i,k,iice))  !rime fraction
+                          !   diag_dhmax(i,k,iice) = maxHailSize(rho(i,k),       &
+                          !      nitot(i,k,iice),rhofaci(i,k),arr_lami(i,k,iice),arr_mui(i,k,iice), &
+                          !      diag_rhoi(i,k,iice),tmp1)
+                          !endif
                         endif
                         !here, surface temperature is a proxy for the likelihood of hail being physically reasonable
                         tmp1 = merge(1., 0., t_tmp.lt.283.15)
@@ -11248,7 +11255,7 @@ else
 
 !======================================================================================!
 
- real function maxHailSize(rho,nit,rhofaci,lam,mu)
+ real function maxHailSize(rho,nit,rhofaci,lam,mu,rhoi,Frime)
 
  !--------------------------------------------------------------------------
  ! Computes the maximum hail size by estimating the maximum size that is
@@ -11256,16 +11263,17 @@ else
  ! gamma size distribution).
  !
  ! Follows the method described in Milbrandt and Yau (2006a).
- !
  !--------------------------------------------------------------------------
 
  implicit none
 
 ! Arguments:
- real, intent(in) :: rho        ! air density   [kg m-3]
- real, intent(in) :: nit        ! total num and total number mixing ratio
- real, intent(in) :: rhofaci    ! air density correction factor for ice fall speed
- real, intent(in) :: lam,mu     ! PSD slope and shape parameters
+ real, intent(in) :: rho                 ! air density   [kg m-3]
+ real, intent(in) :: nit                 ! total number mixing ratio  [# kg-1]
+ real, intent(in) :: rhofaci             ! air density correction factor for ice fall speed
+ real, intent(in) :: lam,mu              ! PSD slope and shape parameters
+ real, intent(in) :: rhoi                ! density of ice [kg m-3]
+ real, intent(in) :: Frime               ! rime fraction
 
 ! Local:
  real, parameter  :: dD       = 1.e-3    ! diameter bin width [m]
@@ -11286,24 +11294,28 @@ else
 !-----------------------------------------------------------------------
 
  maxHailSize = 0.
- nd  = int(Dmax_psd/dD)
-!note: Use of double-precision for for n0 and integral calculations below are
-!      necessary since intermediate calculations, and n0, can be quite large.
-!n0  = nit*lam**(mu+1.)/gamma(mu+1.)
- n0  = dble(nit)*dble(lam)**dble(mu+1.)/dble(gamma(mu+1.))
 
-!-- method 1, based on Rh*crit:
- R_tail  = 0.
- do i = nd,1,-1
-    Di  = i*dD
-    V_h = rhofaci*(ch*Di**Dh)
-   !R_tail = R_tail + V_h*n0*Di**mu*exp(-lam*Di)*dD
-    R_tail = R_tail + V_h*sngl(n0*dble(Di)**dble(mu)*dble(exp(-lam*Di)))*dD
-    if (R_tail>Rcrit) then
-       maxHailSize = Di
-       exit
-    endif
- enddo
+ if (nit>0. .and. rhoi>700. .and. Frime>0.7) then
+   ! ice is diagnosed as hail if the bulk density and rime fractions are large
+
+    nd  = int(Dmax_psd/dD)
+   !note: Use of double-precision for for n0 and integral calculations below are
+   !      necessary since intermediate calculations, and n0, can be quite large.
+   !n0  = nit*lam**(mu+1.)/gamma(mu+1.)
+    n0  = dble(nit)*dble(lam)**dble(mu+1.)/dble(gamma(mu+1.))
+
+   !-- method 1, based on Rh*crit:
+    R_tail  = 0.
+    do i = nd,1,-1
+       Di  = i*dD
+       V_h = rhofaci*(ch*Di**Dh)
+      !R_tail = R_tail + V_h*n0*Di**mu*exp(-lam*Di)*dD
+       R_tail = R_tail + V_h*sngl(n0*dble(Di)**dble(mu)*dble(exp(-lam*Di)))*dD
+       if (R_tail>Rcrit) then
+          maxHailSize = Di
+          exit
+       endif
+    enddo
 
 ! !-- method 2, based on Nh*crit:
 !  N_tot = rho*nit
@@ -11322,6 +11334,8 @@ else
 !        exit
 !     endif
 !  enddo
+
+ endif
 
  end function maxHailSize
 
