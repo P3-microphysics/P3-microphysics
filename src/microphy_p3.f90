@@ -27,8 +27,8 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.5.0-rc7                                                                 !
-! Last updated:  2025 Oct                                                                  !
+! Version:       5.5.0-rc8                                                                 !
+! Last updated:  2025 Nov                                                                  !
 !__________________________________________________________________________________________!
 
  MODULE microphy_p3
@@ -2252,7 +2252,7 @@ END subroutine p3_init
  real    :: dumni,dumqi,dumzi,dumqr,dumbi,dumql,dumden,dmudt,dummu_i,dumnitend,dumqitend,dumzitend
  real    :: G_new,G_rate_tot,dumzi_old
  integer :: iana,nk
- logical, parameter :: log_full3mom = .true.   ! switch to turn on full 3-moment ice
+ logical, parameter :: log_full3mom = .false.   ! switch to turn on full 3-moment ice
 
  real,    dimension(n_args_r) :: args_r   ! array of real arguments for functions 'proc_from_LUT_[x]'
  integer, dimension(n_args_i) :: args_i   ! array of integer argument for functions 'proc_from_LUT_[x]'
@@ -4862,10 +4862,11 @@ call cpu_time(timer_end(6))
 !       if (global_status /= STATUS_OK) return
 !    endif
 
-!......................................................................................
-! final checks to ensure consistency of mass/number and compute outputdiagnostic fields
 
- k_loop_final_diagnostics: do k = kbot,ktop,kdir
+!......................................................................................
+! final checks to ensure consistency of mass/number and compute output diagnostic fields
+
+ k_loop_final_checks_diags: do k = kbot,ktop,kdir
   do i = its,ite
 
     ! cloud:
@@ -4896,8 +4897,7 @@ call cpu_time(timer_end(6))
          ! endif
 
          !diag_effr(i,k) = 0.5*(mu_r(i,k)+3.)/lamr(i,k)    (currently not used)
-         !ze_rain(i,k) = n0r(i,k)*720./lamr(i,k)**3/lamr(i,k)**3/lamr(i,k)
-         ! non-exponential rain:
+         !ze_rain(i,k) = n0r(i,k)*720./lamr(i,k)**3/lamr(i,k)**3/lamr(i,k)  !exponential DSD
           ze_rain(i,k) = rho(i,k)*nr(i,k)*(mu_r(i,k)+6.)*(mu_r(i,k)+5.)*(mu_r(i,k)+4.)*  &
                         (mu_r(i,k)+3.)*(mu_r(i,k)+2.)*(mu_r(i,k)+1.)/lamr(i,k)**6
        else
@@ -4910,12 +4910,11 @@ call cpu_time(timer_end(6))
     ! ice:
        call impose_max_Ni(nitot(i,k,:),max_Ni,i_rho(i,k))
 
-       iice_loop_final_diagnostics:  do iice = 1,nCat
+       iice_loop_final_checks_diags:  do iice = 1,nCat
 
           qi_not_small:  if (qitot(i,k,iice).ge.qsmall) then
 
-            !impose lower limits to prevent taking log of # < 0
-             nitot(i,k,iice) = max(nitot(i,k,iice),nsmall)
+             nitot(i,k,iice) = max(nitot(i,k,iice),nsmall) !prevent taking log of # < 0
              nr(i,k)         = max(nr(i,k),nsmall)
 
              call calc_bulkRhoRime(qitot(i,k,iice),qirim(i,k,iice),qiliq(i,k,iice),      &
@@ -4925,11 +4924,11 @@ call cpu_time(timer_end(6))
 
                 call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,  &
                           dum7,isize,rimsize,liqsize,densize,qitot(i,k,iice),            &
-                        nitot(i,k,iice),qirim(i,k,iice),qiliq(i,k,iice),rhop)
+                          nitot(i,k,iice),qirim(i,k,iice),qiliq(i,k,iice),rhop)
 
                 call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum7,0.,0.,0.,0.,         &
                                   dumjj,dumii,dumll,dumi,0,0)
-                f1pr01 = proc_from_LUT_main2mom( 1,args_r,args_i)
+
                 f1pr02 = proc_from_LUT_main2mom( 2,args_r,args_i)
                 f1pr06 = proc_from_LUT_main2mom( 6,args_r,args_i)
                 f1pr09 = proc_from_LUT_main2mom( 7,args_r,args_i)
@@ -4937,10 +4936,8 @@ call cpu_time(timer_end(6))
                 f1pr13 = proc_from_LUT_main2mom( 9,args_r,args_i)
                 f1pr15 = proc_from_LUT_main2mom(11,args_r,args_i)
                 f1pr16 = proc_from_LUT_main2mom(12,args_r,args_i)
-                if (log_typeDiags) then
-                   f1pr22 = proc_from_LUT_main2mom(13,args_r,args_i)
-                   f1pr23 = proc_from_LUT_main2mom(14,args_r,args_i)
-                endif
+                f1pr22 = proc_from_LUT_main2mom(13,args_r,args_i)
+                f1pr23 = proc_from_LUT_main2mom(14,args_r,args_i)
 
              else ! trplmomice_3
 
@@ -4948,8 +4945,7 @@ call cpu_time(timer_end(6))
                           dum7,isize,rimsize,liqsize,densize,qitot(i,k,iice),            &
                           nitot(i,k,iice),qirim(i,k,iice),qiliq(i,k,iice),rhop)
 
-             !impose lower limits to prevent taking log of # < 0
-                zitot(i,k,iice) = max(zitot(i,k,iice),zsmall)
+                zitot(i,k,iice) = max(zitot(i,k,iice),zsmall) !prevent taking log of # < 0
 
                 call get_mui_rhoi(mu_i,f1pr16,dum6,dumzz,qitot(i,k,iice),                &
                                nitot(i,k,iice),zitot(i,k,iice),dum1,dum4,dum5,dum7,      &
@@ -4958,17 +4954,14 @@ call cpu_time(timer_end(6))
                 call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0.,       &
                                   dumzz,dumjj,dumii,dumll,dumi,0)
 
-                f1pr01 = proc_from_LUT_main3mom( 1,args_r,args_i)
                 f1pr02 = proc_from_LUT_main3mom( 2,args_r,args_i)
                 f1pr06 = proc_from_LUT_main3mom( 6,args_r,args_i)
                 f1pr09 = proc_from_LUT_main3mom( 7,args_r,args_i)
                 f1pr10 = proc_from_LUT_main3mom( 8,args_r,args_i)
                 f1pr13 = proc_from_LUT_main3mom( 9,args_r,args_i)
                 f1pr15 = proc_from_LUT_main3mom(11,args_r,args_i)
-                if (log_typeDiags) then
-                   f1pr22 = proc_from_LUT_main3mom(14,args_r,args_i)
-                   f1pr23 = proc_from_LUT_main3mom(15,args_r,args_i)
-                endif
+                f1pr22 = proc_from_LUT_main3mom(14,args_r,args_i)
+                f1pr23 = proc_from_LUT_main3mom(15,args_r,args_i)
 
              endif trplmomice_3
 
@@ -5008,7 +5001,7 @@ call cpu_time(timer_end(6))
 
           endif qi_not_small
 
-       enddo iice_loop_final_diagnostics
+       enddo iice_loop_final_checks_diags
 
        diag_ze(i,k) = 10.*log10((ze_ice(i,k)+ze_rain(i,k))*1.e+18)  ! convert to dBZ
 
@@ -5017,7 +5010,8 @@ call cpu_time(timer_end(6))
        nr(i,k) = merge(0., nr(i,k), qr(i,k).lt.qsmall)
 
   enddo !i loop
- enddo k_loop_final_diagnostics
+ enddo k_loop_final_checks_diags
+
 
 !     if (debug_on) then
 !        location_ind = 800
@@ -5076,53 +5070,8 @@ call cpu_time(timer_end(6))
 
    !..............................................
 
-!Diagnostics -- visibility:
- diag_visibility: if (present(diag_vis)) then
-   !it is assumed that all diag_vis{x} will either be present or all not present
 
-    diag_vis(:,:)  = 3.*maxVIS
-    diag_vis1(:,:) = 3.*maxVIS
-    diag_vis2(:,:) = 3.*maxVIS
-    diag_vis3(:,:) = 3.*maxVIS
-
-    do k = kbot,ktop,kdir
-     do i = its,ite
-
-          !VIS1:  component through liquid cloud (fog); based on Gultepe and Milbrandt, 2007)
-          tmp1 = qc(i,k)*rho(i,k)*1.e+3    !LWC [g m-3]
-          tmp2 = nc(i,k)*rho(i,k)*1.e-6    !Nc  [cm-3]
-          if (tmp1>0.005 .and. tmp2>1.) then
-             diag_vis1(i,k)= max(minVIS,1000.*(1.13*(tmp1*tmp2)**(-0.51))) !based on FRAM [GM2007, eqn (4)
-            !diag_vis1(i,k)= max(minVIS,min(maxVIS, (tmp1*tmp2)**(-0.65))) !based on RACE [GM2007, eqn (3)
-          endif
-
-      !VIS2: component through rain;  based on Gultepe and Milbrandt, 2008, Table 2 eqn (1)
-       tmp1 = mflux_r(i,k)*i_rhow*3.6e+6                                    !rain rate [mm h-1]
-       if (tmp1>0.01) then
-          diag_vis2(i,k)= max(minVIS,1000.*(-4.12*tmp1**0.176+9.01))   ![m]
-       endif
-
-      !VIS3: component through snow;  based on Gultepe and Milbrandt, 2008, Table 2 eqn (6)
-       tmp1 = mflux_i(i,k)*i_rhow*3.6e+6                                    !snow rate, liq-eq [mm h-1]
-       if (tmp1>0.01) then
-          diag_vis3(i,k)= max(minVIS,1000.*(1.10*tmp1**(-0.701)))      ![m]
-       endif
-
-          !VIS:  visibility due to reduction from all components 1, 2, and 3
-          !      (based on sum of extinction coefficients and Koschmieders's Law)
-          diag_vis(i,k) = min(maxVIS, 1./(1./diag_vis1(i,k) + 1./diag_vis2(i,k) +        &
-                          1./diag_vis3(i,k)))
-          diag_vis1(i,k)= min(maxVIS, diag_vis1(i,k))
-          diag_vis2(i,k)= min(maxVIS, diag_vis2(i,k))
-          diag_vis3(i,k)= min(maxVIS, diag_vis3(i,k))
-
-     enddo !i loop
-    enddo !k loop
-
- endif diag_visibility
-
-! Testing Cholette Jan. 2022
-! to remove any supersaturation w.r.t to water at the end of P3
+! remove any supersaturation w.r.t to water
  if (log_liqsatadj) then
     do k = kbot,ktop,kdir
      do i = its,ite
@@ -5180,8 +5129,7 @@ call cpu_time(timer_start(9))
     do k = ktop,kbot,-kdir
      do i = its,ite
          do iice = 1,nCat
-           !note: the function maxHailSize is quite expensive
-            tmp1 = qirim(i,k,iice)/max(qsmall,qitot(i,k,iice))  !rime fraction
+            tmp1 = qirim(i,k,iice)/max(qsmall,qitot(i,k,iice)-qiliq(i,k,iice))  !rime fraction
             diag_dhmax(i,k,iice) = maxHailSize(rho(i,k),nitot(i,k,iice),rhofaci(i,k),    &
                                                arr_lami(i,k,iice),arr_mui(i,k,iice),     &
                                                diag_rhoi(i,k,iice),tmp1)
@@ -5295,14 +5243,11 @@ call cpu_time(timer_start(9))
                            Q_pellets(i,k,iice) = qitot(i,k,iice)
                         else
                            Q_hail(i,k,iice) = qitot(i,k,iice)
-                          !note: The function maxHailSize is very expensive (to be replaced)
-                          !      Use for diagnostics only (uncommment line below)
-                          !if (log_typeDiags) then
-                          !   tmp1 = qirim(i,k,iice)/max(qsmall,qitot(i,k,iice))  !rime fraction
-                          !   diag_dhmax(i,k,iice) = maxHailSize(rho(i,k),       &
-                          !      nitot(i,k,iice),rhofaci(i,k),arr_lami(i,k,iice),arr_mui(i,k,iice), &
-                          !      diag_rhoi(i,k,iice),tmp1)
-                          !endif
+                           if (log_typeDiags) then
+                              diag_dhmax(i,k,iice) = maxHailSize(rho(i,k),               &
+                               nitot(i,k,iice),rhofaci(i,k),arr_lami(i,k,iice),          &
+                               arr_mui(i,k,iice),diag_rhoi(i,k,iice),rime_frac(i,k,iice))
+                           endif
                         endif
                         !here, surface temperature is a proxy for the likelihood of hail being physically reasonable
                         tmp1 = merge(1., 0., t_tmp.lt.283.15)
@@ -5316,10 +5261,8 @@ call cpu_time(timer_start(9))
 
           enddo k_loop_typdiag_2
 
-
          !diagnostics for sfc precipitation rates: (liquid-equivalent volume flux, m s-1)
          !  note: these are summed for all ice categories
-
           if (Q_crystals(i,kbot,iice) .gt. 0.)    then
              prt_crys(i) = prt_crys(i) + prt_soli(i,iice)   !precip rate of small crystals
           elseif (Q_snow(i,kbot,iice) .gt. 0.)  then
@@ -5363,7 +5306,52 @@ call cpu_time(timer_start(9))
     endif
 
  endif compute_type_diags
-!=== (end of section for diagnostic hydrometeor/precip types)
+
+
+ diag_visibility: if (present(diag_vis) .and. log_outputStep) then
+   !it is assumed that all diag_vis{x} will either be present or all not present
+
+    diag_vis(:,:)  = 3.*maxVIS
+    diag_vis1(:,:) = 3.*maxVIS
+    diag_vis2(:,:) = 3.*maxVIS
+    diag_vis3(:,:) = 3.*maxVIS
+
+    do k = kbot,ktop,kdir
+     do i = its,ite
+
+          !VIS1:  component through liquid cloud (fog); based on Gultepe and Milbrandt, 2007)
+          tmp1 = qc(i,k)*rho(i,k)*1.e+3    !LWC [g m-3]
+          tmp2 = nc(i,k)*rho(i,k)*1.e-6    !Nc  [cm-3]
+          if (tmp1>0.005 .and. tmp2>1.) then
+             diag_vis1(i,k)= max(minVIS,1000.*(1.13*(tmp1*tmp2)**(-0.51))) !based on FRAM [GM2007, eqn (4)
+            !diag_vis1(i,k)= max(minVIS,min(maxVIS, (tmp1*tmp2)**(-0.65))) !based on RACE [GM2007, eqn (3)
+          endif
+
+         !VIS2: component through rain;  based on Gultepe and Milbrandt, 2008, Table 2 eqn (1)
+          tmp1 = mflux_r(i,k)*i_rhow*3.6e+6                                    !rain rate [mm h-1]
+          if (tmp1>0.01) then
+             diag_vis2(i,k)= max(minVIS,1000.*(-4.12*tmp1**0.176+9.01))   ![m]
+          endif
+
+         !VIS3: component through snow;  based on Gultepe and Milbrandt, 2008, Table 2 eqn (6)
+          tmp1 = mflux_i(i,k)*i_rhow*3.6e+6                                    !snow rate, liq-eq [mm h-1]
+          if (tmp1>0.01) then
+             diag_vis3(i,k)= max(minVIS,1000.*(1.10*tmp1**(-0.701)))      ![m]
+          endif
+
+          !VIS:  visibility due to reduction from all components 1, 2, and 3
+          !      (based on sum of extinction coefficients and Koschmieders's Law)
+          diag_vis(i,k) = min(maxVIS, 1./(1./diag_vis1(i,k) + 1./diag_vis2(i,k) +        &
+                                          1./diag_vis3(i,k)))
+          diag_vis1(i,k)= min(maxVIS, diag_vis1(i,k))
+          diag_vis2(i,k)= min(maxVIS, diag_vis2(i,k))
+          diag_vis3(i,k)= min(maxVIS, diag_vis3(i,k))
+
+     enddo !i loop
+    enddo !k loop
+
+ endif diag_visibility
+
 
 #ifdef TIMING_P3
 timer_description(9) = 'type_diags'
