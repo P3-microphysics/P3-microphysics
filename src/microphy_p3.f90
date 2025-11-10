@@ -27,7 +27,7 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.5.0-rc8                                                                 !
+! Version:       5.5.0-rc9                                                                 !
 ! Last updated:  2025 Nov                                                                  !
 !__________________________________________________________________________________________!
 
@@ -112,8 +112,8 @@
  ! physical and mathematical constants
  real           :: rhosur,rhosui,ar,br,f1r,f2r,ecr,rhow,kr,kc,bimm,aimm,rin,mi0,trplpt,  &
                    eci,eri,bcn,cpw,e0,cons1,cons2,cons3,cons4,cons5,cons6,cons7,cons8,   &
-                   i_rhow,qsmall,nsmall,bsmall,zsmall,cp,g,rd,rv,ep_2,i_cp,mw,osm,       &
-                   vi,epsm,rhoa,map,ma,rr,bact,i_rm1,i_rm2,sig1,nanew1,f11,f21,sig2,     &
+                   i_rhow,qsmall,nsmall,bsmall,zsmall,zlarge,cp,g,rd,rv,ep_2,i_cp,mw,    &
+                   osm,vi,epsm,rhoa,map,ma,rr,bact,i_rm1,i_rm2,sig1,nanew1,f11,f21,sig2, &
                    nanew2,f12,f22,pi,thrd,sxth,piov3,piov6,rho_rimeMin,liqfracsmall,     &
                    rho_rimeMax,i_rho_rimeMax,max_Ni,dbrk,nmltratio,minVIS,               &
                    qsmall_dry1,qsmall_dry2,                                              &
@@ -153,7 +153,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.5.0-rc'
+ character(len=1024), parameter :: version_p3                    = '5.5.0-rc9'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.9-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '6.9-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.2'
@@ -254,12 +254,14 @@
  i_rho_rimeMax = 1./rho_rimeMax
 
 ! minium allowable prognostic variables
- qsmall     = 1.e-14
+ qsmall      = 1.e-14
  qsmall_dry1 = 1.e-8
  qsmall_dry2 = 1.e-12
- nsmall     = 1.e-16
- zsmall     = 1.e-35
- bsmall     = qsmall*i_rho_rimeMax
+ nsmall      = 1.e-16
+ zsmall      = 1.e-35
+ bsmall      = qsmall*i_rho_rimeMax
+
+ zlarge      = 1.
 
  liqfracsmall = 0.01
 
@@ -2805,6 +2807,7 @@ call cpu_time(timer_start(3))
                    f1pr10 = proc_from_LUT_main2mom( 8,args_r,args_i)
                    f1pr14 = proc_from_LUT_main2mom(10,args_r,args_i)
                    f1pr16 = proc_from_LUT_main2mom(12,args_r,args_i)
+
                    if (log_LiquidFrac) then
                       f1pr24 = proc_from_LUT_main2mom(15,args_r,args_i)
                       f1pr25 = proc_from_LUT_main2mom(16,args_r,args_i)
@@ -2825,11 +2828,6 @@ call cpu_time(timer_start(3))
                    endif
 
                 else ! trplmomice_1
-
-                ! get G indices
-
-                !impose lower limits to prevent taking log of # < 0
-                   zitot(i,k,iice) = max(zitot(i,k,iice),zsmall)
 
                    call get_mui_rhoi(mu_i,f1pr16,dum6,dumzz,qitot(i,k,iice),             &
                                      nitot(i,k,iice),zitot(i,k,iice),dum1,dum4,dum5,     &
@@ -2858,6 +2856,7 @@ call cpu_time(timer_start(3))
                       f1pr37 = proc_from_LUT_main3mom(28,args_r,args_i)
                       f1pr38 = proc_from_LUT_main3mom(29,args_r,args_i)
                    endif
+
                    if (log_LiquidFrac) then
                       f1pr24 = proc_from_LUT_main3mom(16,args_r,args_i)
                       f1pr25 = proc_from_LUT_main3mom(17,args_r,args_i)
@@ -4537,6 +4536,7 @@ call cpu_time(timer_end(3))
 ! End of main microphysical processes section
 !==========================================================================================!
 
+
 !==========================================================================================!
 #ifdef TIMING_P3
 timer_description(6) = 'sedimentation'
@@ -4649,8 +4649,6 @@ call cpu_time(timer_end(6))
                                      dumjj,dumii,dumll,dumi,0,0)
                    f1pr16 = proc_from_LUT_main2mom(12,args_r,args_i)
                 else
-                   zitot(i,k,iice) = max(zitot(i,k,iice),zsmall)
-
                    call get_mui_rhoi(mu_i,f1pr16,dum6,dumzz,qitot(i,k,iice),             &
                                   nitot(i,k,iice),zitot(i,k,iice),dum1,dum4,dum5,dum7,   &
                                   dumjj,dumii,dumll,dumi,zsize,zqsize)
@@ -4766,10 +4764,6 @@ call cpu_time(timer_end(6))
                   f1pr15 = proc_from_LUT_main2mom(11,args_r,args_i)
 
                 else ! triple moment ice
-
-                ! get Znorm indices
-
-                   zitot(i,k,iice) = max(zitot(i,k,iice),zsmall)   ! to prevent taking log of # < 0
 
                    call get_mui_rhoi(mu_i,f1pr16,dum6,dumzz,qitot(i,k,iice),             &
                                   nitot(i,k,iice),zitot(i,k,iice),dum1,dum4,dum5,dum7,   &
@@ -4944,8 +4938,6 @@ call cpu_time(timer_end(6))
                 call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,dum5,  &
                           dum7,isize,rimsize,liqsize,densize,qitot(i,k,iice),            &
                           nitot(i,k,iice),qirim(i,k,iice),qiliq(i,k,iice),rhop)
-
-                zitot(i,k,iice) = max(zitot(i,k,iice),zsmall) !prevent taking log of # < 0
 
                 call get_mui_rhoi(mu_i,f1pr16,dum6,dumzz,qitot(i,k,iice),                &
                                nitot(i,k,iice),zitot(i,k,iice),dum1,dum4,dum5,dum7,      &
@@ -9352,15 +9344,13 @@ end function proc_from_LUT_main3mom
  real,    intent(out) :: dum8
  real,    intent(in)  :: zitot,qitot
 
-!------------------------------------------------------------------------------------------!
-
-  ! find index for mu_i
-    dum8  = (alog10(zitot/qitot)+23.)*3.10347652     !optimization v1.0-1.2
-    dumzq = int(dum8)
-    dum8  = min(dum8,real(zqsize))
-    dum8  = max(dum8,1.)
-    dumzq = max(1,dumzq)
-    dumzq = min(zqsize-1,dumzq)
+ ! find index for mu_i
+ dum8  = (alog10(zitot/qitot)+23.)*3.10347652
+ dumzq = int(dum8)
+ dum8  = min(dum8,real(zqsize))
+ dum8  = max(dum8,1.)
+ dumzq = max(1,dumzq)
+ dumzq = min(zqsize-1,dumzq)
 
  end subroutine find_lookupTable_indices_3a
 
@@ -11098,17 +11088,24 @@ else
  !--------------------------------------------------------------------------
  ! Obtains mu_i and rho_i from qitot, nitot, and zitot.
  ! Also returns values of dum6 and dumzz which are later used.
+ !
+ ! Note, zitot being passed (to Zi) is modified, bounded by limits, in order
+ ! to prevent log10 of negative number or overflow of (zitot/qitot) in the
+ ! subroutine 'find_lookupTable_indices_3a'.
  !--------------------------------------------------------------------------
 
 !arguments:
- real,    intent(out) :: mu_i,dum6,rholt3
- integer, intent(out) :: dumzz
- real,    intent(in)  :: Qi,Ni,Zi,dum1,dum4,dum5,dum7
- integer, intent(in)  :: dumjj,dumii,dumll,dumi,zqsize,zsize
+ real,    intent(out)   :: mu_i,dum6,rholt3
+ integer, intent(out)   :: dumzz
+ real,    intent(inout) :: Zi
+ real,    intent(in)    :: Qi,Ni,dum1,dum4,dum5,dum7
+ integer, intent(in)    :: dumjj,dumii,dumll,dumi,zqsize,zsize
 
 !local:
- integer             :: dumzq
- real                :: dum8
+ integer                :: dumzq
+ real                   :: dum8
+
+ Zi = max(zsmall, min(zlarge, Zi))
 
  ! first find index for LT3 and interpolates in LT3 to get mu_i
  call find_lookupTable_indices_3a(dumzq,dum8,zqsize,Zi,Qi)
@@ -11837,8 +11834,6 @@ else
                           dum5,dum7,isize,rimsize,liqsize,densize,qit(k,iice),           &
                           nit(k,iice),qir(k,iice),qil(k,iice),rhop)
 
-                zit(k,iice) = max(zit(k,iice),zsmall)   !prevents taking log of # < 0
-
                 call get_mui_rhoi(mu_i,f1pr16,dum6,dumzz,qit(k,iice),                    &
                                   nit(k,iice),zit(k,iice),dum1,dum4,dum5,dum7,           &
                                   dumjj,dumii,dumll,dumi,zsize,zqsize)
@@ -11991,11 +11986,6 @@ else
                 call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,       &
                           dum5,dum7,isize,rimsize,liqsize,densize,qit(k,iice),           &
                           nit(k,iice),qir(k,iice),0.,rhop)
-
-              ! get Z_norm indices
-
-              !impose lower limits to prevent taking log of # < 0
-                zit(k,iice) = max(zit(k,iice),zsmall)
 
                 call get_mui_rhoi(mu_i,f1pr16,dum6,dumzz,qit(k,iice),nit(k,iice),        &
                                   zit(k,iice),dum1,dum4,dum5,dum7,dumjj,dumii,dumll,     &
