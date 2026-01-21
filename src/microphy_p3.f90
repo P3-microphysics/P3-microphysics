@@ -27,8 +27,8 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.5.0 + dev-aerosols                                                      !
-! Last updated:  2025 Dec                                                                  !
+! Version:       5.5.1 + dev-aerosols                                                      !
+! Last updated:  2026 May                                                                  !
 !__________________________________________________________________________________________!
 
  MODULE microphy_p3
@@ -158,7 +158,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.5.0 + dev-aerosols'
+ character(len=1024), parameter :: version_p3                    = '5.5.1 + dev-aerosols'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.9-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '6.9-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.2'
@@ -180,8 +180,9 @@
 
 !------------------------------------------------------------------------------------------!
 
- read_path = lookup_file_dir           ! path for lookup tables from official model library
+!read_path = lookup_file_dir           ! path for lookup tables from official model library
 !read_path = '/MY/LOOKUP_TABLE/PATH'   ! path for lookup tables from user-specified location
+ read_path = '/fs/site5/eccc/mrd/rpnarmp/jam003/p3_lookup_tables'
 
  if (trplMomI) then
    lookup_file_1 = trim(read_path)//'/'//'p3_lookupTable_1.dat-v'//trim(version_intended_table_1_3mom)
@@ -1206,6 +1207,8 @@ END subroutine p3_init
 ! computes various diagnostics fields (precipitation rates, reflectivity, etc.) -- and     !
 ! finally converts the updated potential temperature to temperature.                       !
 !------------------------------------------------------------------------------------------!
+
+ use phy_status, only: physeterror
 
  implicit none
 
@@ -11842,7 +11845,7 @@ else
 
   ! Define bus requirements
   function p3_phybusinit() result(F_istat)
-    use phy_status, only: PHY_OK, PHY_ERROR
+    use phy_status, only: PHY_OK, PHY_ERROR, physeterror
     use bus_builder, only: bb_request
     use phy_options, only: p3_liqfrac, p3_trplmomi
 

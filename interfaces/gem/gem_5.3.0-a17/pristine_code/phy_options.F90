@@ -1,18 +1,3 @@
-!-------------------------------------- LICENCE BEGIN -------------------------
-!Environment Canada - Atmospheric Science and Technology License/Disclaimer,
-!                     version 3; Last Modified: May 7, 2008.
-!This is free but copyrighted software; you can use/redistribute/modify it under the terms
-!of the Environment Canada - Atmospheric Science and Technology License/Disclaimer
-!version 3 or (at your option) any later version that should be found at:
-!http://collaboration.cmc.ec.gc.ca/science/rpn.comm/license.html
-!
-!This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-!without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-!See the above mentioned License/Disclaimer for more details.
-!You should have received a copy of the License/Disclaimer along with this software;
-!if not, you can write to: EC-RPN COMM Group, 2121 TransCanada, suite 500, Dorval (Quebec),
-!CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
-!-------------------------------------- LICENCE END ---------------------------
 
 module phy_options
    use, intrinsic :: iso_fortran_env, only: INT64
@@ -20,10 +5,9 @@ module phy_options
    public
    save
 
-   integer, parameter :: OPT_OPTIX_OLD     = 1
-   integer, parameter :: OPT_OPTIX_NEW     = 2
    integer, parameter :: RAD_NUVBRANDS     = 6 !#TODO: move to a radiation specific module/cdk
-   integer(INT64), parameter :: MU_JDATE_HALFDAY = 43200 !#TODO: move to mu_jdate
+   integer, parameter :: RAD_TCCL     = 9 !#TODO: move to a radiation specific module/cdk
+   integer(INT64), parameter :: MU_JDATE_HALFDAY = 43200 !#TODO: move to mu_jdate   
    logical           :: chemistry    = .false.
    logical           :: climat       = .false.
    logical           :: cmt_comp_diag = .false.
@@ -37,11 +21,12 @@ module phy_options
    logical           :: ebdiag       = .false.
    logical           :: ecdiag       = .false.
    logical           :: etccdiag     = .false.
+   logical           :: fsdiag       = .false.
    logical           :: impflx       = .false.
    logical           :: inincr       = .false.
-   integer           :: ioptix       = OPT_OPTIX_OLD
    integer           :: kntrad       = 1
    integer           :: kntraduv     = -1
+   logical           :: lcons        = .false.
    logical           :: llight       = .false.
    logical           :: llinoz       = .false.
    logical           :: llingh       = .false.
@@ -57,8 +42,12 @@ module phy_options
    logical           :: tdiaglim     = .false.
    integer           :: tlift        = 0
    integer           :: nphyoutlist  = 0
+   integer           :: nphystepoutlist = 0
    integer           :: ilongmel     = -1
-   character(len=32), pointer :: phyoutlist_S(:) => NULL()
+   integer           :: moyhrsteps   = 0
+   integer           :: acchrsteps   = 0
+   character(len=32), pointer :: phyoutlist_S(:) => NULL()      !# requested at any step
+   character(len=32), pointer :: phystepoutlist_S(:) => NULL()  !# requested at present step
    character(len=32) :: vgrid_M_S = 'ref-m'
    character(len=32) :: vgrid_T_S = 'ref-t'
 
@@ -66,7 +55,7 @@ module phy_options
    integer           :: acchr        = 0
    namelist /physics_cfgs/ acchr
    namelist /physics_cfgs_p/ acchr
-
+   
    !# Turbulent kinetic energy advect. is active if .true.
    logical           :: advectke     = .false.
    namelist /physics_cfgs/ advectke
@@ -87,6 +76,11 @@ module phy_options
         'NIL ', &
         'TEND'  &
         /)
+
+   !# Account for time-evolution of critical RH in condensation
+   logical        :: cond_drhc       = .false.
+   namelist /physics_cfgs/ cond_drhc
+   namelist /physics_cfgs_p/ cond_drhc
 
    !# Evaporation parameter for Sunqvist gridscale condensation
    real           :: cond_evap       = 2.e-4
@@ -115,6 +109,26 @@ module phy_options
    real           :: cond_hu0max       = 0.975
    namelist /physics_cfgs/ cond_hu0max
    namelist /physics_cfgs_p/ cond_hu0max
+
+   !# Use time-minus for relative humidity in Sundqvist
+   logical        :: cond_rhminus      = .false.
+   namelist /physics_cfgs/ cond_rhminus
+   namelist /physics_cfgs_p/ cond_rhminus
+
+   !# Distribution of subgrid-scale moisture variance assumed for cloud fraction
+   character(len=16) :: cond_sgspdf = 'NIL'
+   namelist /physics_cfgs/ cond_sgspdf
+   namelist /physics_cfgs_p/ cond_sgspdf
+   character(len=*), parameter :: COND_SGSPDF_OPT(3) = (/ &
+        'NIL       ', &
+        'UNIFORM   ', &
+        'TRIANGULAR' &
+        /)
+
+   !# Update cloud fraction at the end of the microphysics
+   logical           :: cond_updatefn = .false.
+   namelist /physics_cfgs/ cond_updatefn
+   namelist /physics_cfgs_p/ cond_updatefn
    
    !# Activate computing of all diags, requested for output or not.
    logical           :: debug_alldiag_L     = .false.
@@ -141,28 +155,28 @@ module phy_options
    namelist /physics_cfgs/ diffuw
    namelist /physics_cfgs_p/ diffuw
 
-   !# Minimal value for TKE in stable case (for 'CLEF')
+   !# Minimal value for TKE in stable case
    real              :: etrmin2      = 1.E-4
    namelist /physics_cfgs/ etrmin2
    namelist /physics_cfgs_p/ etrmin2
 
    !# Boundary layer processes
    !# * 'NIL    ': no vertical diffusion
-   !# * 'CLEF   ': non-cloudy boundary layer formulation
    !# * 'MOISTKE': cloudy boundary layer formulation
    !# * 'SURFACE': TODO
    !# * 'SIMPLE ': a very simple mixing scheme for neutral PBLs
    !# * 'YSU    ': Yonsei University PBL scheme (from WRF 4.2.1)
+   !# * 'RPNINT ': RPN integrated PBL scheme
    character(len=16) :: fluvert      = 'NIL'
    namelist /physics_cfgs/ fluvert
    namelist /physics_cfgs_p/ fluvert
    character(len=*), parameter :: FLUVERT_OPT(6) = (/ &
         'NIL    ', &
-        'CLEF   ', &
         'MOISTKE', &
         'SURFACE', &
         'SIMPLE ', &
-        'YSU    ' &
+        'YSU    ', &
+        'RPNINT '&
         /)
 
    !# (MOISTKE only) Apply factor fnn_reduc
@@ -199,11 +213,6 @@ module phy_options
    integer           :: hines_flux_filter = 0
    namelist /physics_cfgs/ hines_flux_filter
    namelist /physics_cfgs_p/ hines_flux_filter
-
-   !# Consider heating from non-orog. drag if = 1
-   integer           :: iheatcal     = 0
-   namelist /physics_cfgs/ iheatcal
-   namelist /physics_cfgs_p/ iheatcal
 
    !# Comma-separated list of diagnostic level inputs to read.
    !# Default: indiag_list_s(1) = 'DEFAULT LIST',
@@ -254,14 +263,25 @@ module phy_options
    !# * 'BOUJO   ': mixing length calc. using Bougeault
    !# * 'TURBOUJO': mixing length calc. using Bougeault in turbulent regimes (otherwise Blackadar)
    !# * 'LH      ': mixing length calc. using Lenderink and Holtslag
+   !# * 'MBOUJO  ': mixing length calc. using moist Bougeault
    character(len=16) :: longmel      = 'BLAC62'
    namelist /physics_cfgs/ longmel
    namelist /physics_cfgs_p/ longmel
+!!$   character(len=*), parameter :: LONGMEL_OPT(:) = ML_CLOSURES(:)%name
 
    !# Time length (hours) for special time averaged physics variables
    integer           :: moyhr = 0
    namelist /physics_cfgs/ moyhr
    namelist /physics_cfgs_p/ moyhr
+
+   !# Switch for p3 parameterization of autoconversion/accretion/self-collection in microphysics (P3) scheme
+   !# 1: Seifert & Beheng 2000 (recommanded)
+   !# 2: Beheng, 1994
+   !# 3: Khairoutdinov & Kogan, 2000 (default)
+   !# 4: Kogan 2013
+   integer           :: p3_iparam = 3
+   namelist /physics_cfgs/ p3_iparam
+   namelist /physics_cfgs_p/ p3_iparam
 
    !# Number of ice-phase hydrometeor categories to use in the P3 microphysics
    !# scheme (currently limited to <5)
@@ -284,6 +304,11 @@ module phy_options
    real           :: p3_subfact = 1.0
    namelist /physics_cfgs/ p3_subfact
    namelist /physics_cfgs_p/ p3_subfact
+
+   !# Ice supersaturation threshold for deposition ice nucleation(P3)
+   real           :: p3_supid = .05
+   namelist /physics_cfgs/ p3_supid
+   namelist /physics_cfgs_p/ p3_supid
 
    !# switch for real-time debugging in microphysics (P3)
    logical         :: p3_debug = .false.
@@ -315,6 +340,26 @@ module phy_options
    namelist /physics_cfgs/ p3_resfact
    namelist /physics_cfgs_p/ p3_resfact
 
+   !# Semi-Lagrangian Sedimentation for microphysics Thompson
+   logical :: thompson_sedi_semilag_L = .true.
+   namelist /physics_cfgs/ thompson_sedi_semilag_L
+   namelist /physics_cfgs_p/ thompson_sedi_semilag_L
+   
+   !# Deformation CFL (decfl) for microphysics Thompson
+   integer :: thompson_decfl = 1
+   namelist /physics_cfgs/ thompson_decfl
+   namelist /physics_cfgs_p/ thompson_decfl   
+
+   !# Inner time step for microphysics Thompson, default -1 fo model time step
+   real :: thompson_dt_inner = -1.0
+   namelist /physics_cfgs/ thompson_dt_inner
+   namelist /physics_cfgs_p/ thompson_dt_inner
+   
+   !# Cloud fraction composition for microphysics Thompson
+   character(len=20) :: thompson_cldfrac = "liq_ice_snow"
+   namelist /physics_cfgs/ thompson_cldfrac
+   namelist /physics_cfgs_p/ thompson_cldfrac
+   
    !# Switch for aerosol activation scheme (1 = default, 2 = ARG + Aerosol climatology)
    integer           :: mp_aeroact = 1
    namelist /physics_cfgs/ mp_aeroact
@@ -377,16 +422,22 @@ module phy_options
 
    !# Number of timesteps for which surface fluxes "FC" and "FV" are
    !# gradually set from 0 to their full value in a "slow start fashion"
-   !# at the beginning of a time integration
+   !# at the beginning of a time integration (max 20)
+   integer, parameter :: NSLOFLUXMAX = 20
    integer           :: nsloflux     = 0
    namelist /physics_cfgs/ nsloflux
    namelist /physics_cfgs_p/ nsloflux
    
-   !# Vectoc lenght physics memory space folding for openMP
+   !# Vector length physics memory space folding for openMP
    integer           :: p_runlgt     = -1
    namelist /physics_cfgs/ p_runlgt
    namelist /physics_cfgs_p/ p_runlgt
 
+   !# Coefficient controlling strength of TKE diffusion
+   real              :: pbl_ae      = 0.07
+   namelist /physics_cfgs/ pbl_ae
+   namelist /physics_cfgs_p/ pbl_ae
+   
    !# Time-averaging of transfer coefficient for momentum to reduce 2-dt 
    !# oscillations in fluxes
    logical           :: pbl_cmu_timeavg = .false.
@@ -423,6 +474,11 @@ module phy_options
         'NIL       '  &
         /)
 
+   !# Reference length (m) for variance power law scaling
+   real              :: pbl_dxref = -1.
+   namelist /physics_cfgs/ pbl_dxref
+   namelist /physics_cfgs_p/ pbl_dxref
+      
    !# Conservation corrections for PBL scheme
    !# * 'NIL ' : No conservation correction applied
    !# * 'TEND' : Temperature and moisture tendencies corrected
@@ -434,10 +490,18 @@ module phy_options
         'TEND'  &
         /)
 
-   !# Include the turbulent effects of trade wind cumulus clouds
-   logical           :: pbl_cucloud  = .true.
-   namelist /physics_cfgs/ pbl_cucloud
-   namelist /physics_cfgs_p/ pbl_cucloud
+   !# Define the flux enhancement factor for PBL clouds (FnN)
+   !# * 'BECHTOLD98' : Use the flux enhancement factor of Bechtold and Sibesma (1998; JAS)
+   !# * 'LOCK06    ' : Use the shifted flux enhancement of Lock and Mailhot (2006; BLM)
+   !# * 'GAUSSIAN  ' : Use flux enhancment consistent with Gaussian cloud fraction
+   character(len=16) :: pbl_fnn = 'BECHTOLD98'
+   namelist /physics_cfgs/ pbl_fnn
+   namelist /physics_cfgs_p/ pbl_fnn
+   character(len=*), parameter :: PBL_FNN_OPT(3) = (/ &
+        'BECHTOLD98', &
+        'LOCK06    ', &
+        'GAUSSIAN  ' &
+        /)
  
    !# Class of stability functions (stable case) to use in the PBL
    !# * 'DELAGE97  ' : Use functions described by Delage (1997; BLM)
@@ -495,6 +559,11 @@ module phy_options
         'LOCK06'  &
         /)
 
+   !# Use prognostic equations for subgrid-scale variances of conserved variables
+   logical           :: pbl_progvar = .false.
+   namelist /physics_cfgs/ pbl_progvar
+   namelist /physics_cfgs_p/ pbl_progvar
+   
    !# Use the mixing length to average the Richardson number profile of (potentially)
    !# many layers to derive a "background" Ri estimate
    logical           :: pbl_ribkg    = .false.
@@ -505,6 +574,11 @@ module phy_options
    real              :: pbl_ricrit(2)= 1.
    namelist /physics_cfgs/ pbl_ricrit
    namelist /physics_cfgs_p/ pbl_ricrit
+
+   !# Relaxation time scale for buoyancy frequency calculation
+   real              :: pbl_ritau    = -1.
+   namelist /physics_cfgs/ pbl_ritau
+   namelist /physics_cfgs_p/ pbl_ritau
 
    !# PBL representation of boundary layer clouds
    !# * 'NIL     ': No Shallow convection
@@ -528,6 +602,11 @@ module phy_options
    namelist /physics_cfgs/ pbl_slblend_layer
    namelist /physics_cfgs_p/ pbl_slblend_layer
 
+   !# Allowable ice supersaturation for PBL clouds
+   real              :: pbl_supid = 0.
+   namelist /physics_cfgs/ pbl_supid
+   namelist /physics_cfgs_p/ pbl_supid
+
    !# Adjustment to coefficient for TKE diffusion
    real              :: pbl_tkediff  = 1.
    namelist /physics_cfgs/ pbl_tkediff
@@ -547,6 +626,11 @@ module phy_options
    logical           :: pbl_ysu_rpnsolve = .false.
    namelist /physics_cfgs/ pbl_ysu_rpnsolve
    namelist /physics_cfgs_p/ pbl_ysu_rpnsolve
+
+   !# Filtering condition for mixing length consistency check (e.g. pbl_znfilt=1.1)
+   real              :: pbl_znfilt   = -1.
+   namelist /physics_cfgs/ pbl_znfilt
+   namelist /physics_cfgs_p/ pbl_znfilt
 
    !# Relaxation timescale (s) for mixing length smoothing
    real              :: pbl_zntau    = 7200.
@@ -728,10 +812,10 @@ module phy_options
    namelist /physics_cfgs/ rad_siglim
    namelist /physics_cfgs_p/ rad_siglim
 
-   !# Fix use of effective solar zenith angle
-   logical           :: rad_sun_angle_fix_l = .false.
-   namelist /physics_cfgs/ rad_sun_angle_fix_l
-   namelist /physics_cfgs_p/ rad_sun_angle_fix_l
+   !# use relative weigthing when combining opt props from implicit and explicit clouds
+   logical           :: rad_mpagg_l = .false.
+   namelist /physics_cfgs/ rad_mpagg_l
+   namelist /physics_cfgs_p/ rad_mpagg_l
 
    !# Compute and apply tendencies from shortwave radiation
    logical :: rad_sw = .true.
@@ -753,6 +837,11 @@ module phy_options
    logical           :: rad_linoz_L  = .false.
    namelist /physics_cfgs/ rad_linoz_L
    namelist /physics_cfgs_p/ rad_linoz_L
+
+   !# LINOZ: Use heterogeneous ozone version
+   logical           :: linoz_het  = .false.
+   namelist /physics_cfgs/ linoz_het
+   namelist /physics_cfgs_p/ linoz_het
 
    !# LINOZ prognostic stratospheric ozone
    !# * 'NIL     ' :
@@ -806,6 +895,17 @@ module phy_options
    real              :: rmscon       = 1.0
    namelist /physics_cfgs/ rmscon
    namelist /physics_cfgs_p/ rmscon
+
+   !# Latitudes for weight function of rmscon in GWD (/LAT1, LAT2, VAL1, VAL2/)
+   !# rmscon1 = weight * rmscon
+   !#    if ABS(LAT) <= LAT1: weight = VAL1
+   !#    if ABS(LAT) >= LAT2: weight = VAL2
+   !#    else: weight = VAL2 + (LAT2-ABS(LAT))*(VAL1-VAL2)/(LAT2-LAT1)
+   !# -1. values means rmscon has constant value (weight=1.)
+   real              :: rmscon_lat_weights(4) = (/ -1., -1., -1., -1. /)
+   namelist /physics_cfgs/ rmscon_lat_weights
+   namelist /physics_cfgs_p/ rmscon_lat_weights
+   
 
    !# water/ice phase for saturation calc. if .true.;
    !# water phase only for saturation calc. if .false.
@@ -864,21 +964,31 @@ module phy_options
    namelist /physics_cfgs/ sgo_windfac
    namelist /physics_cfgs_p/ sgo_windfac
 
+   !# Modulation of variance generated by diagnosed subgrid-scale gravity waves
+   real           :: sgs_gwfac       = -1.
+   namelist /physics_cfgs/ sgs_gwfac
+   namelist /physics_cfgs_p/ sgs_gwfac
+   
    !# Condensation scheme name
    !# * 'NIL       ' : No explicit condensation scheme used
    !# * 'CONSUN    ' : Sunqvist type condensation scheme
    !# * 'MP_MY2    ' : Milbrandtl and Yau microphysics scheme
-   !# * 'MP_P3     ' : P3 microphysics scheme
+   !# * 'MP_P3     ' : P3 microphysics scheme (v5)
+   !# * 'MP_P3V3   ' : P3 microphysics scheme (v3)
    !# * 'KESSLER   ' : Kessler warm rain scheme
+   !# * 'THOMPSON  ' : Thompson microphysics scheme
    character(len=16) :: stcond       = 'NIL'
    namelist /physics_cfgs/ stcond
    namelist /physics_cfgs_p/ stcond
-   character(len=*), parameter :: STCOND_OPT(5) = (/ &
+   character(len=*), parameter :: STCOND_OPT(8) = (/ &
         'NIL       ', &
         'CONSUN    ', &
         'MP_MY2    ', &
         'MP_P3     ', &
-        'KESSLER   ' &
+        'MP_P3V3   ', &
+        'KESSLER   ', &
+        'S2        ', &
+        'THOMPSON  ' &
         /)
 
    !# Special treatment of stratosphere;
