@@ -27,8 +27,13 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
+<<<<<<< HEAD
 ! Version:       5.5.1 + dev-aerosols                                                      !
 ! Last updated:  2026 May                                                                  !
+=======
+! Version:       5.5.1                                                                     !
+! Last updated:  2026 Feb                                                                  !
+>>>>>>> f7b3216 (Bug-fix; compiler-dependent potential divide-by-zero error:  v5.5.1)
 !__________________________________________________________________________________________!
 
  MODULE microphy_p3
@@ -180,9 +185,9 @@
 
 !------------------------------------------------------------------------------------------!
 
-!read_path = lookup_file_dir           ! path for lookup tables from official model library
+ read_path = lookup_file_dir           ! path for lookup tables from official model library
 !read_path = '/MY/LOOKUP_TABLE/PATH'   ! path for lookup tables from user-specified location
- read_path = '/fs/site5/eccc/mrd/rpnarmp/jam003/p3_lookup_tables'
+!read_path = '/fs/site5/eccc/mrd/rpnarmp/jam003/p3_lookup_tables'
 
  if (trplMomI) then
    lookup_file_1 = trim(read_path)//'/'//'p3_lookupTable_1.dat-v'//trim(version_intended_table_1_3mom)
@@ -3526,9 +3531,8 @@ call cpu_time(timer_start(3))
                 qlshd(iice) = tmp1*f1pr28*nitot(i,k,iice)*qiliq(i,k,iice)/qitot(i,k,iice)
                 qlshd(iice) = min(max(0.,qlshd(iice)),qiliq(i,k,iice)*i_dt)
                 nlshd(iice) = qlshd(iice)*1.928e+6
-                if (log_3momentIce .and. log_full3mom) then
-                   zishd(iice) = -tmp1*f1pr35*qiliq(i,k,iice)/qitot(i,k,iice)
-                endif
+                if (log_3momentIce .and. log_full3mom)                                   &
+                 zishd(iice) = -tmp1*f1pr35*qiliq(i,k,iice)/qitot(i,k,iice)
              endif
 
           endif  ! log_LiquidFrac
@@ -3885,19 +3889,18 @@ call cpu_time(timer_start(3))
           iice_loop_depsub:  do iice = 1,nCat
 
              if (qitot(i,k,iice).ge.qsmall) then
+
                 if (qiliq(i,k,iice)/qitot(i,k,iice).lt.0.01)                             &
-                    !note: diffusional growth/decay rate: (stored as 'qidep' temporarily; may go to qisub below)
+                !note: diffusional growth/decay rate: (stored as 'qidep' temporarily;
+                !      it may be put to qisub below)
                   qidep(iice) = (aaa*epsi(iice)*i_xx+(ssat_cld*SCF(i,k)-aaa*i_xx)*i_dt*  &
                                 epsi(iice)*i_xx*sngl(1.d0-dexp(-dble(xx*dt))) )*i_abi+   &
                                 (qvs(i,k)-dumqvi)*epsi(iice)*i_abi
-             endif
-
                !for very small ice contents in dry air, sublimate all ice instantly
-             if (qitot(i,k,iice).ge.qsmall) then
                 if (supi_cld.lt.-0.001 .and. qitot(i,k,iice).lt.1.e-12 .and.             &
-                 (qiliq(i,k,iice)/qitot(i,k,iice)).lt.0.01) then
+                   (qiliq(i,k,iice)/qitot(i,k,iice)).lt.0.01)                            &
                    qidep(iice) = -(qitot(i,k,iice)-qiliq(i,k,iice))*i_dt
-                endif
+
              endif
 
              !note: 'clbfact_dep' and 'clbfact_sub' calibration factors for ice deposition and sublimation
@@ -3913,46 +3916,40 @@ call cpu_time(timer_start(3))
                 nisub(iice) = qisub(iice)*(nitot(i,k,iice)/(qitot(i,k,iice)-             &
                               qiliq(i,k,iice)))
                 qidep(iice) = 0.
-                if (log_3momentIce .and. log_full3mom .and. epsi(iice).gt.0.) then
-                   zisub(iice) = -epsizsb(iice)/epsi(iice)*qisub(iice)
-                endif
+                if (log_3momentIce .and. log_full3mom .and. epsi(iice).gt.0.)            &
+                 zisub(iice) = -epsizsb(iice)/epsi(iice)*qisub(iice)
              else
                 qidep(iice) = qidep(iice)*clbfact_dep
                 qidep(iice) = min(qidep(iice), qv(i,k)*i_dt)
-                if (log_3momentIce .and. log_full3mom .and. epsi(iice).gt.0.) then
-                       zidep(iice) = epsiz(iice)/epsi(iice)*qidep(iice)
-                endif
+                if (log_3momentIce .and. log_full3mom .and. epsi(iice).gt.0.)            &
+                  zidep(iice) = epsiz(iice)/epsi(iice)*qidep(iice)
              endif
 
              if (qitot(i,k,iice).ge.qsmall) then
+
                 if ((qiliq(i,k,iice)/qitot(i,k,iice)).ge.0.01)                           &
                  ! Condensation/evaporation fo qiliq
                   qlcon(iice) = (aaa*epsiw(iice)*i_xx+(ssat_cld*SCF(i,k)-aaa*i_xx)*i_dt* &
                                  epsiw(iice)*i_xx* sngl(1.d0-dexp(-dble(xx*dt))) )/ab
-             endif
 
-             if (qitot(i,k,iice).ge.qsmall) then
                 if (supi_cld.lt.-0.001 .and. qitot(i,k,iice).lt.1.e-12 .and.             &
-                 (qiliq(i,k,iice)/qitot(i,k,iice)).ge.0.01) then
+                   (qiliq(i,k,iice)/qitot(i,k,iice)).ge.0.01)                            &
                    qlcon(iice) = -qiliq(i,k,iice)*i_dt
+
+                if (qlcon(iice).lt.0.) then
+                   qlevp(iice) = -qlcon(iice)
+                   qlevp(iice) = min(qlevp(iice),qiliq(i,k,iice)*i_dt)
+                   nlevp(iice) = qlevp(iice)*nitot(i,k,iice)/qitot(i,k,iice)
+                   qlcon(iice) = 0.
+                   if (log_3momentIce.and.epsiw(iice).gt.0.)                             &
+                    zisub(iice) = -epsizsb(iice)/epsiw(iice)*qlevp(iice)
+                else
+                   qlcon(iice) = min(qlcon(iice), qv(i,k)*i_dt)
+
+                   if (log_3momentIce .and. epsiw(iice).gt.0.                            &
+                    .and. (qiliq(i,k,iice)/qitot(i,k,iice)).ge.0.01)                     &
+                    zidep(iice) = epsiz(iice)/epsiw(iice)*qlcon(iice)
                 endif
-             endif
-
-             if (qlcon(iice).lt.0.) then
-                qlevp(iice) = -qlcon(iice)
-                qlevp(iice) = min(qlevp(iice),qiliq(i,k,iice)*i_dt)
-                nlevp(iice) = qlevp(iice)*nitot(i,k,iice)/qitot(i,k,iice)
-                qlcon(iice) = 0.
-
-                if (log_3momentIce.and.epsiw(iice).gt.0.)                                &
-                 zisub(iice) = -epsizsb(iice)/epsiw(iice)*qlevp(iice)
-
-             else
-                qlcon(iice) = min(qlcon(iice), qv(i,k)*i_dt)
-
-                if (log_3momentIce .and. epsiw(iice).gt.0.                               &
-                 .and. (qiliq(i,k,iice)/qitot(i,k,iice)).ge.0.01)                        &
-                 zidep(iice) = epsiz(iice)/epsiw(iice)*qlcon(iice)
 
              endif
 
@@ -4431,9 +4428,9 @@ call cpu_time(timer_start(3))
           sources = qiliq(i,k,iice) + (qimlt(iice)+qrcoll(iice)+qccoll(iice)+            &
                     qlcon(iice)+qwgrth1c(iice)+qwgrth1r(iice))*dt
           if (qitot(i,k,iice).ge.qsmall) then
-             dum=qiliq(i,k,iice)/qitot(i,k,iice)
+             dum = qiliq(i,k,iice)/qitot(i,k,iice)
           else
-             dum=0.
+             dum = 0.
           endif
           do catcoll = 1,nCat
             !Note: qicol = 0 if iice=catcoll, optimised to not insert an if (catcoll.ne.iice)
@@ -4486,13 +4483,13 @@ call cpu_time(timer_start(3))
        iice_loop2: do iice = 1,nCat
 
        ! compute fractions before update (assumed constant during ice-ice coll.)
-          if ((qitot(i,k,iice)-qiliq(i,k,iice)).ge.qsmall) then
+          if ((qitot(i,k,iice)-qiliq(i,k,iice)).ge.qsmall .and. qitot(i,k,iice).ge. qsmall) then
              tmp1 = 1./(qitot(i,k,iice)-qiliq(i,k,iice))   ! i.e. 1/(qidep+qirim)  [qidep is implicit]
             !note: rimefrac_over_rhorime = rimefrac/rhorime = (qirim/(qidep+qirim)) / (qirim/birim);
             !      used in birim-tendency calculations below (opimized; the two qirim's cancel)
-             rimefrac_over_rhorime(i,k,iice)  = birim(i,k,iice)*tmp1
-             rime_frac(i,k,iice)              = qirim(i,k,iice)*tmp1
-             liq_frac(i,k,iice)               = qiliq(i,k,iice)/qitot(i,k,iice)
+             rimefrac_over_rhorime(i,k,iice) = birim(i,k,iice)*tmp1
+             rime_frac(i,k,iice)             = qirim(i,k,iice)*tmp1
+             liq_frac(i,k,iice)              = qiliq(i,k,iice)/qitot(i,k,iice)
           endif
 
        ! calculate current mu_i (before updated from processes) which is used later to update mu_i
@@ -5542,8 +5539,8 @@ call cpu_time(timer_start(9))
              rime_frac(i,k,iice)  = 0.
              rimedensity(i,k,iice) = 0.
 
-             if ((qitot(i,k,iice)-qiliq(i,k,iice)).ge.qsmall) then
-
+             if ((qitot(i,k,iice)-qiliq(i,k,iice)).ge.qsmall .and.                    &
+                  qitot(i,k,iice).ge.qsmall) then
                 rime_frac(i,k,iice) = qirim(i,k,iice)/(qitot(i,k,iice)-               &
                                          qiliq(i,k,iice))                     ! rime mass fraction
                 t_tmp   = th(i,kbot)*(pres(i,kbot)*1.e-5)**(rd*i_cp)          ! 1st level temperature
@@ -11845,6 +11842,7 @@ else
 
   ! Define bus requirements
   function p3_phybusinit() result(F_istat)
+
     use phy_status, only: PHY_OK, PHY_ERROR, physeterror
     use bus_builder, only: bb_request
     use phy_options, only: p3_liqfrac, p3_trplmomi
