@@ -1,0 +1,3 @@
+# Post-processor output files (development/testing)
+*.dat
+out_pp*
