@@ -1,0 +1,19 @@
+# Build artifacts
+*.o
+*.mod
+execld
+execld.dSYM/
+
+# Model output
+out_p3.dat
+out_p3.dat-*
+sfcprec.dat
+fort.*
+timing.txt
+
+# Decompressed lookup tables (compressed originals live in ./lookup_tables/ at repo root)
+lookup_tables/*.dat-*
+
+# macOS metadata
+.DS_Store
+.éplots*
