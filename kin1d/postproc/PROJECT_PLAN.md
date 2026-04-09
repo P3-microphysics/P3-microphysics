@@ -67,6 +67,19 @@ configurations, without requiring a live model call.
 
 - [x] **2.10** Test: `nCat=2`, `trplMomIce=T`, `liqFrac=T`
 
+- [x] **2.11** Full configuration sweep — all nCat × liqFrac combinations for 3-moment
+  - Ran via `full_testing/run_pp_tests` (new script); all configs complete without errors
+  - New configs added: `full_testing/p3_config-1TF.txt`, `2TF.txt`, `3TF.txt`
+  - All 3-moment results show large apparent errors (~35–40% rhoi, ~100–115% di): Zitot time-lag (expected)
+  - | Config | max |rel err| rhoi | max |rel err| di |
+    |--------|---------------------|-------------------|
+    | 1TF    | 36.7%               | 110%              |
+    | 1TT    | 36.7%               | 110%              |
+    | 2TF    | 35–40%              | 110–115%          |
+    | 2TT    | 35–40%              | 109–114%          |
+    | 3TF    | 36–38%              | 106–112%          |
+    | 3TT    | 36–38%              | 102–110%          |
+
 **Known limitation — Zitot time-lag in 3-moment mode:**
 
 The `out_p3.dat` stores `Zitot` *after* `apply_mui_bounds_to_zi` has been applied

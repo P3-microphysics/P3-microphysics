@@ -1,0 +1,56 @@
+#!/bin/bash
+# run_pp_tests — run the P3 post-processor for all configurations and report
+#                verification statistics vs model output.
+#
+# Run from: kin1d/
+#
+#   ./full_testing/run_pp_tests
+#
+# For each p3_config-*.txt in full_testing/:
+#   1. Copy config to p3_config.txt
+#   2. Run ./execld  (produces out_p3.dat)
+#   3. Run p3_postproc.py  (prints verification stats)
+#   4. Save out_p3.dat as out_p3_<ID>.dat
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+CONFIGS=("${SCRIPT_DIR}"/p3_config-*.txt)
+
+echo "============================================================"
+echo " P3 Post-Processor — Full Configuration Test"
+echo " Run from: $(pwd)"
+echo " Configs : ${#CONFIGS[@]}"
+echo "============================================================"
+echo
+
+for config_path in "${CONFIGS[@]}"; do
+    config=$(basename "$config_path")
+    id=$(echo "$config" | sed 's/p3_config-\(.*\)\.txt/\1/')
+
+    echo "------------------------------------------------------------"
+    echo " Config: $id  ($config_path)"
+    echo "------------------------------------------------------------"
+
+    cp "$config_path" p3_config.txt
+
+    echo " Running ./execld ..."
+    ./execld > /dev/null 2>&1
+    if [ $? -ne 0 ]; then
+        echo " ERROR: execld failed for config $id"
+        continue
+    fi
+
+    echo " Running p3_postproc.py ..."
+    python3 postproc/p3_postproc.py \
+        --input  out_p3.dat \
+        --lut-dir lookup_tables \
+        --config p3_config.txt \
+        --output out_pp_${id}.dat
+
+    cp out_p3.dat out_p3_${id}.dat
+
+    echo
+done
+
+echo "============================================================"
+echo " All configurations completed."
+echo "============================================================"
