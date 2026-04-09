@@ -41,6 +41,40 @@ SUPPORTED CONFIGURATIONS (v0.3):
     nCat=1–3, trplMomIce=.true.,  liqFrac=.false.  (3-moment, no liquid)
     nCat=1–3, trplMomIce=.true.,  liqFrac=.true.   (3-moment, with liquid fraction)
 
+PYTHON API:
+
+    import sys
+    sys.path.insert(0, 'postproc')   # if running from kin1d/
+    from p3_postproc import compute, P3Config
+
+    # Minimal example — 2-moment, single category, no liquid fraction:
+    import numpy as np
+    arrays = {
+        'Qitot': np.array([...]),   # [kg kg-1]  shape (n_levels,) or (n_levels, n_cat)
+        'Qirim': np.array([...]),   # [kg kg-1]
+        'Qiliq': np.array([...]),   # [kg kg-1]  (zeros if liqFrac=F)
+        'Nitot': np.array([...]),   # [kg-1]
+        'Birim': np.array([...]),   # [m3 kg-1]
+        'Zitot': np.array([...]),   # [m6 kg-1]  (zeros if trplMomIce=F)
+    }
+    cfg = P3Config(n_cat=1, triple_moment=False, liq_frac=False)
+    result = compute(arrays, cfg, lut_dir='lookup_tables')
+    pp_rhoi = result['pp_rhoi']   # shape (n_levels, n_cat)  [kg m-3]
+    pp_di   = result['pp_di']     # shape (n_levels, n_cat)  [m]
+
+    # Or load config from file:
+    cfg = P3Config.from_file('p3_config.txt')
+    result = compute(arrays, cfg, lut_dir='lookup_tables')
+
+    Notes
+    -----
+    - Arrays may be 1-D (n_levels,) for n_cat=1, or 2-D (n_levels, n_cat).
+    - 'Zitot' is required in the dict but ignored when triple_moment=False.
+    - 'Qiliq' is required in the dict but treated as zero when liq_frac=False.
+    - A P3LUT instance may be reused across compute() calls (pass via lut=):
+          lut = P3LUT(lut_dir='lookup_tables', cfg=cfg)
+          result = compute(arrays, cfg, lut=lut)
+
 DEPENDENCIES:
 
     Python 3.6+
@@ -816,6 +850,131 @@ def write_comparison_dat(
 
 
 # ---------------------------------------------------------------------------
+# Python API
+# ---------------------------------------------------------------------------
+def compute(
+        arrays:  dict,
+        cfg:     P3Config,
+        lut_dir: str  = 'lookup_tables',
+        lut:     'P3LUT | None' = None
+) -> dict:
+    """
+    Compute P3 ice diagnostics from prognostic arrays.
+
+    This is the primary Python API entry point.  It accepts NumPy arrays
+    directly, with no file I/O, and returns results as a dict of arrays.
+
+    Parameters
+    ----------
+    arrays : dict
+        Must contain the following keys (values are NumPy arrays):
+
+        'Qitot'  [kg kg-1]  total ice mass mixing ratio
+        'Qirim'  [kg kg-1]  rime ice mass mixing ratio
+        'Qiliq'  [kg kg-1]  liquid-on-ice mass mixing ratio
+        'Nitot'  [kg-1]     ice number concentration
+        'Birim'  [m3 kg-1]  rime volume mixing ratio
+        'Zitot'  [m6 kg-1]  reflectivity moment (required even if triple_moment=False)
+
+        Each array may be:
+          - 1-D, shape (n_levels,)          — any n_cat; interpreted as the
+                                              *sum* / single-category field.
+          - 2-D, shape (n_levels, n_cat)    — one column per ice category.
+
+        For n_cat=1 a 1-D array is automatically reshaped to (n_levels, 1).
+        For n_cat>1 a 2-D array of the correct shape is expected.
+
+    cfg : P3Config
+        Configuration (n_cat, triple_moment, liq_frac).
+
+    lut_dir : str, optional
+        Path to the directory containing unzipped LUT files.
+        Ignored when *lut* is supplied.  Default: 'lookup_tables'.
+
+    lut : P3LUT or None, optional
+        Pre-loaded LUT instance.  Pass this to skip the (expensive) LUT
+        loading step when calling compute() repeatedly.  When None (default)
+        a new P3LUT is created from *lut_dir*.
+
+    Returns
+    -------
+    dict with keys:
+        'pp_rhoi'  ndarray, shape (n_levels, n_cat)  [kg m-3]
+        'pp_di'    ndarray, shape (n_levels, n_cat)  [m]
+
+    Raises
+    ------
+    ValueError
+        If a required key is missing from *arrays*, or if an array has an
+        unexpected shape.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> from p3_postproc import compute, P3Config
+    >>> cfg = P3Config(n_cat=1, triple_moment=False, liq_frac=False)
+    >>> arrays = {k: np.zeros(50) for k in ('Qitot','Qirim','Qiliq','Nitot','Birim','Zitot')}
+    >>> result = compute(arrays, cfg, lut_dir='lookup_tables')
+    >>> result['pp_rhoi'].shape
+    (50, 1)
+    """
+    # ---- input validation ----
+    required = ('Qitot', 'Qirim', 'Qiliq', 'Nitot', 'Birim', 'Zitot')
+    for key in required:
+        if key not in arrays:
+            raise ValueError(f"compute(): required key '{key}' missing from arrays dict.")
+
+    # Normalise to 2-D (n_levels, n_cat)
+    def _to_2d(arr, name):
+        arr = np.asarray(arr, dtype=float)
+        if arr.ndim == 1:
+            arr = arr[:, np.newaxis]
+        if arr.ndim != 2:
+            raise ValueError(
+                f"compute(): arrays['{name}'] must be 1-D or 2-D, got shape {arr.shape}.")
+        return arr
+
+    Qitot = _to_2d(arrays['Qitot'], 'Qitot')
+    Qirim = _to_2d(arrays['Qirim'], 'Qirim')
+    Qiliq = _to_2d(arrays['Qiliq'], 'Qiliq')
+    Nitot = _to_2d(arrays['Nitot'], 'Nitot')
+    Birim = _to_2d(arrays['Birim'], 'Birim')
+    Zitot = _to_2d(arrays['Zitot'], 'Zitot')
+
+    n_levels, n_cols = Qitot.shape
+    if n_cols != cfg.n_cat:
+        raise ValueError(
+            f"compute(): arrays have {n_cols} column(s) but cfg.n_cat={cfg.n_cat}.")
+
+    for name, arr in (('Qirim', Qirim), ('Qiliq', Qiliq),
+                      ('Nitot', Nitot), ('Birim', Birim), ('Zitot', Zitot)):
+        if arr.shape != (n_levels, cfg.n_cat):
+            raise ValueError(
+                f"compute(): arrays['{name}'].shape={arr.shape} does not match "
+                f"Qitot.shape={Qitot.shape}.")
+
+    # If liqFrac is disabled, treat Qiliq as zero (avoids caller needing to zero it)
+    if not cfg.liq_frac:
+        Qiliq = np.zeros_like(Qiliq)
+
+    # ---- LUT initialisation ----
+    if lut is None:
+        lut = P3LUT(lut_dir, cfg)
+
+    # ---- compute diagnostics ----
+    pp_rhoi = np.zeros((n_levels, cfg.n_cat))
+    pp_di   = np.zeros((n_levels, cfg.n_cat))
+
+    for k in range(n_levels):
+        for iice in range(cfg.n_cat):
+            pp_rhoi[k, iice], pp_di[k, iice] = lut.get_diag(
+                Qitot[k, iice], Qirim[k, iice], Qiliq[k, iice],
+                Nitot[k, iice], Birim[k, iice], Zitot[k, iice])
+
+    return {'pp_rhoi': pp_rhoi, 'pp_di': pp_di}
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 def main():
@@ -851,26 +1010,22 @@ def main():
     n_levels = data.shape[0]
     print(f'  {n_levels} levels, {data.shape[1]} columns')
 
-    # --- compute post-processor diagnostics at each level and category ---
-    pp_rhoi  = np.zeros((n_levels, cfg.n_cat))
-    pp_di    = np.zeros((n_levels, cfg.n_cat))
+    # --- build per-category arrays and call compute() ---
+    arrays = {}
+    for name, off in (('Qitot', _OFF_QITOT), ('Qirim', _OFF_QIRIM),
+                      ('Qiliq', _OFF_QILIQ), ('Nitot', _OFF_NITOT),
+                      ('Birim', _OFF_BIRIM), ('Zitot', _OFF_ZITOT)):
+        arrays[name] = np.column_stack(
+            [data[:, _cat_col(iice, off)] for iice in range(cfg.n_cat)])
+
+    result  = compute(arrays, cfg, lut=lut)
+    pp_rhoi = result['pp_rhoi']
+    pp_di   = result['pp_di']
+
     n_active = np.zeros(cfg.n_cat, dtype=int)
-
-    for k in range(n_levels):
-        for iice in range(cfg.n_cat):
-            qi_tot = data[k, _cat_col(iice, _OFF_QITOT)]
-            qi_rim = data[k, _cat_col(iice, _OFF_QIRIM)]
-            qi_liq = data[k, _cat_col(iice, _OFF_QILIQ)]
-            ni_tot = data[k, _cat_col(iice, _OFF_NITOT)]
-            bi_rim = data[k, _cat_col(iice, _OFF_BIRIM)]
-            zi_tot = data[k, _cat_col(iice, _OFF_ZITOT)]
-
-            pp_rhoi[k, iice], pp_di[k, iice] = lut.get_diag(
-                qi_tot, qi_rim, qi_liq, ni_tot, bi_rim, zi_tot)
-            if qi_tot >= QSMALL:
-                n_active[iice] += 1
-
     for iice in range(cfg.n_cat):
+        n_active[iice] = int(
+            np.sum(data[:, _cat_col(iice, _OFF_QITOT)] >= QSMALL))
         print(f'  Post-processor: {n_active[iice]}/{n_levels} active levels '
               f'(cat {iice+1})')
 

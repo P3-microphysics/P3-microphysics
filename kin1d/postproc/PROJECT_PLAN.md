@@ -87,9 +87,11 @@ Options to resolve (deferred):
 
 ### Phase 3 — Input generalization
 
-- [ ] **3.1** Python API — accept NumPy arrays directly (no file I/O)
+- [x] **3.1** Python API — accept NumPy arrays directly (no file I/O)
   - Decouple `P3LUT.get_diag()` from file reading (already mostly done)
-  - Add a `compute(arrays_dict, config)` top-level function for programmatic use
+  - Added `compute(arrays, cfg, lut_dir, lut)` top-level function
+  - `main()` refactored to build arrays dict and call `compute()`
+  - Test script: `postproc/test_compute.py`
 
 - [ ] **3.2** netCDF input — read prognostic fields from `.nc` file
   - Use `netCDF4` or `xarray`
