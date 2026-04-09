@@ -140,6 +140,35 @@ Total columns: `nCat=1` → 23, `nCat=2` → 31, `nCat=3` → 39
 
 ---
 
+## Zitot variable forms (3-moment only)
+
+P3 3-moment ice uses two different representations of the sixth moment:
+
+| Form | Expression | Used for |
+|------|-----------|----------|
+| `Zitot_adv` (advected) | `sqrt(Zi · Ni)` | Dynamics/advection; stored in `out_p3.dat` |
+| `Zitot_mp` (microphysics) | `Zi² / Ni` | LUT lookup and all diagnostics inside `p3_main` |
+
+At the **start** of `p3_main` (`microphy_p3.f90` line ~2408):
+```fortran
+zitot = zitot**2 / nitot    ! Zitot_adv → Zitot_mp  (Morrison et al. 2016, MWR)
+```
+At the **end** of `p3_main` (line ~5392):
+```fortran
+zitot = sqrt(zitot * nitot)  ! Zitot_mp → Zitot_adv
+```
+
+**Post-processor requirement:** `get_diag()` / `compute()` expect `zi_tot` in the
+**advected** form (as written to `out_p3.dat`). The conversion to `Zitot_mp` is
+applied internally in `_get_diag_3mom()` before the LUT lookup:
+```python
+zi_tot = zi_tot ** 2 / ni_tot   # Zitot_adv → Zitot_mp
+```
+
+`ZSMALL = 1e-35` and `ZLARGE = 1.` are bounds on `Zitot_mp` (applied after conversion).
+
+---
+
 ## Key constants (from microphy_p3.f90)
 
 ```python
@@ -182,32 +211,23 @@ dum6  = mu_i * 0.5 + 1.                                → clamped to [1, ZSIZE]
 
 ## Verification baseline
 
-| Config                          | Quantity   | Median rel err | Max rel err | Notes                    |
-|---------------------------------|------------|----------------|-------------|--------------------------|
-| nCat=1, 2-mom, liqFrac=F        | diag_rhoi  | 0.029%         | 6.5%        | ASCII precision only     |
-| nCat=1, 2-mom, liqFrac=F        | diag_di    | 0.024%         | 5.5%        | ASCII precision only     |
-| nCat=1, 3-mom, liqFrac=T        | diag_rhoi  | ~30%           | ~37%        | Zitot time-lag (see below) |
-| nCat=1, 3-mom, liqFrac=T        | diag_di    | ~100%          | ~110%       | Zitot time-lag (see below) |
+All configurations tested via `full_testing/run_pp_tests`. Median errors are at
+the ASCII precision floor (~0.02–0.03%) for all configs. Max errors are outlier
+points where `apply_mui_bounds_to_zi` was active (see PROJECT_PLAN.md § 2.12).
 
-2-mom max errors are due to ASCII precision loss in `out_p3.dat` (e13.4 ≈ 5 significant digits).
-Binary input (Phase 3) will reduce these to near machine precision.
+| Config             | Quantity  | Median rel err | Max rel err | Notes                  |
+|--------------------|-----------|----------------|-------------|------------------------|
+| nCat=1, 2-mom, liqFrac=F | diag_rhoi | 0.029% | 6.5%  | ASCII precision only   |
+| nCat=1, 2-mom, liqFrac=F | diag_di   | 0.024% | 5.5%  | ASCII precision only   |
+| nCat=1, 3-mom, liqFrac=F | diag_rhoi | 0.026% | 8.5%  | ASCII precision        |
+| nCat=1, 3-mom, liqFrac=F | diag_di   | 0.016% | 7.8%  | ASCII precision        |
+| nCat=1, 3-mom, liqFrac=T | diag_rhoi | 0.026% | 4.3%  | ASCII precision        |
+| nCat=1, 3-mom, liqFrac=T | diag_di   | 0.014% | 21.6% | Few bounds-active pts  |
+| nCat=2,3, 3-mom, any liqFrac | diag_rhoi | ~0.02% | ≤8% | ASCII precision   |
+| nCat=2,3, 3-mom, any liqFrac | diag_di   | ~0.01% | ≤41% | Few bounds-active pts |
 
----
-
-## Known limitation: Zitot time-lag in 3-moment mode
-
-`diag_rhoi` and `diag_di` in `out_p3.dat` are computed inside `p3_main` using
-the **pre-bounds** `Zitot` (before `apply_mui_bounds_to_zi` modifies it). The
-`Zitot` written to the file, however, is the **post-bounds** value (the prognostic
-state after `p3_main` returns).
-
-When the post-processor reads `Zitot` from `out_p3.dat`, it sees the post-bounds
-value and computes diagnostics consistent with what **the next timestep** would
-produce — not the model `diag_rhoi`/`diag_di` stored in the same row. This causes
-the large apparent errors seen in 3-moment verification statistics.
-
-The post-processor physics are correct and self-consistent. The mismatch is an
-artefact of the ASCII output ordering within a single timestep of `cld1d`/GEM.
-
-To fully resolve (deferred to a later phase): modify `cld1d` to output both the
-pre-bounds and post-bounds `Zitot` (or output pre-bounds only).
+Max errors above ~10% for `diag_di` occur at isolated grid points where
+`apply_mui_bounds_to_zi` actively changed `Zitot_mp` between the diagnostic
+computation and the file write. Binary input (Phase 3) will not eliminate these
+since the timing artefact is inherent in the ASCII output; resolving requires
+writing the pre-clamp `Zitot_adv` as an additional output column in `cld1d`.

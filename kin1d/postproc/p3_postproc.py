@@ -681,6 +681,11 @@ class P3LUT:
 
         Routes to the 2-moment or 3-moment path depending on cfg.triple_moment.
         Returns (0., 0.) when qi_tot < QSMALL, matching model behaviour.
+
+        zi_tot (3-moment only): the *advected* form of the sixth moment,
+            i.e. sqrt(Zi * Ni), as written to out_p3.dat by cld1d.
+            The conversion to the microphysics form (Zi²/Ni) is applied
+            internally in _get_diag_3mom() before the LUT lookup.
         """
         if qi_tot < QSMALL:
             return 0., 0.
@@ -724,10 +729,14 @@ class P3LUT:
         """
         3-moment path: compute diag_rhoi and diag_di.
 
+        zi_tot must be the *advected* form sqrt(Zi*Ni) as stored in out_p3.dat.
+        It is converted to the microphysics form Zi²/Ni here before LUT lookup,
+        mirroring the conversion at the top of p3_main (Morrison et al. 2016, MWR).
+
         Mirrors the get_mui_rhoi() call sequence in p3_main (microphy_p3.f90):
           1. calc_bulkRhoRime → rho_p
           2. find_lookupTable_indices_1a → shared indices
-          3. Clamp Zi; find_lookupTable_indices_3a → dumzq, dum8
+          3. Convert Zitot_adv → Zitot_mp; clamp; find_lookupTable_indices_3a → dumzq, dum8
           4. proc_from_LUT_3(1) → mu_i
           5. proc_from_LUT_3(2) → diag_rhoi
           6. find_lookupTable_indices_1c → dumzz, dum6
@@ -741,7 +750,14 @@ class P3LUT:
         dumi, dumjj, dumii, dumll, dum1, dum5, dum4, dum7 = self._find_indices(
             qi_tot, ni_tot, qi_rim, qi_liq, rho_p)
 
-        # clamp Zitot (mirrors 'Zi = max(zsmall, min(zlarge, Zi))' in get_mui_rhoi)
+        # Convert Zitot from the advected form sqrt(Zi*Ni) stored in out_p3.dat
+        # to the microphysics form Zi²/Ni used by the LUT.
+        # Mirrors the conversion at the top of p3_main (microphy_p3.f90 line ~2408):
+        #   where (nitot>0.) zitot = zitot**2/nitot   ! Morrison et al. (2016), MWR
+        # ni_tot >= NSMALL at this point, so no zero-division risk.
+        zi_tot = zi_tot ** 2 / ni_tot
+
+        # clamp Zitot_mp (mirrors 'Zi = max(zsmall, min(zlarge, Zi))' in get_mui_rhoi)
         zi_tot = max(ZSMALL, min(ZLARGE, zi_tot))
 
         # find Zi/Qi index and interpolate mu_i and rho_i from itab_3mom_mui
@@ -1035,7 +1051,7 @@ def main():
     # --- verification statistics (per category) ---
     print(f'\n  Verification statistics:')
     print(f'    {"":16s}  {"max |diff|":>12s}  {"mean |diff|":>12s}  '
-          f'{"max |rel err|":>14s}')
+          f'{"max |rel err|":>14s}  {"median |rel err|":>16s}')
 
     any_active = False
     for iice in range(cfg.n_cat):
@@ -1050,15 +1066,17 @@ def main():
         cat_label  = f'cat {iice+1}' if cfg.n_cat > 1 else ''
 
         def _stats(diff, ref):
-            mx  = np.max(np.abs(diff))
-            mn  = np.mean(np.abs(diff))
-            rel = np.max(np.abs(diff / np.where(ref != 0, ref, np.nan)))
-            return mx, mn, rel
+            abs_rel = np.abs(diff / np.where(ref != 0, ref, np.nan))
+            mx      = np.max(np.abs(diff))
+            mn      = np.mean(np.abs(diff))
+            rel_max = np.nanmax(abs_rel)
+            rel_med = np.nanmedian(abs_rel)
+            return mx, mn, rel_max, rel_med
 
-        mx, mn, rel = _stats(diff_rhoi, model_rhoi)
-        print(f'    {f"diag_rhoi {cat_label}":16s}  {mx:12.4e}  {mn:12.4e}  {rel:14.4e}')
-        mx, mn, rel = _stats(diff_di, model_di)
-        print(f'    {f"diag_di   {cat_label}":16s}  {mx:12.4e}  {mn:12.4e}  {rel:14.4e}')
+        mx, mn, rel_max, rel_med = _stats(diff_rhoi, model_rhoi)
+        print(f'    {f"diag_rhoi {cat_label}":16s}  {mx:12.4e}  {mn:12.4e}  {rel_max:14.4e}  {rel_med:16.4e}')
+        mx, mn, rel_max, rel_med = _stats(diff_di, model_di)
+        print(f'    {f"diag_di   {cat_label}":16s}  {mx:12.4e}  {mn:12.4e}  {rel_max:14.4e}  {rel_med:16.4e}')
 
     if not any_active:
         print('  No active ice levels found — nothing to compare.')

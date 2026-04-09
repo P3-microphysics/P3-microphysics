@@ -62,39 +62,55 @@ configurations, without requiring a live model call.
 
 - [x] **2.8** Route `get_diag()` by `cfg.triple_moment`; pass `Zitot` from input
 
-- [x] **2.9** Test: `nCat=1`, `trplMomIce=T`, `liqFrac=T`
-  - See **Known limitation** below — large apparent errors are expected and explained
+- [x] **2.9** Test: `nCat=1`, `trplMomIce=T`, `liqFrac=T` *(initial — pre-bugfix)*
+  - Large apparent errors were recorded; root cause identified in 2.12
 
-- [x] **2.10** Test: `nCat=2`, `trplMomIce=T`, `liqFrac=T`
+- [x] **2.10** Test: `nCat=2`, `trplMomIce=T`, `liqFrac=T` *(initial — pre-bugfix)*
 
-- [x] **2.11** Full configuration sweep — all nCat × liqFrac combinations for 3-moment
-  - Ran via `full_testing/run_pp_tests` (new script); all configs complete without errors
-  - New configs added: `full_testing/p3_config-1TF.txt`, `2TF.txt`, `3TF.txt`
-  - All 3-moment results show large apparent errors (~35–40% rhoi, ~100–115% di): Zitot time-lag (expected)
-  - | Config | max |rel err| rhoi | max |rel err| di |
-    |--------|---------------------|-------------------|
-    | 1TF    | 36.7%               | 110%              |
-    | 1TT    | 36.7%               | 110%              |
-    | 2TF    | 35–40%              | 110–115%          |
-    | 2TT    | 35–40%              | 109–114%          |
-    | 3TF    | 36–38%              | 106–112%          |
-    | 3TT    | 36–38%              | 102–110%          |
+- [x] **2.11** Full configuration sweep — all nCat × liqFrac combinations for 3-moment *(pre-bugfix)*
+  - Ran via `full_testing/run_pp_tests`; new config files added: `1TF.txt`, `2TF.txt`, `3TF.txt`
 
-**Known limitation — Zitot time-lag in 3-moment mode:**
+- [x] **2.12** **Bug fix** — missing `Zitot_adv → Zitot_mp` conversion in `_get_diag_3mom()`
+  - Root cause: `out_p3.dat` stores `Zitot` in the *advected* form `sqrt(Zi·Ni)`, but
+    the LUT lookup requires the *microphysics* form `Zi²/Ni`.
+    The conversion `zitot = zitot**2 / nitot` (Morrison et al. 2016, MWR) — applied at
+    the top of `p3_main` — was missing from the post-processor.
+  - Fix: added conversion in `_get_diag_3mom()` before the bounds clamp and LUT lookup.
+  - Post-fix verification (all configs, `full_testing/run_pp_tests`):
 
-The `out_p3.dat` stores `Zitot` *after* `apply_mui_bounds_to_zi` has been applied
-inside `p3_main`. However, `diag_rhoi` is computed earlier in the same timestep
-using the *pre-bounds* `Zitot`. The post-processor reads the post-bounds `Zitot`
-and therefore computes `diag_rhoi`/`diag_di` consistent with what the **next
-timestep** would use — not the diagnostic stored alongside in the same row.
+  | Config      | diag_rhoi median rel err | diag_rhoi max rel err | diag_di median rel err | diag_di max rel err |
+  |-------------|--------------------------|----------------------|------------------------|---------------------|
+  | 1FF (2-mom) | 0.029%                   | 6.5%                 | 0.024%                 | 5.5%                |
+  | 1TF         | 0.026%                   | 8.5%                 | 0.016%                 | 7.8%                |
+  | 1TT         | 0.026%                   | 4.3%                 | 0.014%                 | 21.6%               |
+  | 2TF cat 1   | 0.023%                   | 3.1%                 | 0.013%                 | 22.5%               |
+  | 2TF cat 2   | 0.007%                   | 4.9%                 | 0.010%                 | 24.0%               |
+  | 2TT cat 1   | 0.021%                   | 3.1%                 | 0.013%                 | 2.3%                |
+  | 2TT cat 2   | 0.007%                   | 7.8%                 | 0.009%                 | 24.0%               |
+  | 3TF cat 1   | 0.024%                   | 8.3%                 | 0.013%                 | 41.1%               |
+  | 3TF cat 2   | 0.018%                   | 4.6%                 | 0.013%                 | 21.4%               |
+  | 3TF cat 3   | 0.017%                   | 6.8%                 | 0.012%                 | 6.1%                |
+  | 3TT cat 1   | 0.023%                   | 3.1%                 | 0.013%                 | 2.0%                |
+  | 3TT cat 2   | 0.016%                   | 4.6%                 | 0.012%                 | 6.5%                |
+  | 3TT cat 3   | 0.018%                   | 2.4%                 | 0.012%                 | 3.9%                |
 
-Consequence: comparison statistics against model `diag_rhoi`/`diag_di` show large
-apparent errors (~30–100%) for 3-moment runs. The post-processor physics are
-correct; the mismatch is a timing/output artefact in the ASCII file.
+  Median relative errors are ~0.01–0.03% for all configurations — consistent with the
+  2-moment ASCII precision baseline. Max errors are isolated outliers at levels where
+  `apply_mui_bounds_to_zi` changed `Zitot` (see note below).
 
-Options to resolve (deferred):
-- Write pre-bounds `Zitot` as an additional column in `cld1d` output (Option B)
-- Accept limitation for offline use (current approach)
+**Note — residual max errors in 3-moment mode:**
+
+After the `Zitot_adv → Zitot_mp` conversion fix, a small number of grid points still
+show elevated max relative errors (up to ~41% for `diag_di` in a few configs). These
+are the levels where `apply_mui_bounds_to_zi` in `p3_main` actively clamped `Zitot_mp`
+to keep `mu_i` in bounds. The model's stored diagnostics were computed with the
+pre-clamp `Zitot_mp`, while the post-processor reconstructs `Zitot_mp` from the
+post-clamp `Zitot_adv` in `out_p3.dat`. At the vast majority of levels the bounds are
+not active, so the median error is at the ASCII precision floor.
+
+This is a file-format limitation, not a physics error. It can be resolved by storing
+pre-clamp `Zitot_adv` (or the pre-clamp `Zitot_mp`) as an additional output column in
+`cld1d` — deferred to a later phase if needed.
 
 ---
 
