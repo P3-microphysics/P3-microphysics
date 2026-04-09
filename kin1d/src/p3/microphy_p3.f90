@@ -5157,6 +5157,11 @@ call cpu_time(timer_start(9))
  endif
 !---
 
+!--- expose arr_lami/arr_mui via diag_3d slots 2-3 for offline verification ---
+ diag_3d(:,:,2) = arr_lami(:,:,1)
+ diag_3d(:,:,3) = arr_mui(:,:,1)
+!---
+
  compute_type_diags: if (log_typeDiags .and. (trim(model)=='GEM'.or.trim(model)=='KIN1D')) then
 
     if (.not.(present(prt_drzl).and.present(prt_rain).and.present(prt_crys).and.         &

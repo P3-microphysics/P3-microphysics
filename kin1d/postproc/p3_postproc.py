@@ -20,9 +20,14 @@ This reads:
 And writes:
     - out_pp.dat           (comparison output file)
 
-The output file has the same format as out_p3.dat with two extra columns:
-    col N  : pp_rhoi  [kg m-3]  ← post-processor bulk ice density
-    col N+1: pp_di    [m]       ← post-processor mean-mass diameter
+The output file has the same format as out_p3.dat with 6 extra columns per
+ice category appended (block of 6 per cat, cat 1 first):
+    col N+0: pp_rhoi  [kg m-3]  ← bulk ice density
+    col N+1: pp_di    [m]       ← mean-mass diameter
+    col N+2: pp_effi  [m]       ← effective radius
+    col N+3: pp_vmi   [m s-1]   ← mass-weighted fall speed (rhofaci=1; surface only)
+    col N+4: pp_lami  [m-1]     ← PSD slope parameter lambda_i
+    col N+5: pp_mui   [-]       ← PSD shape parameter mu_i
 
 The original model diag_rhoi and diag_di columns are preserved, allowing
 direct side-by-side comparison. Expected accuracy: median relative error ~0.03%.
@@ -34,7 +39,7 @@ COMMAND-LINE OPTIONS:
     --config FILE          P3 config file (default: p3_config.txt)
     --output FILE          Output file (default: out_pp.dat)
 
-SUPPORTED CONFIGURATIONS (v0.3):
+SUPPORTED CONFIGURATIONS (v0.4):
 
     nCat=1–3, trplMomIce=.false., liqFrac=.false.  (2-moment, no liquid)
     nCat=1–3, trplMomIce=.false., liqFrac=.true.   (2-moment, with liquid fraction)
@@ -113,16 +118,25 @@ ZSIZE        = 11    # mu_i bins (outer dim of itab_3mom, = dum6/dumzz)
 ZQSIZE       = 80    # Zi/Qi bins (outer dim of itab_3mom_mui, = dum8/dumzq)
 TABSIZE_3MOM = 29    # number of process quantities in 3-moment table
 
-# Process indices in the LUT (1-based, matching Fortran)
-IDX_DIAG_DI   = 11    # mean-mass diameter    [m]
-IDX_DIAG_RHOI = 12    # bulk ice density      [kg m-3]  (2-mom only)
+# Process indices in the 2-moment LUT (1-based, matching Fortran)
+IDX_DIAG_VMI  =  2    # mass-weighted fall speed  [m s-1]  (× rhofaci; here rhofaci=1)
+IDX_DIAG_EFFI =  6    # effective radius          [m]
+IDX_DIAG_DI   = 11    # mean-mass diameter        [m]
+IDX_DIAG_RHOI = 12    # bulk ice density          [kg m-3]
+IDX_DIAG_LAMI = 13    # lambda_i  (PSD slope)     [m-1]
+IDX_DIAG_MUI  = 14    # mu_i      (PSD shape)     [-]
 
 # 3-moment mu_i LUT indices (1-based, itab_3mom_mui)
 IDX_3MOM_MUI  = 1    # mu_i parameter
 IDX_3MOM_RHOI = 2    # diag_rhoi [kg m-3]
 
-# 3-moment main LUT index (1-based, itab_3mom)
-IDX_3MOM_DI   = 11   # diag_di [m]
+# 3-moment main LUT indices (1-based, itab_3mom)
+IDX_3MOM_VMI  =  2   # mass-weighted fall speed  [m s-1]  (× rhofaci; here rhofaci=1)
+IDX_3MOM_EFFI =  6   # effective radius          [m]
+IDX_3MOM_DI   = 11   # diag_di   [m]
+IDX_3MOM_LAMI = 14   # lambda_i  [m-1]
+# Note: mu_i (index 15 in itab_3mom) is not fetched here — it is taken directly
+# from the IDX_3MOM_MUI intermediate already computed via itab_3mom_mui.
 
 
 # ---------------------------------------------------------------------------
@@ -675,20 +689,26 @@ class P3LUT:
             qi_tot: float, qi_rim: float, qi_liq: float,
             ni_tot: float, bi_rim: float,
             zi_tot: float = 0.
-    ) -> tuple[float, float]:
+    ) -> tuple[float, float, float, float, float, float]:
         """
-        Compute diag_rhoi and diag_di for a single grid point.
+        Compute ice diagnostics for a single grid point.
 
         Routes to the 2-moment or 3-moment path depending on cfg.triple_moment.
-        Returns (0., 0.) when qi_tot < QSMALL, matching model behaviour.
+        Returns all-zeros when qi_tot < QSMALL, matching model behaviour.
 
         zi_tot (3-moment only): the *advected* form of the sixth moment,
             i.e. sqrt(Zi * Ni), as written to out_p3.dat by cld1d.
             The conversion to the microphysics form (Zi²/Ni) is applied
             internally in _get_diag_3mom() before the LUT lookup.
+
+        Returns
+        -------
+        diag_rhoi, diag_di, diag_effi, diag_vmi, diag_lami, diag_mui
+
+        Note: diag_vmi uses rhofaci = 1.0 (valid at the surface only).
         """
         if qi_tot < QSMALL:
-            return 0., 0.
+            return 0., 0., 0., 0., 0., 0.
 
         if self.cfg.triple_moment:
             return self._get_diag_3mom(qi_tot, qi_rim, qi_liq, ni_tot, bi_rim, zi_tot)
@@ -699,11 +719,14 @@ class P3LUT:
             self,
             qi_tot: float, qi_rim: float, qi_liq: float,
             ni_tot: float, bi_rim: float
-    ) -> tuple[float, float]:
+    ) -> tuple[float, float, float, float, float, float]:
         """
-        2-moment path: compute diag_rhoi and diag_di.
+        2-moment path: compute all ice diagnostics.
 
         Replicates the qi_not_small block in p3_main (microphy_p3.f90).
+
+        Returns: diag_rhoi, diag_di, diag_effi, diag_vmi, diag_lami, diag_mui
+        Note: diag_vmi uses rhofaci = 1.0 (valid at the surface only).
         """
         ni_tot = max(ni_tot, NSMALL)
 
@@ -713,21 +736,24 @@ class P3LUT:
         dumi, dumjj, dumii, dumll, dum1, dum5, dum4, dum7 = self._find_indices(
             qi_tot, ni_tot, qi_rim, qi_liq, rho_p)
 
-        diag_rhoi = self._interp_2mom(
-            IDX_DIAG_RHOI, dumi, dumjj, dumii, dumll, dum1, dum5, dum4, dum7)
-        diag_di   = self._interp_2mom(
-            IDX_DIAG_DI,   dumi, dumjj, dumii, dumll, dum1, dum5, dum4, dum7)
+        args = (dumi, dumjj, dumii, dumll, dum1, dum5, dum4, dum7)
+        diag_rhoi = self._interp_2mom(IDX_DIAG_RHOI, *args)
+        diag_di   = self._interp_2mom(IDX_DIAG_DI,   *args)
+        diag_effi = self._interp_2mom(IDX_DIAG_EFFI, *args)
+        diag_vmi  = self._interp_2mom(IDX_DIAG_VMI,  *args)   # rhofaci = 1.0
+        diag_lami = self._interp_2mom(IDX_DIAG_LAMI, *args)
+        diag_mui  = self._interp_2mom(IDX_DIAG_MUI,  *args)
 
-        return diag_rhoi, diag_di
+        return diag_rhoi, diag_di, diag_effi, diag_vmi, diag_lami, diag_mui
 
     def _get_diag_3mom(
             self,
             qi_tot: float, qi_rim: float, qi_liq: float,
             ni_tot: float, bi_rim: float,
             zi_tot: float
-    ) -> tuple[float, float]:
+    ) -> tuple[float, float, float, float, float, float]:
         """
-        3-moment path: compute diag_rhoi and diag_di.
+        3-moment path: compute all ice diagnostics.
 
         zi_tot must be the *advected* form sqrt(Zi*Ni) as stored in out_p3.dat.
         It is converted to the microphysics form Zi²/Ni here before LUT lookup,
@@ -740,7 +766,11 @@ class P3LUT:
           4. proc_from_LUT_3(1) → mu_i
           5. proc_from_LUT_3(2) → diag_rhoi
           6. find_lookupTable_indices_1c → dumzz, dum6
-          7. proc_from_LUT_main3mom(11) → diag_di
+          7. proc_from_LUT_main3mom(2,6,11,14) → diag_vmi, diag_effi, diag_di, diag_lami
+
+        Returns: diag_rhoi, diag_di, diag_effi, diag_vmi, diag_lami, diag_mui
+        Note: diag_vmi uses rhofaci = 1.0 (valid at the surface only).
+              diag_mui is taken directly from the mu_i intermediate (step 4).
         """
         ni_tot = max(ni_tot, NSMALL)
 
@@ -763,18 +793,21 @@ class P3LUT:
         # find Zi/Qi index and interpolate mu_i and rho_i from itab_3mom_mui
         dumzq, dum8 = self._find_indices_3a(zi_tot, qi_tot)
 
-        mu_i      = self._interp_3mom_mui(
-            IDX_3MOM_MUI,  dumzq, dumjj, dumii, dumll, dumi, dum1, dum4, dum5, dum7, dum8)
-        diag_rhoi = self._interp_3mom_mui(
-            IDX_3MOM_RHOI, dumzq, dumjj, dumii, dumll, dumi, dum1, dum4, dum5, dum7, dum8)
+        mui_args = (dumzq, dumjj, dumii, dumll, dumi, dum1, dum4, dum5, dum7, dum8)
+        mu_i      = self._interp_3mom_mui(IDX_3MOM_MUI,  *mui_args)
+        diag_rhoi = self._interp_3mom_mui(IDX_3MOM_RHOI, *mui_args)
 
-        # find mu_i index and interpolate diag_di from itab_3mom
+        # find mu_i index and interpolate remaining fields from itab_3mom
         dumzz, dum6 = self._find_indices_1c(mu_i)
 
-        diag_di   = self._interp_3mom(
-            IDX_3MOM_DI, dumzz, dumjj, dumii, dumll, dumi, dum1, dum4, dum5, dum6, dum7)
+        main_args = (dumzz, dumjj, dumii, dumll, dumi, dum1, dum4, dum5, dum6, dum7)
+        diag_di   = self._interp_3mom(IDX_3MOM_DI,   *main_args)
+        diag_effi = self._interp_3mom(IDX_3MOM_EFFI, *main_args)
+        diag_vmi  = self._interp_3mom(IDX_3MOM_VMI,  *main_args)   # rhofaci = 1.0
+        diag_lami = self._interp_3mom(IDX_3MOM_LAMI, *main_args)
+        diag_mui  = mu_i   # already computed from itab_3mom_mui
 
-        return diag_rhoi, diag_di
+        return diag_rhoi, diag_di, diag_effi, diag_vmi, diag_lami, diag_mui
 
 
 # ---------------------------------------------------------------------------
@@ -826,33 +859,47 @@ def read_out_p3dat(filepath: str, n_cat: int = 1) -> np.ndarray:
 
 
 def write_comparison_dat(
-        filepath: str,
-        data: np.ndarray,
-        pp_rhoi: np.ndarray,
-        pp_di:   np.ndarray
+        filepath:   str,
+        data:       np.ndarray,
+        pp_results: dict
 ) -> None:
     """
     Write comparison output file in the same e13.4 format as out_p3.dat,
-    with 2×n_cat post-processor columns appended after the original data.
+    with 6×n_cat post-processor columns appended after the original data.
 
-    pp_rhoi, pp_di: shape (n_levels, n_cat)
+    pp_results: dict returned by compute(), must contain keys
+        'pp_rhoi', 'pp_di', 'pp_effi', 'pp_vmi', 'pp_lami', 'pp_mui'
+        each with shape (n_levels, n_cat).
 
     Column layout of out_pp.dat (e.g. nCat=2):
         cols 0 – N-1 : all original columns from out_p3.dat  (N = data.shape[1])
-        col  N       : pp_rhoi  cat 1  [kg m-3]
-        col  N+1     : pp_di    cat 1  [m]
-        col  N+2     : pp_rhoi  cat 2  [kg m-3]
-        col  N+3     : pp_di    cat 2  [m]
-        ...
+        then per category (block of 6, cat 1 first):
+          pp_rhoi  [kg m-3]
+          pp_di    [m]
+          pp_effi  [m]
+          pp_vmi   [m s-1]   (rhofaci=1; valid at surface)
+          pp_lami  [m-1]
+          pp_mui   [-]
     """
     n_orig = data.shape[1]
-    n_cat  = pp_rhoi.shape[1]
+    pp_rhoi = pp_results['pp_rhoi']
+    pp_di   = pp_results['pp_di']
+    pp_effi = pp_results['pp_effi']
+    pp_vmi  = pp_results['pp_vmi']
+    pp_lami = pp_results['pp_lami']
+    pp_mui  = pp_results['pp_mui']
+    n_cat   = pp_rhoi.shape[1]
 
-    # interleave pp columns: rhoi_1, di_1, rhoi_2, di_2, ...
-    pp_cols = np.empty((data.shape[0], 2 * n_cat))
+    # interleave pp columns: 6 fields per category
+    pp_cols = np.empty((data.shape[0], 6 * n_cat))
     for iice in range(n_cat):
-        pp_cols[:, 2 * iice]     = pp_rhoi[:, iice]
-        pp_cols[:, 2 * iice + 1] = pp_di[:,   iice]
+        base = 6 * iice
+        pp_cols[:, base + 0] = pp_rhoi[:, iice]
+        pp_cols[:, base + 1] = pp_di[:,   iice]
+        pp_cols[:, base + 2] = pp_effi[:, iice]
+        pp_cols[:, base + 3] = pp_vmi[:,  iice]
+        pp_cols[:, base + 4] = pp_lami[:, iice]
+        pp_cols[:, base + 5] = pp_mui[:,  iice]
 
     out = np.column_stack([data, pp_cols])
     with open(filepath, 'w') as fh:
@@ -860,9 +907,13 @@ def write_comparison_dat(
             fh.write(''.join(f'{v:13.4e}' for v in row) + '\n')
     print(f'  Wrote {out.shape[0]} levels → {filepath}')
     for iice in range(n_cat):
-        c = n_orig + 2 * iice
-        print(f'  col {c}  = pp_rhoi  cat {iice+1}  [kg m-3]')
+        c = n_orig + 6 * iice
+        print(f'  col {c}    = pp_rhoi  cat {iice+1}  [kg m-3]')
         print(f'  col {c+1}  = pp_di    cat {iice+1}  [m]')
+        print(f'  col {c+2}  = pp_effi  cat {iice+1}  [m]')
+        print(f'  col {c+3}  = pp_vmi   cat {iice+1}  [m s-1]  (rhofaci=1)')
+        print(f'  col {c+4}  = pp_lami  cat {iice+1}  [m-1]')
+        print(f'  col {c+5}  = pp_mui   cat {iice+1}  [-]')
 
 
 # ---------------------------------------------------------------------------
@@ -917,6 +968,10 @@ def compute(
     dict with keys:
         'pp_rhoi'  ndarray, shape (n_levels, n_cat)  [kg m-3]
         'pp_di'    ndarray, shape (n_levels, n_cat)  [m]
+        'pp_effi'  ndarray, shape (n_levels, n_cat)  [m]
+        'pp_vmi'   ndarray, shape (n_levels, n_cat)  [m s-1]  (rhofaci=1; valid at surface)
+        'pp_lami'  ndarray, shape (n_levels, n_cat)  [m-1]
+        'pp_mui'   ndarray, shape (n_levels, n_cat)  [-]
 
     Raises
     ------
@@ -980,14 +1035,27 @@ def compute(
     # ---- compute diagnostics ----
     pp_rhoi = np.zeros((n_levels, cfg.n_cat))
     pp_di   = np.zeros((n_levels, cfg.n_cat))
+    pp_effi = np.zeros((n_levels, cfg.n_cat))
+    pp_vmi  = np.zeros((n_levels, cfg.n_cat))
+    pp_lami = np.zeros((n_levels, cfg.n_cat))
+    pp_mui  = np.zeros((n_levels, cfg.n_cat))
 
     for k in range(n_levels):
         for iice in range(cfg.n_cat):
-            pp_rhoi[k, iice], pp_di[k, iice] = lut.get_diag(
+            (pp_rhoi[k, iice], pp_di[k, iice],
+             pp_effi[k, iice], pp_vmi[k, iice],
+             pp_lami[k, iice], pp_mui[k, iice]) = lut.get_diag(
                 Qitot[k, iice], Qirim[k, iice], Qiliq[k, iice],
                 Nitot[k, iice], Birim[k, iice], Zitot[k, iice])
 
-    return {'pp_rhoi': pp_rhoi, 'pp_di': pp_di}
+    return {
+        'pp_rhoi': pp_rhoi,
+        'pp_di':   pp_di,
+        'pp_effi': pp_effi,
+        'pp_vmi':  pp_vmi,
+        'pp_lami': pp_lami,
+        'pp_mui':  pp_mui,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -1046,12 +1114,29 @@ def main():
               f'(cat {iice+1})')
 
     # --- write comparison output ---
-    write_comparison_dat(args.output, data, pp_rhoi, pp_di)
+    write_comparison_dat(args.output, data, result)
 
     # --- verification statistics (per category) ---
     print(f'\n  Verification statistics:')
     print(f'    {"":16s}  {"max |diff|":>12s}  {"mean |diff|":>12s}  '
           f'{"max |rel err|":>14s}  {"median |rel err|":>16s}')
+
+    # Column indices for extended model reference fields (nCat=1 only, when present).
+    # Written by cld1d when the build includes the verification patch.
+    _n_std_cols = _CAT_BLOCK_START + cfg.n_cat * _CAT_BLOCK_WIDTH  # 23 for nCat=1
+    _has_ext = (cfg.n_cat == 1 and data.shape[1] >= _n_std_cols + 4)
+    _COL_MODEL_EFFI = _n_std_cols + 0   # col 23
+    _COL_MODEL_VMI  = _n_std_cols + 1   # col 24
+    _COL_MODEL_LAMI = _n_std_cols + 2   # col 25
+    _COL_MODEL_MUI  = _n_std_cols + 3   # col 26
+
+    def _stats(diff, ref):
+        abs_rel = np.abs(diff / np.where(ref != 0, ref, np.nan))
+        mx      = np.max(np.abs(diff))
+        mn      = np.mean(np.abs(diff))
+        rel_max = np.nanmax(abs_rel)
+        rel_med = np.nanmedian(abs_rel)
+        return mx, mn, rel_max, rel_med
 
     any_active = False
     for iice in range(cfg.n_cat):
@@ -1059,24 +1144,28 @@ def main():
         if not active.any():
             continue
         any_active = True
-        model_rhoi = data[active, _cat_col(iice, _OFF_RHOI)]
-        model_di   = data[active, _cat_col(iice, _OFF_DI)]
-        diff_rhoi  = pp_rhoi[active, iice] - model_rhoi
-        diff_di    = pp_di[active,   iice] - model_di
         cat_label  = f'cat {iice+1}' if cfg.n_cat > 1 else ''
 
-        def _stats(diff, ref):
-            abs_rel = np.abs(diff / np.where(ref != 0, ref, np.nan))
-            mx      = np.max(np.abs(diff))
-            mn      = np.mean(np.abs(diff))
-            rel_max = np.nanmax(abs_rel)
-            rel_med = np.nanmedian(abs_rel)
-            return mx, mn, rel_max, rel_med
-
-        mx, mn, rel_max, rel_med = _stats(diff_rhoi, model_rhoi)
+        model_rhoi = data[active, _cat_col(iice, _OFF_RHOI)]
+        model_di   = data[active, _cat_col(iice, _OFF_DI)]
+        mx, mn, rel_max, rel_med = _stats(pp_rhoi[active, iice] - model_rhoi, model_rhoi)
         print(f'    {f"diag_rhoi {cat_label}":16s}  {mx:12.4e}  {mn:12.4e}  {rel_max:14.4e}  {rel_med:16.4e}')
-        mx, mn, rel_max, rel_med = _stats(diff_di, model_di)
+        mx, mn, rel_max, rel_med = _stats(pp_di[active, iice] - model_di, model_di)
         print(f'    {f"diag_di   {cat_label}":16s}  {mx:12.4e}  {mn:12.4e}  {rel_max:14.4e}  {rel_med:16.4e}')
+
+        if _has_ext and iice == 0:
+            model_effi = data[active, _COL_MODEL_EFFI]
+            model_vmi  = data[active, _COL_MODEL_VMI]
+            model_lami = data[active, _COL_MODEL_LAMI]
+            model_mui  = data[active, _COL_MODEL_MUI]
+            mx, mn, rel_max, rel_med = _stats(result['pp_effi'][active, iice] - model_effi, model_effi)
+            print(f'    {f"diag_effi {cat_label}":16s}  {mx:12.4e}  {mn:12.4e}  {rel_max:14.4e}  {rel_med:16.4e}')
+            mx, mn, rel_max, rel_med = _stats(result['pp_vmi'][active, iice]  - model_vmi,  model_vmi)
+            print(f'    {f"diag_vmi  {cat_label}":16s}  {mx:12.4e}  {mn:12.4e}  {rel_max:14.4e}  {rel_med:16.4e}  (rhofaci=1 vs model)')
+            mx, mn, rel_max, rel_med = _stats(result['pp_lami'][active, iice] - model_lami, model_lami)
+            print(f'    {f"diag_lami {cat_label}":16s}  {mx:12.4e}  {mn:12.4e}  {rel_max:14.4e}  {rel_med:16.4e}')
+            mx, mn, rel_max, rel_med = _stats(result['pp_mui'][active, iice]  - model_mui,  model_mui)
+            print(f'    {f"diag_mui  {cat_label}":16s}  {mx:12.4e}  {mn:12.4e}  {rel_max:14.4e}  {rel_med:16.4e}')
 
     if not any_active:
         print('  No active ice levels found — nothing to compare.')

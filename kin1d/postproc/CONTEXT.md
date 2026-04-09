@@ -5,7 +5,7 @@ See `PROJECT_PLAN.md` for the current phase status and next steps.
 
 ---
 
-## Repository layout (branch: dev-tools_refactor)
+## Repository layout (branch: dev-postprocessor)
 
 ```
 kin1d/

@@ -147,7 +147,7 @@ pre-clamp `Zitot_adv` (or the pre-clamp `Zitot_mp`) as an additional output colu
 
 1. Checkout the working branch:
    ```bash
-   git checkout dev-tools_refactor
+   git checkout dev-postprocessor
    cd kin1d
    ```
 2. Check this file (`PROJECT_PLAN.md`) for the first unchecked item
@@ -163,7 +163,7 @@ pre-clamp `Zitot_adv` (or the pre-clamp `Zitot_mp`) as an additional output colu
 
 ## Notes
 
-- All code changes stay on branch `dev-tools_refactor`; merge to `main` only at milestones
+- All code changes stay on branch `dev-postprocessor`; merge to `main` only at milestones
 - Accuracy target: median relative error < 0.1% vs model output (baseline ~0.03%)
 - Differences vs model expected due to ASCII precision loss in `out_p3.dat` (e13.4, ~5 sig figs)
 - Binary input (Phase 3) will yield much smaller differences

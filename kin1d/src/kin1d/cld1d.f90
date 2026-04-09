@@ -619,7 +619,7 @@ subroutine columnmodel
                  if (Qitot(1,k,1).gt.0.) dum1 = Qirim(1,k,1)/(Qitot(1,k,1)-Qiliq(1,k,1))      ! rime fraction
                  if (Qitot(1,k,1).gt.0.) dum2 = Qiliq(1,k,1)/Qitot(1,k,1)                     ! liquid fraction
                  if (Nr(1,k).gt.0.) dum3 = (6.*Qr(1,k)/(pi*1000.*Nr(1,k)))**(1./3.)           ! Drm
-                 write(30,'(26e13.4)')   &
+                 write(30,'(27e13.4)')   &
                       z(k),              &  !col 0 (for python plot script)
                       w(1,k),            &  !col 1
                       prt_liq(1),        &  !col 2
@@ -642,7 +642,11 @@ subroutine columnmodel
                       Birim(1,k,1),      &  !col 19
                       Zitot(1,k,1),      &  !col 20
                       diag_rhoi(1,k,1),  &  !col 21
-                      diag_di(1,k,1)        !col 22
+                      diag_di(1,k,1),    &  !col 22
+                      diag_reffi(1,k,1), &  !col 23  (effi)
+                      diag_vmi(1,k,1),   &  !col 24  (vmi,  rhofaci applied by model)
+                      diag_3d(1,k,2),    &  !col 25  (lami, arr_lami cat 1)
+                      diag_3d(1,k,3)        !col 26  (mui,  arr_mui  cat 1)
 
               elseif (nCat.eq.2) then
 
