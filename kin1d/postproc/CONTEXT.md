@@ -34,11 +34,11 @@ kin1d/
 | `calc_bulkRhoRime()`                   | `P3LUT.calc_bulk_rho_rime()`        | Done     |
 | `find_lookupTable_indices_1a()`        | `P3LUT._find_indices()`             | Done     |
 | `proc_from_LUT_main2mom()`             | `P3LUT._interp_2mom()`              | Done     |
-| `find_lookupTable_indices_3a()`        | `P3LUT._find_indices_3a()`          | Phase 2  |
-| `find_lookupTable_indices_1c()`        | `P3LUT._find_indices_1c()`          | Phase 2  |
-| `proc_from_LUT_3()` (itab_3mom_mui)    | `P3LUT._interp_3mom_mui()`          | Phase 2  |
-| `proc_from_LUT_main3mom()` (itab_3mom) | `P3LUT._interp_3mom()`              | Phase 2  |
-| `get_mui_rhoi()`                       | incorporated in `get_diag_3mom()`   | Phase 2  |
+| `find_lookupTable_indices_3a()`        | `P3LUT._find_indices_3a()`          | Done     |
+| `find_lookupTable_indices_1c()`        | `P3LUT._find_indices_1c()`          | Done     |
+| `proc_from_LUT_3()` (itab_3mom_mui)    | `P3LUT._interp_3mom_mui()`          | Done     |
+| `proc_from_LUT_main3mom()` (itab_3mom) | `P3LUT._interp_3mom()`              | Done     |
+| `get_mui_rhoi()`                       | incorporated in `_get_diag_3mom()`  | Done     |
 
 ---
 
@@ -182,10 +182,32 @@ dum6  = mu_i * 0.5 + 1.                                → clamped to [1, ZSIZE]
 
 ## Verification baseline
 
-| Config                          | Quantity   | Median rel err | Max rel err |
-|---------------------------------|------------|----------------|-------------|
-| nCat=1, 2-mom, liqFrac=F (done) | diag_rhoi  | 0.029%         | 6.5%        |
-| nCat=1, 2-mom, liqFrac=F (done) | diag_di    | 0.024%         | 5.5%        |
+| Config                          | Quantity   | Median rel err | Max rel err | Notes                    |
+|---------------------------------|------------|----------------|-------------|--------------------------|
+| nCat=1, 2-mom, liqFrac=F        | diag_rhoi  | 0.029%         | 6.5%        | ASCII precision only     |
+| nCat=1, 2-mom, liqFrac=F        | diag_di    | 0.024%         | 5.5%        | ASCII precision only     |
+| nCat=1, 3-mom, liqFrac=T        | diag_rhoi  | ~30%           | ~37%        | Zitot time-lag (see below) |
+| nCat=1, 3-mom, liqFrac=T        | diag_di    | ~100%          | ~110%       | Zitot time-lag (see below) |
 
-Max errors are due to ASCII precision loss in `out_p3.dat` (e13.4 ≈ 5 significant digits).
+2-mom max errors are due to ASCII precision loss in `out_p3.dat` (e13.4 ≈ 5 significant digits).
 Binary input (Phase 3) will reduce these to near machine precision.
+
+---
+
+## Known limitation: Zitot time-lag in 3-moment mode
+
+`diag_rhoi` and `diag_di` in `out_p3.dat` are computed inside `p3_main` using
+the **pre-bounds** `Zitot` (before `apply_mui_bounds_to_zi` modifies it). The
+`Zitot` written to the file, however, is the **post-bounds** value (the prognostic
+state after `p3_main` returns).
+
+When the post-processor reads `Zitot` from `out_p3.dat`, it sees the post-bounds
+value and computes diagnostics consistent with what **the next timestep** would
+produce — not the model `diag_rhoi`/`diag_di` stored in the same row. This causes
+the large apparent errors seen in 3-moment verification statistics.
+
+The post-processor physics are correct and self-consistent. The mismatch is an
+artefact of the ASCII output ordering within a single timestep of `cld1d`/GEM.
+
+To fully resolve (deferred to a later phase): modify `cld1d` to output both the
+pre-bounds and post-bounds `Zitot` (or output pre-bounds only).

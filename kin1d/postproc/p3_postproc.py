@@ -34,12 +34,12 @@ COMMAND-LINE OPTIONS:
     --config FILE          P3 config file (default: p3_config.txt)
     --output FILE          Output file (default: out_pp.dat)
 
-SUPPORTED CONFIGURATIONS (v0.2):
+SUPPORTED CONFIGURATIONS (v0.3):
 
     nCat=1–3, trplMomIce=.false., liqFrac=.false.  (2-moment, no liquid)
     nCat=1–3, trplMomIce=.false., liqFrac=.true.   (2-moment, with liquid fraction)
-
-3-moment ice (trplMomIce=.true.) is not yet implemented.
+    nCat=1–3, trplMomIce=.true.,  liqFrac=.false.  (3-moment, no liquid)
+    nCat=1–3, trplMomIce=.true.,  liqFrac=.true.   (3-moment, with liquid fraction)
 
 DEPENDENCIES:
 
@@ -63,6 +63,8 @@ QSMALL       = 1.e-14   # minimum ice mass mixing ratio      [kg kg-1]
 NSMALL       = 1.e-16   # minimum ice number concentration   [kg-1]
 RHO_RIME_MIN = 50.      # minimum bulk rime density          [kg m-3]
 RHO_RIME_MAX = 900.     # maximum bulk rime density          [kg m-3]
+ZSMALL       = 1.e-35   # minimum Zitot (reflectivity moment)
+ZLARGE       = 1.       # maximum Zitot (reflectivity moment)
 
 # 2-moment LUT dimensions  (integer, parameter :: ... in microphy_p3.f90)
 ISIZE     = 50    # particle size bins
@@ -72,9 +74,21 @@ DENSIZE   =  5    # bulk rime density bins
 TABSIZE   = 19    # number of process quantities in 2-moment table
 RCOLLSIZE = 30    # ice-rain collection bins (file structure only; not used here)
 
+# 3-moment additions
+ZSIZE        = 11    # mu_i bins (outer dim of itab_3mom, = dum6/dumzz)
+ZQSIZE       = 80    # Zi/Qi bins (outer dim of itab_3mom_mui, = dum8/dumzq)
+TABSIZE_3MOM = 29    # number of process quantities in 3-moment table
+
 # Process indices in the LUT (1-based, matching Fortran)
 IDX_DIAG_DI   = 11    # mean-mass diameter    [m]
-IDX_DIAG_RHOI = 12    # bulk ice density      [kg m-3]
+IDX_DIAG_RHOI = 12    # bulk ice density      [kg m-3]  (2-mom only)
+
+# 3-moment mu_i LUT indices (1-based, itab_3mom_mui)
+IDX_3MOM_MUI  = 1    # mu_i parameter
+IDX_3MOM_RHOI = 2    # diag_rhoi [kg m-3]
+
+# 3-moment main LUT index (1-based, itab_3mom)
+IDX_3MOM_DI   = 11   # diag_di [m]
 
 
 # ---------------------------------------------------------------------------
@@ -124,10 +138,17 @@ class P3LUT:
     """
     Loads a P3 lookup table and computes diagnostic ice quantities.
 
-    Implements the 2-moment ice path, mirroring:
-        calc_bulkRhoRime()          in microphy_p3.f90
+    For 2-moment ice, mirrors:
+        calc_bulkRhoRime()             in microphy_p3.f90
         find_lookupTable_indices_1a()  "
         proc_from_LUT_main2mom()       "
+
+    For 3-moment ice, additionally mirrors:
+        find_lookupTable_indices_3a()  "
+        find_lookupTable_indices_1c()  "
+        proc_from_LUT_3()              "  (itab_3mom_mui)
+        proc_from_LUT_main3mom()       "  (itab_3mom)
+        get_mui_rhoi()                 "
     """
 
     def __init__(self, lut_dir: str, cfg: P3Config):
@@ -139,21 +160,22 @@ class P3LUT:
                 raise FileNotFoundError(
                     f'No 2-moment LUT file found in {lut_dir}. '
                     f'Make sure the .gz files are decompressed.')
-            lut_file = candidates[0]
-            self._load_2mom_lut(lut_file)
+            self._load_2mom_lut(candidates[0])
         else:
-            raise NotImplementedError('3-moment ice LUT not yet implemented.')
+            self._load_3mom_luts(lut_dir)
 
+    # ------------------------------------------------------------------
+    # 2-moment LUT loader
     # ------------------------------------------------------------------
     def _load_2mom_lut(self, path: Path):
         """
         Read the 2-moment LUT into self.itab[densize, rimsize, liqsize, isize, tabsize].
 
         File structure mirrors the Fortran p3_init read loop:
-          - 1 header line (skipped)
-          - For each (jj, ii, ll):
-              isize rows × 25 cols : 4 dummy | 19 table values | 2 dummy
-              isize×rcollsize rows  : ice-rain collection data (skipped)
+          - 1 header line + 1 blank line (skipped)
+          - Loop (outer→inner): jj → ii → ll → i
+          - Per (jj, ii, ll): isize rows × 25 cols: 4 dummy | 19 table values | 2 dummy
+          - Per (jj, ii, ll): isize×rcollsize rows  (ice-rain collection data, skipped)
         """
         itab = np.zeros((DENSIZE, RIMSIZE, LIQSIZE, ISIZE, TABSIZE), dtype=np.float32)
         with open(path) as fh:
@@ -172,6 +194,86 @@ class P3LUT:
         self.itab = itab
         print(f'  Loaded 2-moment LUT: {path.name}  shape={itab.shape}')
 
+    # ------------------------------------------------------------------
+    # 3-moment LUT loaders
+    # ------------------------------------------------------------------
+    def _load_3mom_luts(self, lut_dir: Path):
+        """Load both 3-moment LUT files."""
+        # main 3-mom LUT (itab_3mom)
+        candidates = list(lut_dir.glob('p3_lookupTable_1.dat-*3momI*'))
+        if not candidates:
+            raise FileNotFoundError(
+                f'No 3-moment LUT file found in {lut_dir}. '
+                f'Make sure the .gz files are decompressed.')
+        self._load_3mom_main_lut(candidates[0])
+
+        # mu_i / rho_i LUT (itab_3mom_mui)
+        candidates = list(lut_dir.glob('p3_lookupTable_3.dat-*'))
+        if not candidates:
+            raise FileNotFoundError(
+                f'No p3_lookupTable_3 file found in {lut_dir}. '
+                f'Make sure the .gz files are decompressed.')
+        self._load_3mom_mui_lut(candidates[0])
+
+    def _load_3mom_main_lut(self, path: Path):
+        """
+        Read the 3-moment main LUT into
+        self.itab_3mom[zsize, densize, rimsize, liqsize, isize, tabsize_3mom].
+
+        File structure mirrors the Fortran p3_init read loop:
+          - 1 header line + 1 blank line (skipped)
+          - Loop (outer→inner): zz → jj → ii → ll → i
+          - Per (zz, jj, ii, ll): isize rows × 36 cols:
+              5 dummy | 29 table values | 2 dummy
+          - Per (zz, jj, ii, ll): isize×rcollsize collection rows (4 dummy + 3 vals, skipped)
+        """
+        shape = (ZSIZE, DENSIZE, RIMSIZE, LIQSIZE, ISIZE, TABSIZE_3MOM)
+        itab = np.zeros(shape, dtype=np.float32)
+        with open(path) as fh:
+            fh.readline()   # header line
+            fh.readline()   # blank line after header
+            for zz in range(ZSIZE):
+                for jj in range(DENSIZE):
+                    for ii in range(RIMSIZE):
+                        for ll in range(LIQSIZE):
+                            # main table: isize rows, 5 dummy + 29 values + 2 dummy
+                            for i in range(ISIZE):
+                                vals = list(map(float, fh.readline().split()))
+                                itab[zz, jj, ii, ll, i, :] = vals[5 : 5 + TABSIZE_3MOM]
+                            # collection table: isize × rcollsize rows (skip)
+                            for _ in range(ISIZE * RCOLLSIZE):
+                                fh.readline()
+        self.itab_3mom = itab
+        print(f'  Loaded 3-moment main LUT: {path.name}  shape={itab.shape}')
+
+    def _load_3mom_mui_lut(self, path: Path):
+        """
+        Read the mu_i/rho_i LUT into
+        self.itab_3mom_mui[zqsize, densize, rimsize, liqsize, isize, 2].
+
+        File structure mirrors the Fortran p3_init read loop:
+          - 1 header line + 1 blank line (skipped)
+          - Loop (outer→inner): zq → jj → ii → ll → i
+          - Per row: 9 cols: 5 dummy | 2 values | 2 dummy
+          - No collection table rows
+        """
+        shape = (ZQSIZE, DENSIZE, RIMSIZE, LIQSIZE, ISIZE, 2)
+        itab = np.zeros(shape, dtype=np.float32)
+        with open(path) as fh:
+            fh.readline()   # header line
+            fh.readline()   # blank line after header
+            for zq in range(ZQSIZE):
+                for jj in range(DENSIZE):
+                    for ii in range(RIMSIZE):
+                        for ll in range(LIQSIZE):
+                            for i in range(ISIZE):
+                                vals = list(map(float, fh.readline().split()))
+                                itab[zq, jj, ii, ll, i, :] = vals[5:7]
+        self.itab_3mom_mui = itab
+        print(f'  Loaded 3-moment mu_i LUT: {path.name}  shape={itab.shape}')
+
+    # ------------------------------------------------------------------
+    # Bulk rime density
     # ------------------------------------------------------------------
     @staticmethod
     def calc_bulk_rho_rime(
@@ -207,6 +309,8 @@ class P3LUT:
 
         return rho_rime, qi_rim, bi_rim
 
+    # ------------------------------------------------------------------
+    # Index finding — shared (2-mom and 3-mom)
     # ------------------------------------------------------------------
     @staticmethod
     def _find_indices(
@@ -252,6 +356,51 @@ class P3LUT:
 
         return dumi, dumjj, dumii, dumll, dum1, dum5, dum4, dum7
 
+    # ------------------------------------------------------------------
+    # Index finding — 3-moment only
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _find_indices_3a(
+            zi_tot: float, qi_tot: float
+    ) -> tuple[int, float]:
+        """
+        Compute Zi/Qi index for the 3-moment mu_i LUT.
+
+        Translation of find_lookupTable_indices_3a() from microphy_p3.f90.
+
+        Returns
+        -------
+        dumzq : int    lower-bound integer index (1-based)
+        dum8  : float  continuous index (clamped to [1, ZQSIZE])
+        """
+        dum8  = (np.log10(zi_tot / qi_tot) + 23.) * 3.10347652
+        dumzq = int(dum8)
+        dum8  = float(np.clip(dum8, 1., ZQSIZE))
+        dumzq = int(np.clip(dumzq, 1, ZQSIZE - 1))
+        return dumzq, dum8
+
+    @staticmethod
+    def _find_indices_1c(
+            mu_i: float
+    ) -> tuple[int, float]:
+        """
+        Compute mu_i index for the 3-moment main LUT.
+
+        Translation of find_lookupTable_indices_1c() from microphy_p3.f90.
+
+        Returns
+        -------
+        dumzz : int    lower-bound integer index (1-based)
+        dum6  : float  continuous index (clamped to [1, ZSIZE])
+        """
+        dum6  = mu_i * 0.5 + 1.
+        dumzz = int(dum6)
+        dum6  = float(np.clip(dum6, 1., ZSIZE))
+        dumzz = int(np.clip(dumzz, 1, ZSIZE - 1))
+        return dumzz, dum6
+
+    # ------------------------------------------------------------------
+    # 2-moment interpolation
     # ------------------------------------------------------------------
     def _interp_2mom(
             self,
@@ -329,24 +478,196 @@ class P3LUT:
             return float(tmp3 + fjj * (tmp4 - tmp3))   # interp in density
 
     # ------------------------------------------------------------------
+    # 3-moment interpolation — mu_i / rho_i LUT  (itab_3mom_mui)
+    # ------------------------------------------------------------------
+    def _interp_3mom_mui(
+            self,
+            ind_f: int,
+            dumzq: int, dumjj: int, dumii: int, dumll: int, dumi: int,
+            dum1: float, dum4: float, dum5: float, dum7: float, dum8: float
+    ) -> float:
+        """
+        5D linear interpolation in itab_3mom_mui.
+
+        Verbatim translation of proc_from_LUT_3() from microphy_p3.f90.
+
+        Parameters
+        ----------
+        ind_f  : 1-based process index (1 = mu_i, 2 = diag_rhoi)
+        dumzq  : 1-based lower-bound Zi/Qi index
+        dumjj, dumii, dumll, dumi : 1-based lower-bound density/rime/liq/size indices
+        dum1   : continuous size index
+        dum4   : continuous rime-fraction index
+        dum5   : continuous density index
+        dum7   : continuous liquid-fraction index
+        dum8   : continuous Zi/Qi index
+        """
+        ind = ind_f - 1
+        t   = self.itab_3mom_mui   # shape: [zq, jj, ii, ll, i, ind]  (0-based)
+
+        # convert to 0-based
+        zq = dumzq - 1;  zq1 = zq + 1
+        jj = dumjj - 1;  jj1 = jj + 1
+        ii = dumii - 1;  ii1 = ii + 1
+        ll = dumll - 1;  ll1 = ll + 1
+        i  = dumi  - 1;  i1  = i  + 1
+
+        fi  = dum1 - dumi
+        fii = dum4 - dumii
+        fjj = dum5 - dumjj
+        fll = dum7 - dumll
+        fzq = dum8 - dumzq
+
+        def _interp_4d(zq_):
+            """4D or 3D interpolation at a fixed zq index."""
+            if dum7 == 1. and dumll == 1:
+                # 3D path: skip liquid fraction
+                dp1  = t[zq_, jj,  ii,  ll, i,  ind] + fi * (t[zq_, jj,  ii,  ll, i1, ind] - t[zq_, jj,  ii,  ll, i,  ind])
+                dp2  = t[zq_, jj,  ii1, ll, i,  ind] + fi * (t[zq_, jj,  ii1, ll, i1, ind] - t[zq_, jj,  ii1, ll, i,  ind])
+                gp1  = dp1 + fii * (dp2 - dp1)
+                dp1  = t[zq_, jj1, ii,  ll, i,  ind] + fi * (t[zq_, jj1, ii,  ll, i1, ind] - t[zq_, jj1, ii,  ll, i,  ind])
+                dp2  = t[zq_, jj1, ii1, ll, i,  ind] + fi * (t[zq_, jj1, ii1, ll, i1, ind] - t[zq_, jj1, ii1, ll, i,  ind])
+                gp2  = dp1 + fii * (dp2 - dp1)
+                return gp1 + fjj * (gp2 - gp1)
+            else:
+                # 4D path: include liquid fraction
+                # jj, ii
+                dp1  = t[zq_, jj,  ii,  ll,  i, ind] + fi * (t[zq_, jj,  ii,  ll,  i1, ind] - t[zq_, jj,  ii,  ll,  i, ind])
+                dp2  = t[zq_, jj,  ii,  ll1, i, ind] + fi * (t[zq_, jj,  ii,  ll1, i1, ind] - t[zq_, jj,  ii,  ll1, i, ind])
+                ip1  = dp1 + fll * (dp2 - dp1)
+                # jj, ii+1
+                dp1  = t[zq_, jj,  ii1, ll,  i, ind] + fi * (t[zq_, jj,  ii1, ll,  i1, ind] - t[zq_, jj,  ii1, ll,  i, ind])
+                dp2  = t[zq_, jj,  ii1, ll1, i, ind] + fi * (t[zq_, jj,  ii1, ll1, i1, ind] - t[zq_, jj,  ii1, ll1, i, ind])
+                ip2  = dp1 + fll * (dp2 - dp1)
+                gp1  = ip1 + fii * (ip2 - ip1)
+                # jj+1, ii
+                dp1  = t[zq_, jj1, ii,  ll,  i, ind] + fi * (t[zq_, jj1, ii,  ll,  i1, ind] - t[zq_, jj1, ii,  ll,  i, ind])
+                dp2  = t[zq_, jj1, ii,  ll1, i, ind] + fi * (t[zq_, jj1, ii,  ll1, i1, ind] - t[zq_, jj1, ii,  ll1, i, ind])
+                ip1  = dp1 + fll * (dp2 - dp1)
+                # jj+1, ii+1
+                dp1  = t[zq_, jj1, ii1, ll,  i, ind] + fi * (t[zq_, jj1, ii1, ll,  i1, ind] - t[zq_, jj1, ii1, ll,  i, ind])
+                dp2  = t[zq_, jj1, ii1, ll1, i, ind] + fi * (t[zq_, jj1, ii1, ll1, i1, ind] - t[zq_, jj1, ii1, ll1, i, ind])
+                ip2  = dp1 + fll * (dp2 - dp1)
+                gp2  = ip1 + fii * (ip2 - ip1)
+                return gp1 + fjj * (gp2 - gp1)
+
+        rproc1 = _interp_4d(zq)
+        rproc2 = _interp_4d(zq1)
+        return float(rproc1 + fzq * (rproc2 - rproc1))
+
+    # ------------------------------------------------------------------
+    # 3-moment interpolation — main LUT  (itab_3mom)
+    # ------------------------------------------------------------------
+    def _interp_3mom(
+            self,
+            ind_f: int,
+            dumzz: int, dumjj: int, dumii: int, dumll: int, dumi: int,
+            dum1: float, dum4: float, dum5: float, dum6: float, dum7: float
+    ) -> float:
+        """
+        6D (or 5D) linear interpolation in itab_3mom.
+
+        Verbatim translation of proc_from_LUT_main3mom() from microphy_p3.f90.
+
+        Parameters
+        ----------
+        ind_f  : 1-based process index (11 = diag_di)
+        dumzz  : 1-based lower-bound mu_i index
+        dumjj, dumii, dumll, dumi : 1-based lower-bound density/rime/liq/size indices
+        dum1   : continuous size index
+        dum4   : continuous rime-fraction index
+        dum5   : continuous density index
+        dum6   : continuous mu_i index
+        dum7   : continuous liquid-fraction index
+        """
+        ind = ind_f - 1
+        t   = self.itab_3mom   # shape: [zz, jj, ii, ll, i, ind]  (0-based)
+
+        # convert to 0-based
+        zz = dumzz - 1;  zz1 = zz + 1
+        jj = dumjj - 1;  jj1 = jj + 1
+        ii = dumii - 1;  ii1 = ii + 1
+        ll = dumll - 1;  ll1 = ll + 1
+        i  = dumi  - 1;  i1  = i  + 1
+
+        fi  = dum1 - dumi
+        fii = dum4 - dumii
+        fjj = dum5 - dumjj
+        fll = dum7 - dumll
+        fzz = dum6 - dumzz
+
+        def _interp_4d(zz_):
+            """4D or 3D interpolation at a fixed zz index."""
+            if dum7 == 1. and dumll == 1:
+                # 3D path: skip liquid fraction
+                dp1  = t[zz_, jj,  ii,  ll, i,  ind] + fi * (t[zz_, jj,  ii,  ll, i1, ind] - t[zz_, jj,  ii,  ll, i,  ind])
+                dp2  = t[zz_, jj,  ii1, ll, i,  ind] + fi * (t[zz_, jj,  ii1, ll, i1, ind] - t[zz_, jj,  ii1, ll, i,  ind])
+                gp1  = dp1 + fii * (dp2 - dp1)
+                dp1  = t[zz_, jj1, ii,  ll, i,  ind] + fi * (t[zz_, jj1, ii,  ll, i1, ind] - t[zz_, jj1, ii,  ll, i,  ind])
+                dp2  = t[zz_, jj1, ii1, ll, i,  ind] + fi * (t[zz_, jj1, ii1, ll, i1, ind] - t[zz_, jj1, ii1, ll, i,  ind])
+                gp2  = dp1 + fii * (dp2 - dp1)
+                return gp1 + fjj * (gp2 - gp1)
+            else:
+                # 4D path: include liquid fraction
+                # jj, ii
+                dp1  = t[zz_, jj,  ii,  ll,  i, ind] + fi * (t[zz_, jj,  ii,  ll,  i1, ind] - t[zz_, jj,  ii,  ll,  i, ind])
+                dp2  = t[zz_, jj,  ii,  ll1, i, ind] + fi * (t[zz_, jj,  ii,  ll1, i1, ind] - t[zz_, jj,  ii,  ll1, i, ind])
+                ip1  = dp1 + fll * (dp2 - dp1)
+                # jj, ii+1
+                dp1  = t[zz_, jj,  ii1, ll,  i, ind] + fi * (t[zz_, jj,  ii1, ll,  i1, ind] - t[zz_, jj,  ii1, ll,  i, ind])
+                dp2  = t[zz_, jj,  ii1, ll1, i, ind] + fi * (t[zz_, jj,  ii1, ll1, i1, ind] - t[zz_, jj,  ii1, ll1, i, ind])
+                ip2  = dp1 + fll * (dp2 - dp1)
+                gp1  = ip1 + fii * (ip2 - ip1)
+                # jj+1, ii
+                dp1  = t[zz_, jj1, ii,  ll,  i, ind] + fi * (t[zz_, jj1, ii,  ll,  i1, ind] - t[zz_, jj1, ii,  ll,  i, ind])
+                dp2  = t[zz_, jj1, ii,  ll1, i, ind] + fi * (t[zz_, jj1, ii,  ll1, i1, ind] - t[zz_, jj1, ii,  ll1, i, ind])
+                ip1  = dp1 + fll * (dp2 - dp1)
+                # jj+1, ii+1
+                dp1  = t[zz_, jj1, ii1, ll,  i, ind] + fi * (t[zz_, jj1, ii1, ll,  i1, ind] - t[zz_, jj1, ii1, ll,  i, ind])
+                dp2  = t[zz_, jj1, ii1, ll1, i, ind] + fi * (t[zz_, jj1, ii1, ll1, i1, ind] - t[zz_, jj1, ii1, ll1, i, ind])
+                ip2  = dp1 + fll * (dp2 - dp1)
+                gp2  = ip1 + fii * (ip2 - ip1)
+                return gp1 + fjj * (gp2 - gp1)
+
+        rproc1 = _interp_4d(zz)
+        rproc2 = _interp_4d(zz1)
+        return float(rproc1 + fzz * (rproc2 - rproc1))
+
+    # ------------------------------------------------------------------
+    # Top-level diagnostic calls
+    # ------------------------------------------------------------------
     def get_diag(
             self,
             qi_tot: float, qi_rim: float, qi_liq: float,
-            ni_tot: float, bi_rim: float
+            ni_tot: float, bi_rim: float,
+            zi_tot: float = 0.
     ) -> tuple[float, float]:
         """
         Compute diag_rhoi and diag_di for a single grid point.
 
-        Replicates the qi_not_small block in p3_main (microphy_p3.f90).
-
+        Routes to the 2-moment or 3-moment path depending on cfg.triple_moment.
         Returns (0., 0.) when qi_tot < QSMALL, matching model behaviour.
         """
         if qi_tot < QSMALL:
             return 0., 0.
 
+        if self.cfg.triple_moment:
+            return self._get_diag_3mom(qi_tot, qi_rim, qi_liq, ni_tot, bi_rim, zi_tot)
+        else:
+            return self._get_diag_2mom(qi_tot, qi_rim, qi_liq, ni_tot, bi_rim)
+
+    def _get_diag_2mom(
+            self,
+            qi_tot: float, qi_rim: float, qi_liq: float,
+            ni_tot: float, bi_rim: float
+    ) -> tuple[float, float]:
+        """
+        2-moment path: compute diag_rhoi and diag_di.
+
+        Replicates the qi_not_small block in p3_main (microphy_p3.f90).
+        """
         ni_tot = max(ni_tot, NSMALL)
 
-        # calc_bulkRhoRime may adjust qi_rim and bi_rim; use returned values
         rho_p, qi_rim, bi_rim = self.calc_bulk_rho_rime(
             qi_tot, qi_rim, qi_liq, bi_rim)
 
@@ -357,6 +678,51 @@ class P3LUT:
             IDX_DIAG_RHOI, dumi, dumjj, dumii, dumll, dum1, dum5, dum4, dum7)
         diag_di   = self._interp_2mom(
             IDX_DIAG_DI,   dumi, dumjj, dumii, dumll, dum1, dum5, dum4, dum7)
+
+        return diag_rhoi, diag_di
+
+    def _get_diag_3mom(
+            self,
+            qi_tot: float, qi_rim: float, qi_liq: float,
+            ni_tot: float, bi_rim: float,
+            zi_tot: float
+    ) -> tuple[float, float]:
+        """
+        3-moment path: compute diag_rhoi and diag_di.
+
+        Mirrors the get_mui_rhoi() call sequence in p3_main (microphy_p3.f90):
+          1. calc_bulkRhoRime → rho_p
+          2. find_lookupTable_indices_1a → shared indices
+          3. Clamp Zi; find_lookupTable_indices_3a → dumzq, dum8
+          4. proc_from_LUT_3(1) → mu_i
+          5. proc_from_LUT_3(2) → diag_rhoi
+          6. find_lookupTable_indices_1c → dumzz, dum6
+          7. proc_from_LUT_main3mom(11) → diag_di
+        """
+        ni_tot = max(ni_tot, NSMALL)
+
+        rho_p, qi_rim, bi_rim = self.calc_bulk_rho_rime(
+            qi_tot, qi_rim, qi_liq, bi_rim)
+
+        dumi, dumjj, dumii, dumll, dum1, dum5, dum4, dum7 = self._find_indices(
+            qi_tot, ni_tot, qi_rim, qi_liq, rho_p)
+
+        # clamp Zitot (mirrors 'Zi = max(zsmall, min(zlarge, Zi))' in get_mui_rhoi)
+        zi_tot = max(ZSMALL, min(ZLARGE, zi_tot))
+
+        # find Zi/Qi index and interpolate mu_i and rho_i from itab_3mom_mui
+        dumzq, dum8 = self._find_indices_3a(zi_tot, qi_tot)
+
+        mu_i      = self._interp_3mom_mui(
+            IDX_3MOM_MUI,  dumzq, dumjj, dumii, dumll, dumi, dum1, dum4, dum5, dum7, dum8)
+        diag_rhoi = self._interp_3mom_mui(
+            IDX_3MOM_RHOI, dumzq, dumjj, dumii, dumll, dumi, dum1, dum4, dum5, dum7, dum8)
+
+        # find mu_i index and interpolate diag_di from itab_3mom
+        dumzz, dum6 = self._find_indices_1c(mu_i)
+
+        diag_di   = self._interp_3mom(
+            IDX_3MOM_DI, dumzz, dumjj, dumii, dumll, dumi, dum1, dum4, dum5, dum6, dum7)
 
         return diag_rhoi, diag_di
 
@@ -476,9 +842,6 @@ def main():
     cfg = P3Config.from_file(args.config)
     print(f'  nCat={cfg.n_cat}  3-moment={cfg.triple_moment}  liqFrac={cfg.liq_frac}')
 
-    if cfg.triple_moment:
-        raise NotImplementedError('trplMomIce=.true.: 3-moment ice not yet implemented.')
-
     # --- load LUT ---
     lut = P3LUT(args.lut_dir, cfg)
 
@@ -500,9 +863,10 @@ def main():
             qi_liq = data[k, _cat_col(iice, _OFF_QILIQ)]
             ni_tot = data[k, _cat_col(iice, _OFF_NITOT)]
             bi_rim = data[k, _cat_col(iice, _OFF_BIRIM)]
+            zi_tot = data[k, _cat_col(iice, _OFF_ZITOT)]
 
             pp_rhoi[k, iice], pp_di[k, iice] = lut.get_diag(
-                qi_tot, qi_rim, qi_liq, ni_tot, bi_rim)
+                qi_tot, qi_rim, qi_liq, ni_tot, bi_rim, zi_tot)
             if qi_tot >= QSMALL:
                 n_active[iice] += 1
 

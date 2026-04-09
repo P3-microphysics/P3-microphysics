@@ -30,41 +30,58 @@ configurations, without requiring a live model call.
 
 ---
 
-### Phase 2 — 3-moment ice
+### Phase 2 — 3-moment ice  ← **DONE**
 
-- [ ] **2.1** Load `itab_3mom` from `p3_lookupTable_1.dat-v6.9-3momI`
+- [x] **2.1** Load `itab_3mom` from `p3_lookupTable_1.dat-v6.9-3momI`
   - Shape: `[11, 5, 4, 4, 50, 29]`; loop: `zz→jj→ii→ll→i`; 36 cols/row (5 dummy + 29 + 2)
   - After each `(zz,jj,ii,ll)` block: skip `50×30` collection rows
 
-- [ ] **2.2** Load `itab_3mom_mui` from `p3_lookupTable_3.dat-v1.4`
+- [x] **2.2** Load `itab_3mom_mui` from `p3_lookupTable_3.dat-v1.4`
   - Shape: `[80, 5, 4, 4, 50, 2]`; loop: `zq→jj→ii→ll→i`; 9 cols/row; no collection rows
 
-- [ ] **2.3** Implement `_find_indices_3a(zi_tot, qi_tot)` → `(dumzq, dum8)`
+- [x] **2.3** Implement `_find_indices_3a(zi_tot, qi_tot)` → `(dumzq, dum8)`
   - `dum8 = (log10(zi_tot/qi_tot) + 23.) * 3.10347652`
 
-- [ ] **2.4** Implement `_find_indices_1c(mu_i)` → `(dumzz, dum6)`
+- [x] **2.4** Implement `_find_indices_1c(mu_i)` → `(dumzz, dum6)`
   - `dum6 = mu_i * 0.5 + 1.`
 
-- [ ] **2.5** Implement `_interp_3mom_mui()` — 5D interpolation in `itab_3mom_mui`
+- [x] **2.5** Implement `_interp_3mom_mui()` — 5D interpolation in `itab_3mom_mui`
   - Mirrors `proc_from_LUT_3()` in `microphy_p3.f90`
   - Index 1 → `mu_i`; index 2 → `diag_rhoi`
 
-- [ ] **2.6** Implement `_interp_3mom()` — 6D (or 5D if no liqFrac) interpolation in `itab_3mom`
+- [x] **2.6** Implement `_interp_3mom()` — 6D (or 5D if no liqFrac) interpolation in `itab_3mom`
   - Mirrors `proc_from_LUT_main3mom()` in `microphy_p3.f90`
   - Index 11 → `diag_di`
 
-- [ ] **2.7** Implement `get_diag_3mom()` top-level call:
+- [x] **2.7** Implement `get_diag_3mom()` top-level call:
   ```
   calc_bulk_rho_rime → _find_indices → _find_indices_3a →
   _interp_3mom_mui(1) [mu_i] → _interp_3mom_mui(2) [rhoi] →
   _find_indices_1c → _interp_3mom(11) [di]
   ```
 
-- [ ] **2.8** Route `get_diag()` by `cfg.triple_moment`; pass `Zitot` from input
+- [x] **2.8** Route `get_diag()` by `cfg.triple_moment`; pass `Zitot` from input
 
-- [ ] **2.9** Test: `nCat=1`, `trplMomIce=T`, `liqFrac=T`
+- [x] **2.9** Test: `nCat=1`, `trplMomIce=T`, `liqFrac=T`
+  - See **Known limitation** below — large apparent errors are expected and explained
 
-- [ ] **2.10** Test: `nCat=2`, `trplMomIce=T`, `liqFrac=T`
+- [x] **2.10** Test: `nCat=2`, `trplMomIce=T`, `liqFrac=T`
+
+**Known limitation — Zitot time-lag in 3-moment mode:**
+
+The `out_p3.dat` stores `Zitot` *after* `apply_mui_bounds_to_zi` has been applied
+inside `p3_main`. However, `diag_rhoi` is computed earlier in the same timestep
+using the *pre-bounds* `Zitot`. The post-processor reads the post-bounds `Zitot`
+and therefore computes `diag_rhoi`/`diag_di` consistent with what the **next
+timestep** would use — not the diagnostic stored alongside in the same row.
+
+Consequence: comparison statistics against model `diag_rhoi`/`diag_di` show large
+apparent errors (~30–100%) for 3-moment runs. The post-processor physics are
+correct; the mismatch is a timing/output artefact in the ASCII file.
+
+Options to resolve (deferred):
+- Write pre-bounds `Zitot` as an additional column in `cld1d` output (Option B)
+- Accept limitation for offline use (current approach)
 
 ---
 
