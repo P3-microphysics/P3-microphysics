@@ -3,4 +3,3 @@
 1		! nCat
 .true.		! trplMomIce
 .true.		! liqFrac
-

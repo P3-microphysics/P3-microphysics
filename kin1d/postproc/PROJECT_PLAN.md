@@ -19,16 +19,14 @@ configurations, without requiring a live model call.
   - Verified: median relative error ~0.03% vs model output
   - Script: `kin1d/postproc/p3_postproc.py`
 
-- [ ] **1.2** `nCat=1`, `trplMomIce=F`, `liqFrac=T`
-  - 4D interpolation path already coded in `_interp_2mom()`; remove guard and test
+- [x] **1.2** `nCat=1`, `trplMomIce=F`, `liqFrac=T`
+  - Fixed config parser (value ! key format); 4D interpolation path verified
 
-- [ ] **1.3** `nCat=2`, `trplMomIce=F`, any liqFrac
-  - Make `pp_rhoi`/`pp_di` arrays 2D `[n_levels, n_cat]`
-  - Loop `get_diag()` over categories using `_cat_col(iice, ...)`
-  - Append `2×n_cat` columns to output file
+- [x] **1.3** `nCat=2`, `trplMomIce=F`, any liqFrac
+  - `pp_rhoi`/`pp_di` now 2D `[n_levels, n_cat]`; output appends `2×n_cat` columns
 
-- [ ] **1.4** `nCat=3`, `trplMomIce=F`, any liqFrac
-  - No new code beyond 1.3; verify with `nCat=3` run
+- [x] **1.4** `nCat=3`, `trplMomIce=F`, any liqFrac
+  - Verified; all 3 categories independently produce median rel err ~0.03%
 
 ---
 

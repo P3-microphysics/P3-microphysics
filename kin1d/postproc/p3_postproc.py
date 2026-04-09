@@ -34,13 +34,12 @@ COMMAND-LINE OPTIONS:
     --config FILE          P3 config file (default: p3_config.txt)
     --output FILE          Output file (default: out_pp.dat)
 
-SUPPORTED CONFIGURATIONS (v0.1):
+SUPPORTED CONFIGURATIONS (v0.2):
 
-    nCat=1, trplMomIce=.false., liqFrac=.false.  (2-moment, no liquid)
-    nCat=1, trplMomIce=.false., liqFrac=.true.   (2-moment, with liquid)
+    nCat=1–3, trplMomIce=.false., liqFrac=.false.  (2-moment, no liquid)
+    nCat=1–3, trplMomIce=.false., liqFrac=.true.   (2-moment, with liquid fraction)
 
-Multi-category and 3-moment ice are not yet implemented; attempting to use
-them will raise NotImplementedError.
+3-moment ice (trplMomIce=.true.) is not yet implemented.
 
 DEPENDENCIES:
 
@@ -90,16 +89,25 @@ class P3Config:
 
     @classmethod
     def from_file(cls, path: str) -> P3Config:
-        """Parse a p3_config.txt file."""
+        """
+        Parse a p3_config.txt file.
+
+        Expected format (value before the ! comment):
+            1        ! nCat
+            .false.  ! trplMomIce
+            .true.   ! liqFrac
+        """
         cfg = cls()
         with open(path) as f:
             for line in f:
                 line = line.strip()
-                if not line or line.startswith('!') or line.startswith('#'):
+                if not line or line.startswith('#'):
                     continue
-                key, _, rest = line.partition('=')
-                key  = key.strip().lower()
-                val  = rest.split()[0].strip().lower() if rest.split() else ''
+                if '!' not in line:
+                    continue
+                val_str, _, key_str = line.partition('!')
+                val = val_str.strip().lower()
+                key = key_str.strip().lower()
                 if key == 'ncat':
                     cfg.n_cat = int(val)
                 elif key == 'trplmomice':
@@ -409,21 +417,36 @@ def write_comparison_dat(
 ) -> None:
     """
     Write comparison output file in the same e13.4 format as out_p3.dat,
-    with two post-processor columns appended after the original data.
+    with 2×n_cat post-processor columns appended after the original data.
 
-    Column layout of out_pp.dat:
+    pp_rhoi, pp_di: shape (n_levels, n_cat)
+
+    Column layout of out_pp.dat (e.g. nCat=2):
         cols 0 – N-1 : all original columns from out_p3.dat  (N = data.shape[1])
-        col  N       : pp_rhoi  [kg m-3]
-        col  N+1     : pp_di    [m]
+        col  N       : pp_rhoi  cat 1  [kg m-3]
+        col  N+1     : pp_di    cat 1  [m]
+        col  N+2     : pp_rhoi  cat 2  [kg m-3]
+        col  N+3     : pp_di    cat 2  [m]
+        ...
     """
     n_orig = data.shape[1]
-    out    = np.column_stack([data, pp_rhoi, pp_di])
+    n_cat  = pp_rhoi.shape[1]
+
+    # interleave pp columns: rhoi_1, di_1, rhoi_2, di_2, ...
+    pp_cols = np.empty((data.shape[0], 2 * n_cat))
+    for iice in range(n_cat):
+        pp_cols[:, 2 * iice]     = pp_rhoi[:, iice]
+        pp_cols[:, 2 * iice + 1] = pp_di[:,   iice]
+
+    out = np.column_stack([data, pp_cols])
     with open(filepath, 'w') as fh:
         for row in out:
             fh.write(''.join(f'{v:13.4e}' for v in row) + '\n')
     print(f'  Wrote {out.shape[0]} levels → {filepath}')
-    print(f'  col {n_orig}   = pp_rhoi  [kg m-3]')
-    print(f'  col {n_orig+1} = pp_di    [m]')
+    for iice in range(n_cat):
+        c = n_orig + 2 * iice
+        print(f'  col {c}  = pp_rhoi  cat {iice+1}  [kg m-3]')
+        print(f'  col {c+1}  = pp_di    cat {iice+1}  [m]')
 
 
 # ---------------------------------------------------------------------------
@@ -453,9 +476,6 @@ def main():
     cfg = P3Config.from_file(args.config)
     print(f'  nCat={cfg.n_cat}  3-moment={cfg.triple_moment}  liqFrac={cfg.liq_frac}')
 
-    if cfg.n_cat > 1:
-        raise NotImplementedError(
-            f'nCat={cfg.n_cat}: multi-category support not yet implemented.')
     if cfg.triple_moment:
         raise NotImplementedError('trplMomIce=.true.: 3-moment ice not yet implemented.')
 
@@ -468,45 +488,60 @@ def main():
     n_levels = data.shape[0]
     print(f'  {n_levels} levels, {data.shape[1]} columns')
 
-    # --- compute post-processor diagnostics at each level ---
-    pp_rhoi = np.zeros(n_levels)
-    pp_di   = np.zeros(n_levels)
-    n_active = 0
+    # --- compute post-processor diagnostics at each level and category ---
+    pp_rhoi  = np.zeros((n_levels, cfg.n_cat))
+    pp_di    = np.zeros((n_levels, cfg.n_cat))
+    n_active = np.zeros(cfg.n_cat, dtype=int)
 
     for k in range(n_levels):
-        qi_tot = data[k, _cat_col(0, _OFF_QITOT)]
-        qi_rim = data[k, _cat_col(0, _OFF_QIRIM)]
-        qi_liq = data[k, _cat_col(0, _OFF_QILIQ)]
-        ni_tot = data[k, _cat_col(0, _OFF_NITOT)]
-        bi_rim = data[k, _cat_col(0, _OFF_BIRIM)]
+        for iice in range(cfg.n_cat):
+            qi_tot = data[k, _cat_col(iice, _OFF_QITOT)]
+            qi_rim = data[k, _cat_col(iice, _OFF_QIRIM)]
+            qi_liq = data[k, _cat_col(iice, _OFF_QILIQ)]
+            ni_tot = data[k, _cat_col(iice, _OFF_NITOT)]
+            bi_rim = data[k, _cat_col(iice, _OFF_BIRIM)]
 
-        pp_rhoi[k], pp_di[k] = lut.get_diag(qi_tot, qi_rim, qi_liq, ni_tot, bi_rim)
-        if qi_tot >= QSMALL:
-            n_active += 1
+            pp_rhoi[k, iice], pp_di[k, iice] = lut.get_diag(
+                qi_tot, qi_rim, qi_liq, ni_tot, bi_rim)
+            if qi_tot >= QSMALL:
+                n_active[iice] += 1
 
-    print(f'  Post-processor: {n_active}/{n_levels} active levels processed')
+    for iice in range(cfg.n_cat):
+        print(f'  Post-processor: {n_active[iice]}/{n_levels} active levels '
+              f'(cat {iice+1})')
 
     # --- write comparison output ---
     write_comparison_dat(args.output, data, pp_rhoi, pp_di)
 
-    # --- verification statistics ---
-    active = data[:, _cat_col(0, _OFF_QITOT)] >= QSMALL
-    if active.any():
-        model_rhoi = data[active, _cat_col(0, _OFF_RHOI)]
-        model_di   = data[active, _cat_col(0, _OFF_DI)]
-        diff_rhoi  = pp_rhoi[active] - model_rhoi
-        diff_di    = pp_di[active]   - model_di
+    # --- verification statistics (per category) ---
+    print(f'\n  Verification statistics:')
+    print(f'    {"":16s}  {"max |diff|":>12s}  {"mean |diff|":>12s}  '
+          f'{"max |rel err|":>14s}')
 
-        print(f'\n  Verification statistics (n={active.sum()} active levels):')
-        print(f'    {"":12s}  {"max |diff|":>12s}  {"mean |diff|":>12s}  '
-              f'{"max |rel err|":>14s}')
-        print(f'    {"diag_rhoi":12s}  {np.max(np.abs(diff_rhoi)):12.4e}  '
-              f'{np.mean(np.abs(diff_rhoi)):12.4e}  '
-              f'{np.max(np.abs(diff_rhoi / np.where(model_rhoi != 0, model_rhoi, np.nan))):14.4e}')
-        print(f'    {"diag_di":12s}  {np.max(np.abs(diff_di)):12.4e}  '
-              f'{np.mean(np.abs(diff_di)):12.4e}  '
-              f'{np.max(np.abs(diff_di / np.where(model_di != 0, model_di, np.nan))):14.4e}')
-    else:
+    any_active = False
+    for iice in range(cfg.n_cat):
+        active = data[:, _cat_col(iice, _OFF_QITOT)] >= QSMALL
+        if not active.any():
+            continue
+        any_active = True
+        model_rhoi = data[active, _cat_col(iice, _OFF_RHOI)]
+        model_di   = data[active, _cat_col(iice, _OFF_DI)]
+        diff_rhoi  = pp_rhoi[active, iice] - model_rhoi
+        diff_di    = pp_di[active,   iice] - model_di
+        cat_label  = f'cat {iice+1}' if cfg.n_cat > 1 else ''
+
+        def _stats(diff, ref):
+            mx  = np.max(np.abs(diff))
+            mn  = np.mean(np.abs(diff))
+            rel = np.max(np.abs(diff / np.where(ref != 0, ref, np.nan)))
+            return mx, mn, rel
+
+        mx, mn, rel = _stats(diff_rhoi, model_rhoi)
+        print(f'    {f"diag_rhoi {cat_label}":16s}  {mx:12.4e}  {mn:12.4e}  {rel:14.4e}')
+        mx, mn, rel = _stats(diff_di, model_di)
+        print(f'    {f"diag_di   {cat_label}":16s}  {mx:12.4e}  {mn:12.4e}  {rel:14.4e}')
+
+    if not any_active:
         print('  No active ice levels found — nothing to compare.')
 
 
