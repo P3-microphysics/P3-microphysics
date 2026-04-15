@@ -86,15 +86,23 @@ Dimension order (all): `[zz or zq, densize, rimsize, liqsize, isize, process]`
 
 | Index | Quantity              |
 |-------|-----------------------|
+| 2     | `diag_vmi`  [m s⁻¹]   |
+| 6     | `diag_effi` [m]       |
 | 11    | `diag_di`  [m]        |
 | 12    | `diag_rhoi` [kg m⁻³]  |
+| 13    | `diag_lami` [m⁻¹]     |
+| 14    | `diag_mui`  [-]       |
 
 **3-moment `itab_3mom`** (tabsize_3mom=29):
 
 | Index | Quantity              |
 |-------|-----------------------|
+| 2     | `diag_vmi`  [m s⁻¹]   |
+| 6     | `diag_effi` [m]       |
 | 11    | `diag_di`  [m]        |
+| 14    | `diag_lami` [m⁻¹]     |
 | —     | `diag_rhoi` comes from `itab_3mom_mui` index 2, NOT from `itab_3mom` |
+| —     | `diag_mui` is taken from `itab_3mom_mui` index 1 |
 
 **`itab_3mom_mui`** (2 values):
 
@@ -135,8 +143,11 @@ Dimension order (all): `[zz or zq, densize, rimsize, liqsize, isize, process]`
 
 Total columns: `nCat=1` → 23, `nCat=2` → 31, `nCat=3` → 39
 
-**Post-processor output (`out_pp.dat`):** same as `out_p3.dat` + `2×nCat` appended columns:
-`pp_rhoi_cat1, pp_di_cat1 [, pp_rhoi_cat2, pp_di_cat2, ...]`
+**Post-processor output (`out_pp.dat`):** same as `out_p3.dat` + `6×nCat` appended columns:
+`pp_rhoi_cat1, pp_di_cat1, pp_effi_cat1, pp_vmi_cat1, pp_lami_cat1, pp_mui_cat1`
+`[, pp_rhoi_cat2, pp_di_cat2, pp_effi_cat2, pp_vmi_cat2, pp_lami_cat2, pp_mui_cat2, ...]`
+
+`pp_vmi` is currently computed with `rhofaci = 1`, matching the script's present offline implementation.
 
 ---
 

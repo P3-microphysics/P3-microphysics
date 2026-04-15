@@ -7,7 +7,7 @@ variables output by a model run (GEM, kin1d, or raw arrays), supporting all P3
 configurations, without requiring a live model call.
 
 **Prognostic inputs:** `Qitot`, `Qirim`, `Nitot`, `Birim` (always) + `Qiliq` (liqFrac=T) + `Zitot` (3-moment)  
-**Diagnostic outputs:** `diag_rhoi`, `diag_di` (initially), expanding to others in Phase 4
+**Diagnostic outputs:** `diag_rhoi`, `diag_di`, with `diag_effi`, `diag_vmi` (`rhofaci=1`), `diag_lami`, and `diag_mui` now also implemented in the offline tool
 
 ---
 
@@ -23,7 +23,8 @@ configurations, without requiring a live model call.
   - Fixed config parser (value ! key format); 4D interpolation path verified
 
 - [x] **1.3** `nCat=2`, `trplMomIce=F`, any liqFrac
-  - `pp_rhoi`/`pp_di` now 2D `[n_levels, n_cat]`; output appends `2×n_cat` columns
+  - Core outputs `pp_rhoi`/`pp_di` now 2D `[n_levels, n_cat]`
+  - Current `out_pp.dat` appends `6×n_cat` columns total: `pp_rhoi`, `pp_di`, `pp_effi`, `pp_vmi`, `pp_lami`, `pp_mui`
 
 - [x] **1.4** `nCat=3`, `trplMomIce=F`, any liqFrac
   - Verified; all 3 categories independently produce median rel err ~0.03%
@@ -136,10 +137,16 @@ pre-clamp `Zitot_adv` (or the pre-clamp `Zitot_mp`) as an additional output colu
 
 ### Phase 4 — Additional diagnostics
 
-- [ ] **4.1** `diag_effi` — effective ice radius (LUT index 6 for 2-mom, same for 3-mom)
-- [ ] **4.2** `diag_vmi`  — mass-weighted fall speed (LUT index 2, needs `rhofaci`)
+- [x] **4.1** `diag_effi` — effective ice radius (LUT index 6 for 2-mom, same for 3-mom)
+  - Implemented in `get_diag()` / `compute()` and written to `out_pp.dat` as `pp_effi`
+
+- [x] **4.2** `diag_vmi`  — mass-weighted fall speed (LUT index 2, needs `rhofaci`)
+  - Implemented offline with `rhofaci = 1.0`, so the value is directly comparable only at the surface unless air-density scaling is supplied externally
+
 - [ ] **4.3** `diag_ZET`  — equivalent reflectivity (LUT index 9/13, needs air density)
-- [ ] **4.4** Others as identified
+
+- [x] **4.4** Additional PSD diagnostics identified and implemented
+  - `diag_lami` (lambda_i) and `diag_mui` (mu_i) are now computed offline and written to `out_pp.dat`
 
 ---
 
@@ -157,6 +164,7 @@ pre-clamp `Zitot_adv` (or the pre-clamp `Zitot_mp`) as an additional output colu
    ```bash
    ./execld                               # generate out_p3.dat
    python3 postproc/p3_postproc.py        # run post-processor
+   python3 postproc/test_compute.py       # smoke-test Python API
    ```
 
 ---

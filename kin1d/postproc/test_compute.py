@@ -117,11 +117,11 @@ def main():
             med_rel = float(np.nanmedian(rel))
             max_rel = float(np.nanmax(rel))
 
-            # For 3-moment runs the known Zitot time-lag causes large errors
-            # (~30 % for diag_rhoi, ~100 % for diag_di — see CONTEXT.md).
-            # The post-processor physics are correct; the mismatch is an
-            # output-ordering artefact in the ASCII file.  Use a generous
-            # tolerance (110 %) so the test does not fail on this known issue.
+            # After the Zitot_adv -> Zitot_mp fix, 3-moment runs should also
+            # land near the ASCII-precision floor in median relative error,
+            # just like 2-moment runs. Keep a generous fallback tolerance for
+            # 3-moment cases so this smoke test does not fail on unusual
+            # datasets with a few bounds-active / file-format outliers.
             eff_tol = args.tol if not cfg.triple_moment else max(args.tol, 1.10)
             passed  = med_rel < eff_tol
             all_passed = all_passed and passed
