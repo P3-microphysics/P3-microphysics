@@ -27,13 +27,8 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-<<<<<<< HEAD
 ! Version:       5.5.1 + dev-aerosols                                                      !
 ! Last updated:  2026 May                                                                  !
-=======
-! Version:       5.5.1                                                                     !
-! Last updated:  2026 Feb                                                                  !
->>>>>>> f7b3216 (Bug-fix; compiler-dependent potential divide-by-zero error:  v5.5.1)
 !__________________________________________________________________________________________!
 
  MODULE microphy_p3
@@ -4084,7 +4079,7 @@ call cpu_time(timer_start(3))
 
 ! Note: test with p3_aerosols=.F. but with DeMott and using na_i = 15e6 seems to work fine.
 !      overwrite supi_nuc with p3_aerosols
-       if (p3_aerosols) supi_nuc = 0.15
+       if (p3_aerosols) supi_nuc = 0.05
 
        if (t(i,k).lt.258.15 .and. supi_cld.ge.supi_nuc) then
 
