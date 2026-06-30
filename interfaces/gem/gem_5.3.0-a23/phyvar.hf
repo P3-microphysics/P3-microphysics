@@ -863,8 +863,8 @@ PVARK (diag_dhmax, DIAG_DHMAX, DMAX, V0  , LVLT , "VD=Max hail size ice all cat.
 PVARDK(sw_dhmax  , SW_DHMAX  , DMAM, P0  , LVLA , "VD=Running time max hail size all cat. (microphysics)          ; MIN=0;                  ", ICE_CAT_1, (/"DIAG_DHMAX"/))
 PVARK (nwfa	 , NWFA      , NWFA, P0  , LVLT , "VD=Microphysics, num. mix. ratio,   CCN                        ; IN=NWFA;                ", CLOUD_WATER_NUM)
 PVARK (nifa	 , NIFA      , NIFA, P0  , LVLT , "VD=Microphysics, num. mix. ratio,   ICN                        ; IN=NIFA;                ", ICE_CAT_1)
-PVARK (nawplus,    MNAW      , MNAW, D1  , LVLT , "VD=microphysics, num. mix. ratio (t+dT),   CCN                 ; MIN=0; IN=MNAW;         ", CLOUD_WATER_NUM)
-PVARK (naiplus,    MNAI      , MNAI, D1  , LVLT , "VD=microphysics, num. mix. ratio (t+dT),   ICN                 ; MIN=0; IN=MNAI;         ", ICE_CAT_1)
+PVARK (nawplus,    TR/MNAW:P , MNAW, D1  , LVLT , "VD=microphysics, num. mix. ratio (t+dT),   CCN                 ; MIN=0; IN=MNAW;         ", CLOUD_WATER_NUM)
+PVARK (naiplus,    TR/MNAI:P , MNAI, D1  , LVLT , "VD=microphysics, num. mix. ratio (t+dT),   ICN                 ; MIN=0; IN=MNAI;         ", ICE_CAT_1)
 
 !Section precipitation (all schemes and diagnosed)
 PVARD (pc        , PC        , PC  , U0  , LVLA , "VD=Accum. of implicit precip.                                  ; MIN=0;", (/"ALC ","ASC ","ALCS","ASCS","ALCM"/))
