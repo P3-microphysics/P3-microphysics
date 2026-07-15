@@ -1,0 +1,41 @@
+#!/bin/bash
+# run_timing_tests — compile with -O2 and run all kin1d configs (p3_config-*.txt) N times each.
+#
+# Usage:
+#   ./run_timing_tests [--nruns N]    (default N=5)
+#
+# Output: kin1d_tests/timing-results/timing_<config>_run<N>.txt
+# Compile flags: -O2 -cpp -DTIMING_P3  (no -g, no -fbounds-check)
+
+set -e
+
+NRUNS=5
+for arg in "$@"; do
+    case "$arg" in
+        --nruns=*) NRUNS="${arg#*=}" ;;
+    esac
+done
+
+echo "Building with -O2 (no bounds-check, no debug)..."
+make clean
+make FFLAGS="-O2 -cpp -DTIMING_P3" execld
+echo "Build complete."
+echo
+
+OUTDIR="kin1d_tests/timing-results"
+rm -rf "${OUTDIR}"
+mkdir -p "${OUTDIR}"
+
+for config in p3_config-*.txt; do
+    id=$(echo "$config" | sed 's/p3_config-\(.*\)\.txt/\1/')
+    echo "Config ${id}: ${NRUNS} runs..."
+    for run in $(seq 1 ${NRUNS}); do
+        cp "$config" p3_config.txt
+        ./execld > /dev/null 2>&1
+        cp timing.txt "${OUTDIR}/timing_${id}_run${run}.txt"
+        printf "  run %d done\n" "$run"
+    done
+done
+
+echo
+echo "All timing runs complete. Results in ${OUTDIR}/"

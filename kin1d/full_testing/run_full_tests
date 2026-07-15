@@ -1,48 +1,78 @@
 #!/bin/bash
+# run_full_tests — compile and run all 4 kin1d configurations for P3.
+#
+# Usage:
+#   ./run_full_tests              # run tests, save to kin1d_tests/results-last_commit/
+#   ./run_full_tests --compare    # run tests, then compare to reference (exact mode)
+#   ./run_full_tests --compare-tol  # run tests, then compare with tolerance (rtol=0.01)
+#
+# After running, compare manually with:
+#   python compare_runs.py                    # exact mode
+#   python compare_runs.py --mode tol         # tolerance mode
 
-# Define root directory for output.  For normal testing prior to commit changes,
-# this should be the ./test-summaries directory off of the repository.
-#rootdir="../test-summaries"
+set -e
+
+COMPARE_MODE=""
+for arg in "$@"; do
+    case $arg in
+        --compare)     COMPARE_MODE="exact" ;;
+        --compare-tol) COMPARE_MODE="tol"   ;;
+    esac
+done
+
+# Root directory for output (run from kin1d/src/)
 rootdir="."
 
-# Update accordingly (used for plot titles)
-p3_version='v5.4.7'
+# Git hash for plot titles
+p3_version=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 
-# Compile kin1D
+# ── Compile ──────────────────────────────────────────────────────────────────
 make clean
 make execld
 
+# ── Rotate results directories ────────────────────────────────────────────────
 rm -rf ${rootdir}/kin1d_tests/results-previous_commit
-mv ${rootdir}/kin1d_tests/results-last_commit ${rootdir}/kin1d_tests/results-previous_commit
+if [ -d "${rootdir}/kin1d_tests/results-last_commit" ]; then
+    mv ${rootdir}/kin1d_tests/results-last_commit \
+       ${rootdir}/kin1d_tests/results-previous_commit
+fi
 mkdir -p ${rootdir}/kin1d_tests/results-last_commit
 
-# Loop through all p3_config-*.txt files
+# ── Run all configs ───────────────────────────────────────────────────────────
 for config in p3_config-*.txt; do
-    # Extract the identifier from the filename (e.g., "1TF" from "p3_config-1TF.txt")
     id=$(echo $config | sed 's/p3_config-\(.*\)\.txt/\1/')
-    export ncat="${id:0:1}"
+    ncat="${id:0:1}"
 
     echo "Running configuration $id..."
-
-    # Copy the config file to p3_config.txt
     cp "$config" p3_config.txt
-
-    # Run the model
     ./execld
-    # Make plot for last case
-    python plot_kin1d.py -i out_p3.dat -t "${p3_version}, config: ${id}" -n ${ncat}
+    python3 plot_kin1d.py -i out_p3.dat -t "${p3_version}, config: ${id}" -n ${ncat}
 
-    # Rename the output files to include the configuration identifier
-    mv out_p3.dat "${rootdir}/kin1d_tests/results-last_commit//out_p3_${id}.dat"
+    mv out_p3.dat "${rootdir}/kin1d_tests/results-last_commit/out_p3_${id}.dat"
     mv timing.txt "${rootdir}/kin1d_tests/results-last_commit/timing_${id}.txt"
     mv fig.png    "${rootdir}/kin1d_tests/results-last_commit/fig_${id}.png"
 
-    echo
     echo "Completed configuration $id"
     echo "----------------------------------------"
-    echo
 done
 
-cp microphy_p3.f90 cld1d.f90 plot_kin1d.py ${rootdir}/kin1d_tests/results-last_commit
+cp microphy_p3.f90 cld1d.f90 plot_kin1d.py \
+   ${rootdir}/kin1d_tests/results-last_commit
 
 echo "All configurations completed!"
+
+# ── Optional comparison ───────────────────────────────────────────────────────
+if [ -n "$COMPARE_MODE" ]; then
+    echo
+    if [ ! -d "${rootdir}/kin1d_tests/results-reference" ]; then
+        echo "WARNING: no reference directory found; skipping comparison."
+        echo "  Run save_reference.sh before making code changes to establish a baseline."
+    else
+        SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+        if [ "$COMPARE_MODE" = "tol" ]; then
+            python3 "${SCRIPT_DIR}/compare_runs.py" --mode tol --rtol 0.01 --atol 1e-7
+        else
+            python3 "${SCRIPT_DIR}/compare_runs.py" --mode exact
+        fi
+    fi
+fi

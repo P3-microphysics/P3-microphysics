@@ -15,6 +15,44 @@ PROGRAM create_p3_lookuptable_2
 ! _10 is Fi,liq1=1 and Fi,liq2=0
 ! _01 is Fi,liq1=0 and Fi,liq2=1
 ! _11 is Fi,liq1=1 and Fi,liq2=1
+!
+!--------------------------------------------------------------------------------------
+! ASSEMBLY PROTOCOL FOR THE 8-COLUMN LIQUID-FRACTION TABLE
+!
+! This program computes n_agg and q_agg for ONE (Fl1,Fl2) combination per run:
+! 'Fl1' and 'Fl2' below are compile-time parameters (liquid fractions of category
+! 1 and category 2).  A single run with Fl1 = Fl2 = 0 writes the 14-column format
+! (6 index columns + n_agg + q_agg); any other combination writes only the
+! 2 columns (n_agg, q_agg).
+!
+! The runtime code (p3_init in microphy_p3.f90, liqfrac=.true. branch) reads a
+! 14-column file: 6 index columns followed by 8 data columns that must be, in
+! this exact order:
+!
+!   column pair    (Fl1,Fl2)    read into
+!   -----------    ---------    -------------------------
+!     7,  8         (0,0)       itabcolli001, itabcolli002
+!     9, 10         (0,1)       itabcolli011, itabcolli012
+!    11, 12         (1,0)       itabcolli101, itabcolli102
+!    13, 14         (1,1)       itabcolli111, itabcolli112
+!
+! i.e. table names are itabcolli[Fl1][Fl2][quantity].  NOTE: the required column
+! order is (0,0),(0,1),(1,0),(1,1) — NOT the order the codes are listed in the
+! comment block above.  At runtime, category 1 is the COLLECTEE (table dims 1-3)
+! and category 2 is the COLLECTOR (dims 4-6); proc_from_LUT_ii blends Fl2 with
+! the collector liquid fraction and Fl1 with the collectee liquid fraction.
+!
+! To build the full liqfrac table:
+!   1. Run this program 4 times, with (Fl1,Fl2) = (0,0), (0,1), (1,0), (1,1)
+!      (edit the two parameters below and recompile for each run).
+!   2. Paste the outputs column-wise in that order: the (0,0) run provides the
+!      6 index columns + first data pair; append the 2 data columns from the
+!      (0,1) run, then (1,0), then (1,1)  (e.g. with 'paste -d" "').
+!   3. Verify the assembled file has 14 columns per data row.
+!
+! A wrong paste order is NOT detected at read time and silently swaps the
+! collector/collectee liquid-fraction blend axes in the scheme.
+!--------------------------------------------------------------------------------------
 
 !______________________________________________________________________________________
 !

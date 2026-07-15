@@ -27,7 +27,7 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.5.2                                                                     !
+! Version:       5.6.0                                                                     !
 ! Last updated:  2026 July                                                                 !
 !__________________________________________________________________________________________!
 
@@ -69,27 +69,97 @@
  integer, parameter :: n_args_r     = 8   ! array size for args_r (passed to functions to access LUTs
  integer, parameter :: n_args_i     = 6   ! array size for args_i (passed to functions to access LUTs
 
+!-- LUT column indices (named parameters replacing magic numbers in proc_from_LUT_* calls)
+!
+!  LUT1 columns shared by both 2-mom and 3-mom (cols 1-12 identical in both)
+ integer, parameter :: LUT1_UNS    =  1  ! number-weighted fallspeed
+ integer, parameter :: LUT1_UMS    =  2  ! mass-weighted fallspeed
+ integer, parameter :: LUT1_NAGG   =  3  ! ice self-aggregation rate
+ integer, parameter :: LUT1_NRWAT  =  4  ! cloud-water collection rate
+ integer, parameter :: LUT1_VDEP   =  5  ! vapor deposition/sublimation rate
+ integer, parameter :: LUT1_EFF    =  6  ! effective radius
+ integer, parameter :: LUT1_QSML   =  7  ! normalized 1/Q_small (lower size limiter)
+ integer, parameter :: LUT1_QLRG   =  8  ! normalized 1/Q_large (upper size limiter)
+ integer, parameter :: LUT1_REFL   =  9  ! equivalent reflectivity factor
+ integer, parameter :: LUT1_VDEP1  = 10  ! melting ventilation coefficient
+ integer, parameter :: LUT1_DMM    = 11  ! mass-weighted mean diameter
+ integer, parameter :: LUT1_RHOMM  = 12  ! mass-weighted mean bulk density
+!
+!  LUT1 2-moment specific columns (cols 13-19)
+ integer, parameter :: LUT1_2M_LAM  = 13  ! lambda_i PSD slope parameter
+ integer, parameter :: LUT1_2M_MU   = 14  ! mu_i PSD shape parameter
+ integer, parameter :: LUT1_2M_VDM1 = 15  ! melt-to-rain ventilation term 1
+ integer, parameter :: LUT1_2M_VDM2 = 16  ! melt-to-rain ventilation term 2
+ integer, parameter :: LUT1_2M_VDM3 = 17  ! melt-on-ice ventilation term 1
+ integer, parameter :: LUT1_2M_VDM4 = 18  ! melt-on-ice ventilation term 2
+ integer, parameter :: LUT1_2M_SHED = 19  ! shedding rate
+!
+!  LUT1 3-moment specific columns (cols 13-29; uzs at col 13 shifts all subsequent +1 vs 2-mom)
+ integer, parameter :: LUT1_3M_UZS  = 13  ! z-moment-weighted fallspeed (internal)
+ integer, parameter :: LUT1_3M_LAM  = 14  ! lambda_i PSD slope parameter
+ integer, parameter :: LUT1_3M_MU   = 15  ! mu_i PSD shape parameter
+ integer, parameter :: LUT1_3M_VDM1 = 16  ! melt-to-rain ventilation term 1
+ integer, parameter :: LUT1_3M_VDM2 = 17  ! melt-to-rain ventilation term 2
+ integer, parameter :: LUT1_3M_VDM3 = 18  ! melt-on-ice ventilation term 1
+ integer, parameter :: LUT1_3M_VDM4 = 19  ! melt-on-ice ventilation term 2
+ integer, parameter :: LUT1_3M_SHED = 20  ! shedding rate
+ integer, parameter :: LUT1_3M_M6RI = 21  ! 6th-moment tendency: riming
+ integer, parameter :: LUT1_3M_M6D1 = 22  ! 6th-moment tendency: vapor deposition term 1
+ integer, parameter :: LUT1_3M_M6D2 = 23  ! 6th-moment tendency: vapor deposition term 2
+ integer, parameter :: LUT1_3M_M6L1 = 24  ! 6th-moment tendency: melting term 1
+ integer, parameter :: LUT1_3M_M6L2 = 25  ! 6th-moment tendency: melting term 2
+ integer, parameter :: LUT1_3M_M6AG = 26  ! 6th-moment tendency: self-collection
+ integer, parameter :: LUT1_3M_M6SH = 27  ! 6th-moment tendency: shedding
+ integer, parameter :: LUT1_3M_M6S1 = 28  ! 6th-moment tendency: sublimation term 1
+ integer, parameter :: LUT1_3M_M6S2 = 29  ! 6th-moment tendency: sublimation term 2
+!
+!  Ice-rain collection table (itabcoll / itabcoll_3mom)
+ integer, parameter :: LUTR_NR = 1  ! log10(ice-rain number collection)
+ integer, parameter :: LUTR_QR = 2  ! log10(ice-rain mass collection)
+ integer, parameter :: LUTR_M6 = 3  ! 6th-moment tendency: ice-rain collection (3-mom only)
+!
+!  Ice-ice collision table (itabcolli*; nCat > 1 only)
+ integer, parameter :: LUTII_DN = 1  ! number change from ice-ice collision
+ integer, parameter :: LUTII_DM = 2  ! mass change from ice-ice collision
+!
+!  LUT3: mu_i / rho_i diagnostic table (proc_from_LUT_3)
+ integer, parameter :: LUT3_MUI  = 1  ! mu_i shape parameter
+ integer, parameter :: LUT3_RHOI = 2  ! bulk ice density
+
  real, parameter    :: real_rcollsize = real(rcollsize)
 
- ! NOTE: TO DO, MAKE LOOKUP TABLE ARRAYS ALLOCATABLE SO BOTH 2-MOMENT AND 3-MOMENT NOT ALLOCATED
- real, dimension(densize,rimsize,liqsize,isize,tabsize)            :: itab           !ice lookup table values
- real, dimension(zsize,densize,rimsize,liqsize,isize,tabsize_3mom) :: itab_3mom      !ice lookup table values
- real, dimension(zqsize,densize,rimsize,liqsize,isize,2)           :: itab_3mom_mui  !ice lookup table values
+!ice microphysics lookup table values (allocatable: only one of 2-mom or 3-mom set is allocated at runtime)
+ real, allocatable :: itab         (:,:,:,:,:)     !2-mom: (densize,rimsize,liqsize,isize,tabsize)
+ real, allocatable :: itab_3mom    (:,:,:,:,:,:)   !3-mom: (zsize,densize,rimsize,liqsize,isize,tabsize_3mom)
+ real, allocatable :: itab_3mom_mui(:,:,:,:,:,:)   !3-mom: (zqsize,densize,rimsize,liqsize,isize,2)
 
-!ice lookup table values for ice-rain collision/collection
- real, dimension(densize,rimsize,liqsize,isize,rcollsize,colltabsize)       :: itabcoll
- real, dimension(zsize,densize,rimsize,liqsize,isize,rcollsize,colltabsize_3mom) :: itabcoll_3mom
+!ice lookup table values for ice-rain collision/collection (allocatable: matches 2-mom or 3-mom set)
+ real, allocatable :: itabcoll     (:,:,:,:,:,:)   !2-mom: (densize,rimsize,liqsize,isize,rcollsize,colltabsize)
+ real, allocatable :: itabcoll_3mom(:,:,:,:,:,:,:) !3-mom: (zsize,densize,rimsize,liqsize,isize,rcollsize,colltabsize_3mom)
 
- ! NOTE: TO DO, MAKE LOOKUP TABLE ARRAYS ALLOCATABLE SO MULTICAT NOT ALLOCATED WHEN NCAT = 1
-! separated into itabcolli001 and itabcolli002, due to max of 7 dimensional arrays on some FORTRAN compilers
- real, dimension(iisize,rimsize,densize,iisize,rimsize,densize) :: itabcolli001
- real, dimension(iisize,rimsize,densize,iisize,rimsize,densize) :: itabcolli002
- real, dimension(iisize,rimsize,densize,iisize,rimsize,densize) :: itabcolli011
- real, dimension(iisize,rimsize,densize,iisize,rimsize,densize) :: itabcolli012
- real, dimension(iisize,rimsize,densize,iisize,rimsize,densize) :: itabcolli101
- real, dimension(iisize,rimsize,densize,iisize,rimsize,densize) :: itabcolli102
- real, dimension(iisize,rimsize,densize,iisize,rimsize,densize) :: itabcolli111
- real, dimension(iisize,rimsize,densize,iisize,rimsize,densize) :: itabcolli112
+!ice-ice collection lookup table values (allocatable: only allocated when nCat > 1;
+! the liquid-fraction tables 011..112 additionally require liqfrac = .true.)
+! separated into itabcolli001/002/etc. due to max-7-dimension limit on some Fortran compilers
+!
+! Naming convention itabcolli[a][b][q]:
+!   a = Fi,liq of LT2-generator category 1 (0 or 1) = the COLLECTEE at runtime
+!       (table dims 1-3: collectee size, rime fraction, rime density)
+!   b = Fi,liq of LT2-generator category 2 (0 or 1) = the COLLECTOR at runtime
+!       (table dims 4-6: collector size, rime fraction, rime density)
+!   q = quantity: 1 = number collected (n_agg), 2 = mass collected (q_agg)
+! e.g. itabcolli011 = collectee fully frozen, collector fully liquid, number.
+! proc_from_LUT_ii blends b with the collector liq fraction (dum7) and a with the
+! collectee liq fraction (dum7c).  The 8-column order in the LT2 file must match
+! the read statement in p3_init — see the assembly protocol in the header of
+! create_p3_lookupTable_2.f90.
+ real, allocatable :: itabcolli001(:,:,:,:,:,:)    !(iisize,rimsize,densize,iisize,rimsize,densize)
+ real, allocatable :: itabcolli002(:,:,:,:,:,:)
+ real, allocatable :: itabcolli011(:,:,:,:,:,:)
+ real, allocatable :: itabcolli012(:,:,:,:,:,:)
+ real, allocatable :: itabcolli101(:,:,:,:,:,:)
+ real, allocatable :: itabcolli102(:,:,:,:,:,:)
+ real, allocatable :: itabcolli111(:,:,:,:,:,:)
+ real, allocatable :: itabcolli112(:,:,:,:,:,:)
 
 ! integer switch for warm rain autoconversion/accretion schemes
  integer :: autoAccr_param
@@ -155,7 +225,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.5.2'
+ character(len=1024), parameter :: version_p3                    = '5.6.0'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.9-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '6.9-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.2'
@@ -368,6 +438,29 @@
  call rpn_comm_rank(RPN_COMM_GRID,procnum,istat)
 #endif
 
+!-- allocate LUT arrays based on configuration (must run on all PEs before zero-init and broadcast)
+ if (trplMomI) then
+    allocate(itab_3mom    (zsize,densize,rimsize,liqsize,isize,tabsize_3mom))
+    allocate(itab_3mom_mui(zqsize,densize,rimsize,liqsize,isize,2))
+    allocate(itabcoll_3mom(zsize,densize,rimsize,liqsize,isize,rcollsize,colltabsize_3mom))
+ else
+    allocate(itab    (densize,rimsize,liqsize,isize,tabsize))
+    allocate(itabcoll(densize,rimsize,liqsize,isize,rcollsize,colltabsize))
+ endif
+ if (nCat > 1) then
+    allocate(itabcolli001(iisize,rimsize,densize,iisize,rimsize,densize))
+    allocate(itabcolli002(iisize,rimsize,densize,iisize,rimsize,densize))
+  if (liqfrac) then
+   !the liqfrac tables are only read, broadcast, and accessed when liqfrac=.true.
+    allocate(itabcolli011(iisize,rimsize,densize,iisize,rimsize,densize))
+    allocate(itabcolli012(iisize,rimsize,densize,iisize,rimsize,densize))
+    allocate(itabcolli101(iisize,rimsize,densize,iisize,rimsize,densize))
+    allocate(itabcolli102(iisize,rimsize,densize,iisize,rimsize,densize))
+    allocate(itabcolli111(iisize,rimsize,densize,iisize,rimsize,densize))
+    allocate(itabcolli112(iisize,rimsize,densize,iisize,rimsize,densize))
+  endif
+ endif
+
  if (trplMomI) then
     itabcoll_3mom = 0.
  else
@@ -414,7 +507,7 @@
        if(owr) print*, '************************************************'
        if(owr) print*
        global_status = STATUS_ERROR
-       if (trim(model) == 'WRF' .or. trim(model) == 'CM1') then
+       if (trim(model) == 'WRF' .or. trim(model) == 'CM1' .or. trim(model) == 'KIN1D') then
           print*,'Stopping in P3 init'
           stop
        endif
@@ -489,7 +582,7 @@
        if(owr) print*, '************************************************'
        if(owr) print*
        global_status = STATUS_ERROR
-       if (trim(model) == 'WRF' .or. trim(model) == 'CM1') then
+       if (trim(model) == 'WRF' .or. trim(model) == 'CM1' .or. trim(model) == 'KIN1D') then
           print*,'Stopping in P3 init'
           stop
        endif
@@ -555,7 +648,7 @@
        if(owr) print*, '************************************************'
        if(owr) print*
        global_status = STATUS_ERROR
-       if (trim(model) == 'WRF' .or. trim(model) == 'CM1') then
+       if (trim(model) == 'WRF' .or. trim(model) == 'CM1' .or. trim(model) == 'KIN1D') then
           print*,'Stopping in P3 init'
           stop
        endif
@@ -607,6 +700,9 @@
        read(10,*)
 
        if (liqfrac) then
+        !8-column liqfrac LT2: column-pair order (Fl1,Fl2) = (0,0),(0,1),(1,0),(1,1)
+        !must match the assembly protocol in the header of create_p3_lookupTable_2.f90
+        !(naming convention: see itabcolli declarations in the module header)
          do i = 1,iisize
             do jjj = 1,rimsize
                do jjjj = 1,densize
@@ -2201,7 +2297,7 @@ END subroutine p3_init
             prt_accum,fluxdiv_qx,fluxdiv_nx,Co_max,dt_sub,fluxdiv_zit,D_new,Q_nuc,N_nuc, &
             deltaD_init,dum1c,dum4c,dum5c,dumt,qcon_satadj,qdep_satadj,sources,sinks,    &
             timeScaleFactor,dt_left,qv_tmp,t_tmp,dum1z,dum7c,dum7,fluxdiv_qil,epsiw_tot, &
-            dum8,tmp3,tmp4,nccnst,qevp_satadj,supi_nuc
+            dum8,tmp3,tmp4,nccnst,qevp_satadj,supi_nuc,dumf
 
  double precision :: tmpdbl1,tmpdbl2,tmpdbl3
 
@@ -2846,29 +2942,29 @@ call cpu_time(timer_start(3))
                    call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum7,0.,0.,0.,0.,      &
                                      dumjj,dumii,dumll,dumi,0,0)
 
-                   f1pr02 = proc_from_LUT_main2mom( 2,args_r,args_i)
-                   f1pr03 = proc_from_LUT_main2mom( 3,args_r,args_i)
-                   f1pr04 = proc_from_LUT_main2mom( 4,args_r,args_i)
-                   f1pr05 = proc_from_LUT_main2mom( 5,args_r,args_i)
-                   f1pr09 = proc_from_LUT_main2mom( 7,args_r,args_i)
-                   f1pr10 = proc_from_LUT_main2mom( 8,args_r,args_i)
-                   f1pr14 = proc_from_LUT_main2mom(10,args_r,args_i)
-                   f1pr16 = proc_from_LUT_main2mom(12,args_r,args_i)
+                   f1pr02 = proc_from_LUT_main2mom(LUT1_UMS,args_r,args_i)
+                   f1pr03 = proc_from_LUT_main2mom(LUT1_NAGG,args_r,args_i)
+                   f1pr04 = proc_from_LUT_main2mom(LUT1_NRWAT,args_r,args_i)
+                   f1pr05 = proc_from_LUT_main2mom(LUT1_VDEP,args_r,args_i)
+                   f1pr09 = proc_from_LUT_main2mom(LUT1_QSML,args_r,args_i)
+                   f1pr10 = proc_from_LUT_main2mom(LUT1_QLRG,args_r,args_i)
+                   f1pr14 = proc_from_LUT_main2mom(LUT1_VDEP1,args_r,args_i)
+                   f1pr16 = proc_from_LUT_main2mom(LUT1_RHOMM,args_r,args_i)
 
                    if (log_LiquidFrac) then
-                      f1pr24 = proc_from_LUT_main2mom(15,args_r,args_i)
-                      f1pr25 = proc_from_LUT_main2mom(16,args_r,args_i)
-                      f1pr26 = proc_from_LUT_main2mom(17,args_r,args_i)
-                      f1pr27 = proc_from_LUT_main2mom(18,args_r,args_i)
-                      f1pr28 = proc_from_LUT_main2mom(19,args_r,args_i)
+                      f1pr24 = proc_from_LUT_main2mom(LUT1_2M_VDM1,args_r,args_i)
+                      f1pr25 = proc_from_LUT_main2mom(LUT1_2M_VDM2,args_r,args_i)
+                      f1pr26 = proc_from_LUT_main2mom(LUT1_2M_VDM3,args_r,args_i)
+                      f1pr27 = proc_from_LUT_main2mom(LUT1_2M_VDM4,args_r,args_i)
+                      f1pr28 = proc_from_LUT_main2mom(LUT1_2M_SHED,args_r,args_i)
                    endif
 
                   ! ice-rain collection processes
                    if (qr(i,k).ge.qsmall) then
                      call args_for_LUT(args_r,args_i,dum1,dum3,dum4,dum5,dum7,0.,0.,0.,  &
                                        dumjj,dumii,dumll,dumj,dumi,0)
-                     f1pr07 = proc_from_LUT_ir2mom(1,args_r,args_i)
-                     f1pr08 = proc_from_LUT_ir2mom(2,args_r,args_i)
+                     f1pr07 = proc_from_LUT_ir2mom(LUTR_NR,args_r,args_i)
+                     f1pr08 = proc_from_LUT_ir2mom(LUTR_QR,args_r,args_i)
                    else
                       f1pr07 = -99. ! log space
                       f1pr08 = -99. ! log space
@@ -2885,41 +2981,41 @@ call cpu_time(timer_start(3))
                    call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0.,    &
                                      dumzz,dumjj,dumii,dumll,dumi,0)
 
-                   f1pr02 = proc_from_LUT_main3mom( 2,args_r,args_i)
-                   f1pr03 = proc_from_LUT_main3mom( 3,args_r,args_i)
-                   f1pr04 = proc_from_LUT_main3mom( 4,args_r,args_i)
-                   f1pr05 = proc_from_LUT_main3mom( 5,args_r,args_i)
-                   f1pr09 = proc_from_LUT_main3mom( 7,args_r,args_i)
-                   f1pr10 = proc_from_LUT_main3mom( 8,args_r,args_i)
-                   f1pr14 = proc_from_LUT_main3mom(10,args_r,args_i)
+                   f1pr02 = proc_from_LUT_main3mom(LUT1_UMS,args_r,args_i)
+                   f1pr03 = proc_from_LUT_main3mom(LUT1_NAGG,args_r,args_i)
+                   f1pr04 = proc_from_LUT_main3mom(LUT1_NRWAT,args_r,args_i)
+                   f1pr05 = proc_from_LUT_main3mom(LUT1_VDEP,args_r,args_i)
+                   f1pr09 = proc_from_LUT_main3mom(LUT1_QSML,args_r,args_i)
+                   f1pr10 = proc_from_LUT_main3mom(LUT1_QLRG,args_r,args_i)
+                   f1pr14 = proc_from_LUT_main3mom(LUT1_VDEP1,args_r,args_i)
 
                    if (log_full3mom) then
-                      f1pr29 = proc_from_LUT_main3mom(21,args_r,args_i)
-                      f1pr30 = proc_from_LUT_main3mom(22,args_r,args_i)
-                      f1pr31 = proc_from_LUT_main3mom(23,args_r,args_i)
-                      f1pr32 = proc_from_LUT_main3mom(24,args_r,args_i)
-                      f1pr33 = proc_from_LUT_main3mom(25,args_r,args_i)
-                      f1pr34 = proc_from_LUT_main3mom(26,args_r,args_i)
-                      f1pr37 = proc_from_LUT_main3mom(28,args_r,args_i)
-                      f1pr38 = proc_from_LUT_main3mom(29,args_r,args_i)
+                      f1pr29 = proc_from_LUT_main3mom(LUT1_3M_M6RI,args_r,args_i)
+                      f1pr30 = proc_from_LUT_main3mom(LUT1_3M_M6D1,args_r,args_i)
+                      f1pr31 = proc_from_LUT_main3mom(LUT1_3M_M6D2,args_r,args_i)
+                      f1pr32 = proc_from_LUT_main3mom(LUT1_3M_M6L1,args_r,args_i)
+                      f1pr33 = proc_from_LUT_main3mom(LUT1_3M_M6L2,args_r,args_i)
+                      f1pr34 = proc_from_LUT_main3mom(LUT1_3M_M6AG,args_r,args_i)
+                      f1pr37 = proc_from_LUT_main3mom(LUT1_3M_M6S1,args_r,args_i)
+                      f1pr38 = proc_from_LUT_main3mom(LUT1_3M_M6S2,args_r,args_i)
                    endif
 
                    if (log_LiquidFrac) then
-                      f1pr24 = proc_from_LUT_main3mom(16,args_r,args_i)
-                      f1pr25 = proc_from_LUT_main3mom(17,args_r,args_i)
-                      f1pr26 = proc_from_LUT_main3mom(18,args_r,args_i)
-                      f1pr27 = proc_from_LUT_main3mom(19,args_r,args_i)
-                      f1pr28 = proc_from_LUT_main3mom(20,args_r,args_i)
-                      f1pr35 = proc_from_LUT_main3mom(27,args_r,args_i)
+                      f1pr24 = proc_from_LUT_main3mom(LUT1_3M_VDM1,args_r,args_i)
+                      f1pr25 = proc_from_LUT_main3mom(LUT1_3M_VDM2,args_r,args_i)
+                      f1pr26 = proc_from_LUT_main3mom(LUT1_3M_VDM3,args_r,args_i)
+                      f1pr27 = proc_from_LUT_main3mom(LUT1_3M_VDM4,args_r,args_i)
+                      f1pr28 = proc_from_LUT_main3mom(LUT1_3M_SHED,args_r,args_i)
+                      f1pr35 = proc_from_LUT_main3mom(LUT1_3M_M6SH,args_r,args_i)
                    endif
 
              ! ice-rain collection processes
                    if (qr(i,k).ge.qsmall) then
                       call args_for_LUT(args_r,args_i,dum1,dum3,dum4,dum5,dum6,dum7,     &
                                         0.,0.,dumzz,dumjj,dumii,dumll,dumj,dumi)
-                      f1pr07 = proc_from_LUT_ir3mom(1,args_r,args_i)
-                      f1pr08 = proc_from_LUT_ir3mom(2,args_r,args_i)
-                      f1pr36 = proc_from_LUT_ir3mom(3,args_r,args_i)
+                      f1pr07 = proc_from_LUT_ir3mom(LUTR_NR,args_r,args_i)
+                      f1pr08 = proc_from_LUT_ir3mom(LUTR_QR,args_r,args_i)
+                      f1pr36 = proc_from_LUT_ir3mom(LUTR_M6,args_r,args_i)
                    else
                       f1pr07 = -99. ! log space
                       f1pr08 = -99. ! log space
@@ -2953,6 +3049,8 @@ call cpu_time(timer_start(3))
                 if (qirim(i,k,iice)>0.) then
                       if ((qitot(i,k,iice)-qiliq(i,k,iice))>0.) then
                          tmp1 = qirim(i,k,iice)/(qitot(i,k,iice)-qiliq(i,k,iice))   !rime mass fraction
+                      else
+                         tmp1 = 0.   !no frozen mass implies no rime (prevents stale tmp1 read)
                       endif
                    if (tmp1.lt.0.6) then
                       Eii_fact(iice)=1.
@@ -3102,8 +3200,8 @@ call cpu_time(timer_start(3))
 
                          call args_for_LUT(args_r,args_i,dum1c,dum4c,dum5c,dum7c,dum1,   &
                                    dum4,dum5,dum7,dumjjc,dumiic,dumic,dumjj,dumii,dumi)
-                         f1pr17 = proc_from_LUT_ii(1,args_r,args_i)
-                         f1pr18 = proc_from_LUT_ii(2,args_r,args_i)
+                         f1pr17 = proc_from_LUT_ii(LUTII_DN,args_r,args_i)
+                         f1pr18 = proc_from_LUT_ii(LUTII_DM,args_r,args_i)
 
                        ! note: need to multiply by air density, air density fallspeed correction factor,
                        !       and N of the collectee and collector categories for process rates nicol and qicol,
@@ -3133,8 +3231,8 @@ call cpu_time(timer_start(3))
 
                          call args_for_LUT(args_r,args_i,dum1c,dum4c,dum5c,dum7c,dum1,   &
                                    dum4,dum5,dum7,dumjjc,dumiic,dumic,dumjj,dumii,dumi)
-                         f1pr17 = proc_from_LUT_ii(1,args_r,args_i)
-                         f1pr18 = proc_from_LUT_ii(2,args_r,args_i)
+                         f1pr17 = proc_from_LUT_ii(LUTII_DN,args_r,args_i)
+                         f1pr18 = proc_from_LUT_ii(LUTII_DM,args_r,args_i)
 
                          nicol(iice,catcoll) = f1pr17*rhofaci(i,k)*rho(i,k)*             &
                                                nitot(i,k,iice)*nitot(i,k,catcoll)*iSCF(i,k)
@@ -4098,7 +4196,7 @@ call cpu_time(timer_start(3))
          !nrhetc = nrhetc*ratio
        endif
 
-! ice
+! ice (total)
        do iice = 1,nCat
           sinks   = (qisub(iice)+qrmlt(iice)+qlevp(iice)+qlshd(iice))*dt
           sources = qitot(i,k,iice) + (qidep(iice)+qinuc(iice)+qrcol(iice)+qccol(iice)+  &
@@ -4129,6 +4227,44 @@ call cpu_time(timer_start(3))
              enddo
           endif
       enddo  !iice-loop
+
+! frozen ice (qitot - qiliq)
+!   Prevent the frozen mass from being over-depleted.
+!   The three frozen-mass sinks (qisub, qrmlt, qimlt) are each individually capped
+!   at their computation sites, but against the same budget. This joint limiter ensures
+!   their combined sink cannot exceed the available frozen mass plus frozen sources.
+      if (log_LiquidFrac) then
+       do iice = 1,nCat
+          sinks   = (qisub(iice)+qrmlt(iice)+qimlt(iice))*dt
+          sources = (qitot(i,k,iice)-qiliq(i,k,iice)) + (qidep(iice)+qinuc(iice)+        &
+                    qrcol(iice)+qccol(iice)+qrhetc(iice)+qrheti(iice)+qchetc(iice)+      &
+                    qcheti(iice)+qrmul(iice)+qcmul(iice)+qifrz(iice))*dt
+          if (qitot(i,k,iice).ge.qsmall) then
+             dumf = 1. - qiliq(i,k,iice)/qitot(i,k,iice)   ! frozen fraction of iice
+          else
+             dumf = 1.
+          endif
+          do catcoll = 1,nCat
+            !Note: qicol = 0 if iice=catcoll, optimised to not insert an if (catcoll.ne.iice)
+            !category interaction leading to source for iice (gains frozen mass of collectee)
+             sources = sources + qicol(catcoll,iice)*dt*dumf
+            !category interaction leading to sink for iice (loses frozen mass to collector)
+             sinks = sinks + qicol(iice,catcoll)*dt*dumf
+          enddo
+          if (sinks.gt.sources .and. sinks.ge.1.e-20) then
+             ratio = sources/sinks
+             qisub(iice) = qisub(iice)*ratio
+             qrmlt(iice) = qrmlt(iice)*ratio
+             qimlt(iice) = qimlt(iice)*ratio
+             nisub(iice) = nisub(iice)*ratio
+             nimlt(iice) = nimlt(iice)*ratio
+             if (log_3momentIce) then
+                zisub(iice) = zisub(iice)*ratio
+                zimlt(iice) = zimlt(iice)*ratio
+             endif
+          endif
+       enddo  !iice-loop
+      endif
 
 ! qiliq
       if (log_LiquidFrac) then
@@ -4204,7 +4340,6 @@ call cpu_time(timer_start(3))
 !             if (qitot(i,k,iice).ge.qsmall) then
 !                tmp1 = qitot(i,k,iice)*6./(f1pr16*pi)  !estimate of 3rd moment
 !                mu_i_s(iice) = compute_mu_3mom_1(nitot(i,k,iice),tmp1,zitot(i,k,iice),mu_i_max)  !polynomial approximation
-!              ! mu_i_s(iice) = compute_mu_3mom_2(nitot(i,k,iice),tmp1,zitot(i,k,iice),mu_i_max)  !analytic cubic root
 !             else
 !                mu_i_s(iice) = mu_i_initial
 !             endif
@@ -4321,6 +4456,7 @@ call cpu_time(timer_start(3))
                               xlf(i,k)*i_cp+(qlcon(iice)-qlevp(iice))*xxlv(i,k)*i_cp)*dt
 
        enddo iice_loop3
+
 
    !-- warm-phase only processes:
        qc(i,k) = qc(i,k) + (-qcacc-qcaut+qcnuc+qccon-qcevp)*dt
@@ -4463,7 +4599,7 @@ call cpu_time(timer_start(3))
                 call find_lookupTable_indices_1c(dumzz,dum6,zsize,mu_i_s(iice))
                 call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0.,       &
                                   dumzz,dumjj,dumii,dumll,dumi,0)
-                dumden = proc_from_LUT_main3mom(12,args_r,args_i)
+                dumden = proc_from_LUT_main3mom(LUT1_RHOMM,args_r,args_i)
 
                 dum3 = 6./(dumden*pi)*dumqi      !estimate of 3rd moment (new, after group 1 processes only)
                 zitot(i,k,iice) = G_of_mu(mu_i_s(iice))*dum3**2/dumni
@@ -4585,27 +4721,11 @@ call cpu_time(timer_start(6))
 ! Ice:
     log_tmp1 = maxval(qitot(i,:,:)) .ge. qsmall
 
-    if (log_3momentIce .and. log_LiquidFrac .and. log_tmp1) then
-       call sedimentation_ice_TT(qitot(i,:,:),qirim(i,:,:),qiliq(i,:,:),nitot(i,:,:),    &
-                              birim(i,:,:),zitot(i,:,:),prt_sol(i),prt_soli(i,:),        &
-                              rho(i,:),i_rho(i,:),rhofaci(i,:),i_dzq(i,:),ktop,kbot,     &
-                              kdir,dt)
-
-    elseif (log_3momentIce .and. .not.log_LiquidFrac .and. log_tmp1) then
-       call sedimentation_ice_TF(qitot(i,:,:),qirim(i,:,:),nitot(i,:,:),birim(i,:,:),    &
-                              zitot(i,:,:),prt_sol(i),prt_soli(i,:),rho(i,:),i_rho(i,:), &
-                              rhofaci(i,:),i_dzq(i,:),ktop,kbot,kdir,dt)
-
-    elseif (.not. log_3momentIce .and. log_LiquidFrac .and. log_tmp1) then
-       call sedimentation_ice_FT(qitot(i,:,:),qirim(i,:,:),qiliq(i,:,:),nitot(i,:,:),    &
-                              birim(i,:,:),prt_sol(i),prt_soli(i,:),rho(i,:),i_rho(i,:), &
-                              rhofaci(i,:),i_dzq(i,:),ktop,kbot,kdir,dt)
-
-    elseif (.not. log_3momentIce .and. .not. log_LiquidFrac .and. log_tmp1) then
-       call sedimentation_ice_FF(qitot(i,:,:),qirim(i,:,:),nitot(i,:,:),birim(i,:,:),    &
+    if (log_tmp1)                                                                        &
+       call sedimentation_ice(log_3momentIce,log_LiquidFrac,qitot(i,:,:),qirim(i,:,:),   &
+                              qiliq(i,:,:),nitot(i,:,:),birim(i,:,:),zitot(i,:,:),       &
                               prt_sol(i),prt_soli(i,:),rho(i,:),i_rho(i,:),rhofaci(i,:), &
                               i_dzq(i,:),ktop,kbot,kdir,dt)
-    endif
 
  enddo !i loop
 
@@ -4671,7 +4791,7 @@ call cpu_time(timer_end(6))
                 if (.not. log_3momentIce) then
                    call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum7,0.,0.,0.,0.,      &
                                      dumjj,dumii,dumll,dumi,0,0)
-                   f1pr16 = proc_from_LUT_main2mom(12,args_r,args_i)
+                   f1pr16 = proc_from_LUT_main2mom(LUT1_RHOMM,args_r,args_i)
                 else
                    call get_mui_rhoi(mu_i,f1pr16,dum6,dumzz,qitot(i,k,iice),             &
                                   nitot(i,k,iice),zitot(i,k,iice),dum1,dum4,dum5,dum7,   &
@@ -4785,7 +4905,7 @@ call cpu_time(timer_end(6))
 
                   call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum7,0.,0.,0.,0.,       &
                                     dumjj,dumii,dumll,dumi,0,0)
-                  f1pr15 = proc_from_LUT_main2mom(11,args_r,args_i)
+                  f1pr15 = proc_from_LUT_main2mom(LUT1_DMM,args_r,args_i)
 
                 else ! triple moment ice
 
@@ -4795,7 +4915,7 @@ call cpu_time(timer_end(6))
 
                    call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0.,    &
                                      dumzz,dumjj,dumii,dumll,dumi,0)
-                   f1pr15 = proc_from_LUT_main3mom(11,args_r,args_i)
+                   f1pr15 = proc_from_LUT_main3mom(LUT1_DMM,args_r,args_i)
 
                    if (log_3momentIce) then
                       call apply_mui_bounds_to_zi(zitot(i,k,iice),qitot(i,k,iice),       &
@@ -4950,15 +5070,15 @@ call cpu_time(timer_end(6))
                 call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum7,0.,0.,0.,0.,         &
                                   dumjj,dumii,dumll,dumi,0,0)
 
-                f1pr02 = proc_from_LUT_main2mom( 2,args_r,args_i)
-                f1pr06 = proc_from_LUT_main2mom( 6,args_r,args_i)
-                f1pr09 = proc_from_LUT_main2mom( 7,args_r,args_i)
-                f1pr10 = proc_from_LUT_main2mom( 8,args_r,args_i)
-                f1pr13 = proc_from_LUT_main2mom( 9,args_r,args_i)
-                f1pr15 = proc_from_LUT_main2mom(11,args_r,args_i)
-                f1pr16 = proc_from_LUT_main2mom(12,args_r,args_i)
-                f1pr22 = proc_from_LUT_main2mom(13,args_r,args_i)
-                f1pr23 = proc_from_LUT_main2mom(14,args_r,args_i)
+                f1pr02 = proc_from_LUT_main2mom(LUT1_UMS,args_r,args_i)
+                f1pr06 = proc_from_LUT_main2mom(LUT1_EFF,args_r,args_i)
+                f1pr09 = proc_from_LUT_main2mom(LUT1_QSML,args_r,args_i)
+                f1pr10 = proc_from_LUT_main2mom(LUT1_QLRG,args_r,args_i)
+                f1pr13 = proc_from_LUT_main2mom(LUT1_REFL,args_r,args_i)
+                f1pr15 = proc_from_LUT_main2mom(LUT1_DMM,args_r,args_i)
+                f1pr16 = proc_from_LUT_main2mom(LUT1_RHOMM,args_r,args_i)
+                f1pr22 = proc_from_LUT_main2mom(LUT1_2M_LAM,args_r,args_i)
+                f1pr23 = proc_from_LUT_main2mom(LUT1_2M_MU,args_r,args_i)
 
              else ! trplmomice_3
 
@@ -4973,14 +5093,14 @@ call cpu_time(timer_end(6))
                 call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0.,       &
                                   dumzz,dumjj,dumii,dumll,dumi,0)
 
-                f1pr02 = proc_from_LUT_main3mom( 2,args_r,args_i)
-                f1pr06 = proc_from_LUT_main3mom( 6,args_r,args_i)
-                f1pr09 = proc_from_LUT_main3mom( 7,args_r,args_i)
-                f1pr10 = proc_from_LUT_main3mom( 8,args_r,args_i)
-                f1pr13 = proc_from_LUT_main3mom( 9,args_r,args_i)
-                f1pr15 = proc_from_LUT_main3mom(11,args_r,args_i)
-                f1pr22 = proc_from_LUT_main3mom(14,args_r,args_i)
-                f1pr23 = proc_from_LUT_main3mom(15,args_r,args_i)
+                f1pr02 = proc_from_LUT_main3mom(LUT1_UMS,args_r,args_i)
+                f1pr06 = proc_from_LUT_main3mom(LUT1_EFF,args_r,args_i)
+                f1pr09 = proc_from_LUT_main3mom(LUT1_QSML,args_r,args_i)
+                f1pr10 = proc_from_LUT_main3mom(LUT1_QLRG,args_r,args_i)
+                f1pr13 = proc_from_LUT_main3mom(LUT1_REFL,args_r,args_i)
+                f1pr15 = proc_from_LUT_main3mom(LUT1_DMM,args_r,args_i)
+                f1pr22 = proc_from_LUT_main3mom(LUT1_3M_LAM,args_r,args_i)
+                f1pr23 = proc_from_LUT_main3mom(LUT1_3M_MU,args_r,args_i)
 
              endif trplmomice_3
 
@@ -5408,13 +5528,25 @@ timer(:) = timer_end(:) - timer_start(:)
 
 !==========================================================================================!
 
- real function proc_from_LUT_main2mom(ind,args_r,args_i)  !dumjj,dumii,dumll,dumi,dum1,dum4,dum5,dum7)
+! Scalar linear interpolation — gfortran inlines elemental functions unconditionally.
+! Weight w = coord - real(idx).  The proc_from_LUT_* routines below spell out the
+! corner-lookup tree explicitly so the compiler sees a static expression tree.
+
+ elemental pure real function lerp(a, b, w)
+ real, intent(in) :: a, b, w
+ lerp = a + w*(b-a)
+ end function lerp
+
+!==========================================================================================!
+
+ real function proc_from_LUT_main2mom(ind,args_r,args_i)
 
  !--------------------------------------------------------------------------------
  ! Obtains process rate (or other quantity) from LUT by accessing values from the
  ! LUT and performing the necessary interpolation.
  !
  ! This applies for the main LUT for 2-moment (LF on or off)
+ ! Table dims: (density jj, rime fraction ii, liquid fraction ll, size i, quantity)
  !--------------------------------------------------------------------------------
 
  implicit none
@@ -5428,121 +5560,50 @@ timer(:) = timer_end(:) - timer_start(:)
  real    :: dum1,dum4,dum5,dum7
  integer :: dumjj,dumii,dumll,dumi
 
-
  !note: arg_r(5) and arg_i(5) are not used for main2mom
- dum1 = args_r(1)
- dum4 = args_r(2)
- dum5 = args_r(3)
- dum7 = args_r(4)
+ dum1 = args_r(1);  dum4 = args_r(2);  dum5 = args_r(3);  dum7 = args_r(4)
+ dumjj = args_i(1); dumii = args_i(2); dumll = args_i(3);  dumi = args_i(4)
 
- dumjj = args_i(1)
- dumii = args_i(2)
- dumll = args_i(3)
- dumi  = args_i(4)
+ if (dumll==1 .and. dum7 < 1. + epsilon(dum7)) then  !skip interpolation for liq-frac if qiliq = 0.
 
-!if ((dum7-real(dumll)).eq.0.) then
-if (dum7 == 1. .and. dumll==1) then  !skip interpolation for liq-frac if qiliq = 0.
+    iproc1 = lerp(itab(dumjj,  dumii,  dumll,dumi,  ind), itab(dumjj,  dumii,  dumll,dumi+1,ind), dum1-real(dumi))
+    iproc2 = lerp(itab(dumjj,  dumii+1,dumll,dumi,  ind), itab(dumjj,  dumii+1,dumll,dumi+1,ind), dum1-real(dumi))
+    tmp1   = lerp(iproc1, iproc2, dum4-real(dumii))
 
-! get value at current density ind
+    iproc1 = lerp(itab(dumjj+1,dumii,  dumll,dumi,  ind), itab(dumjj+1,dumii,  dumll,dumi+1,ind), dum1-real(dumi))
+    iproc2 = lerp(itab(dumjj+1,dumii+1,dumll,dumi,  ind), itab(dumjj+1,dumii+1,dumll,dumi+1,ind), dum1-real(dumi))
+    tmp2   = lerp(iproc1, iproc2, dum4-real(dumii))
 
-! first interpolate for current rimed fraction ind
+    proc_from_LUT_main2mom = lerp(tmp1, tmp2, dum5-real(dumjj))
 
-	! interpolate for liquid fraction ind
+ else
 
-       iproc1 = itab(dumjj,dumii,dumll,dumi,ind)+(dum1-real(dumi))*                   &
-                (itab(dumjj,dumii,dumll,dumi+1,ind)-                                  &
-                itab(dumjj,dumii,dumll,dumi,ind))
+    iproc1 = lerp(itab(dumjj,  dumii,  dumll,  dumi,ind), itab(dumjj,  dumii,  dumll,  dumi+1,ind), dum1-real(dumi))
+    iproc2 = lerp(itab(dumjj,  dumii,  dumll+1,dumi,ind), itab(dumjj,  dumii,  dumll+1,dumi+1,ind), dum1-real(dumi))
+    tmp1   = lerp(iproc1, iproc2, dum7-real(dumll))
 
-! linearly interpolate to get process rates for rimed fraction ind + 1
+    iproc3 = lerp(itab(dumjj,  dumii+1,dumll,  dumi,ind), itab(dumjj,  dumii+1,dumll,  dumi+1,ind), dum1-real(dumi))
+    iproc4 = lerp(itab(dumjj,  dumii+1,dumll+1,dumi,ind), itab(dumjj,  dumii+1,dumll+1,dumi+1,ind), dum1-real(dumi))
+    tmp2   = lerp(iproc3, iproc4, dum7-real(dumll))
+    tmp3   = lerp(tmp1, tmp2, dum4-real(dumii))
 
-       iproc2 = itab(dumjj,dumii+1,dumll,dumi,ind)+(dum1-real(dumi))*(itab(dumjj,     &
-                dumii+1,dumll,dumi+1,ind)-itab(dumjj,dumii+1,dumll,dumi,ind))
+    iproc1 = lerp(itab(dumjj+1,dumii,  dumll,  dumi,ind), itab(dumjj+1,dumii,  dumll,  dumi+1,ind), dum1-real(dumi))
+    iproc2 = lerp(itab(dumjj+1,dumii,  dumll+1,dumi,ind), itab(dumjj+1,dumii,  dumll+1,dumi+1,ind), dum1-real(dumi))
+    tmp1   = lerp(iproc1, iproc2, dum7-real(dumll))
 
-       tmp1 = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
+    iproc3 = lerp(itab(dumjj+1,dumii+1,dumll,  dumi,ind), itab(dumjj+1,dumii+1,dumll,  dumi+1,ind), dum1-real(dumi))
+    iproc4 = lerp(itab(dumjj+1,dumii+1,dumll+1,dumi,ind), itab(dumjj+1,dumii+1,dumll+1,dumi+1,ind), dum1-real(dumi))
+    tmp2   = lerp(iproc3, iproc4, dum7-real(dumll))
+    tmp4   = lerp(tmp1, tmp2, dum4-real(dumii))
 
-! get value at density ind + 1
-
-! first interpolate for current rimed fraction ind
-
-	! interpolate for liquid fraction ind
-
-       iproc1 = itab(dumjj+1,dumii,dumll,dumi,ind)+(dum1-real(dumi))*(itab(dumjj+1,    &
-                dumii,dumll,dumi+1,ind)-itab(dumjj+1,dumii,dumll,dumi,ind))
-
-! linearly interpolate to get process rates for rimed fraction ind + 1
-
-       iproc2 = itab(dumjj+1,dumii+1,dumll,dumi,ind)+(dum1-real(dumi))*(itab(dumjj+1,   &
-                dumii+1,dumll,dumi+1,ind)-itab(dumjj+1,dumii+1,dumll,dumi,ind))
-
-       tmp2 = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! get final process rate
-       proc_from_LUT_main2mom = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
-
-else
-
-! get value at current density ind
-
-! first interpolate for current rimed fraction ind
-
-	! interpolate for liquid fraction ind
-
-        iproc1 = itab(dumjj,dumii,dumll,dumi,ind)+(dum1-real(dumi))*                   &
-                 (itab(dumjj,dumii,dumll,dumi+1,ind)-                                  &
-                 itab(dumjj,dumii,dumll,dumi,ind))
-
-        iproc2 = itab(dumjj,dumii,dumll+1,dumi,ind)+(dum1-real(dumi))*(itab(dumjj,     &
-                 dumii,dumll+1,dumi+1,ind)-itab(dumjj,dumii,dumll+1,dumi,ind))
-
-        tmp1 = iproc1+(dum7-real(dumll))*(iproc2-iproc1)
-
-! linearly interpolate to get process rates for rimed fraction ind + 1
-
-        iproc3 = itab(dumjj,dumii+1,dumll,dumi,ind)+(dum1-real(dumi))*(itab(dumjj,     &
-                 dumii+1,dumll,dumi+1,ind)-itab(dumjj,dumii+1,dumll,dumi,ind))
-
-        iproc4 = itab(dumjj,dumii+1,dumll+1,dumi,ind)+(dum1-real(dumi))*(itab(dumjj,   &
-                 dumii+1,dumll+1,dumi+1,ind)-itab(dumjj,dumii+1,dumll+1,dumi,ind))
-
-        tmp2 = iproc3+(dum7-real(dumll))*(iproc4-iproc3)
-
-
-        tmp3 = tmp1+(dum4-real(dumii))*(tmp2-tmp1)
-
-! get value at density ind + 1
-
-! first interpolate for current rimed fraction ind
-
-	! interpolate for liquid fraction ind
-
-        iproc1 = itab(dumjj+1,dumii,dumll,dumi,ind)+(dum1-real(dumi))*(itab(dumjj+1,    &
-                 dumii,dumll,dumi+1,ind)-itab(dumjj+1,dumii,dumll,dumi,ind))
-
-        iproc2 = itab(dumjj+1,dumii,dumll+1,dumi,ind)+(dum1-real(dumi))*(itab(dumjj+1,  &
-                 dumii,dumll+1,dumi+1,ind)-itab(dumjj+1,dumii,dumll+1,dumi,ind))
-
-        tmp1 = iproc1+(dum7-real(dumll))*(iproc2-iproc1)
-
-! linearly interpolate to get process rates for rimed fraction ind + 1
-
-        iproc3 = itab(dumjj+1,dumii+1,dumll,dumi,ind)+(dum1-real(dumi))*(itab(dumjj+1,   &
-                 dumii+1,dumll,dumi+1,ind)-itab(dumjj+1,dumii+1,dumll,dumi,ind))
-
-        iproc4 = itab(dumjj+1,dumii+1,dumll+1,dumi,ind)+(dum1-real(dumi))*(itab(dumjj+1, &
-                 dumii+1,dumll+1,dumi+1,ind)-itab(dumjj+1,dumii+1,dumll+1,dumi,ind))
-
-        tmp2 = iproc3+(dum7-real(dumll))*(iproc4-iproc3)
-
-
-        tmp4 = tmp1+(dum4-real(dumii))*(tmp2-tmp1)
-
-! get final process rate
-        proc_from_LUT_main2mom = tmp3+(dum5-real(dumjj))*(tmp4-tmp3)
+    proc_from_LUT_main2mom = lerp(tmp3, tmp4, dum5-real(dumjj))
 
  endif
 
  end function proc_from_LUT_main2mom
+
 !==========================================================================================!
+
 
  real function proc_from_LUT_ir2mom(ind,args_r,args_i)
 
@@ -5551,6 +5612,8 @@ else
  ! LUT and performing the necessary interpolation.
  !
  ! This applies for the ice-rain collection LUT for 2-moment.
+ ! Table dims: (density jj, rime fraction ii, liquid fraction ll, size i,
+ !              rain size j, quantity)
  !--------------------------------------------------------------------------------
 
  implicit none
@@ -5560,239 +5623,81 @@ else
  real,    dimension(n_args_r), intent(in) :: args_r
  integer, dimension(n_args_i), intent(in) :: args_i
 !local:
- real    :: dproc1,dproc2,iproc1,tmp1,tmp2,iproc3,iproc4,iproc2
+ real    :: dproc1,dproc2,iproc1,iproc2,iproc3,iproc4,tmp1,tmp2
  real    :: dum1,dum3,dum4,dum5,dum7
- integer :: dumjj,dumii,dumj,dumi,dumll
+ integer :: dumjj,dumii,dumll,dumj,dumi
 
+ dum1 = args_r(1);  dum3 = args_r(2);  dum4 = args_r(3)
+ dum5 = args_r(4);  dum7 = args_r(5)
+ dumjj = args_i(1); dumii = args_i(2); dumll = args_i(3)
+ dumj  = args_i(4); dumi  = args_i(5)
 
- dum1 = args_r(1)
- dum3 = args_r(2)
- dum4 = args_r(3)
- dum5 = args_r(4)
- dum7 = args_r(5)
+ if (dumll==1 .and. dum7 < 1. + epsilon(dum7)) then  !skip interpolation for liq-frac if qiliq = 0.
 
- dumjj = args_i(1)
- dumii = args_i(2)
- dumll = args_i(3)
- dumj  = args_i(4)
- dumi  = args_i(5)
+    dproc1 = lerp(itabcoll(dumjj,  dumii,  dumll,dumi,  dumj,  ind), itabcoll(dumjj,  dumii,  dumll,dumi+1,dumj,  ind), dum1-real(dumi))
+    dproc2 = lerp(itabcoll(dumjj,  dumii,  dumll,dumi,  dumj+1,ind), itabcoll(dumjj,  dumii,  dumll,dumi+1,dumj+1,ind), dum1-real(dumi))
+    iproc1 = lerp(dproc1, dproc2, dum3-real(dumj))
 
- if (dum7 == 1. .and. dumll==1) then  !skip interpolation for liq-frac if qiliq = 0.
+    dproc1 = lerp(itabcoll(dumjj,  dumii+1,dumll,dumi,  dumj,  ind), itabcoll(dumjj,  dumii+1,dumll,dumi+1,dumj,  ind), dum1-real(dumi))
+    dproc2 = lerp(itabcoll(dumjj,  dumii+1,dumll,dumi,  dumj+1,ind), itabcoll(dumjj,  dumii+1,dumll,dumi+1,dumj+1,ind), dum1-real(dumi))
+    iproc2 = lerp(dproc1, dproc2, dum3-real(dumj))
+    tmp1   = lerp(iproc1, iproc2, dum4-real(dumii))
 
-! current density ind jj
+    dproc1 = lerp(itabcoll(dumjj+1,dumii,  dumll,dumi,  dumj,  ind), itabcoll(dumjj+1,dumii,  dumll,dumi+1,dumj,  ind), dum1-real(dumi))
+    dproc2 = lerp(itabcoll(dumjj+1,dumii,  dumll,dumi,  dumj+1,ind), itabcoll(dumjj+1,dumii,  dumll,dumi+1,dumj+1,ind), dum1-real(dumi))
+    iproc1 = lerp(dproc1, dproc2, dum3-real(dumj))
 
-    ! current rime fraction ind ii
+    dproc1 = lerp(itabcoll(dumjj+1,dumii+1,dumll,dumi,  dumj,  ind), itabcoll(dumjj+1,dumii+1,dumll,dumi+1,dumj,  ind), dum1-real(dumi))
+    dproc2 = lerp(itabcoll(dumjj+1,dumii+1,dumll,dumi,  dumj+1,ind), itabcoll(dumjj+1,dumii+1,dumll,dumi+1,dumj+1,ind), dum1-real(dumi))
+    iproc2 = lerp(dproc1, dproc2, dum3-real(dumj))
+    tmp2   = lerp(iproc1, iproc2, dum4-real(dumii))
 
-	! interpolate for j between i and i+1
-        dproc1  = itabcoll(dumjj,dumii,dumll,dumi,dumj,ind)+(dum1-real(dumi))*                    &
-            (itabcoll(dumjj,dumii,dumll,dumi+1,dumj,ind)-itabcoll(dumjj,dumii,dumll,dumi,         &
-            dumj,ind))
-
-	! interpolate for j+1 between i and i+1
-        dproc2  = itabcoll(dumjj,dumii,dumll,dumi,dumj+1,ind)+(dum1-real(dumi))*                  &
-            (itabcoll(dumjj,dumii,dumll,dumi+1,dumj+1,ind)-itabcoll(dumjj,dumii,dumll,dumi,       &
-            dumj+1,ind))
-
-        iproc1 = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
-
-    ! current rime fraction ind+1 ii+1
-
-	! interpolate for j between i and i+1
-        dproc1  = itabcoll(dumjj,dumii+1,dumll,dumi,dumj,ind)+(dum1-real(dumi))*                  &
-            (itabcoll(dumjj,dumii+1,dumll,dumi+1,dumj,ind)-itabcoll(dumjj,dumii+1,dumll,dumi,     &
-            dumj,ind))
-
-	! interpolate for j+1 between i and i+1
-        dproc2  = itabcoll(dumjj,dumii+1,dumll,dumi,dumj+1,ind)+(dum1-real(dumi))*                &
-            (itabcoll(dumjj,dumii+1,dumll,dumi+1,dumj+1,ind)-itabcoll(dumjj,dumii+1,dumll,dumi,   &
-            dumj+1,ind))
-
-        iproc2 = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
-
-        tmp1 = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-
-! current density ind+1 jj+1
-
-    ! current rime fraction ind ii
-
-	! interpolate for j between i and i+1
-        dproc1  = itabcoll(dumjj+1,dumii,dumll,dumi,dumj,ind)+(dum1-real(dumi))*                 &
-            (itabcoll(dumjj+1,dumii,dumll,dumi+1,dumj,ind)-itabcoll(dumjj+1,dumii,dumll,dumi,    &
-            dumj,ind))
-
-	! interpolate for j+1 between i and i+1
-        dproc2  = itabcoll(dumjj+1,dumii,dumll,dumi,dumj+1,ind)+(dum1-real(dumi))*               &
-            (itabcoll(dumjj+1,dumii,dumll,dumi+1,dumj+1,ind)-itabcoll(dumjj+1,dumii,dumll,dumi,  &
-            dumj+1,ind))
-
-        iproc1 = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
-
-    ! current rime fraction ind+1 ii+1
-
-	! interpolate for j between i and i+1
-        dproc1  = itabcoll(dumjj+1,dumii+1,dumll,dumi,dumj,ind)+(dum1-real(dumi))*                   &
-            (itabcoll(dumjj+1,dumii+1,dumll,dumi+1,dumj,ind)-itabcoll(dumjj+1,dumii+1,dumll,dumi,    &
-            dumj,ind))
-
-	! interpolate for j+1 between i and i+1
-        dproc2  = itabcoll(dumjj+1,dumii+1,dumll,dumi,dumj+1,ind)+(dum1-real(dumi))*                 &
-            (itabcoll(dumjj+1,dumii+1,dumll,dumi+1,dumj+1,ind)-itabcoll(dumjj+1,dumii+1,dumll,dumi,  &
-            dumj+1,ind))
-
-        iproc2 = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
-
-        tmp2 = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! interpolate over density to get final values
-        proc_from_LUT_ir2mom = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
+    proc_from_LUT_ir2mom = lerp(tmp1, tmp2, dum5-real(dumjj))
 
  else
 
-! current density ind jj
+    dproc1 = lerp(itabcoll(dumjj,  dumii,  dumll,  dumi,  dumj,  ind), itabcoll(dumjj,  dumii,  dumll,  dumi+1,dumj,  ind), dum1-real(dumi))
+    dproc2 = lerp(itabcoll(dumjj,  dumii,  dumll,  dumi,  dumj+1,ind), itabcoll(dumjj,  dumii,  dumll,  dumi+1,dumj+1,ind), dum1-real(dumi))
+    iproc1 = lerp(dproc1, dproc2, dum3-real(dumj))
+    dproc1 = lerp(itabcoll(dumjj,  dumii,  dumll+1,dumi,  dumj,  ind), itabcoll(dumjj,  dumii,  dumll+1,dumi+1,dumj,  ind), dum1-real(dumi))
+    dproc2 = lerp(itabcoll(dumjj,  dumii,  dumll+1,dumi,  dumj+1,ind), itabcoll(dumjj,  dumii,  dumll+1,dumi+1,dumj+1,ind), dum1-real(dumi))
+    iproc2 = lerp(dproc1, dproc2, dum3-real(dumj))
+    iproc3 = lerp(iproc1, iproc2, dum7-real(dumll))
 
-     ! current rime fraction ind ii
+    dproc1 = lerp(itabcoll(dumjj,  dumii+1,dumll,  dumi,  dumj,  ind), itabcoll(dumjj,  dumii+1,dumll,  dumi+1,dumj,  ind), dum1-real(dumi))
+    dproc2 = lerp(itabcoll(dumjj,  dumii+1,dumll,  dumi,  dumj+1,ind), itabcoll(dumjj,  dumii+1,dumll,  dumi+1,dumj+1,ind), dum1-real(dumi))
+    iproc1 = lerp(dproc1, dproc2, dum3-real(dumj))
+    dproc1 = lerp(itabcoll(dumjj,  dumii+1,dumll+1,dumi,  dumj,  ind), itabcoll(dumjj,  dumii+1,dumll+1,dumi+1,dumj,  ind), dum1-real(dumi))
+    dproc2 = lerp(itabcoll(dumjj,  dumii+1,dumll+1,dumi,  dumj+1,ind), itabcoll(dumjj,  dumii+1,dumll+1,dumi+1,dumj+1,ind), dum1-real(dumi))
+    iproc2 = lerp(dproc1, dproc2, dum3-real(dumj))
+    iproc4 = lerp(iproc1, iproc2, dum7-real(dumll))
+    tmp1   = lerp(iproc3, iproc4, dum4-real(dumii))
 
-	! current liquid fraction ind ll
+    dproc1 = lerp(itabcoll(dumjj+1,dumii,  dumll,  dumi,  dumj,  ind), itabcoll(dumjj+1,dumii,  dumll,  dumi+1,dumj,  ind), dum1-real(dumi))
+    dproc2 = lerp(itabcoll(dumjj+1,dumii,  dumll,  dumi,  dumj+1,ind), itabcoll(dumjj+1,dumii,  dumll,  dumi+1,dumj+1,ind), dum1-real(dumi))
+    iproc1 = lerp(dproc1, dproc2, dum3-real(dumj))
+    dproc1 = lerp(itabcoll(dumjj+1,dumii,  dumll+1,dumi,  dumj,  ind), itabcoll(dumjj+1,dumii,  dumll+1,dumi+1,dumj,  ind), dum1-real(dumi))
+    dproc2 = lerp(itabcoll(dumjj+1,dumii,  dumll+1,dumi,  dumj+1,ind), itabcoll(dumjj+1,dumii,  dumll+1,dumi+1,dumj+1,ind), dum1-real(dumi))
+    iproc2 = lerp(dproc1, dproc2, dum3-real(dumj))
+    iproc3 = lerp(iproc1, iproc2, dum7-real(dumll))
 
-	! interpolate for j between i and i+1
-         dproc1  = itabcoll(dumjj,dumii,dumll,dumi,dumj,ind)+(dum1-real(dumi))*                    &
-             (itabcoll(dumjj,dumii,dumll,dumi+1,dumj,ind)-itabcoll(dumjj,dumii,dumll,dumi,         &
-             dumj,ind))
+    dproc1 = lerp(itabcoll(dumjj+1,dumii+1,dumll,  dumi,  dumj,  ind), itabcoll(dumjj+1,dumii+1,dumll,  dumi+1,dumj,  ind), dum1-real(dumi))
+    dproc2 = lerp(itabcoll(dumjj+1,dumii+1,dumll,  dumi,  dumj+1,ind), itabcoll(dumjj+1,dumii+1,dumll,  dumi+1,dumj+1,ind), dum1-real(dumi))
+    iproc1 = lerp(dproc1, dproc2, dum3-real(dumj))
+    dproc1 = lerp(itabcoll(dumjj+1,dumii+1,dumll+1,dumi,  dumj,  ind), itabcoll(dumjj+1,dumii+1,dumll+1,dumi+1,dumj,  ind), dum1-real(dumi))
+    dproc2 = lerp(itabcoll(dumjj+1,dumii+1,dumll+1,dumi,  dumj+1,ind), itabcoll(dumjj+1,dumii+1,dumll+1,dumi+1,dumj+1,ind), dum1-real(dumi))
+    iproc2 = lerp(dproc1, dproc2, dum3-real(dumj))
+    iproc4 = lerp(iproc1, iproc2, dum7-real(dumll))
+    tmp2   = lerp(iproc3, iproc4, dum4-real(dumii))
 
-	! interpolate for j+1 between i and i+1
-         dproc2  = itabcoll(dumjj,dumii,dumll,dumi,dumj+1,ind)+(dum1-real(dumi))*                  &
-             (itabcoll(dumjj,dumii,dumll,dumi+1,dumj+1,ind)-itabcoll(dumjj,dumii,dumll,dumi,       &
-             dumj+1,ind))
-
-         iproc1 = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
-
-	! current liquid fraction ind+1 ll+1
-
-	! interpolate for j between i and i+1
-         dproc1  = itabcoll(dumjj,dumii,dumll+1,dumi,dumj,ind)+(dum1-real(dumi))*                  &
-             (itabcoll(dumjj,dumii,dumll+1,dumi+1,dumj,ind)-itabcoll(dumjj,dumii,dumll+1,dumi,     &
-             dumj,ind))
-
-	! interpolate for j+1 between i and i+1
-         dproc2  = itabcoll(dumjj,dumii,dumll+1,dumi,dumj+1,ind)+(dum1-real(dumi))*                &
-             (itabcoll(dumjj,dumii,dumll+1,dumi+1,dumj+1,ind)-itabcoll(dumjj,dumii,dumll+1,dumi,   &
-             dumj+1,ind))
-
-         iproc2 = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
-
-         iproc3 = iproc1+(dum7-real(dumll))*(iproc2-iproc1)
-
-     ! current rime fraction ind+1 ii+1
-
-	! current liquid fraction ind ll
-
-	! interpolate for j between i and i+1
-         dproc1  = itabcoll(dumjj,dumii+1,dumll,dumi,dumj,ind)+(dum1-real(dumi))*                  &
-             (itabcoll(dumjj,dumii+1,dumll,dumi+1,dumj,ind)-itabcoll(dumjj,dumii+1,dumll,dumi,     &
-             dumj,ind))
-
-	! interpolate for j+1 between i and i+1
-         dproc2  = itabcoll(dumjj,dumii+1,dumll,dumi,dumj+1,ind)+(dum1-real(dumi))*                &
-             (itabcoll(dumjj,dumii+1,dumll,dumi+1,dumj+1,ind)-itabcoll(dumjj,dumii+1,dumll,dumi,   &
-             dumj+1,ind))
-
-         iproc1 = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
-
-	! current liquid fraction ind+1 ll+1
-
-	! interpolate for j between i and i+1
-         dproc1  = itabcoll(dumjj,dumii+1,dumll+1,dumi,dumj,ind)+(dum1-real(dumi))*                &
-             (itabcoll(dumjj,dumii+1,dumll+1,dumi+1,dumj,ind)-itabcoll(dumjj,dumii+1,dumll+1,dumi, &
-             dumj,ind))
-
-	! interpolate for j+1 between i and i+1
-         dproc2  = itabcoll(dumjj,dumii+1,dumll+1,dumi,dumj+1,ind)+(dum1-real(dumi))*                 &
-             (itabcoll(dumjj,dumii+1,dumll+1,dumi+1,dumj+1,ind)-itabcoll(dumjj,dumii+1,dumll+1,dumi,  &
-             dumj+1,ind))
-
-         iproc2 = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
-
-         iproc4 = iproc1+(dum7-real(dumll))*(iproc2-iproc1)
-
-         tmp1 = iproc3+(dum4-real(dumii))*(iproc4-iproc3)
-
-! current density ind+1 jj+1
-
-     ! current rime fraction ind ii
-
-	! current liquid fraction ind ll
-
-	! interpolate for j between i and i+1
-         dproc1  = itabcoll(dumjj+1,dumii,dumll,dumi,dumj,ind)+(dum1-real(dumi))*                 &
-             (itabcoll(dumjj+1,dumii,dumll,dumi+1,dumj,ind)-itabcoll(dumjj+1,dumii,dumll,dumi,    &
-             dumj,ind))
-
-	! interpolate for j+1 between i and i+1
-         dproc2  = itabcoll(dumjj+1,dumii,dumll,dumi,dumj+1,ind)+(dum1-real(dumi))*               &
-             (itabcoll(dumjj+1,dumii,dumll,dumi+1,dumj+1,ind)-itabcoll(dumjj+1,dumii,dumll,dumi,  &
-             dumj+1,ind))
-
-         iproc1 = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
-
-	! current liquid fraction ind+1 ll+1
-
-	! interpolate for j between i and i+1
-         dproc1  = itabcoll(dumjj+1,dumii,dumll+1,dumi,dumj,ind)+(dum1-real(dumi))*                 &
-             (itabcoll(dumjj+1,dumii,dumll+1,dumi+1,dumj,ind)-itabcoll(dumjj+1,dumii,dumll+1,dumi,  &
-             dumj,ind))
-
-	! interpolate for j+1 between i and i+1
-         dproc2  = itabcoll(dumjj+1,dumii,dumll+1,dumi,dumj+1,ind)+(dum1-real(dumi))*                 &
-             (itabcoll(dumjj+1,dumii,dumll+1,dumi+1,dumj+1,ind)-itabcoll(dumjj+1,dumii,dumll+1,dumi,  &
-             dumj+1,ind))
-
-         iproc2 = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
-
-         iproc3 = iproc1+(dum7-real(dumll))*(iproc2-iproc1)
-
-     ! current rime fraction ind+1 ii+1
-
-	! current liquid fraction ind ll
-
-	! interpolate for j between i and i+1
-         dproc1  = itabcoll(dumjj+1,dumii+1,dumll,dumi,dumj,ind)+(dum1-real(dumi))*                   &
-             (itabcoll(dumjj+1,dumii+1,dumll,dumi+1,dumj,ind)-itabcoll(dumjj+1,dumii+1,dumll,dumi,    &
-             dumj,ind))
-
-	! interpolate for j+1 between i and i+1
-         dproc2  = itabcoll(dumjj+1,dumii+1,dumll,dumi,dumj+1,ind)+(dum1-real(dumi))*                 &
-             (itabcoll(dumjj+1,dumii+1,dumll,dumi+1,dumj+1,ind)-itabcoll(dumjj+1,dumii+1,dumll,dumi,  &
-             dumj+1,ind))
-
-         iproc1 = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
-
-	! current liquid fraction ind+1 ll+1
-
-	! interpolate for j between i and i+1
-         dproc1  = itabcoll(dumjj+1,dumii+1,dumll+1,dumi,dumj,ind)+(dum1-real(dumi))*                   &
-             (itabcoll(dumjj+1,dumii+1,dumll+1,dumi+1,dumj,ind)-itabcoll(dumjj+1,dumii+1,dumll+1,dumi,  &
-             dumj,ind))
-
-	! interpolate for j+1 between i and i+1
-         dproc2  = itabcoll(dumjj+1,dumii+1,dumll+1,dumi,dumj+1,ind)+(dum1-real(dumi))*                   &
-             (itabcoll(dumjj+1,dumii+1,dumll+1,dumi+1,dumj+1,ind)-itabcoll(dumjj+1,dumii+1,dumll+1,dumi,  &
-             dumj+1,ind))
-
-         iproc2 = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
-
-         iproc4 = iproc1+(dum7-real(dumll))*(iproc2-iproc1)
-
-         tmp2 = iproc3+(dum4-real(dumii))*(iproc4-iproc3)
-
-! interpolate over density to get final values
-         proc_from_LUT_ir2mom = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
+    proc_from_LUT_ir2mom = lerp(tmp1, tmp2, dum5-real(dumjj))
 
  endif
 
-end function proc_from_LUT_ir2mom
+ end function proc_from_LUT_ir2mom
 
 !==========================================================================================!
+
 
 real function proc_from_LUT_3(ind,dumzq,dumjj,dumii,dumll,dumi,dum1,dum4,dum5,dum7,dum8)
 
@@ -5801,6 +5706,8 @@ real function proc_from_LUT_3(ind,dumzq,dumjj,dumii,dumll,dumi,dum1,dum4,dum5,du
  ! LUT and performing the necessary interpolation.
  !
  ! This applies for mu_i and rho_i LUT.
+ ! Table dims: (G index zq, density jj, rime fraction ii, liquid fraction ll,
+ !              size i, quantity)
  !--------------------------------------------------------------------------------
 
  implicit none
@@ -5809,206 +5716,65 @@ real function proc_from_LUT_3(ind,dumzq,dumjj,dumii,dumll,dumi,dum1,dum4,dum5,du
  real,    intent(in)  :: dum1,dum4,dum5,dum7,dum8
  integer, intent(in)  :: ind,dumzq,dumjj,dumii,dumll,dumi
 !local:
- real                 :: iproc1,iproc2,gproc1,gproc2,rproc1,rproc2,dproc1,dproc2
- integer              :: duml
+ real :: iproc1,iproc2,gproc1,gproc2,rproc1,rproc2,dproc1,dproc2
 
-!!if (.false.) then  ! to test old, "full" approach
- if (dum7 == 1. .and. dumll==1) then  !skip interpolation for liq-frac if qiliq = 0.
+ if (dumll==1 .and. dum7 < 1. + epsilon(dum7)) then  !skip interpolation for liq-frac if qiliq = 0.
 
-! get at current zz
- ! get at current jj
+    dproc1 = lerp(itab_3mom_mui(dumzq,  dumjj,  dumii,  dumll,dumi,  ind), itab_3mom_mui(dumzq,  dumjj,  dumii,  dumll,dumi+1,ind), dum1-real(dumi))
+    dproc2 = lerp(itab_3mom_mui(dumzq,  dumjj,  dumii+1,dumll,dumi,  ind), itab_3mom_mui(dumzq,  dumjj,  dumii+1,dumll,dumi+1,ind), dum1-real(dumi))
+    gproc1 = lerp(dproc1, dproc2, dum4-real(dumii))
+    dproc1 = lerp(itab_3mom_mui(dumzq,  dumjj+1,dumii,  dumll,dumi,  ind), itab_3mom_mui(dumzq,  dumjj+1,dumii,  dumll,dumi+1,ind), dum1-real(dumi))
+    dproc2 = lerp(itab_3mom_mui(dumzq,  dumjj+1,dumii+1,dumll,dumi,  ind), itab_3mom_mui(dumzq,  dumjj+1,dumii+1,dumll,dumi+1,ind), dum1-real(dumi))
+    gproc2 = lerp(dproc1, dproc2, dum4-real(dumii))
+    rproc1 = lerp(gproc1, gproc2, dum5-real(dumjj))
 
-   ! get current ii
+    dproc1 = lerp(itab_3mom_mui(dumzq+1,dumjj,  dumii,  dumll,dumi,  ind), itab_3mom_mui(dumzq+1,dumjj,  dumii,  dumll,dumi+1,ind), dum1-real(dumi))
+    dproc2 = lerp(itab_3mom_mui(dumzq+1,dumjj,  dumii+1,dumll,dumi,  ind), itab_3mom_mui(dumzq+1,dumjj,  dumii+1,dumll,dumi+1,ind), dum1-real(dumi))
+    gproc1 = lerp(dproc1, dproc2, dum4-real(dumii))
+    dproc1 = lerp(itab_3mom_mui(dumzq+1,dumjj+1,dumii,  dumll,dumi,  ind), itab_3mom_mui(dumzq+1,dumjj+1,dumii,  dumll,dumi+1,ind), dum1-real(dumi))
+    dproc2 = lerp(itab_3mom_mui(dumzq+1,dumjj+1,dumii+1,dumll,dumi,  ind), itab_3mom_mui(dumzq+1,dumjj+1,dumii+1,dumll,dumi+1,ind), dum1-real(dumi))
+    gproc2 = lerp(dproc1, dproc2, dum4-real(dumii))
+    rproc2 = lerp(gproc1, gproc2, dum5-real(dumjj))
 
-    ! at ll between i and i+1
-    dproc1 = itab_3mom_mui(dumzq,dumjj,dumii,dumll,dumi,ind)+(dum1-real(dumi))*(itab_3mom_mui(dumzq,dumjj,dumii,       &
-             dumll,dumi+1,ind)-itab_3mom_mui(dumzq,dumjj,dumii,dumll,dumi,ind))
-
-   ! get current ii+1
-
-    ! at ll between i and i+1
-    dproc2 = itab_3mom_mui(dumzq,dumjj,dumii+1,dumll,dumi,ind)+(dum1-real(dumi))*(itab_3mom_mui(dumzq,dumjj,dumii+1,       &
-             dumll,dumi+1,ind)-itab_3mom_mui(dumzq,dumjj,dumii+1,dumll,dumi,ind))
-
-    gproc1   = dproc1+(dum4-real(dumii))*(dproc2-dproc1)
-
- ! get at current jj+1
-
-   ! get current ii
-
-    ! at ll between i and i+1
-    dproc1 = itab_3mom_mui(dumzq,dumjj+1,dumii,dumll,dumi,ind)+(dum1-real(dumi))*(itab_3mom_mui(dumzq,dumjj+1,dumii,       &
-             dumll,dumi+1,ind)-itab_3mom_mui(dumzq,dumjj+1,dumii,dumll,dumi,ind))
-
-   ! get current ii+1
-
-    ! at ll between i and i+1
-    dproc2 = itab_3mom_mui(dumzq,dumjj+1,dumii+1,dumll,dumi,ind)+(dum1-real(dumi))*(itab_3mom_mui(dumzq,dumjj+1,dumii+1,       &
-             dumll,dumi+1,ind)-itab_3mom_mui(dumzq,dumjj+1,dumii+1,dumll,dumi,ind))
-
-    gproc2   = dproc1+(dum4-real(dumii))*(dproc2-dproc1)
-
-    rproc1   = gproc1+(dum5-real(dumjj))*(gproc2-gproc1)
-
-! get at current zz+1
- ! get at current jj
-
-   ! get current ii
-
-    ! at ll between i and i+1
-    dproc1 = itab_3mom_mui(dumzq+1,dumjj,dumii,dumll,dumi,ind)+(dum1-real(dumi))*(itab_3mom_mui(dumzq+1,dumjj,dumii,       &
-             dumll,dumi+1,ind)-itab_3mom_mui(dumzq+1,dumjj,dumii,dumll,dumi,ind))
-
-   ! get current ii+1
-    ! at ll between i and i+1
-    dproc2 = itab_3mom_mui(dumzq+1,dumjj,dumii+1,dumll,dumi,ind)+(dum1-real(dumi))*(itab_3mom_mui(dumzq+1,dumjj,dumii+1,       &
-             dumll,dumi+1,ind)-itab_3mom_mui(dumzq+1,dumjj,dumii+1,dumll,dumi,ind))
-
-    gproc1   = dproc1+(dum4-real(dumii))*(dproc2-dproc1)
-
- ! get at current jj+1
-
-   ! get current ii
-
-    ! at ll between i and i+1
-    dproc1 = itab_3mom_mui(dumzq+1,dumjj+1,dumii,dumll,dumi,ind)+(dum1-real(dumi))*(itab_3mom_mui(dumzq+1,dumjj+1,dumii,       &
-             dumll,dumi+1,ind)-itab_3mom_mui(dumzq+1,dumjj+1,dumii,dumll,dumi,ind))
-
-   ! get current ii+1
-
-    ! at ll between i and i+1
-    dproc2 = itab_3mom_mui(dumzq+1,dumjj+1,dumii+1,dumll,dumi,ind)+(dum1-real(dumi))*(itab_3mom_mui(dumzq+1,dumjj+1,       &
-             dumii+1,dumll,dumi+1,ind)-itab_3mom_mui(dumzq+1,dumjj+1,dumii+1,dumll,dumi,ind))
-
-    gproc2   = dproc1+(dum4-real(dumii))*(dproc2-dproc1)
-
-    rproc2   = gproc1+(dum5-real(dumjj))*(gproc2-gproc1)
-
-! get final interpolation between rproc1 and rproc2
-    proc_from_LUT_3 = rproc1+(dum8-real(dumzq))*(rproc2-rproc1)
+    proc_from_LUT_3 = lerp(rproc1, rproc2, dum8-real(dumzq))
 
  else
 
-! get at current zz
-  ! get at current jj
+    dproc1 = lerp(itab_3mom_mui(dumzq,  dumjj,  dumii,  dumll,  dumi,  ind), itab_3mom_mui(dumzq,  dumjj,  dumii,  dumll,  dumi+1,ind), dum1-real(dumi))
+    dproc2 = lerp(itab_3mom_mui(dumzq,  dumjj,  dumii,  dumll+1,dumi,  ind), itab_3mom_mui(dumzq,  dumjj,  dumii,  dumll+1,dumi+1,ind), dum1-real(dumi))
+    iproc1 = lerp(dproc1, dproc2, dum7-real(dumll))
+    dproc1 = lerp(itab_3mom_mui(dumzq,  dumjj,  dumii+1,dumll,  dumi,  ind), itab_3mom_mui(dumzq,  dumjj,  dumii+1,dumll,  dumi+1,ind), dum1-real(dumi))
+    dproc2 = lerp(itab_3mom_mui(dumzq,  dumjj,  dumii+1,dumll+1,dumi,  ind), itab_3mom_mui(dumzq,  dumjj,  dumii+1,dumll+1,dumi+1,ind), dum1-real(dumi))
+    iproc2 = lerp(dproc1, dproc2, dum7-real(dumll))
+    gproc1 = lerp(iproc1, iproc2, dum4-real(dumii))
 
-    ! get current ii
+    dproc1 = lerp(itab_3mom_mui(dumzq,  dumjj+1,dumii,  dumll,  dumi,  ind), itab_3mom_mui(dumzq,  dumjj+1,dumii,  dumll,  dumi+1,ind), dum1-real(dumi))
+    dproc2 = lerp(itab_3mom_mui(dumzq,  dumjj+1,dumii,  dumll+1,dumi,  ind), itab_3mom_mui(dumzq,  dumjj+1,dumii,  dumll+1,dumi+1,ind), dum1-real(dumi))
+    iproc1 = lerp(dproc1, dproc2, dum7-real(dumll))
+    dproc1 = lerp(itab_3mom_mui(dumzq,  dumjj+1,dumii+1,dumll,  dumi,  ind), itab_3mom_mui(dumzq,  dumjj+1,dumii+1,dumll,  dumi+1,ind), dum1-real(dumi))
+    dproc2 = lerp(itab_3mom_mui(dumzq,  dumjj+1,dumii+1,dumll+1,dumi,  ind), itab_3mom_mui(dumzq,  dumjj+1,dumii+1,dumll+1,dumi+1,ind), dum1-real(dumi))
+    iproc2 = lerp(dproc1, dproc2, dum7-real(dumll))
+    gproc2 = lerp(iproc1, iproc2, dum4-real(dumii))
+    rproc1 = lerp(gproc1, gproc2, dum5-real(dumjj))
 
-     ! at ll between i and i+1
-     dproc1 = itab_3mom_mui(dumzq,dumjj,dumii,dumll,dumi,ind)+(dum1-real(dumi))*(itab_3mom_mui(dumzq,dumjj,dumii,       &
-              dumll,dumi+1,ind)-itab_3mom_mui(dumzq,dumjj,dumii,dumll,dumi,ind))
+    dproc1 = lerp(itab_3mom_mui(dumzq+1,dumjj,  dumii,  dumll,  dumi,  ind), itab_3mom_mui(dumzq+1,dumjj,  dumii,  dumll,  dumi+1,ind), dum1-real(dumi))
+    dproc2 = lerp(itab_3mom_mui(dumzq+1,dumjj,  dumii,  dumll+1,dumi,  ind), itab_3mom_mui(dumzq+1,dumjj,  dumii,  dumll+1,dumi+1,ind), dum1-real(dumi))
+    iproc1 = lerp(dproc1, dproc2, dum7-real(dumll))
+    dproc1 = lerp(itab_3mom_mui(dumzq+1,dumjj,  dumii+1,dumll,  dumi,  ind), itab_3mom_mui(dumzq+1,dumjj,  dumii+1,dumll,  dumi+1,ind), dum1-real(dumi))
+    dproc2 = lerp(itab_3mom_mui(dumzq+1,dumjj,  dumii+1,dumll+1,dumi,  ind), itab_3mom_mui(dumzq+1,dumjj,  dumii+1,dumll+1,dumi+1,ind), dum1-real(dumi))
+    iproc2 = lerp(dproc1, dproc2, dum7-real(dumll))
+    gproc1 = lerp(iproc1, iproc2, dum4-real(dumii))
 
-     ! at ll+1 between i and i+1
-     dproc2 = itab_3mom_mui(dumzq,dumjj,dumii,dumll+1,dumi,ind)+(dum1-real(dumi))*(itab_3mom_mui(dumzq,dumjj,dumii,     &
-              dumll+1,dumi+1,ind)-itab_3mom_mui(dumzq,dumjj,dumii,dumll+1,dumi,ind))
+    dproc1 = lerp(itab_3mom_mui(dumzq+1,dumjj+1,dumii,  dumll,  dumi,  ind), itab_3mom_mui(dumzq+1,dumjj+1,dumii,  dumll,  dumi+1,ind), dum1-real(dumi))
+    dproc2 = lerp(itab_3mom_mui(dumzq+1,dumjj+1,dumii,  dumll+1,dumi,  ind), itab_3mom_mui(dumzq+1,dumjj+1,dumii,  dumll+1,dumi+1,ind), dum1-real(dumi))
+    iproc1 = lerp(dproc1, dproc2, dum7-real(dumll))
+    dproc1 = lerp(itab_3mom_mui(dumzq+1,dumjj+1,dumii+1,dumll,  dumi,  ind), itab_3mom_mui(dumzq+1,dumjj+1,dumii+1,dumll,  dumi+1,ind), dum1-real(dumi))
+    dproc2 = lerp(itab_3mom_mui(dumzq+1,dumjj+1,dumii+1,dumll+1,dumi,  ind), itab_3mom_mui(dumzq+1,dumjj+1,dumii+1,dumll+1,dumi+1,ind), dum1-real(dumi))
+    iproc2 = lerp(dproc1, dproc2, dum7-real(dumll))
+    gproc2 = lerp(iproc1, iproc2, dum4-real(dumii))
+    rproc2 = lerp(gproc1, gproc2, dum5-real(dumjj))
 
-     iproc1   = dproc1+(dum7-real(dumll))*(dproc2-dproc1)
-
-    ! get current ii+1
-
-     ! at ll between i and i+1
-     dproc1 = itab_3mom_mui(dumzq,dumjj,dumii+1,dumll,dumi,ind)+(dum1-real(dumi))*(itab_3mom_mui(dumzq,dumjj,dumii+1,       &
-              dumll,dumi+1,ind)-itab_3mom_mui(dumzq,dumjj,dumii+1,dumll,dumi,ind))
-
-     ! at ll+1 between i and i+1
-     dproc2 = itab_3mom_mui(dumzq,dumjj,dumii+1,dumll+1,dumi,ind)+(dum1-real(dumi))*(itab_3mom_mui(dumzq,dumjj,dumii+1,     &
-              dumll+1,dumi+1,ind)-itab_3mom_mui(dumzq,dumjj,dumii+1,dumll+1,dumi,ind))
-
-     iproc2   = dproc1+(dum7-real(dumll))*(dproc2-dproc1)
-
-     gproc1   = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-  ! get at current jj+1
-
-    ! get current ii
-
-     ! at ll between i and i+1
-     dproc1 = itab_3mom_mui(dumzq,dumjj+1,dumii,dumll,dumi,ind)+(dum1-real(dumi))*(itab_3mom_mui(dumzq,dumjj+1,dumii,       &
-              dumll,dumi+1,ind)-itab_3mom_mui(dumzq,dumjj+1,dumii,dumll,dumi,ind))
-
-     ! at ll+1 between i and i+1
-     dproc2 = itab_3mom_mui(dumzq,dumjj+1,dumii,dumll+1,dumi,ind)+(dum1-real(dumi))*(itab_3mom_mui(dumzq,dumjj+1,dumii,     &
-              dumll+1,dumi+1,ind)-itab_3mom_mui(dumzq,dumjj+1,dumii,dumll+1,dumi,ind))
-
-     iproc1   = dproc1+(dum7-real(dumll))*(dproc2-dproc1)
-
-    ! get current ii+1
-
-     ! at ll between i and i+1
-     dproc1 = itab_3mom_mui(dumzq,dumjj+1,dumii+1,dumll,dumi,ind)+(dum1-real(dumi))*(itab_3mom_mui(dumzq,dumjj+1,       &
-              dumii+1,dumll,dumi+1,ind)-itab_3mom_mui(dumzq,dumjj+1,dumii+1,dumll,dumi,ind))
-
-     ! at ll+1 between i and i+1
-     dproc2 = itab_3mom_mui(dumzq,dumjj+1,dumii+1,dumll+1,dumi,ind)+(dum1-real(dumi))*(itab_3mom_mui(dumzq,dumjj+1,     &
-              dumii+1,dumll+1,dumi+1,ind)-itab_3mom_mui(dumzq,dumjj+1,dumii+1,dumll+1,dumi,ind))
-
-     iproc2   = dproc1+(dum7-real(dumll))*(dproc2-dproc1)
-
-     gproc2   = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-     rproc1   = gproc1+(dum5-real(dumjj))*(gproc2-gproc1)
-
-! get at current zz+1
-  ! get at current jj
-
-    ! get current ii
-
-     ! at ll between i and i+1
-     dproc1 = itab_3mom_mui(dumzq+1,dumjj,dumii,dumll,dumi,ind)+(dum1-real(dumi))*(itab_3mom_mui(dumzq+1,dumjj,dumii,       &
-              dumll,dumi+1,ind)-itab_3mom_mui(dumzq+1,dumjj,dumii,dumll,dumi,ind))
-
-     ! at ll+1 between i and i+1
-     dproc2 = itab_3mom_mui(dumzq+1,dumjj,dumii,dumll+1,dumi,ind)+(dum1-real(dumi))*(itab_3mom_mui(dumzq+1,dumjj,dumii,     &
-              dumll+1,dumi+1,ind)-itab_3mom_mui(dumzq+1,dumjj,dumii,dumll+1,dumi,ind))
-
-     iproc1   = dproc1+(dum7-real(dumll))*(dproc2-dproc1)
-
-    ! get current ii+1
-
-     ! at ll between i and i+1
-     dproc1 = itab_3mom_mui(dumzq+1,dumjj,dumii+1,dumll,dumi,ind)+(dum1-real(dumi))*(itab_3mom_mui(dumzq+1,dumjj,       &
-              dumii+1,dumll,dumi+1,ind)-itab_3mom_mui(dumzq+1,dumjj,dumii+1,dumll,dumi,ind))
-
-     ! at ll+1 between i and i+1
-     dproc2 = itab_3mom_mui(dumzq+1,dumjj,dumii+1,dumll+1,dumi,ind)+(dum1-real(dumi))*(itab_3mom_mui(dumzq+1,dumjj,     &
-              dumii+1,dumll+1,dumi+1,ind)-itab_3mom_mui(dumzq+1,dumjj,dumii+1,dumll+1,dumi,ind))
-
-     iproc2   = dproc1+(dum7-real(dumll))*(dproc2-dproc1)
-
-     gproc1   = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-  ! get at current jj+1
-
-    ! get current ii
-
-     ! at ll between i and i+1
-     dproc1 = itab_3mom_mui(dumzq+1,dumjj+1,dumii,dumll,dumi,ind)+(dum1-real(dumi))*(itab_3mom_mui(dumzq+1,dumjj+1,       &
-              dumii,dumll,dumi+1,ind)-itab_3mom_mui(dumzq+1,dumjj+1,dumii,dumll,dumi,ind))
-
-     ! at ll+1 between i and i+1
-     dproc2 = itab_3mom_mui(dumzq+1,dumjj+1,dumii,dumll+1,dumi,ind)+(dum1-real(dumi))*(itab_3mom_mui(dumzq+1,dumjj+1,     &
-              dumii,dumll+1,dumi+1,ind)-itab_3mom_mui(dumzq+1,dumjj+1,dumii,dumll+1,dumi,ind))
-
-     iproc1   = dproc1+(dum7-real(dumll))*(dproc2-dproc1)
-
-    ! get current ii+1
-
-     ! at ll between i and i+1
-     dproc1 = itab_3mom_mui(dumzq+1,dumjj+1,dumii+1,dumll,dumi,ind)+(dum1-real(dumi))*(itab_3mom_mui(dumzq+1,dumjj+1,       &
-              dumii+1,dumll,dumi+1,ind)-itab_3mom_mui(dumzq+1,dumjj+1,dumii+1,dumll,dumi,ind))
-
-     ! at ll+1 between i and i+1
-     dproc2 = itab_3mom_mui(dumzq+1,dumjj+1,dumii+1,dumll+1,dumi,ind)+(dum1-real(dumi))*(itab_3mom_mui(dumzq+1,dumjj+1,     &
-              dumii+1,dumll+1,dumi+1,ind)-itab_3mom_mui(dumzq+1,dumjj+1,dumii+1,dumll+1,dumi,ind))
-
-     iproc2   = dproc1+(dum7-real(dumll))*(dproc2-dproc1)
-
-     gproc2   = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-     rproc2   = gproc1+(dum5-real(dumjj))*(gproc2-gproc1)
-
-! get final interpolation between rproc1 and rproc2
-     proc_from_LUT_3 = rproc1+(dum8-real(dumzq))*(rproc2-rproc1)
+    proc_from_LUT_3 = lerp(rproc1, rproc2, dum8-real(dumzq))
 
  endif
 
@@ -6016,493 +5782,109 @@ end function proc_from_LUT_3
 
 !==========================================================================================!
 
- SUBROUTINE access_lookup_table_colli(dumjjc,dumiic,dumic,dumjj,dumii,dumi,ind,   &
-                                      dum1c,dum4c,dum5c,dum1,dum4,dum5,proc)
-
- implicit none
-
- real    :: dum1,dum4,dum5,dum1c,dum4c,dum5c,proc,iproc1,iproc2,       &
-            gproc1,gproc2,rproc1,rproc2,tmp1,tmp2,dproc11,dproc12
- integer :: dumjj,dumii,dumi,ind,dumjjc,dumiic,dumic
-
-! This subroutine interpolates lookup table values for rain/ice collection processes
-
-! current density ind collectee category
-
-! current rime fraction ind for collectee category
-
-! current density ind collector category
-
-! current rime fraction ind for collector category
-
-  if (ind.eq.1) then
-
-   dproc11 = itabcolli001(dumic,dumiic,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*    &
-             (itabcolli001(dumic+1,dumiic,dumjjc,dumi,dumii,dumjj)-                     &
-             itabcolli001(dumic,dumiic,dumjjc,dumi,dumii,dumjj))
-
-   dproc12 = itabcolli001(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli001(dumic+1,dumiic,dumjjc,dumi+1,dumii,dumjj)-                   &
-             itabcolli001(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj))
-
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-
-! collector rime fraction ind + 1
-
-   dproc11 = itabcolli001(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli001(dumic+1,dumiic,dumjjc,dumi,dumii+1,dumjj)-                   &
-             itabcolli001(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj))
-
-   dproc12 = itabcolli001(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))*&
-             (itabcolli001(dumic+1,dumiic,dumjjc,dumi+1,dumii+1,dumjj)-                 &
-             itabcolli001(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj))
-
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! collector density ind + 1
-
-   dproc11 = itabcolli001(dumic,dumiic,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
-             (itabcolli001(dumic+1,dumiic,dumjjc,dumi,dumii,dumjj+1)-                   &
-             itabcolli001(dumic,dumiic,dumjjc,dumi,dumii,dumjj+1))
-
-   dproc12 = itabcolli001(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))*&
-             (itabcolli001(dumic+1,dumiic,dumjjc,dumi+1,dumii,dumjj+1)-                 &
-             itabcolli001(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj+1))
-
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1
-
-   dproc11 = itabcolli001(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))*   &
-             (itabcolli001(dumic+1,dumiic,dumjjc,dumi,dumii+1,dumjj+1)-                    &
-             itabcolli001(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj+1))
-
-   dproc12 = itabcolli001(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli001(dumic+1,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1)-                  &
-             itabcolli001(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1))
-
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-   gproc1    = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
-
-!.......................................................................................................
-! collectee rime fraction + 1
-
-   dproc11 = itabcolli001(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*   &
-             (itabcolli001(dumic+1,dumiic+1,dumjjc,dumi,dumii,dumjj)-                    &
-             itabcolli001(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj))
-
-   dproc12 = itabcolli001(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli001(dumic+1,dumiic+1,dumjjc,dumi+1,dumii,dumjj)-                  &
-             itabcolli001(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj))
-
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1
-
-   dproc11 = itabcolli001(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli001(dumic+1,dumiic+1,dumjjc,dumi,dumii+1,dumjj)-                   &
-             itabcolli001(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj))
-
-   dproc12 = itabcolli001(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli001(dumic+1,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj)-                  &
-             itabcolli001(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj))
-
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! collector density ind + 1
-
-   dproc11 = itabcolli001(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli001(dumic+1,dumiic+1,dumjjc,dumi,dumii,dumjj+1)-                  &
-             itabcolli001(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj+1))
-
-   dproc12 = itabcolli001(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli001(dumic+1,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1)-                  &
-             itabcolli001(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1))
-
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1
-
-   dproc11 = itabcolli001(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli001(dumic+1,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1)-                  &
-             itabcolli001(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1))
-
-   dproc12 = itabcolli001(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli001(dumic+1,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1)-                  &
-             itabcolli001(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1))
-
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-   gproc2  = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
-
-   rproc1  = gproc1+(dum4c-real(dumiic))*(gproc2-gproc1)
-
-!............................................................................................................
-! collectee density ind + 1
-
-   dproc11 = itabcolli001(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli001(dumic+1,dumiic,dumjjc+1,dumi,dumii,dumjj)-                   &
-             itabcolli001(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj))
-
-   dproc12 = itabcolli001(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli001(dumic+1,dumiic,dumjjc+1,dumi+1,dumii,dumjj)-                  &
-             itabcolli001(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj))
-
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1
-
-   dproc11 = itabcolli001(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli001(dumic+1,dumiic,dumjjc+1,dumi,dumii+1,dumjj)-                  &
-             itabcolli001(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj))
-
-   dproc12 = itabcolli001(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli001(dumic+1,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj)-                  &
-             itabcolli001(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj))
-
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! collector density ind + 1
-
-   dproc11 = itabcolli001(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
-             (itabcolli001(dumic+1,dumiic,dumjjc+1,dumi,dumii,dumjj+1)-                   &
-             itabcolli001(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj+1))
-
-   dproc12 = itabcolli001(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli001(dumic+1,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1)-                  &
-             itabcolli001(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1))
-
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1
-
-   dproc11 = itabcolli001(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli001(dumic+1,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1)-                  &
-             itabcolli001(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1))
-
-   dproc12 = itabcolli001(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli001(dumic+1,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1)-                  &
-             itabcolli001(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1))
-
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-   gproc1    = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
-
-!.......................................................................................................
-! collectee rime fraction + 1
-
-   dproc11 = itabcolli001(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli001(dumic+1,dumiic+1,dumjjc+1,dumi,dumii,dumjj)-                   &
-             itabcolli001(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj))
-
-   dproc12 = itabcolli001(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli001(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj)-                  &
-             itabcolli001(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj))
-
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1
-
-   dproc11 = itabcolli001(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli001(dumic+1,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj)-                  &
-             itabcolli001(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj))
-
-   dproc12 = itabcolli001(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli001(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj)-                  &
-             itabcolli001(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj))
-
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! collector density ind + 1
-
-   dproc11 = itabcolli001(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli001(dumic+1,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1)-                  &
-             itabcolli001(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1))
-
-   dproc12 = itabcolli001(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli001(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1)-                  &
-             itabcolli001(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1))
-
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1
-
-   dproc11 = itabcolli001(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli001(dumic+1,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1)-                  &
-             itabcolli001(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1))
-
-   dproc12 = itabcolli001(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli001(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1)-                  &
-             itabcolli001(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1))
-
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-   gproc2  = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
-
-   rproc2  = gproc1+(dum4c-real(dumiic))*(gproc2-gproc1)
-
-!..........................................................................................
-! final process rate interpolation over collectee density
-
-   proc    = rproc1+(dum5c-real(dumjjc))*(rproc2-rproc1)
-
-
- else if (ind.eq.2) then
-
-   dproc11 = itabcolli002(dumic,dumiic,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*    &
-             (itabcolli002(dumic+1,dumiic,dumjjc,dumi,dumii,dumjj)-                     &
-             itabcolli002(dumic,dumiic,dumjjc,dumi,dumii,dumjj))
-
-   dproc12 = itabcolli002(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli002(dumic+1,dumiic,dumjjc,dumi+1,dumii,dumjj)-                   &
-             itabcolli002(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj))
-
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1
-
-   dproc11 = itabcolli002(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli002(dumic+1,dumiic,dumjjc,dumi,dumii+1,dumjj)-                   &
-             itabcolli002(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj))
-
-   dproc12 = itabcolli002(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli002(dumic+1,dumiic,dumjjc,dumi+1,dumii+1,dumjj)-                  &
-             itabcolli002(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj))
-
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! collector density ind + 1
-
-   dproc11 = itabcolli002(dumic,dumiic,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
-             (itabcolli002(dumic+1,dumiic,dumjjc,dumi,dumii,dumjj+1)-                   &
-             itabcolli002(dumic,dumiic,dumjjc,dumi,dumii,dumjj+1))
-
-   dproc12 = itabcolli002(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli002(dumic+1,dumiic,dumjjc,dumi+1,dumii,dumjj+1)-                  &
-             itabcolli002(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj+1))
-
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1
-
-   dproc11 = itabcolli002(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli002(dumic+1,dumiic,dumjjc,dumi,dumii+1,dumjj+1)-                  &
-             itabcolli002(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj+1))
-
-   dproc12 = itabcolli002(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli002(dumic+1,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1)-                  &
-             itabcolli002(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1))
-
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-   gproc1    = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
-
-!.......................................................................................................
-! collectee rime fraction + 1
-
-   dproc11 = itabcolli002(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli002(dumic+1,dumiic+1,dumjjc,dumi,dumii,dumjj)-                  &
-             itabcolli002(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj))
-
-   dproc12 = itabcolli002(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli002(dumic+1,dumiic+1,dumjjc,dumi+1,dumii,dumjj)-                  &
-             itabcolli002(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj))
-
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1
-
-   dproc11 = itabcolli002(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli002(dumic+1,dumiic+1,dumjjc,dumi,dumii+1,dumjj)-                   &
-             itabcolli002(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj))
-
-   dproc12 = itabcolli002(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli002(dumic+1,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj)-                  &
-             itabcolli002(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj))
-
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! collector density ind + 1
-
-   dproc11 = itabcolli002(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli002(dumic+1,dumiic+1,dumjjc,dumi,dumii,dumjj+1)-                  &
-             itabcolli002(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj+1))
-
-   dproc12 = itabcolli002(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli002(dumic+1,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1)-                  &
-             itabcolli002(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1))
-
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1
-
-   dproc11 = itabcolli002(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli002(dumic+1,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1)-                  &
-             itabcolli002(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1))
-
-   dproc12 = itabcolli002(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli002(dumic+1,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1)-                  &
-             itabcolli002(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1))
-
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-   gproc2  = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
-
-   rproc1  = gproc1+(dum4c-real(dumiic))*(gproc2-gproc1)
-
-
-!............................................................................................................
-! collectee density ind + 1
-
-   dproc11 = itabcolli002(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli002(dumic+1,dumiic,dumjjc+1,dumi,dumii,dumjj)-                   &
-             itabcolli002(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj))
-
-   dproc12 = itabcolli002(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli002(dumic+1,dumiic,dumjjc+1,dumi+1,dumii,dumjj)-                  &
-             itabcolli002(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj))
-
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1
-
-   dproc11 = itabcolli002(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli002(dumic+1,dumiic,dumjjc+1,dumi,dumii+1,dumjj)-                  &
-             itabcolli002(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj))
-
-   dproc12 = itabcolli002(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli002(dumic+1,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj)-                  &
-             itabcolli002(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj))
-
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! collector density ind + 1
-
-   dproc11 = itabcolli002(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli002(dumic+1,dumiic,dumjjc+1,dumi,dumii,dumjj+1)-                  &
-             itabcolli002(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj+1))
-
-   dproc12 = itabcolli002(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli002(dumic+1,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1)-                  &
-             itabcolli002(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1))
-
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1
-
-   dproc11 = itabcolli002(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli002(dumic+1,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1)-                  &
-             itabcolli002(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1))
-
-   dproc12 = itabcolli002(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli002(dumic+1,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1)-                  &
-             itabcolli002(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1))
-
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-   gproc1    = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
-
-!.......................................................................................................
-! collectee rime fraction + 1
-
-   dproc11 = itabcolli002(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli002(dumic+1,dumiic+1,dumjjc+1,dumi,dumii,dumjj)-                  &
-             itabcolli002(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj))
-
-   dproc12 = itabcolli002(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli002(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj)-                  &
-             itabcolli002(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj))
-
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1
-
-   dproc11 = itabcolli002(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli002(dumic+1,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj)-                  &
-             itabcolli002(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj))
-
-   dproc12 = itabcolli002(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli002(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj)-                  &
-             itabcolli002(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj))
-
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! collector density ind + 1
-
-   dproc11 = itabcolli002(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli002(dumic+1,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1)-                  &
-             itabcolli002(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1))
-
-   dproc12 = itabcolli002(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli002(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1)-                  &
-             itabcolli002(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1))
-
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1
-
-   dproc11 = itabcolli002(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli002(dumic+1,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1)-                  &
-             itabcolli002(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1))
-
-   dproc12 = itabcolli002(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli002(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1)-                  &
-             itabcolli002(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1))
-
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-   gproc2  = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
-
-   rproc2  = gproc1+(dum4c-real(dumiic))*(gproc2-gproc1)
-
-!..........................................................................................
-! final process rate interpolation over collectee density
-
-   proc    = rproc1+(dum5c-real(dumjjc))*(rproc2-rproc1)
-
-  endif ! ind =1 or 2
-
- END SUBROUTINE access_lookup_table_colli
-
-!==========================================================================================!
 
 !**** NOTE: optimization can be made here if filiq=0 ****
 
+ pure real function lerp6_colli(tab, dumic,dumiic,dumjjc,dumi,dumii,dumjj, w1c,w4c,w5c,w1,w4,w5)
+
+ !--------------------------------------------------------------------------------
+ ! 6-D corner-tree interpolation for an itabcolli* table (no runtime loops).
+ ! Dims: (ic, iic, jjc, i, ii, jj); reduction order: ic,i,ii,jj,iic,jjc.
+ !--------------------------------------------------------------------------------
+
+ implicit none
+ real, dimension(:,:,:,:,:,:), intent(in) :: tab
+ integer, intent(in) :: dumic,dumiic,dumjjc,dumi,dumii,dumjj
+ real,    intent(in) :: w1c,w4c,w5c,w1,w4,w5
+ real :: d1,d2,i1,i2,t1,t2,g1,g2,r1,r2
+
+ ! (iic, jjc)
+ d1 = lerp(tab(dumic,  dumiic,  dumjjc,  dumi,  dumii,  dumjj  ), tab(dumic+1,dumiic,  dumjjc,  dumi,  dumii,  dumjj  ), w1c)
+ d2 = lerp(tab(dumic,  dumiic,  dumjjc,  dumi+1,dumii,  dumjj  ), tab(dumic+1,dumiic,  dumjjc,  dumi+1,dumii,  dumjj  ), w1c)
+ i1 = lerp(d1,d2,w1)
+ d1 = lerp(tab(dumic,  dumiic,  dumjjc,  dumi,  dumii+1,dumjj  ), tab(dumic+1,dumiic,  dumjjc,  dumi,  dumii+1,dumjj  ), w1c)
+ d2 = lerp(tab(dumic,  dumiic,  dumjjc,  dumi+1,dumii+1,dumjj  ), tab(dumic+1,dumiic,  dumjjc,  dumi+1,dumii+1,dumjj  ), w1c)
+ i2 = lerp(d1,d2,w1)
+ t1 = lerp(i1,i2,w4)
+ d1 = lerp(tab(dumic,  dumiic,  dumjjc,  dumi,  dumii,  dumjj+1), tab(dumic+1,dumiic,  dumjjc,  dumi,  dumii,  dumjj+1), w1c)
+ d2 = lerp(tab(dumic,  dumiic,  dumjjc,  dumi+1,dumii,  dumjj+1), tab(dumic+1,dumiic,  dumjjc,  dumi+1,dumii,  dumjj+1), w1c)
+ i1 = lerp(d1,d2,w1)
+ d1 = lerp(tab(dumic,  dumiic,  dumjjc,  dumi,  dumii+1,dumjj+1), tab(dumic+1,dumiic,  dumjjc,  dumi,  dumii+1,dumjj+1), w1c)
+ d2 = lerp(tab(dumic,  dumiic,  dumjjc,  dumi+1,dumii+1,dumjj+1), tab(dumic+1,dumiic,  dumjjc,  dumi+1,dumii+1,dumjj+1), w1c)
+ i2 = lerp(d1,d2,w1)
+ t2 = lerp(i1,i2,w4)
+ g1 = lerp(t1,t2,w5)
+ ! (iic+1, jjc)
+ d1 = lerp(tab(dumic,  dumiic+1,dumjjc,  dumi,  dumii,  dumjj  ), tab(dumic+1,dumiic+1,dumjjc,  dumi,  dumii,  dumjj  ), w1c)
+ d2 = lerp(tab(dumic,  dumiic+1,dumjjc,  dumi+1,dumii,  dumjj  ), tab(dumic+1,dumiic+1,dumjjc,  dumi+1,dumii,  dumjj  ), w1c)
+ i1 = lerp(d1,d2,w1)
+ d1 = lerp(tab(dumic,  dumiic+1,dumjjc,  dumi,  dumii+1,dumjj  ), tab(dumic+1,dumiic+1,dumjjc,  dumi,  dumii+1,dumjj  ), w1c)
+ d2 = lerp(tab(dumic,  dumiic+1,dumjjc,  dumi+1,dumii+1,dumjj  ), tab(dumic+1,dumiic+1,dumjjc,  dumi+1,dumii+1,dumjj  ), w1c)
+ i2 = lerp(d1,d2,w1)
+ t1 = lerp(i1,i2,w4)
+ d1 = lerp(tab(dumic,  dumiic+1,dumjjc,  dumi,  dumii,  dumjj+1), tab(dumic+1,dumiic+1,dumjjc,  dumi,  dumii,  dumjj+1), w1c)
+ d2 = lerp(tab(dumic,  dumiic+1,dumjjc,  dumi+1,dumii,  dumjj+1), tab(dumic+1,dumiic+1,dumjjc,  dumi+1,dumii,  dumjj+1), w1c)
+ i1 = lerp(d1,d2,w1)
+ d1 = lerp(tab(dumic,  dumiic+1,dumjjc,  dumi,  dumii+1,dumjj+1), tab(dumic+1,dumiic+1,dumjjc,  dumi,  dumii+1,dumjj+1), w1c)
+ d2 = lerp(tab(dumic,  dumiic+1,dumjjc,  dumi+1,dumii+1,dumjj+1), tab(dumic+1,dumiic+1,dumjjc,  dumi+1,dumii+1,dumjj+1), w1c)
+ i2 = lerp(d1,d2,w1)
+ t2 = lerp(i1,i2,w4)
+ g2 = lerp(t1,t2,w5)
+ r1 = lerp(g1,g2,w4c)
+ ! (iic, jjc+1)
+ d1 = lerp(tab(dumic,  dumiic,  dumjjc+1,dumi,  dumii,  dumjj  ), tab(dumic+1,dumiic,  dumjjc+1,dumi,  dumii,  dumjj  ), w1c)
+ d2 = lerp(tab(dumic,  dumiic,  dumjjc+1,dumi+1,dumii,  dumjj  ), tab(dumic+1,dumiic,  dumjjc+1,dumi+1,dumii,  dumjj  ), w1c)
+ i1 = lerp(d1,d2,w1)
+ d1 = lerp(tab(dumic,  dumiic,  dumjjc+1,dumi,  dumii+1,dumjj  ), tab(dumic+1,dumiic,  dumjjc+1,dumi,  dumii+1,dumjj  ), w1c)
+ d2 = lerp(tab(dumic,  dumiic,  dumjjc+1,dumi+1,dumii+1,dumjj  ), tab(dumic+1,dumiic,  dumjjc+1,dumi+1,dumii+1,dumjj  ), w1c)
+ i2 = lerp(d1,d2,w1)
+ t1 = lerp(i1,i2,w4)
+ d1 = lerp(tab(dumic,  dumiic,  dumjjc+1,dumi,  dumii,  dumjj+1), tab(dumic+1,dumiic,  dumjjc+1,dumi,  dumii,  dumjj+1), w1c)
+ d2 = lerp(tab(dumic,  dumiic,  dumjjc+1,dumi+1,dumii,  dumjj+1), tab(dumic+1,dumiic,  dumjjc+1,dumi+1,dumii,  dumjj+1), w1c)
+ i1 = lerp(d1,d2,w1)
+ d1 = lerp(tab(dumic,  dumiic,  dumjjc+1,dumi,  dumii+1,dumjj+1), tab(dumic+1,dumiic,  dumjjc+1,dumi,  dumii+1,dumjj+1), w1c)
+ d2 = lerp(tab(dumic,  dumiic,  dumjjc+1,dumi+1,dumii+1,dumjj+1), tab(dumic+1,dumiic,  dumjjc+1,dumi+1,dumii+1,dumjj+1), w1c)
+ i2 = lerp(d1,d2,w1)
+ t2 = lerp(i1,i2,w4)
+ g1 = lerp(t1,t2,w5)
+ ! (iic+1, jjc+1)
+ d1 = lerp(tab(dumic,  dumiic+1,dumjjc+1,dumi,  dumii,  dumjj  ), tab(dumic+1,dumiic+1,dumjjc+1,dumi,  dumii,  dumjj  ), w1c)
+ d2 = lerp(tab(dumic,  dumiic+1,dumjjc+1,dumi+1,dumii,  dumjj  ), tab(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii,  dumjj  ), w1c)
+ i1 = lerp(d1,d2,w1)
+ d1 = lerp(tab(dumic,  dumiic+1,dumjjc+1,dumi,  dumii+1,dumjj  ), tab(dumic+1,dumiic+1,dumjjc+1,dumi,  dumii+1,dumjj  ), w1c)
+ d2 = lerp(tab(dumic,  dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj  ), tab(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj  ), w1c)
+ i2 = lerp(d1,d2,w1)
+ t1 = lerp(i1,i2,w4)
+ d1 = lerp(tab(dumic,  dumiic+1,dumjjc+1,dumi,  dumii,  dumjj+1), tab(dumic+1,dumiic+1,dumjjc+1,dumi,  dumii,  dumjj+1), w1c)
+ d2 = lerp(tab(dumic,  dumiic+1,dumjjc+1,dumi+1,dumii,  dumjj+1), tab(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii,  dumjj+1), w1c)
+ i1 = lerp(d1,d2,w1)
+ d1 = lerp(tab(dumic,  dumiic+1,dumjjc+1,dumi,  dumii+1,dumjj+1), tab(dumic+1,dumiic+1,dumjjc+1,dumi,  dumii+1,dumjj+1), w1c)
+ d2 = lerp(tab(dumic,  dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1), tab(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1), w1c)
+ i2 = lerp(d1,d2,w1)
+ t2 = lerp(i1,i2,w4)
+ g2 = lerp(t1,t2,w5)
+ r2 = lerp(g1,g2,w4c)
+
+ lerp6_colli = lerp(r1,r2,w5c)
+
+ end function lerp6_colli
+
+!==========================================================================================!
+
  real function proc_from_LUT_ii(ind,args_r,args_i)
+
+ !--------------------------------------------------------------------------------
+ ! Returns process rate (or other quantity) from the ice-ice collection LUT (LUT2)
+ ! by 6-D interpolation.
+ !
+ ! The liquid-fraction dependence is carried by 8 separate tables (2 collectee-
+ ! liqfrac levels x 2 collector-liqfrac levels x 2 quantities); the tables are
+ ! interpolated individually and blended linearly in the two liquid fractions.
+ !
+ ! Table dims: (collectee size ic, collectee rime fraction iic, collectee density
+ !              jjc, collector size i, collector rime fraction ii, collector
+ !              density jj)
+ !--------------------------------------------------------------------------------
 
  implicit none
 
@@ -6511,2583 +5893,54 @@ end function proc_from_LUT_3
  real,    dimension(n_args_r), intent(in) :: args_r
  integer, dimension(n_args_i), intent(in) :: args_i
 !local:
- real    :: gproc1,gproc2,rproc1,rproc2,tmp1,tmp2,dproc11,dproc12,      &
-            proc001,proc101,proc002,proc102,procll1,procll2,proc011,    &
-            proc111,proc012,proc112,iproc1,iproc2,proc
  real    :: dum1c,dum4c,dum5c,dum7c,dum1,dum4,dum5,dum7
+ real    :: w1c,w4c,w5c,w1,w4,w5,procll1,procll2
  integer :: dumjjc,dumiic,dumic,dumjj,dumii,dumi
 
+ dum1c = args_r(1); dum4c = args_r(2); dum5c = args_r(3); dum7c = args_r(4)
+ dum1  = args_r(5); dum4  = args_r(6); dum5  = args_r(7); dum7  = args_r(8)
+ dumjjc = args_i(1); dumiic = args_i(2); dumic = args_i(3)
+ dumjj  = args_i(4); dumii  = args_i(5); dumi  = args_i(6)
+ w1c = dum1c-real(dumic);  w4c = dum4c-real(dumiic);  w5c = dum5c-real(dumjjc)
+ w1  = dum1 -real(dumi);   w4  = dum4 -real(dumii);   w5  = dum5 -real(dumjj)
 
- dum1c = args_r(1)
- dum4c = args_r(2)
- dum5c = args_r(3)
- dum7c = args_r(4)
- dum1  = args_r(5)
- dum4  = args_r(6)
- dum5  = args_r(7)
- dum7  = args_r(8)
+! note: unlike the LUT1 functions (where dum7 is a table coordinate in [1,liqsize] and
+!       dum7=1 means qiliq=0), here dum7/dum7c are raw liquid mass fractions in [0,1]
+!       (see find_lookupTable_indices_2) used directly as blend weights below.
+!       qiliq=0 gives exactly 0. (0./qitot), so comparison to 0. is exact and safe.
+!       Skipping the blend when both are 0. is bit-identical to the full blend:
+!       (1.-0.)*proc001 + 0.*proc011 = proc001.
+ if (dum7c == 0. .and. dum7 == 0.) then  !skip liq-frac blending if qiliq = 0. for both categories
 
- dumjjc = args_i(1)
- dumiic = args_i(2)
- dumic  = args_i(3)
- dumjj  = args_i(4)
- dumii  = args_i(5)
- dumi   = args_i(6)
+    if (ind == LUTII_DN) then
+       proc_from_LUT_ii = lerp6_colli(itabcolli001,dumic,dumiic,dumjjc,dumi,dumii,dumjj,w1c,w4c,w5c,w1,w4,w5)
+    else
+       proc_from_LUT_ii = lerp6_colli(itabcolli002,dumic,dumiic,dumjjc,dumi,dumii,dumjj,w1c,w4c,w5c,w1,w4,w5)
+    endif
 
-!--- optimize for log_liqFrac .false. or Fliq=0
-! - code pieces to be consolidated later into a single funcion, and then
-!   'access_lookup_table_colli' will be removed.)
+ else
 
-!if (dum7 == 1. .and. dumll==1) then  !skip interpolation for liq-frac if qiliq = 0.
- if (dum7 == 1.) then  !skip interpolation for liq-frac if qiliq = 0.
-    call access_lookup_table_colli(dumjjc,dumiic,dumic,dumjj,dumii,dumi,ind,  &
-                                   dum1c,dum4c,dum5c,dum1,dum4,dum5,proc)
-    proc_from_LUT_ii = proc
-    return
+    if (ind == LUTII_DN) then
+       procll1 = (1.-dum7)*lerp6_colli(itabcolli001,dumic,dumiic,dumjjc,dumi,dumii,dumjj,w1c,w4c,w5c,w1,w4,w5) &
+                +     dum7*lerp6_colli(itabcolli011,dumic,dumiic,dumjjc,dumi,dumii,dumjj,w1c,w4c,w5c,w1,w4,w5)
+       procll2 = (1.-dum7)*lerp6_colli(itabcolli101,dumic,dumiic,dumjjc,dumi,dumii,dumjj,w1c,w4c,w5c,w1,w4,w5) &
+                +     dum7*lerp6_colli(itabcolli111,dumic,dumiic,dumjjc,dumi,dumii,dumjj,w1c,w4c,w5c,w1,w4,w5)
+    else
+       procll1 = (1.-dum7)*lerp6_colli(itabcolli002,dumic,dumiic,dumjjc,dumi,dumii,dumjj,w1c,w4c,w5c,w1,w4,w5) &
+                +     dum7*lerp6_colli(itabcolli012,dumic,dumiic,dumjjc,dumi,dumii,dumjj,w1c,w4c,w5c,w1,w4,w5)
+       procll2 = (1.-dum7)*lerp6_colli(itabcolli102,dumic,dumiic,dumjjc,dumi,dumii,dumjj,w1c,w4c,w5c,w1,w4,w5) &
+                +     dum7*lerp6_colli(itabcolli112,dumic,dumiic,dumjjc,dumi,dumii,dumjj,w1c,w4c,w5c,w1,w4,w5)
+    endif
+
+    proc_from_LUT_ii = (1.-dum7c)*procll1 + dum7c*procll2
+
  endif
-!---
-
-! This subroutine interpolates lookup table values for rain/ice collection processes
-
-  if (ind.eq.1) then
-
-! collectee liquid fraction (llc) at collector liquid fraction (ll) [00]
-
-! current density ind collectee category (jjc)
-
-! current rime fraction ind for collectee category (iic)
-
-! current density ind collector category (jj)
-
-! current rime fraction ind for collector category (ii)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli001(dumic,dumiic,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*    &
-             (itabcolli001(dumic+1,dumiic,dumjjc,dumi,dumii,dumjj)-                     &
-             itabcolli001(dumic,dumiic,dumjjc,dumi,dumii,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli001(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli001(dumic+1,dumiic,dumjjc,dumi+1,dumii,dumjj)-                   &
-             itabcolli001(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli001(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli001(dumic+1,dumiic,dumjjc,dumi,dumii+1,dumjj)-                   &
-             itabcolli001(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli001(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))*&
-             (itabcolli001(dumic+1,dumiic,dumjjc,dumi+1,dumii+1,dumjj)-                 &
-             itabcolli001(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! collector density ind + 1 (jj+1)
-
-! current rime fraction ind for collector category (ii)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli001(dumic,dumiic,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
-             (itabcolli001(dumic+1,dumiic,dumjjc,dumi,dumii,dumjj+1)-                   &
-             itabcolli001(dumic,dumiic,dumjjc,dumi,dumii,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli001(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))*&
-             (itabcolli001(dumic+1,dumiic,dumjjc,dumi+1,dumii,dumjj+1)-                 &
-             itabcolli001(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj+1))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli001(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))*   &
-             (itabcolli001(dumic+1,dumiic,dumjjc,dumi,dumii+1,dumjj+1)-                    &
-             itabcolli001(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli001(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli001(dumic+1,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1)-                  &
-             itabcolli001(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! between jj and jj+1
-   gproc1    = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
-
-
-!.......................................................................................................
-! collectee rime fraction + 1 (iic+1)
-
-! current density ind collector category (jj)
-
-! current rime fraction ind for collector category (ii)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli001(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*   &
-             (itabcolli001(dumic+1,dumiic+1,dumjjc,dumi,dumii,dumjj)-                    &
-             itabcolli001(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli001(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli001(dumic+1,dumiic+1,dumjjc,dumi+1,dumii,dumjj)-                  &
-             itabcolli001(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli001(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli001(dumic+1,dumiic+1,dumjjc,dumi,dumii+1,dumjj)-                   &
-             itabcolli001(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli001(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli001(dumic+1,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj)-                  &
-             itabcolli001(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! collector density ind + 1 (jj+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli001(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli001(dumic+1,dumiic+1,dumjjc,dumi,dumii,dumjj+1)-                  &
-             itabcolli001(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli001(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli001(dumic+1,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1)-                  &
-             itabcolli001(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli001(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli001(dumic+1,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1)-                  &
-             itabcolli001(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli001(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli001(dumic+1,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1)-                  &
-             itabcolli001(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! between jj and jj+1
-   gproc2  = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
-
-! between iic and iic+1
-   rproc1  = gproc1+(dum4c-real(dumiic))*(gproc2-gproc1)
-
-!............................................................................................................
-! collectee density ind + 1 (jjc+1)
-
-! current rime fraction ind for collectee category (iic)
-
-! current density ind collector category (jj)
-
-! current rime fraction ind for collector category (ii)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli001(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli001(dumic+1,dumiic,dumjjc+1,dumi,dumii,dumjj)-                   &
-             itabcolli001(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli001(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli001(dumic+1,dumiic,dumjjc+1,dumi+1,dumii,dumjj)-                  &
-             itabcolli001(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli001(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli001(dumic+1,dumiic,dumjjc+1,dumi,dumii+1,dumjj)-                  &
-             itabcolli001(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli001(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli001(dumic+1,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj)-                  &
-             itabcolli001(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! collector density ind + 1 (jj+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli001(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
-             (itabcolli001(dumic+1,dumiic,dumjjc+1,dumi,dumii,dumjj+1)-                   &
-             itabcolli001(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli001(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli001(dumic+1,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1)-                  &
-             itabcolli001(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli001(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli001(dumic+1,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1)-                  &
-             itabcolli001(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli001(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli001(dumic+1,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1)-                  &
-             itabcolli001(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! between jj and jj+1
-   gproc1    = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
-
-!.......................................................................................................
-! collectee rime fraction + 1 (iic+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli001(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli001(dumic+1,dumiic+1,dumjjc+1,dumi,dumii,dumjj)-                   &
-             itabcolli001(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli001(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli001(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj)-                  &
-             itabcolli001(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli001(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli001(dumic+1,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj)-                  &
-             itabcolli001(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli001(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli001(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj)-                  &
-             itabcolli001(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! collector density ind + 1 (jj+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli001(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli001(dumic+1,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1)-                  &
-             itabcolli001(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli001(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli001(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1)-                  &
-             itabcolli001(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli001(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli001(dumic+1,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1)-                  &
-             itabcolli001(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli001(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli001(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1)-                  &
-             itabcolli001(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! between jj and jj+1
-   gproc2  = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
-
-! between iic and iic+1
-   rproc2  = gproc1+(dum4c-real(dumiic))*(gproc2-gproc1)
-
-!..........................................................................................
-! final process rate interpolation over collectee density
-
-! between jjc and jjc+1
-   proc001    = rproc1+(dum5c-real(dumjjc))*(rproc2-rproc1)
-
-
-! collectee liquid fraction (llc) at collector liquid fraction + 1 (ll+1) [01]
-
-! current density ind collectee category (jjc)
-
-! current rime fraction ind for collectee category (iic)
-
-! current density ind collector category (jj)
-
-! current rime fraction ind for collector category (ii)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli011(dumic,dumiic,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*    &
-             (itabcolli011(dumic+1,dumiic,dumjjc,dumi,dumii,dumjj)-                     &
-             itabcolli011(dumic,dumiic,dumjjc,dumi,dumii,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli011(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli011(dumic+1,dumiic,dumjjc,dumi+1,dumii,dumjj)-                   &
-             itabcolli011(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli011(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli011(dumic+1,dumiic,dumjjc,dumi,dumii+1,dumjj)-                   &
-             itabcolli011(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli011(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))*&
-             (itabcolli011(dumic+1,dumiic,dumjjc,dumi+1,dumii+1,dumjj)-                 &
-             itabcolli011(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! collector density ind + 1 (jj+1)
-
-! current rime fraction ind for collector category (ii)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli011(dumic,dumiic,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
-             (itabcolli011(dumic+1,dumiic,dumjjc,dumi,dumii,dumjj+1)-                   &
-             itabcolli011(dumic,dumiic,dumjjc,dumi,dumii,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli011(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))*&
-             (itabcolli011(dumic+1,dumiic,dumjjc,dumi+1,dumii,dumjj+1)-                 &
-             itabcolli011(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj+1))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli011(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))*   &
-             (itabcolli011(dumic+1,dumiic,dumjjc,dumi,dumii+1,dumjj+1)-                    &
-             itabcolli011(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli011(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli011(dumic+1,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1)-                  &
-             itabcolli011(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! between jj and jj+1
-   gproc1    = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
-
-
-!.......................................................................................................
-! collectee rime fraction + 1 (iic+1)
-
-! current density ind collector category (jj)
-
-! current rime fraction ind for collector category (ii)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli011(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*   &
-             (itabcolli011(dumic+1,dumiic+1,dumjjc,dumi,dumii,dumjj)-                    &
-             itabcolli011(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli011(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli011(dumic+1,dumiic+1,dumjjc,dumi+1,dumii,dumjj)-                  &
-             itabcolli011(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli011(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli011(dumic+1,dumiic+1,dumjjc,dumi,dumii+1,dumjj)-                   &
-             itabcolli011(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli011(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli011(dumic+1,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj)-                  &
-             itabcolli011(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! collector density ind + 1 (jj+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli011(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli011(dumic+1,dumiic+1,dumjjc,dumi,dumii,dumjj+1)-                  &
-             itabcolli011(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli011(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli011(dumic+1,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1)-                  &
-             itabcolli011(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli011(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli011(dumic+1,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1)-                  &
-             itabcolli011(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli011(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli011(dumic+1,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1)-                  &
-             itabcolli011(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! between jj and jj+1
-   gproc2  = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
-
-! between iic and iic+1
-   rproc1  = gproc1+(dum4c-real(dumiic))*(gproc2-gproc1)
-
-!............................................................................................................
-! collectee density ind + 1 (jjc+1)
-
-! current rime fraction ind for collectee category (iic)
-
-! current density ind collector category (jj)
-
-! current rime fraction ind for collector category (ii)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli011(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli011(dumic+1,dumiic,dumjjc+1,dumi,dumii,dumjj)-                   &
-             itabcolli011(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli011(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli011(dumic+1,dumiic,dumjjc+1,dumi+1,dumii,dumjj)-                  &
-             itabcolli011(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli011(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli011(dumic+1,dumiic,dumjjc+1,dumi,dumii+1,dumjj)-                  &
-             itabcolli011(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli011(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli011(dumic+1,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj)-                  &
-             itabcolli011(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! collector density ind + 1 (jj+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli011(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
-             (itabcolli011(dumic+1,dumiic,dumjjc+1,dumi,dumii,dumjj+1)-                   &
-             itabcolli011(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli011(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli011(dumic+1,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1)-                  &
-             itabcolli011(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli011(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli011(dumic+1,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1)-                  &
-             itabcolli011(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli011(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli011(dumic+1,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1)-                  &
-             itabcolli011(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! between jj and jj+1
-   gproc1    = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
-
-!.......................................................................................................
-! collectee rime fraction + 1 (iic+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli011(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli011(dumic+1,dumiic+1,dumjjc+1,dumi,dumii,dumjj)-                   &
-             itabcolli011(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli011(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli011(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj)-                  &
-             itabcolli011(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli011(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli011(dumic+1,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj)-                  &
-             itabcolli011(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli011(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli011(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj)-                  &
-             itabcolli011(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! collector density ind + 1 (jj+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli011(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli011(dumic+1,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1)-                  &
-             itabcolli011(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli011(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli011(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1)-                  &
-             itabcolli011(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli011(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli011(dumic+1,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1)-                  &
-             itabcolli011(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli011(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli011(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1)-                  &
-             itabcolli011(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! between jj and jj+1
-   gproc2  = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
-
-! between iic and iic+1
-   rproc2  = gproc1+(dum4c-real(dumiic))*(gproc2-gproc1)
-
-!..........................................................................................
-! final process rate interpolation over collectee density
-
-! between jjc and jjc+1
-   proc011    = rproc1+(dum5c-real(dumjjc))*(rproc2-rproc1)
-
-! between ll and ll+1
-
-   procll1 = (1.-dum7)*proc001 + dum7*proc011
-
-
-! collectee liquid fraction +1 (llc+1) at collector liquid fraction (ll) [10]
-
-! current density ind collectee category (jjc)
-
-! current rime fraction ind for collectee category (iic)
-
-! current density ind collector category (jj)
-
-! current rime fraction ind for collector category (ii)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli101(dumic,dumiic,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*    &
-             (itabcolli101(dumic+1,dumiic,dumjjc,dumi,dumii,dumjj)-                     &
-             itabcolli101(dumic,dumiic,dumjjc,dumi,dumii,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli101(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli101(dumic+1,dumiic,dumjjc,dumi+1,dumii,dumjj)-                   &
-             itabcolli101(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli101(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli101(dumic+1,dumiic,dumjjc,dumi,dumii+1,dumjj)-                   &
-             itabcolli101(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli101(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))*&
-             (itabcolli101(dumic+1,dumiic,dumjjc,dumi+1,dumii+1,dumjj)-                 &
-             itabcolli101(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! collector density ind + 1 (jj+1)
-
-! current rime fraction ind for collector category (ii)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli101(dumic,dumiic,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
-             (itabcolli101(dumic+1,dumiic,dumjjc,dumi,dumii,dumjj+1)-                   &
-             itabcolli101(dumic,dumiic,dumjjc,dumi,dumii,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli101(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))*&
-             (itabcolli101(dumic+1,dumiic,dumjjc,dumi+1,dumii,dumjj+1)-                 &
-             itabcolli101(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj+1))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli101(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))*   &
-             (itabcolli101(dumic+1,dumiic,dumjjc,dumi,dumii+1,dumjj+1)-                    &
-             itabcolli101(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli101(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli101(dumic+1,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1)-                  &
-             itabcolli101(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! between jj and jj+1
-   gproc1    = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
-
-
-!.......................................................................................................
-! collectee rime fraction + 1 (iic+1)
-
-! current density ind collector category (jj)
-
-! current rime fraction ind for collector category (ii)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli101(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*   &
-             (itabcolli101(dumic+1,dumiic+1,dumjjc,dumi,dumii,dumjj)-                    &
-             itabcolli101(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli101(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli101(dumic+1,dumiic+1,dumjjc,dumi+1,dumii,dumjj)-                  &
-             itabcolli101(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli101(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli101(dumic+1,dumiic+1,dumjjc,dumi,dumii+1,dumjj)-                   &
-             itabcolli101(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli101(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli101(dumic+1,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj)-                  &
-             itabcolli101(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! collector density ind + 1 (jj+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli101(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli101(dumic+1,dumiic+1,dumjjc,dumi,dumii,dumjj+1)-                  &
-             itabcolli101(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli101(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli101(dumic+1,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1)-                  &
-             itabcolli101(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli101(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli101(dumic+1,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1)-                  &
-             itabcolli101(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli101(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli101(dumic+1,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1)-                  &
-             itabcolli101(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! between jj and jj+1
-   gproc2  = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
-
-! between iic and iic+1
-   rproc1  = gproc1+(dum4c-real(dumiic))*(gproc2-gproc1)
-
-!............................................................................................................
-! collectee density ind + 1 (jjc+1)
-
-! current rime fraction ind for collectee category (iic)
-
-! current density ind collector category (jj)
-
-! current rime fraction ind for collector category (ii)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli101(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli101(dumic+1,dumiic,dumjjc+1,dumi,dumii,dumjj)-                   &
-             itabcolli101(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli101(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli101(dumic+1,dumiic,dumjjc+1,dumi+1,dumii,dumjj)-                  &
-             itabcolli101(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli101(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli101(dumic+1,dumiic,dumjjc+1,dumi,dumii+1,dumjj)-                  &
-             itabcolli101(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli101(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli101(dumic+1,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj)-                  &
-             itabcolli101(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! collector density ind + 1 (jj+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli101(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
-             (itabcolli101(dumic+1,dumiic,dumjjc+1,dumi,dumii,dumjj+1)-                   &
-             itabcolli101(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli101(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli101(dumic+1,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1)-                  &
-             itabcolli101(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli101(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli101(dumic+1,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1)-                  &
-             itabcolli101(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli101(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli101(dumic+1,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1)-                  &
-             itabcolli101(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! between jj and jj+1
-   gproc1    = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
-
-!.......................................................................................................
-! collectee rime fraction + 1 (iic+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli101(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli101(dumic+1,dumiic+1,dumjjc+1,dumi,dumii,dumjj)-                   &
-             itabcolli101(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli101(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli101(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj)-                  &
-             itabcolli101(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli101(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli101(dumic+1,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj)-                  &
-             itabcolli101(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli101(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli101(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj)-                  &
-             itabcolli101(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! collector density ind + 1 (jj+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli101(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli101(dumic+1,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1)-                  &
-             itabcolli101(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli101(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli101(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1)-                  &
-             itabcolli101(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli101(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli101(dumic+1,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1)-                  &
-             itabcolli101(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli101(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli101(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1)-                  &
-             itabcolli101(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! between jj and jj+1
-   gproc2  = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
-
-! between iic and iic+1
-   rproc2  = gproc1+(dum4c-real(dumiic))*(gproc2-gproc1)
-
-!..........................................................................................
-! final process rate interpolation over collectee density
-
-! between jjc and jjc+1
-   proc101    = rproc1+(dum5c-real(dumjjc))*(rproc2-rproc1)
-
-
-
-! collectee liquid fraction +1 (llc+1) at collector liquid fraction +1 (ll+1) [11]
-
-! current density ind collectee category (jjc)
-
-! current rime fraction ind for collectee category (iic)
-
-! current density ind collector category (jj)
-
-! current rime fraction ind for collector category (ii)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli111(dumic,dumiic,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*    &
-             (itabcolli111(dumic+1,dumiic,dumjjc,dumi,dumii,dumjj)-                     &
-             itabcolli111(dumic,dumiic,dumjjc,dumi,dumii,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli111(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli111(dumic+1,dumiic,dumjjc,dumi+1,dumii,dumjj)-                   &
-             itabcolli111(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli111(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli111(dumic+1,dumiic,dumjjc,dumi,dumii+1,dumjj)-                   &
-             itabcolli111(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli111(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))*&
-             (itabcolli111(dumic+1,dumiic,dumjjc,dumi+1,dumii+1,dumjj)-                 &
-             itabcolli111(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! collector density ind + 1 (jj+1)
-
-! current rime fraction ind for collector category (ii)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli111(dumic,dumiic,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
-             (itabcolli111(dumic+1,dumiic,dumjjc,dumi,dumii,dumjj+1)-                   &
-             itabcolli111(dumic,dumiic,dumjjc,dumi,dumii,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli111(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))*&
-             (itabcolli111(dumic+1,dumiic,dumjjc,dumi+1,dumii,dumjj+1)-                 &
-             itabcolli111(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj+1))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli111(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))*   &
-             (itabcolli111(dumic+1,dumiic,dumjjc,dumi,dumii+1,dumjj+1)-                    &
-             itabcolli111(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli111(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli111(dumic+1,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1)-                  &
-             itabcolli111(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! between jj and jj+1
-   gproc1    = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
-
-
-!.......................................................................................................
-! collectee rime fraction + 1 (iic+1)
-
-! current density ind collector category (jj)
-
-! current rime fraction ind for collector category (ii)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli111(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*   &
-             (itabcolli111(dumic+1,dumiic+1,dumjjc,dumi,dumii,dumjj)-                    &
-             itabcolli111(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli111(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli111(dumic+1,dumiic+1,dumjjc,dumi+1,dumii,dumjj)-                  &
-             itabcolli111(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli111(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli111(dumic+1,dumiic+1,dumjjc,dumi,dumii+1,dumjj)-                   &
-             itabcolli111(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli111(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli111(dumic+1,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj)-                  &
-             itabcolli111(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! collector density ind + 1 (jj+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli111(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli111(dumic+1,dumiic+1,dumjjc,dumi,dumii,dumjj+1)-                  &
-             itabcolli111(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli111(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli111(dumic+1,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1)-                  &
-             itabcolli111(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli111(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli111(dumic+1,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1)-                  &
-             itabcolli111(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli111(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli111(dumic+1,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1)-                  &
-             itabcolli111(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! between jj and jj+1
-   gproc2  = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
-
-! between iic and iic+1
-   rproc1  = gproc1+(dum4c-real(dumiic))*(gproc2-gproc1)
-
-!............................................................................................................
-! collectee density ind + 1 (jjc+1)
-
-! current rime fraction ind for collectee category (iic)
-
-! current density ind collector category (jj)
-
-! current rime fraction ind for collector category (ii)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli111(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli111(dumic+1,dumiic,dumjjc+1,dumi,dumii,dumjj)-                   &
-             itabcolli111(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli111(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli111(dumic+1,dumiic,dumjjc+1,dumi+1,dumii,dumjj)-                  &
-             itabcolli111(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli111(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli111(dumic+1,dumiic,dumjjc+1,dumi,dumii+1,dumjj)-                  &
-             itabcolli111(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli111(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli111(dumic+1,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj)-                  &
-             itabcolli111(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! collector density ind + 1 (jj+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli111(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
-             (itabcolli111(dumic+1,dumiic,dumjjc+1,dumi,dumii,dumjj+1)-                   &
-             itabcolli111(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli111(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli111(dumic+1,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1)-                  &
-             itabcolli111(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli111(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli111(dumic+1,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1)-                  &
-             itabcolli111(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli111(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli111(dumic+1,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1)-                  &
-             itabcolli111(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! between jj and jj+1
-   gproc1    = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
-
-!.......................................................................................................
-! collectee rime fraction + 1 (iic+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli111(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli111(dumic+1,dumiic+1,dumjjc+1,dumi,dumii,dumjj)-                   &
-             itabcolli111(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli111(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli111(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj)-                  &
-             itabcolli111(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli111(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli111(dumic+1,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj)-                  &
-             itabcolli111(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli111(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli111(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj)-                  &
-             itabcolli111(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! collector density ind + 1 (jj+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli111(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli111(dumic+1,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1)-                  &
-             itabcolli111(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli111(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli111(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1)-                  &
-             itabcolli111(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli111(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli111(dumic+1,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1)-                  &
-             itabcolli111(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli111(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli111(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1)-                  &
-             itabcolli111(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! between jj and jj+1
-   gproc2  = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
-
-! between iic and iic+1
-   rproc2  = gproc1+(dum4c-real(dumiic))*(gproc2-gproc1)
-
-!..........................................................................................
-! final process rate interpolation over collectee density
-
-! between jjc and jjc+1
-   proc111    = rproc1+(dum5c-real(dumjjc))*(rproc2-rproc1)
-
-! between ll and ll+1
-
-   procll2 = (1.-dum7)*proc101+dum7*proc111
-
-! final interpolation between llc and llc+1
-
-   proc_from_LUT_ii = (1.-dum7c)*procll1 + dum7c*procll2
-
-
- else if (ind.eq.2) then
-
-! collectee liquid fraction (llc) at collector liquid fraction (ll) [00]
-
-! current density ind collectee category (jjc)
-
-! current rime fraction ind for collectee category (iic)
-
-! current density ind collector category (jj)
-
-! current rime fraction ind for collector category (ii)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli002(dumic,dumiic,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*    &
-             (itabcolli002(dumic+1,dumiic,dumjjc,dumi,dumii,dumjj)-                     &
-             itabcolli002(dumic,dumiic,dumjjc,dumi,dumii,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli002(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli002(dumic+1,dumiic,dumjjc,dumi+1,dumii,dumjj)-                   &
-             itabcolli002(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli002(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli002(dumic+1,dumiic,dumjjc,dumi,dumii+1,dumjj)-                   &
-             itabcolli002(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli002(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))*&
-             (itabcolli002(dumic+1,dumiic,dumjjc,dumi+1,dumii+1,dumjj)-                 &
-             itabcolli002(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! collector density ind + 1 (jj+1)
-
-! current rime fraction ind for collector category (ii)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli002(dumic,dumiic,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
-             (itabcolli002(dumic+1,dumiic,dumjjc,dumi,dumii,dumjj+1)-                   &
-             itabcolli002(dumic,dumiic,dumjjc,dumi,dumii,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli002(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))*&
-             (itabcolli002(dumic+1,dumiic,dumjjc,dumi+1,dumii,dumjj+1)-                 &
-             itabcolli002(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj+1))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli002(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))*   &
-             (itabcolli002(dumic+1,dumiic,dumjjc,dumi,dumii+1,dumjj+1)-                    &
-             itabcolli002(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli002(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli002(dumic+1,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1)-                  &
-             itabcolli002(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! between jj and jj+1
-   gproc1    = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
-
-
-!.......................................................................................................
-! collectee rime fraction + 1 (iic+1)
-
-! current density ind collector category (jj)
-
-! current rime fraction ind for collector category (ii)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli002(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*   &
-             (itabcolli002(dumic+1,dumiic+1,dumjjc,dumi,dumii,dumjj)-                    &
-             itabcolli002(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli002(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli002(dumic+1,dumiic+1,dumjjc,dumi+1,dumii,dumjj)-                  &
-             itabcolli002(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli002(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli002(dumic+1,dumiic+1,dumjjc,dumi,dumii+1,dumjj)-                   &
-             itabcolli002(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli002(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli002(dumic+1,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj)-                  &
-             itabcolli002(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! collector density ind + 1 (jj+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli002(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli002(dumic+1,dumiic+1,dumjjc,dumi,dumii,dumjj+1)-                  &
-             itabcolli002(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli002(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli002(dumic+1,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1)-                  &
-             itabcolli002(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli002(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli002(dumic+1,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1)-                  &
-             itabcolli002(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli002(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli002(dumic+1,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1)-                  &
-             itabcolli002(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! between jj and jj+1
-   gproc2  = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
-
-! between iic and iic+1
-   rproc1  = gproc1+(dum4c-real(dumiic))*(gproc2-gproc1)
-
-!............................................................................................................
-! collectee density ind + 1 (jjc+1)
-
-! current rime fraction ind for collectee category (iic)
-
-! current density ind collector category (jj)
-
-! current rime fraction ind for collector category (ii)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli002(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli002(dumic+1,dumiic,dumjjc+1,dumi,dumii,dumjj)-                   &
-             itabcolli002(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli002(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli002(dumic+1,dumiic,dumjjc+1,dumi+1,dumii,dumjj)-                  &
-             itabcolli002(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli002(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli002(dumic+1,dumiic,dumjjc+1,dumi,dumii+1,dumjj)-                  &
-             itabcolli002(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli002(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli002(dumic+1,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj)-                  &
-             itabcolli002(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! collector density ind + 1 (jj+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli002(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
-             (itabcolli002(dumic+1,dumiic,dumjjc+1,dumi,dumii,dumjj+1)-                   &
-             itabcolli002(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli002(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli002(dumic+1,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1)-                  &
-             itabcolli002(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli002(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli002(dumic+1,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1)-                  &
-             itabcolli002(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli002(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli002(dumic+1,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1)-                  &
-             itabcolli002(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! between jj and jj+1
-   gproc1    = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
-
-!.......................................................................................................
-! collectee rime fraction + 1 (iic+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli002(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli002(dumic+1,dumiic+1,dumjjc+1,dumi,dumii,dumjj)-                   &
-             itabcolli002(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli002(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli002(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj)-                  &
-             itabcolli002(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli002(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli002(dumic+1,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj)-                  &
-             itabcolli002(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli002(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli002(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj)-                  &
-             itabcolli002(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! collector density ind + 1 (jj+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli002(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli002(dumic+1,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1)-                  &
-             itabcolli002(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli002(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli002(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1)-                  &
-             itabcolli002(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli002(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli002(dumic+1,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1)-                  &
-             itabcolli002(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli002(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli002(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1)-                  &
-             itabcolli002(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! between jj and jj+1
-   gproc2  = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
-
-! between iic and iic+1
-   rproc2  = gproc1+(dum4c-real(dumiic))*(gproc2-gproc1)
-
-!..........................................................................................
-! final process rate interpolation over collectee density
-
-! between jjc and jjc+1
-   proc001    = rproc1+(dum5c-real(dumjjc))*(rproc2-rproc1)
-
-
-! collectee liquid fraction (llc) at collector liquid fraction + 1 (ll+1) [01]
-
-! current density ind collectee category (jjc)
-
-! current rime fraction ind for collectee category (iic)
-
-! current density ind collector category (jj)
-
-! current rime fraction ind for collector category (ii)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli012(dumic,dumiic,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*    &
-             (itabcolli012(dumic+1,dumiic,dumjjc,dumi,dumii,dumjj)-                     &
-             itabcolli012(dumic,dumiic,dumjjc,dumi,dumii,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli012(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli012(dumic+1,dumiic,dumjjc,dumi+1,dumii,dumjj)-                   &
-             itabcolli012(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli012(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli012(dumic+1,dumiic,dumjjc,dumi,dumii+1,dumjj)-                   &
-             itabcolli012(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli012(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))*&
-             (itabcolli012(dumic+1,dumiic,dumjjc,dumi+1,dumii+1,dumjj)-                 &
-             itabcolli012(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! collector density ind + 1 (jj+1)
-
-! current rime fraction ind for collector category (ii)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli012(dumic,dumiic,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
-             (itabcolli012(dumic+1,dumiic,dumjjc,dumi,dumii,dumjj+1)-                   &
-             itabcolli012(dumic,dumiic,dumjjc,dumi,dumii,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli012(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))*&
-             (itabcolli012(dumic+1,dumiic,dumjjc,dumi+1,dumii,dumjj+1)-                 &
-             itabcolli012(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj+1))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli012(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))*   &
-             (itabcolli012(dumic+1,dumiic,dumjjc,dumi,dumii+1,dumjj+1)-                    &
-             itabcolli012(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli012(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli012(dumic+1,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1)-                  &
-             itabcolli012(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! between jj and jj+1
-   gproc1    = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
-
-
-!.......................................................................................................
-! collectee rime fraction + 1 (iic+1)
-
-! current density ind collector category (jj)
-
-! current rime fraction ind for collector category (ii)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli012(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*   &
-             (itabcolli012(dumic+1,dumiic+1,dumjjc,dumi,dumii,dumjj)-                    &
-             itabcolli012(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli012(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli012(dumic+1,dumiic+1,dumjjc,dumi+1,dumii,dumjj)-                  &
-             itabcolli012(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli012(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli012(dumic+1,dumiic+1,dumjjc,dumi,dumii+1,dumjj)-                   &
-             itabcolli012(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli012(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli012(dumic+1,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj)-                  &
-             itabcolli012(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! collector density ind + 1 (jj+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli012(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli012(dumic+1,dumiic+1,dumjjc,dumi,dumii,dumjj+1)-                  &
-             itabcolli012(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli012(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli012(dumic+1,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1)-                  &
-             itabcolli012(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli012(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli012(dumic+1,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1)-                  &
-             itabcolli012(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli012(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli012(dumic+1,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1)-                  &
-             itabcolli012(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! between jj and jj+1
-   gproc2  = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
-
-! between iic and iic+1
-   rproc1  = gproc1+(dum4c-real(dumiic))*(gproc2-gproc1)
-
-!............................................................................................................
-! collectee density ind + 1 (jjc+1)
-
-! current rime fraction ind for collectee category (iic)
-
-! current density ind collector category (jj)
-
-! current rime fraction ind for collector category (ii)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli012(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli012(dumic+1,dumiic,dumjjc+1,dumi,dumii,dumjj)-                   &
-             itabcolli012(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli012(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli012(dumic+1,dumiic,dumjjc+1,dumi+1,dumii,dumjj)-                  &
-             itabcolli012(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli012(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli012(dumic+1,dumiic,dumjjc+1,dumi,dumii+1,dumjj)-                  &
-             itabcolli012(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli012(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli012(dumic+1,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj)-                  &
-             itabcolli012(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! collector density ind + 1 (jj+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli012(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
-             (itabcolli012(dumic+1,dumiic,dumjjc+1,dumi,dumii,dumjj+1)-                   &
-             itabcolli012(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli012(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli012(dumic+1,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1)-                  &
-             itabcolli012(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli012(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli012(dumic+1,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1)-                  &
-             itabcolli012(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli012(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli012(dumic+1,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1)-                  &
-             itabcolli012(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! between jj and jj+1
-   gproc1    = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
-
-!.......................................................................................................
-! collectee rime fraction + 1 (iic+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli012(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli012(dumic+1,dumiic+1,dumjjc+1,dumi,dumii,dumjj)-                   &
-             itabcolli012(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli012(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli012(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj)-                  &
-             itabcolli012(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli012(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli012(dumic+1,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj)-                  &
-             itabcolli012(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli012(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli012(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj)-                  &
-             itabcolli012(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! collector density ind + 1 (jj+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli012(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli012(dumic+1,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1)-                  &
-             itabcolli012(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli012(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli012(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1)-                  &
-             itabcolli012(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli012(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli012(dumic+1,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1)-                  &
-             itabcolli012(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli012(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli012(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1)-                  &
-             itabcolli012(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! between jj and jj+1
-   gproc2  = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
-
-! between iic and iic+1
-   rproc2  = gproc1+(dum4c-real(dumiic))*(gproc2-gproc1)
-
-!..........................................................................................
-! final process rate interpolation over collectee density
-
-! between jjc and jjc+1
-   proc011    = rproc1+(dum5c-real(dumjjc))*(rproc2-rproc1)
-
-! between ll and ll+1
-
-   procll1 = (1.-dum7)*proc001 + dum7*proc011
-
-
-! collectee liquid fraction +1 (llc+1) at collector liquid fraction (ll) [10]
-
-! current density ind collectee category (jjc)
-
-! current rime fraction ind for collectee category (iic)
-
-! current density ind collector category (jj)
-
-! current rime fraction ind for collector category (ii)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli102(dumic,dumiic,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*    &
-             (itabcolli102(dumic+1,dumiic,dumjjc,dumi,dumii,dumjj)-                     &
-             itabcolli102(dumic,dumiic,dumjjc,dumi,dumii,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli102(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli102(dumic+1,dumiic,dumjjc,dumi+1,dumii,dumjj)-                   &
-             itabcolli102(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli102(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli102(dumic+1,dumiic,dumjjc,dumi,dumii+1,dumjj)-                   &
-             itabcolli102(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli102(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))*&
-             (itabcolli102(dumic+1,dumiic,dumjjc,dumi+1,dumii+1,dumjj)-                 &
-             itabcolli102(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! collector density ind + 1 (jj+1)
-
-! current rime fraction ind for collector category (ii)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli102(dumic,dumiic,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
-             (itabcolli102(dumic+1,dumiic,dumjjc,dumi,dumii,dumjj+1)-                   &
-             itabcolli102(dumic,dumiic,dumjjc,dumi,dumii,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli102(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))*&
-             (itabcolli102(dumic+1,dumiic,dumjjc,dumi+1,dumii,dumjj+1)-                 &
-             itabcolli102(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj+1))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli102(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))*   &
-             (itabcolli102(dumic+1,dumiic,dumjjc,dumi,dumii+1,dumjj+1)-                    &
-             itabcolli102(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli102(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli102(dumic+1,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1)-                  &
-             itabcolli102(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! between jj and jj+1
-   gproc1    = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
-
-
-!.......................................................................................................
-! collectee rime fraction + 1 (iic+1)
-
-! current density ind collector category (jj)
-
-! current rime fraction ind for collector category (ii)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli102(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*   &
-             (itabcolli102(dumic+1,dumiic+1,dumjjc,dumi,dumii,dumjj)-                    &
-             itabcolli102(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli102(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli102(dumic+1,dumiic+1,dumjjc,dumi+1,dumii,dumjj)-                  &
-             itabcolli102(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli102(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli102(dumic+1,dumiic+1,dumjjc,dumi,dumii+1,dumjj)-                   &
-             itabcolli102(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli102(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli102(dumic+1,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj)-                  &
-             itabcolli102(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! collector density ind + 1 (jj+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli102(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli102(dumic+1,dumiic+1,dumjjc,dumi,dumii,dumjj+1)-                  &
-             itabcolli102(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli102(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli102(dumic+1,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1)-                  &
-             itabcolli102(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli102(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli102(dumic+1,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1)-                  &
-             itabcolli102(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli102(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli102(dumic+1,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1)-                  &
-             itabcolli102(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! between jj and jj+1
-   gproc2  = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
-
-! between iic and iic+1
-   rproc1  = gproc1+(dum4c-real(dumiic))*(gproc2-gproc1)
-
-!............................................................................................................
-! collectee density ind + 1 (jjc+1)
-
-! current rime fraction ind for collectee category (iic)
-
-! current density ind collector category (jj)
-
-! current rime fraction ind for collector category (ii)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli102(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli102(dumic+1,dumiic,dumjjc+1,dumi,dumii,dumjj)-                   &
-             itabcolli102(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli102(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli102(dumic+1,dumiic,dumjjc+1,dumi+1,dumii,dumjj)-                  &
-             itabcolli102(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli102(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli102(dumic+1,dumiic,dumjjc+1,dumi,dumii+1,dumjj)-                  &
-             itabcolli102(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli102(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli102(dumic+1,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj)-                  &
-             itabcolli102(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! collector density ind + 1 (jj+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli102(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
-             (itabcolli102(dumic+1,dumiic,dumjjc+1,dumi,dumii,dumjj+1)-                   &
-             itabcolli102(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli102(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli102(dumic+1,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1)-                  &
-             itabcolli102(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli102(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli102(dumic+1,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1)-                  &
-             itabcolli102(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli102(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli102(dumic+1,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1)-                  &
-             itabcolli102(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! between jj and jj+1
-   gproc1    = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
-
-!.......................................................................................................
-! collectee rime fraction + 1 (iic+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli102(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli102(dumic+1,dumiic+1,dumjjc+1,dumi,dumii,dumjj)-                   &
-             itabcolli102(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli102(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli102(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj)-                  &
-             itabcolli102(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli102(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli102(dumic+1,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj)-                  &
-             itabcolli102(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli102(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli102(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj)-                  &
-             itabcolli102(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! collector density ind + 1 (jj+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli102(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli102(dumic+1,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1)-                  &
-             itabcolli102(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli102(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli102(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1)-                  &
-             itabcolli102(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli102(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli102(dumic+1,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1)-                  &
-             itabcolli102(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli102(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli102(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1)-                  &
-             itabcolli102(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! between jj and jj+1
-   gproc2  = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
-
-! between iic and iic+1
-   rproc2  = gproc1+(dum4c-real(dumiic))*(gproc2-gproc1)
-
-!..........................................................................................
-! final process rate interpolation over collectee density
-
-! between jjc and jjc+1
-   proc101    = rproc1+(dum5c-real(dumjjc))*(rproc2-rproc1)
-
-
-
-! collectee liquid fraction +1 (llc+1) at collector liquid fraction +1 (ll+1) [11]
-
-! current density ind collectee category (jjc)
-
-! current rime fraction ind for collectee category (iic)
-
-! current density ind collector category (jj)
-
-! current rime fraction ind for collector category (ii)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli112(dumic,dumiic,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*    &
-             (itabcolli112(dumic+1,dumiic,dumjjc,dumi,dumii,dumjj)-                     &
-             itabcolli112(dumic,dumiic,dumjjc,dumi,dumii,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli112(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli112(dumic+1,dumiic,dumjjc,dumi+1,dumii,dumjj)-                   &
-             itabcolli112(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli112(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli112(dumic+1,dumiic,dumjjc,dumi,dumii+1,dumjj)-                   &
-             itabcolli112(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli112(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))*&
-             (itabcolli112(dumic+1,dumiic,dumjjc,dumi+1,dumii+1,dumjj)-                 &
-             itabcolli112(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! collector density ind + 1 (jj+1)
-
-! current rime fraction ind for collector category (ii)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli112(dumic,dumiic,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
-             (itabcolli112(dumic+1,dumiic,dumjjc,dumi,dumii,dumjj+1)-                   &
-             itabcolli112(dumic,dumiic,dumjjc,dumi,dumii,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli112(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))*&
-             (itabcolli112(dumic+1,dumiic,dumjjc,dumi+1,dumii,dumjj+1)-                 &
-             itabcolli112(dumic,dumiic,dumjjc,dumi+1,dumii,dumjj+1))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli112(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))*   &
-             (itabcolli112(dumic+1,dumiic,dumjjc,dumi,dumii+1,dumjj+1)-                    &
-             itabcolli112(dumic,dumiic,dumjjc,dumi,dumii+1,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli112(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli112(dumic+1,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1)-                  &
-             itabcolli112(dumic,dumiic,dumjjc,dumi+1,dumii+1,dumjj+1))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! between jj and jj+1
-   gproc1    = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
-
-
-!.......................................................................................................
-! collectee rime fraction + 1 (iic+1)
-
-! current density ind collector category (jj)
-
-! current rime fraction ind for collector category (ii)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli112(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj)+(dum1c-real(dumic))*   &
-             (itabcolli112(dumic+1,dumiic+1,dumjjc,dumi,dumii,dumjj)-                    &
-             itabcolli112(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli112(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli112(dumic+1,dumiic+1,dumjjc,dumi+1,dumii,dumjj)-                  &
-             itabcolli112(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli112(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli112(dumic+1,dumiic+1,dumjjc,dumi,dumii+1,dumjj)-                   &
-             itabcolli112(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli112(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli112(dumic+1,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj)-                  &
-             itabcolli112(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! collector density ind + 1 (jj+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli112(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli112(dumic+1,dumiic+1,dumjjc,dumi,dumii,dumjj+1)-                  &
-             itabcolli112(dumic,dumiic+1,dumjjc,dumi,dumii,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli112(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli112(dumic+1,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1)-                  &
-             itabcolli112(dumic,dumiic+1,dumjjc,dumi+1,dumii,dumjj+1))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli112(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli112(dumic+1,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1)-                  &
-             itabcolli112(dumic,dumiic+1,dumjjc,dumi,dumii+1,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli112(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli112(dumic+1,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1)-                  &
-             itabcolli112(dumic,dumiic+1,dumjjc,dumi+1,dumii+1,dumjj+1))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! between jj and jj+1
-   gproc2  = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
-
-! between iic and iic+1
-   rproc1  = gproc1+(dum4c-real(dumiic))*(gproc2-gproc1)
-
-!............................................................................................................
-! collectee density ind + 1 (jjc+1)
-
-! current rime fraction ind for collectee category (iic)
-
-! current density ind collector category (jj)
-
-! current rime fraction ind for collector category (ii)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli112(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli112(dumic+1,dumiic,dumjjc+1,dumi,dumii,dumjj)-                   &
-             itabcolli112(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli112(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli112(dumic+1,dumiic,dumjjc+1,dumi+1,dumii,dumjj)-                  &
-             itabcolli112(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli112(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli112(dumic+1,dumiic,dumjjc+1,dumi,dumii+1,dumjj)-                  &
-             itabcolli112(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli112(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli112(dumic+1,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj)-                  &
-             itabcolli112(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! collector density ind + 1 (jj+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli112(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))*  &
-             (itabcolli112(dumic+1,dumiic,dumjjc+1,dumi,dumii,dumjj+1)-                   &
-             itabcolli112(dumic,dumiic,dumjjc+1,dumi,dumii,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli112(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli112(dumic+1,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1)-                  &
-             itabcolli112(dumic,dumiic,dumjjc+1,dumi+1,dumii,dumjj+1))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli112(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli112(dumic+1,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1)-                  &
-             itabcolli112(dumic,dumiic,dumjjc+1,dumi,dumii+1,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli112(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli112(dumic+1,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1)-                  &
-             itabcolli112(dumic,dumiic,dumjjc+1,dumi+1,dumii+1,dumjj+1))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! between jj and jj+1
-   gproc1    = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
-
-!.......................................................................................................
-! collectee rime fraction + 1 (iic+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli112(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj)+(dum1c-real(dumic))*  &
-             (itabcolli112(dumic+1,dumiic+1,dumjjc+1,dumi,dumii,dumjj)-                   &
-             itabcolli112(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli112(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli112(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj)-                  &
-             itabcolli112(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli112(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli112(dumic+1,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj)-                  &
-             itabcolli112(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli112(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj)+(dum1c-real(dumic))* &
-             (itabcolli112(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj)-                  &
-             itabcolli112(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp1    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! collector density ind + 1 (jj+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli112(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli112(dumic+1,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1)-                  &
-             itabcolli112(dumic,dumiic+1,dumjjc+1,dumi,dumii,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli112(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli112(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1)-                  &
-             itabcolli112(dumic,dumiic+1,dumjjc+1,dumi+1,dumii,dumjj+1))
-
-! between i and i+1
-   iproc1  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! collector rime fraction ind + 1 (ii+1)
-
-! i collector (between ic and ic+1)
-   dproc11 = itabcolli112(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli112(dumic+1,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1)-                  &
-             itabcolli112(dumic,dumiic+1,dumjjc+1,dumi,dumii+1,dumjj+1))
-
-! i+1 collector (between ic and ic+1)
-   dproc12 = itabcolli112(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1)+(dum1c-real(dumic))* &
-             (itabcolli112(dumic+1,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1)-                  &
-             itabcolli112(dumic,dumiic+1,dumjjc+1,dumi+1,dumii+1,dumjj+1))
-
-! between i and i+1
-   iproc2  = dproc11+(dum1-real(dumi))*(dproc12-dproc11)
-
-! between ii and ii+1
-   tmp2    = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-! between jj and jj+1
-   gproc2  = tmp1+(dum5-real(dumjj))*(tmp2-tmp1)
-
-! between iic and iic+1
-   rproc2  = gproc1+(dum4c-real(dumiic))*(gproc2-gproc1)
-
-!..........................................................................................
-! final process rate interpolation over collectee density
-
-! between jjc and jjc+1
-   proc111    = rproc1+(dum5c-real(dumjjc))*(rproc2-rproc1)
-
-! between ll and ll+1
-
-   procll2 = (1.-dum7)*proc101+dum7*proc111
-
-! final interpolation between llc and llc+1
-
-   proc_from_LUT_ii = (1.-dum7c)*procll1 + dum7c*procll2
-
- endif ! ind =1 or 2
-
 
  end function proc_from_LUT_ii
 
 !==========================================================================================!
+
+
  subroutine args_for_LUT(args_r,args_i,                                                    &
                          arg_r_1,arg_r_2,arg_r_3,arg_r_4,arg_r_5,arg_r_6,arg_r_7,arg_r_8,  &
                          arg_i_1,arg_i_2,arg_i_3,arg_i_4,arg_i_5,arg_i_6)
@@ -9135,238 +5988,90 @@ end function proc_from_LUT_3
  ! LUT and performing the necessary interpolation.
  !
  ! This applies for the main LUT for 3-moment (LF on or off)
+ ! Table dims: (Z index zz, density jj, rime fraction ii, liquid fraction ll,
+ !              size i, quantity)
  !--------------------------------------------------------------------------------
 
  implicit none
 
-!argmuents:
+!arguments:
  integer, intent(in) :: ind
  real,    dimension(n_args_r), intent(in) :: args_r
  integer, dimension(n_args_i), intent(in) :: args_i
-
 !local:
- integer :: dumzz,dumjj,dumii,dumi,dumll
+ real    :: iproc1,iproc2,gproc1,gproc2,rproc1,rproc2,dproc1,dproc2
  real    :: dum1,dum4,dum5,dum6,dum7
- real    :: iproc1,iproc2,gproc1,gproc2,rproc1,rproc2,dproc1,dproc2,proc
+ integer :: dumzz,dumjj,dumii,dumll,dumi
+
+ dum1 = args_r(1);  dum4 = args_r(2);  dum5 = args_r(3)
+ dum6 = args_r(4);  dum7 = args_r(5)
+ dumzz = args_i(1); dumjj = args_i(2); dumii = args_i(3)
+ dumll = args_i(4); dumi  = args_i(5)
+
+ if (dumll==1 .and. dum7 < 1. + epsilon(dum7)) then  !skip interpolation for liq-frac if qiliq = 0.
+
+    dproc1 = lerp(itab_3mom(dumzz,  dumjj,  dumii,  dumll,dumi,  ind), itab_3mom(dumzz,  dumjj,  dumii,  dumll,dumi+1,ind), dum1-real(dumi))
+    dproc2 = lerp(itab_3mom(dumzz,  dumjj,  dumii+1,dumll,dumi,  ind), itab_3mom(dumzz,  dumjj,  dumii+1,dumll,dumi+1,ind), dum1-real(dumi))
+    gproc1 = lerp(dproc1, dproc2, dum4-real(dumii))
+    dproc1 = lerp(itab_3mom(dumzz,  dumjj+1,dumii,  dumll,dumi,  ind), itab_3mom(dumzz,  dumjj+1,dumii,  dumll,dumi+1,ind), dum1-real(dumi))
+    dproc2 = lerp(itab_3mom(dumzz,  dumjj+1,dumii+1,dumll,dumi,  ind), itab_3mom(dumzz,  dumjj+1,dumii+1,dumll,dumi+1,ind), dum1-real(dumi))
+    gproc2 = lerp(dproc1, dproc2, dum4-real(dumii))
+    rproc1 = lerp(gproc1, gproc2, dum5-real(dumjj))
+
+    dproc1 = lerp(itab_3mom(dumzz+1,dumjj,  dumii,  dumll,dumi,  ind), itab_3mom(dumzz+1,dumjj,  dumii,  dumll,dumi+1,ind), dum1-real(dumi))
+    dproc2 = lerp(itab_3mom(dumzz+1,dumjj,  dumii+1,dumll,dumi,  ind), itab_3mom(dumzz+1,dumjj,  dumii+1,dumll,dumi+1,ind), dum1-real(dumi))
+    gproc1 = lerp(dproc1, dproc2, dum4-real(dumii))
+    dproc1 = lerp(itab_3mom(dumzz+1,dumjj+1,dumii,  dumll,dumi,  ind), itab_3mom(dumzz+1,dumjj+1,dumii,  dumll,dumi+1,ind), dum1-real(dumi))
+    dproc2 = lerp(itab_3mom(dumzz+1,dumjj+1,dumii+1,dumll,dumi,  ind), itab_3mom(dumzz+1,dumjj+1,dumii+1,dumll,dumi+1,ind), dum1-real(dumi))
+    gproc2 = lerp(dproc1, dproc2, dum4-real(dumii))
+    rproc2 = lerp(gproc1, gproc2, dum5-real(dumjj))
+
+    proc_from_LUT_main3mom = lerp(rproc1, rproc2, dum6-real(dumzz))
+
+ else
+
+    dproc1 = lerp(itab_3mom(dumzz,  dumjj,  dumii,  dumll,  dumi,  ind), itab_3mom(dumzz,  dumjj,  dumii,  dumll,  dumi+1,ind), dum1-real(dumi))
+    dproc2 = lerp(itab_3mom(dumzz,  dumjj,  dumii,  dumll+1,dumi,  ind), itab_3mom(dumzz,  dumjj,  dumii,  dumll+1,dumi+1,ind), dum1-real(dumi))
+    iproc1 = lerp(dproc1, dproc2, dum7-real(dumll))
+    dproc1 = lerp(itab_3mom(dumzz,  dumjj,  dumii+1,dumll,  dumi,  ind), itab_3mom(dumzz,  dumjj,  dumii+1,dumll,  dumi+1,ind), dum1-real(dumi))
+    dproc2 = lerp(itab_3mom(dumzz,  dumjj,  dumii+1,dumll+1,dumi,  ind), itab_3mom(dumzz,  dumjj,  dumii+1,dumll+1,dumi+1,ind), dum1-real(dumi))
+    iproc2 = lerp(dproc1, dproc2, dum7-real(dumll))
+    gproc1 = lerp(iproc1, iproc2, dum4-real(dumii))
+
+    dproc1 = lerp(itab_3mom(dumzz,  dumjj+1,dumii,  dumll,  dumi,  ind), itab_3mom(dumzz,  dumjj+1,dumii,  dumll,  dumi+1,ind), dum1-real(dumi))
+    dproc2 = lerp(itab_3mom(dumzz,  dumjj+1,dumii,  dumll+1,dumi,  ind), itab_3mom(dumzz,  dumjj+1,dumii,  dumll+1,dumi+1,ind), dum1-real(dumi))
+    iproc1 = lerp(dproc1, dproc2, dum7-real(dumll))
+    dproc1 = lerp(itab_3mom(dumzz,  dumjj+1,dumii+1,dumll,  dumi,  ind), itab_3mom(dumzz,  dumjj+1,dumii+1,dumll,  dumi+1,ind), dum1-real(dumi))
+    dproc2 = lerp(itab_3mom(dumzz,  dumjj+1,dumii+1,dumll+1,dumi,  ind), itab_3mom(dumzz,  dumjj+1,dumii+1,dumll+1,dumi+1,ind), dum1-real(dumi))
+    iproc2 = lerp(dproc1, dproc2, dum7-real(dumll))
+    gproc2 = lerp(iproc1, iproc2, dum4-real(dumii))
+    rproc1 = lerp(gproc1, gproc2, dum5-real(dumjj))
+
+    dproc1 = lerp(itab_3mom(dumzz+1,dumjj,  dumii,  dumll,  dumi,  ind), itab_3mom(dumzz+1,dumjj,  dumii,  dumll,  dumi+1,ind), dum1-real(dumi))
+    dproc2 = lerp(itab_3mom(dumzz+1,dumjj,  dumii,  dumll+1,dumi,  ind), itab_3mom(dumzz+1,dumjj,  dumii,  dumll+1,dumi+1,ind), dum1-real(dumi))
+    iproc1 = lerp(dproc1, dproc2, dum7-real(dumll))
+    dproc1 = lerp(itab_3mom(dumzz+1,dumjj,  dumii+1,dumll,  dumi,  ind), itab_3mom(dumzz+1,dumjj,  dumii+1,dumll,  dumi+1,ind), dum1-real(dumi))
+    dproc2 = lerp(itab_3mom(dumzz+1,dumjj,  dumii+1,dumll+1,dumi,  ind), itab_3mom(dumzz+1,dumjj,  dumii+1,dumll+1,dumi+1,ind), dum1-real(dumi))
+    iproc2 = lerp(dproc1, dproc2, dum7-real(dumll))
+    gproc1 = lerp(iproc1, iproc2, dum4-real(dumii))
+
+    dproc1 = lerp(itab_3mom(dumzz+1,dumjj+1,dumii,  dumll,  dumi,  ind), itab_3mom(dumzz+1,dumjj+1,dumii,  dumll,  dumi+1,ind), dum1-real(dumi))
+    dproc2 = lerp(itab_3mom(dumzz+1,dumjj+1,dumii,  dumll+1,dumi,  ind), itab_3mom(dumzz+1,dumjj+1,dumii,  dumll+1,dumi+1,ind), dum1-real(dumi))
+    iproc1 = lerp(dproc1, dproc2, dum7-real(dumll))
+    dproc1 = lerp(itab_3mom(dumzz+1,dumjj+1,dumii+1,dumll,  dumi,  ind), itab_3mom(dumzz+1,dumjj+1,dumii+1,dumll,  dumi+1,ind), dum1-real(dumi))
+    dproc2 = lerp(itab_3mom(dumzz+1,dumjj+1,dumii+1,dumll+1,dumi,  ind), itab_3mom(dumzz+1,dumjj+1,dumii+1,dumll+1,dumi+1,ind), dum1-real(dumi))
+    iproc2 = lerp(dproc1, dproc2, dum7-real(dumll))
+    gproc2 = lerp(iproc1, iproc2, dum4-real(dumii))
+    rproc2 = lerp(gproc1, gproc2, dum5-real(dumjj))
+
+    proc_from_LUT_main3mom = lerp(rproc1, rproc2, dum6-real(dumzz))
+
+ endif
+
+ end function proc_from_LUT_main3mom
+
+!==========================================================================================!
 
- dum1 = args_r(1)
- dum4 = args_r(2)
- dum5 = args_r(3)
- dum6 = args_r(4)
- dum7 = args_r(5)
-
- dumzz = args_i(1)
- dumjj = args_i(2)
- dumii = args_i(3)
- dumll = args_i(4)
- dumi  = args_i(5)
-
-if (dum7 == 1. .and. dumll==1) then  !skip interpolation for liq-frac if qiliq = 0.
-
-! get at current zz
- ! get at current jj
-
-   ! get current ii
-
-    ! at ll between i and i+1
-    dproc1 = itab_3mom(dumzz,dumjj,dumii,dumll,dumi,ind)+(dum1-real(dumi))*(itab_3mom(dumzz,dumjj,dumii,       &
-             dumll,dumi+1,ind)-itab_3mom(dumzz,dumjj,dumii,dumll,dumi,ind))
-
-   ! get current ii+1
-
-    ! at ll between i and i+1
-    dproc2 = itab_3mom(dumzz,dumjj,dumii+1,dumll,dumi,ind)+(dum1-real(dumi))*(itab_3mom(dumzz,dumjj,dumii+1,       &
-             dumll,dumi+1,ind)-itab_3mom(dumzz,dumjj,dumii+1,dumll,dumi,ind))
-
-    gproc1   = dproc1+(dum4-real(dumii))*(dproc2-dproc1)
-
- ! get at current jj+1
-
-   ! get current ii
-
-    ! at ll between i and i+1
-    dproc1 = itab_3mom(dumzz,dumjj+1,dumii,dumll,dumi,ind)+(dum1-real(dumi))*(itab_3mom(dumzz,dumjj+1,dumii,       &
-             dumll,dumi+1,ind)-itab_3mom(dumzz,dumjj+1,dumii,dumll,dumi,ind))
-
-   ! get current ii+1
-
-    ! at ll between i and i+1
-    dproc2 = itab_3mom(dumzz,dumjj+1,dumii+1,dumll,dumi,ind)+(dum1-real(dumi))*(itab_3mom(dumzz,dumjj+1,dumii+1,       &
-             dumll,dumi+1,ind)-itab_3mom(dumzz,dumjj+1,dumii+1,dumll,dumi,ind))
-
-    gproc2   = dproc1+(dum4-real(dumii))*(dproc2-dproc1)
-
-    rproc1   = gproc1+(dum5-real(dumjj))*(gproc2-gproc1)
-
-! get at current zz+1
- ! get at current jj
-
-   ! get current ii
-
-    ! at ll between i and i+1
-    dproc1 = itab_3mom(dumzz+1,dumjj,dumii,dumll,dumi,ind)+(dum1-real(dumi))*(itab_3mom(dumzz+1,dumjj,dumii,       &
-             dumll,dumi+1,ind)-itab_3mom(dumzz+1,dumjj,dumii,dumll,dumi,ind))
-
-   ! get current ii+1
-    ! at ll between i and i+1
-    dproc2 = itab_3mom(dumzz+1,dumjj,dumii+1,dumll,dumi,ind)+(dum1-real(dumi))*(itab_3mom(dumzz+1,dumjj,dumii+1,       &
-             dumll,dumi+1,ind)-itab_3mom(dumzz+1,dumjj,dumii+1,dumll,dumi,ind))
-
-    gproc1   = dproc1+(dum4-real(dumii))*(dproc2-dproc1)
-
- ! get at current jj+1
-
-   ! get current ii
-
-    ! at ll between i and i+1
-    dproc1 = itab_3mom(dumzz+1,dumjj+1,dumii,dumll,dumi,ind)+(dum1-real(dumi))*(itab_3mom(dumzz+1,dumjj+1,dumii,       &
-             dumll,dumi+1,ind)-itab_3mom(dumzz+1,dumjj+1,dumii,dumll,dumi,ind))
-
-   ! get current ii+1
-
-    ! at ll between i and i+1
-    dproc2 = itab_3mom(dumzz+1,dumjj+1,dumii+1,dumll,dumi,ind)+(dum1-real(dumi))*(itab_3mom(dumzz+1,dumjj+1,dumii+1,       &
-             dumll,dumi+1,ind)-itab_3mom(dumzz+1,dumjj+1,dumii+1,dumll,dumi,ind))
-
-    gproc2   = dproc1+(dum4-real(dumii))*(dproc2-dproc1)
-
-    rproc2   = gproc1+(dum5-real(dumjj))*(gproc2-gproc1)
-
-! get final interpolation between rproc1 and rproc2
-
- proc = rproc1+(dum6-real(dumzz))*(rproc2-rproc1)
-
-else
-
-! get at current zz
-  ! get at current jj
-
-    ! get current ii
-
-     ! at ll between i and i+1
-     dproc1 = itab_3mom(dumzz,dumjj,dumii,dumll,dumi,ind)+(dum1-real(dumi))*(itab_3mom(dumzz,dumjj,dumii,       &
-              dumll,dumi+1,ind)-itab_3mom(dumzz,dumjj,dumii,dumll,dumi,ind))
-
-     ! at ll+1 between i and i+1
-     dproc2 = itab_3mom(dumzz,dumjj,dumii,dumll+1,dumi,ind)+(dum1-real(dumi))*(itab_3mom(dumzz,dumjj,dumii,     &
-              dumll+1,dumi+1,ind)-itab_3mom(dumzz,dumjj,dumii,dumll+1,dumi,ind))
-
-     iproc1   = dproc1+(dum7-real(dumll))*(dproc2-dproc1)
-
-    ! get current ii+1
-
-     ! at ll between i and i+1
-     dproc1 = itab_3mom(dumzz,dumjj,dumii+1,dumll,dumi,ind)+(dum1-real(dumi))*(itab_3mom(dumzz,dumjj,dumii+1,       &
-              dumll,dumi+1,ind)-itab_3mom(dumzz,dumjj,dumii+1,dumll,dumi,ind))
-
-     ! at ll+1 between i and i+1
-     dproc2 = itab_3mom(dumzz,dumjj,dumii+1,dumll+1,dumi,ind)+(dum1-real(dumi))*(itab_3mom(dumzz,dumjj,dumii+1,     &
-              dumll+1,dumi+1,ind)-itab_3mom(dumzz,dumjj,dumii+1,dumll+1,dumi,ind))
-
-     iproc2   = dproc1+(dum7-real(dumll))*(dproc2-dproc1)
-
-     gproc1   = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-  ! get at current jj+1
-
-    ! get current ii
-
-     ! at ll between i and i+1
-     dproc1 = itab_3mom(dumzz,dumjj+1,dumii,dumll,dumi,ind)+(dum1-real(dumi))*(itab_3mom(dumzz,dumjj+1,dumii,       &
-              dumll,dumi+1,ind)-itab_3mom(dumzz,dumjj+1,dumii,dumll,dumi,ind))
-
-     ! at ll+1 between i and i+1
-     dproc2 = itab_3mom(dumzz,dumjj+1,dumii,dumll+1,dumi,ind)+(dum1-real(dumi))*(itab_3mom(dumzz,dumjj+1,dumii,     &
-              dumll+1,dumi+1,ind)-itab_3mom(dumzz,dumjj+1,dumii,dumll+1,dumi,ind))
-
-     iproc1   = dproc1+(dum7-real(dumll))*(dproc2-dproc1)
-
-    ! get current ii+1
-
-     ! at ll between i and i+1
-     dproc1 = itab_3mom(dumzz,dumjj+1,dumii+1,dumll,dumi,ind)+(dum1-real(dumi))*(itab_3mom(dumzz,dumjj+1,dumii+1,       &
-              dumll,dumi+1,ind)-itab_3mom(dumzz,dumjj+1,dumii+1,dumll,dumi,ind))
-
-     ! at ll+1 between i and i+1
-     dproc2 = itab_3mom(dumzz,dumjj+1,dumii+1,dumll+1,dumi,ind)+(dum1-real(dumi))*(itab_3mom(dumzz,dumjj+1,dumii+1,     &
-              dumll+1,dumi+1,ind)-itab_3mom(dumzz,dumjj+1,dumii+1,dumll+1,dumi,ind))
-
-     iproc2   = dproc1+(dum7-real(dumll))*(dproc2-dproc1)
-
-     gproc2   = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-     rproc1   = gproc1+(dum5-real(dumjj))*(gproc2-gproc1)
-
-! get at current zz+1
-  ! get at current jj
-
-    ! get current ii
-
-     ! at ll between i and i+1
-     dproc1 = itab_3mom(dumzz+1,dumjj,dumii,dumll,dumi,ind)+(dum1-real(dumi))*(itab_3mom(dumzz+1,dumjj,dumii,       &
-              dumll,dumi+1,ind)-itab_3mom(dumzz+1,dumjj,dumii,dumll,dumi,ind))
-
-     ! at ll+1 between i and i+1
-     dproc2 = itab_3mom(dumzz+1,dumjj,dumii,dumll+1,dumi,ind)+(dum1-real(dumi))*(itab_3mom(dumzz+1,dumjj,dumii,     &
-              dumll+1,dumi+1,ind)-itab_3mom(dumzz+1,dumjj,dumii,dumll+1,dumi,ind))
-
-     iproc1   = dproc1+(dum7-real(dumll))*(dproc2-dproc1)
-
-    ! get current ii+1
-
-     ! at ll between i and i+1
-     dproc1 = itab_3mom(dumzz+1,dumjj,dumii+1,dumll,dumi,ind)+(dum1-real(dumi))*(itab_3mom(dumzz+1,dumjj,dumii+1,       &
-              dumll,dumi+1,ind)-itab_3mom(dumzz+1,dumjj,dumii+1,dumll,dumi,ind))
-
-     ! at ll+1 between i and i+1
-     dproc2 = itab_3mom(dumzz+1,dumjj,dumii+1,dumll+1,dumi,ind)+(dum1-real(dumi))*(itab_3mom(dumzz+1,dumjj,dumii+1,     &
-              dumll+1,dumi+1,ind)-itab_3mom(dumzz+1,dumjj,dumii+1,dumll+1,dumi,ind))
-
-     iproc2   = dproc1+(dum7-real(dumll))*(dproc2-dproc1)
-
-     gproc1   = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-  ! get at current jj+1
-
-    ! get current ii
-
-     ! at ll between i and i+1
-     dproc1 = itab_3mom(dumzz+1,dumjj+1,dumii,dumll,dumi,ind)+(dum1-real(dumi))*(itab_3mom(dumzz+1,dumjj+1,dumii,       &
-              dumll,dumi+1,ind)-itab_3mom(dumzz+1,dumjj+1,dumii,dumll,dumi,ind))
-
-     ! at ll+1 between i and i+1
-     dproc2 = itab_3mom(dumzz+1,dumjj+1,dumii,dumll+1,dumi,ind)+(dum1-real(dumi))*(itab_3mom(dumzz+1,dumjj+1,dumii,     &
-              dumll+1,dumi+1,ind)-itab_3mom(dumzz+1,dumjj+1,dumii,dumll+1,dumi,ind))
-
-     iproc1   = dproc1+(dum7-real(dumll))*(dproc2-dproc1)
-
-    ! get current ii+1
-
-     ! at ll between i and i+1
-     dproc1 = itab_3mom(dumzz+1,dumjj+1,dumii+1,dumll,dumi,ind)+(dum1-real(dumi))*(itab_3mom(dumzz+1,dumjj+1,dumii+1,       &
-              dumll,dumi+1,ind)-itab_3mom(dumzz+1,dumjj+1,dumii+1,dumll,dumi,ind))
-
-     ! at ll+1 between i and i+1
-     dproc2 = itab_3mom(dumzz+1,dumjj+1,dumii+1,dumll+1,dumi,ind)+(dum1-real(dumi))*(itab_3mom(dumzz+1,dumjj+1,dumii+1,     &
-              dumll+1,dumi+1,ind)-itab_3mom(dumzz+1,dumjj+1,dumii+1,dumll+1,dumi,ind))
-
-     iproc2   = dproc1+(dum7-real(dumll))*(dproc2-dproc1)
-
-     gproc2   = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-     rproc2   = gproc1+(dum5-real(dumjj))*(gproc2-gproc1)
-
-! get final interpolation between rproc1 and rproc2
-
-  proc = rproc1+(dum6-real(dumzz))*(rproc2-rproc1)
-
-endif
-
-proc_from_LUT_main3mom = proc
-
-end function proc_from_LUT_main3mom
-
-!======================================================================================!
 
  subroutine find_lookupTable_indices_3a(dumzq,dum8,zqsize,zitot,qitot)
 
@@ -9402,6 +6107,8 @@ end function proc_from_LUT_main3mom
  ! LUT and performing the necessary interpolation.
  !
  ! This applies for the ice-rain collection LUT for 3-moment.
+ ! Table dims: (Z index zz, density jj, rime fraction ii, liquid fraction ll,
+ !              size i, rain size j, quantity)
  !--------------------------------------------------------------------------------
 
  implicit none
@@ -9411,464 +6118,129 @@ end function proc_from_LUT_main3mom
  real,    dimension(n_args_r), intent(in) :: args_r
  integer, dimension(n_args_i), intent(in) :: args_i
 !local:
- real    :: dproc1,dproc2,iproc1,iproc2,gproc1,gproc2,rproc1,rproc2,zproc1,zproc2,proc
+ real    :: dproc1,dproc2,iproc1,iproc2,iproc3,iproc4,tmp1,tmp2,rproc1,rproc2
  real    :: dum1,dum3,dum4,dum5,dum6,dum7
- integer :: dumzz,dumjj,dumii,dumj,dumi,dumll
-
-
- dum1 = args_r(1)
- dum3 = args_r(2)
- dum4 = args_r(3)
- dum5 = args_r(4)
- dum6 = args_r(5)
- dum7 = args_r(6)
-
- dumzz = args_i(1)
- dumjj = args_i(2)
- dumii = args_i(3)
- dumll = args_i(4)
- dumj  = args_i(5)
- dumi  = args_i(6)
-
- if (dum7 == 1. .and. dumll==1) then  !skip interpolation for liq-frac if qiliq = 0.
-!
-! get at current zz
- ! get at current jj
-
-   ! get current ii
-
-    ! get current ll
-
-    ! at j between i and i+1
-     dproc1  = itabcoll_3mom(dumzz,dumjj,dumii,dumll,dumi,dumj,ind)+(dum1-real(dumi))*                &
-               (itabcoll_3mom(dumzz,dumjj,dumii,dumll,dumi+1,dumj,ind)-itabcoll_3mom(dumzz,dumjj,     &
-               dumii,dumll,dumi,dumj,ind))
-
-    ! at j+1 between i and i+1
-     dproc2  = itabcoll_3mom(dumzz,dumjj,dumii,dumll,dumi,dumj+1,ind)+(dum1-real(dumi))*                &
-               (itabcoll_3mom(dumzz,dumjj,dumii,dumll,dumi+1,dumj+1,ind)-itabcoll_3mom(dumzz,dumjj,     &
-               dumii,dumll,dumi,dumj+1,ind))
-
-     iproc1  = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
-
-   ! get current ii+1
-
-    ! get current ll
-
-    ! at j between i and i+1
-     dproc1  = itabcoll_3mom(dumzz,dumjj,dumii+1,dumll,dumi,dumj,ind)+(dum1-real(dumi))*                &
-               (itabcoll_3mom(dumzz,dumjj,dumii+1,dumll,dumi+1,dumj,ind)-itabcoll_3mom(dumzz,dumjj,     &
-               dumii+1,dumll,dumi,dumj,ind))
-
-    ! at j+1 between i and i+1
-     dproc2  = itabcoll_3mom(dumzz,dumjj,dumii+1,dumll,dumi,dumj+1,ind)+(dum1-real(dumi))*                &
-               (itabcoll_3mom(dumzz,dumjj,dumii+1,dumll,dumi+1,dumj+1,ind)-itabcoll_3mom(dumzz,dumjj,     &
-               dumii+1,dumll,dumi,dumj+1,ind))
-
-     iproc2  = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
-
-     rproc1  = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
- ! get at current jj+1
-
-   ! get current ii
-
-    ! get current ll
-
-    ! at j between i and i+1
-     dproc1  = itabcoll_3mom(dumzz,dumjj+1,dumii,dumll,dumi,dumj,ind)+(dum1-real(dumi))*                  &
-               (itabcoll_3mom(dumzz,dumjj+1,dumii,dumll,dumi+1,dumj,ind)-itabcoll_3mom(dumzz,dumjj+1,     &
-               dumii,dumll,dumi,dumj,ind))
-
-    ! at j+1 between i and i+1
-     dproc2  = itabcoll_3mom(dumzz,dumjj+1,dumii,dumll,dumi,dumj+1,ind)+(dum1-real(dumi))*                  &
-               (itabcoll_3mom(dumzz,dumjj+1,dumii,dumll,dumi+1,dumj+1,ind)-itabcoll_3mom(dumzz,dumjj+1,     &
-               dumii,dumll,dumi,dumj+1,ind))
-
-     iproc1  = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
-
-   ! get current ii+1
-
-    ! get current ll
-
-    ! at j between i and i+1
-     dproc1  = itabcoll_3mom(dumzz,dumjj+1,dumii+1,dumll,dumi,dumj,ind)+(dum1-real(dumi))*                  &
-               (itabcoll_3mom(dumzz,dumjj+1,dumii+1,dumll,dumi+1,dumj,ind)-itabcoll_3mom(dumzz,dumjj+1,     &
-               dumii+1,dumll,dumi,dumj,ind))
-
-    ! at j+1 between i and i+1
-     dproc2  = itabcoll_3mom(dumzz,dumjj+1,dumii+1,dumll,dumi,dumj+1,ind)+(dum1-real(dumi))*                  &
-               (itabcoll_3mom(dumzz,dumjj+1,dumii+1,dumll,dumi+1,dumj+1,ind)-itabcoll_3mom(dumzz,dumjj+1,     &
-               dumii+1,dumll,dumi,dumj+1,ind))
-
-     iproc2  = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
-
-     rproc2  = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-     zproc1  = rproc1+(dum5-real(dumjj))*(rproc2-rproc1)
-
-! get at current zz+1
- ! get at current jj
-
-   ! get current ii
-
-    ! get current ll
-
-    ! at j between i and i+1
-     dproc1  = itabcoll_3mom(dumzz+1,dumjj,dumii,dumll,dumi,dumj,ind)+(dum1-real(dumi))*                  &
-               (itabcoll_3mom(dumzz+1,dumjj,dumii,dumll,dumi+1,dumj,ind)-itabcoll_3mom(dumzz+1,dumjj,     &
-               dumii,dumll,dumi,dumj,ind))
-
-    ! at j+1 between i and i+1
-     dproc2  = itabcoll_3mom(dumzz+1,dumjj,dumii,dumll,dumi,dumj+1,ind)+(dum1-real(dumi))*                  &
-               (itabcoll_3mom(dumzz+1,dumjj,dumii,dumll,dumi+1,dumj+1,ind)-itabcoll_3mom(dumzz+1,dumjj,     &
-               dumii,dumll,dumi,dumj+1,ind))
-
-     iproc1  = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
-
-   ! get current ii+1
-
-    ! get current ll
-
-    ! at j between i and i+1
-     dproc1  = itabcoll_3mom(dumzz+1,dumjj,dumii+1,dumll,dumi,dumj,ind)+(dum1-real(dumi))*                  &
-               (itabcoll_3mom(dumzz+1,dumjj,dumii+1,dumll,dumi+1,dumj,ind)-itabcoll_3mom(dumzz+1,dumjj,     &
-               dumii+1,dumll,dumi,dumj,ind))
-
-    ! at j+1 between i and i+1
-     dproc2  = itabcoll_3mom(dumzz+1,dumjj,dumii+1,dumll,dumi,dumj+1,ind)+(dum1-real(dumi))*                  &
-               (itabcoll_3mom(dumzz+1,dumjj,dumii+1,dumll,dumi+1,dumj+1,ind)-itabcoll_3mom(dumzz+1,dumjj,     &
-               dumii+1,dumll,dumi,dumj+1,ind))
-
-     iproc2  = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
-
-     rproc1  = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
- ! get at current jj+1
-
-   ! get current ii
-
-    ! get current ll
-
-    ! at j between i and i+1
-     dproc1  = itabcoll_3mom(dumzz+1,dumjj+1,dumii,dumll,dumi,dumj,ind)+(dum1-real(dumi))*                    &
-               (itabcoll_3mom(dumzz+1,dumjj+1,dumii,dumll,dumi+1,dumj,ind)-itabcoll_3mom(dumzz+1,dumjj+1,     &
-               dumii,dumll,dumi,dumj,ind))
-
-    ! at j+1 between i and i+1
-     dproc2  = itabcoll_3mom(dumzz+1,dumjj+1,dumii,dumll,dumi,dumj+1,ind)+(dum1-real(dumi))*                    &
-               (itabcoll_3mom(dumzz+1,dumjj+1,dumii,dumll,dumi+1,dumj+1,ind)-itabcoll_3mom(dumzz+1,dumjj+1,     &
-               dumii,dumll,dumi,dumj+1,ind))
-
-     iproc1  = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
-
-   ! get current ii+1
-
-    ! get current ll
-
-    ! at j between i and i+1
-     dproc1  = itabcoll_3mom(dumzz+1,dumjj+1,dumii+1,dumll,dumi,dumj,ind)+(dum1-real(dumi))*                    &
-               (itabcoll_3mom(dumzz+1,dumjj+1,dumii+1,dumll,dumi+1,dumj,ind)-itabcoll_3mom(dumzz+1,dumjj+1,     &
-               dumii+1,dumll,dumi,dumj,ind))
-
-    ! at j+1 between i and i+1
-     dproc2  = itabcoll_3mom(dumzz+1,dumjj+1,dumii+1,dumll,dumi,dumj+1,ind)+(dum1-real(dumi))*                    &
-               (itabcoll_3mom(dumzz+1,dumjj+1,dumii+1,dumll,dumi+1,dumj+1,ind)-itabcoll_3mom(dumzz+1,dumjj+1,     &
-               dumii+1,dumll,dumi,dumj+1,ind))
-
-     iproc2  = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
-
-     rproc2  = iproc1+(dum4-real(dumii))*(iproc2-iproc1)
-
-     zproc2  = rproc1+(dum5-real(dumjj))*(rproc2-rproc1)
-
-! get the final interpolation process rate
-
- proc = zproc1+(dum6-real(dumzz))*(zproc2-zproc1)
-
-else
-
-! get at current zz
-  ! get at current jj
-
-    ! get current ii
-
-     ! get current ll
-
-     ! at j between i and i+1
-      dproc1  = itabcoll_3mom(dumzz,dumjj,dumii,dumll,dumi,dumj,ind)+(dum1-real(dumi))*                &
-                (itabcoll_3mom(dumzz,dumjj,dumii,dumll,dumi+1,dumj,ind)-itabcoll_3mom(dumzz,dumjj,     &
-                dumii,dumll,dumi,dumj,ind))
-
-     ! at j+1 between i and i+1
-      dproc2  = itabcoll_3mom(dumzz,dumjj,dumii,dumll,dumi,dumj+1,ind)+(dum1-real(dumi))*                &
-                (itabcoll_3mom(dumzz,dumjj,dumii,dumll,dumi+1,dumj+1,ind)-itabcoll_3mom(dumzz,dumjj,     &
-                dumii,dumll,dumi,dumj+1,ind))
-
-      iproc1  = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
-
-     ! get current ll+1
-     ! at j between i and i+1
-      dproc1  = itabcoll_3mom(dumzz,dumjj,dumii,dumll+1,dumi,dumj,ind)+(dum1-real(dumi))*                &
-                (itabcoll_3mom(dumzz,dumjj,dumii,dumll+1,dumi+1,dumj,ind)-itabcoll_3mom(dumzz,dumjj,     &
-                dumii,dumll+1,dumi,dumj,ind))
-
-     ! at j+1 between i and i+1
-      dproc2  = itabcoll_3mom(dumzz,dumjj,dumii,dumll+1,dumi,dumj+1,ind)+(dum1-real(dumi))*                &
-                (itabcoll_3mom(dumzz,dumjj,dumii,dumll+1,dumi+1,dumj+1,ind)-itabcoll_3mom(dumzz,dumjj,     &
-                dumii,dumll+1,dumi,dumj+1,ind))
-
-      iproc2  = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
-
-      gproc1  = iproc1+(dum7-real(dumll))*(iproc2-iproc1)
-
-    ! get current ii+1
-
-     ! get current ll
-
-     ! at j between i and i+1
-      dproc1  = itabcoll_3mom(dumzz,dumjj,dumii+1,dumll,dumi,dumj,ind)+(dum1-real(dumi))*                &
-                (itabcoll_3mom(dumzz,dumjj,dumii+1,dumll,dumi+1,dumj,ind)-itabcoll_3mom(dumzz,dumjj,     &
-                dumii+1,dumll,dumi,dumj,ind))
-
-     ! at j+1 between i and i+1
-      dproc2  = itabcoll_3mom(dumzz,dumjj,dumii+1,dumll,dumi,dumj+1,ind)+(dum1-real(dumi))*                &
-                (itabcoll_3mom(dumzz,dumjj,dumii+1,dumll,dumi+1,dumj+1,ind)-itabcoll_3mom(dumzz,dumjj,     &
-                dumii+1,dumll,dumi,dumj+1,ind))
-
-      iproc1  = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
-
-     ! get current ll+1
-     ! at j between i and i+1
-      dproc1  = itabcoll_3mom(dumzz,dumjj,dumii+1,dumll+1,dumi,dumj,ind)+(dum1-real(dumi))*                &
-                (itabcoll_3mom(dumzz,dumjj,dumii+1,dumll+1,dumi+1,dumj,ind)-itabcoll_3mom(dumzz,dumjj,     &
-                dumii+1,dumll+1,dumi,dumj,ind))
-
-     ! at j+1 between i and i+1
-      dproc2  = itabcoll_3mom(dumzz,dumjj,dumii+1,dumll+1,dumi,dumj+1,ind)+(dum1-real(dumi))*                &
-                (itabcoll_3mom(dumzz,dumjj,dumii+1,dumll+1,dumi+1,dumj+1,ind)-itabcoll_3mom(dumzz,dumjj,     &
-                dumii+1,dumll+1,dumi,dumj+1,ind))
-
-      iproc2  = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
-
-      gproc2  = iproc1+(dum7-real(dumll))*(iproc2-iproc1)
-
-      rproc1  = gproc1+(dum4-real(dumii))*(gproc2-gproc1)
-
-  ! get at current jj+1
-
-    ! get current ii
-
-     ! get current ll
-
-     ! at j between i and i+1
-      dproc1  = itabcoll_3mom(dumzz,dumjj+1,dumii,dumll,dumi,dumj,ind)+(dum1-real(dumi))*                  &
-                (itabcoll_3mom(dumzz,dumjj+1,dumii,dumll,dumi+1,dumj,ind)-itabcoll_3mom(dumzz,dumjj+1,     &
-                dumii,dumll,dumi,dumj,ind))
-
-     ! at j+1 between i and i+1
-      dproc2  = itabcoll_3mom(dumzz,dumjj+1,dumii,dumll,dumi,dumj+1,ind)+(dum1-real(dumi))*                  &
-                (itabcoll_3mom(dumzz,dumjj+1,dumii,dumll,dumi+1,dumj+1,ind)-itabcoll_3mom(dumzz,dumjj+1,     &
-                dumii,dumll,dumi,dumj+1,ind))
-
-      iproc1  = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
-
-     ! get current ll+1
-     ! at j between i and i+1
-      dproc1  = itabcoll_3mom(dumzz,dumjj+1,dumii,dumll+1,dumi,dumj,ind)+(dum1-real(dumi))*                  &
-                (itabcoll_3mom(dumzz,dumjj+1,dumii,dumll+1,dumi+1,dumj,ind)-itabcoll_3mom(dumzz,dumjj+1,     &
-                dumii,dumll+1,dumi,dumj,ind))
-
-     ! at j+1 between i and i+1
-      dproc2  = itabcoll_3mom(dumzz,dumjj+1,dumii,dumll+1,dumi,dumj+1,ind)+(dum1-real(dumi))*                  &
-                (itabcoll_3mom(dumzz,dumjj+1,dumii,dumll+1,dumi+1,dumj+1,ind)-itabcoll_3mom(dumzz,dumjj+1,     &
-                dumii,dumll+1,dumi,dumj+1,ind))
-
-      iproc2  = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
-
-      gproc1  = iproc1+(dum7-real(dumll))*(iproc2-iproc1)
-
-    ! get current ii+1
-
-     ! get current ll
-
-     ! at j between i and i+1
-      dproc1  = itabcoll_3mom(dumzz,dumjj+1,dumii+1,dumll,dumi,dumj,ind)+(dum1-real(dumi))*                  &
-                (itabcoll_3mom(dumzz,dumjj+1,dumii+1,dumll,dumi+1,dumj,ind)-itabcoll_3mom(dumzz,dumjj+1,     &
-                dumii+1,dumll,dumi,dumj,ind))
-
-     ! at j+1 between i and i+1
-      dproc2  = itabcoll_3mom(dumzz,dumjj+1,dumii+1,dumll,dumi,dumj+1,ind)+(dum1-real(dumi))*                  &
-                (itabcoll_3mom(dumzz,dumjj+1,dumii+1,dumll,dumi+1,dumj+1,ind)-itabcoll_3mom(dumzz,dumjj+1,     &
-                dumii+1,dumll,dumi,dumj+1,ind))
-
-      iproc1  = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
-
-     ! get current ll+1
-     ! at j between i and i+1
-      dproc1  = itabcoll_3mom(dumzz,dumjj+1,dumii+1,dumll+1,dumi,dumj,ind)+(dum1-real(dumi))*                  &
-                (itabcoll_3mom(dumzz,dumjj+1,dumii+1,dumll+1,dumi+1,dumj,ind)-itabcoll_3mom(dumzz,dumjj+1,     &
-                dumii+1,dumll+1,dumi,dumj,ind))
-
-     ! at j+1 between i and i+1
-      dproc2  = itabcoll_3mom(dumzz,dumjj+1,dumii+1,dumll+1,dumi,dumj+1,ind)+(dum1-real(dumi))*                  &
-                (itabcoll_3mom(dumzz,dumjj+1,dumii+1,dumll+1,dumi+1,dumj+1,ind)-itabcoll_3mom(dumzz,dumjj+1,     &
-                dumii+1,dumll+1,dumi,dumj+1,ind))
-
-      iproc2  = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
-
-      gproc2  = iproc1+(dum7-real(dumll))*(iproc2-iproc1)
-
-      rproc2  = gproc1+(dum4-real(dumii))*(gproc2-gproc1)
-
-      zproc1  = rproc1+(dum5-real(dumjj))*(rproc2-rproc1)
-
-! get at current zz+1
-  ! get at current jj
-
-    ! get current ii
-
-     ! get current ll
-
-     ! at j between i and i+1
-      dproc1  = itabcoll_3mom(dumzz+1,dumjj,dumii,dumll,dumi,dumj,ind)+(dum1-real(dumi))*                  &
-                (itabcoll_3mom(dumzz+1,dumjj,dumii,dumll,dumi+1,dumj,ind)-itabcoll_3mom(dumzz+1,dumjj,     &
-                dumii,dumll,dumi,dumj,ind))
-
-     ! at j+1 between i and i+1
-      dproc2  = itabcoll_3mom(dumzz+1,dumjj,dumii,dumll,dumi,dumj+1,ind)+(dum1-real(dumi))*                  &
-                (itabcoll_3mom(dumzz+1,dumjj,dumii,dumll,dumi+1,dumj+1,ind)-itabcoll_3mom(dumzz+1,dumjj,     &
-                dumii,dumll,dumi,dumj+1,ind))
-
-      iproc1  = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
-
-     ! get current ll+1
-     ! at j between i and i+1
-      dproc1  = itabcoll_3mom(dumzz+1,dumjj,dumii,dumll+1,dumi,dumj,ind)+(dum1-real(dumi))*                  &
-                (itabcoll_3mom(dumzz+1,dumjj,dumii,dumll+1,dumi+1,dumj,ind)-itabcoll_3mom(dumzz+1,dumjj,     &
-                dumii,dumll+1,dumi,dumj,ind))
-
-     ! at j+1 between i and i+1
-      dproc2  = itabcoll_3mom(dumzz+1,dumjj,dumii,dumll+1,dumi,dumj+1,ind)+(dum1-real(dumi))*                  &
-                (itabcoll_3mom(dumzz+1,dumjj,dumii,dumll+1,dumi+1,dumj+1,ind)-itabcoll_3mom(dumzz+1,dumjj,     &
-                dumii,dumll+1,dumi,dumj+1,ind))
-
-      iproc2  = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
-
-      gproc1  = iproc1+(dum7-real(dumll))*(iproc2-iproc1)
-
-    ! get current ii+1
-
-     ! get current ll
-
-     ! at j between i and i+1
-      dproc1  = itabcoll_3mom(dumzz+1,dumjj,dumii+1,dumll,dumi,dumj,ind)+(dum1-real(dumi))*                  &
-                (itabcoll_3mom(dumzz+1,dumjj,dumii+1,dumll,dumi+1,dumj,ind)-itabcoll_3mom(dumzz+1,dumjj,     &
-                dumii+1,dumll,dumi,dumj,ind))
-
-     ! at j+1 between i and i+1
-      dproc2  = itabcoll_3mom(dumzz+1,dumjj,dumii+1,dumll,dumi,dumj+1,ind)+(dum1-real(dumi))*                  &
-                (itabcoll_3mom(dumzz+1,dumjj,dumii+1,dumll,dumi+1,dumj+1,ind)-itabcoll_3mom(dumzz+1,dumjj,     &
-                dumii+1,dumll,dumi,dumj+1,ind))
-
-      iproc1  = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
-
-     ! get current ll+1
-     ! at j between i and i+1
-      dproc1  = itabcoll_3mom(dumzz+1,dumjj,dumii+1,dumll+1,dumi,dumj,ind)+(dum1-real(dumi))*                  &
-                (itabcoll_3mom(dumzz+1,dumjj,dumii+1,dumll+1,dumi+1,dumj,ind)-itabcoll_3mom(dumzz+1,dumjj,     &
-                dumii+1,dumll+1,dumi,dumj,ind))
-
-     ! at j+1 between i and i+1
-      dproc2  = itabcoll_3mom(dumzz+1,dumjj,dumii+1,dumll+1,dumi,dumj+1,ind)+(dum1-real(dumi))*                  &
-                (itabcoll_3mom(dumzz+1,dumjj,dumii+1,dumll+1,dumi+1,dumj+1,ind)-itabcoll_3mom(dumzz+1,dumjj,     &
-                dumii+1,dumll+1,dumi,dumj+1,ind))
-
-      iproc2  = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
-
-      gproc2  = iproc1+(dum7-real(dumll))*(iproc2-iproc1)
-
-      rproc1  = gproc1+(dum4-real(dumii))*(gproc2-gproc1)
-
-  ! get at current jj+1
-
-    ! get current ii
-
-     ! get current ll
-
-     ! at j between i and i+1
-      dproc1  = itabcoll_3mom(dumzz+1,dumjj+1,dumii,dumll,dumi,dumj,ind)+(dum1-real(dumi))*                    &
-                (itabcoll_3mom(dumzz+1,dumjj+1,dumii,dumll,dumi+1,dumj,ind)-itabcoll_3mom(dumzz+1,dumjj+1,     &
-                dumii,dumll,dumi,dumj,ind))
-
-     ! at j+1 between i and i+1
-      dproc2  = itabcoll_3mom(dumzz+1,dumjj+1,dumii,dumll,dumi,dumj+1,ind)+(dum1-real(dumi))*                    &
-                (itabcoll_3mom(dumzz+1,dumjj+1,dumii,dumll,dumi+1,dumj+1,ind)-itabcoll_3mom(dumzz+1,dumjj+1,     &
-                dumii,dumll,dumi,dumj+1,ind))
-
-      iproc1  = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
-
-     ! get current ll+1
-     ! at j between i and i+1
-      dproc1  = itabcoll_3mom(dumzz+1,dumjj+1,dumii,dumll+1,dumi,dumj,ind)+(dum1-real(dumi))*                    &
-                (itabcoll_3mom(dumzz+1,dumjj+1,dumii,dumll+1,dumi+1,dumj,ind)-itabcoll_3mom(dumzz+1,dumjj+1,     &
-                dumii,dumll+1,dumi,dumj,ind))
-
-     ! at j+1 between i and i+1
-      dproc2  = itabcoll_3mom(dumzz+1,dumjj+1,dumii,dumll+1,dumi,dumj+1,ind)+(dum1-real(dumi))*                    &
-                (itabcoll_3mom(dumzz+1,dumjj+1,dumii,dumll+1,dumi+1,dumj+1,ind)-itabcoll_3mom(dumzz+1,dumjj+1,     &
-                dumii,dumll+1,dumi,dumj+1,ind))
-
-      iproc2  = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
-
-      gproc1  = iproc1+(dum7-real(dumll))*(iproc2-iproc1)
-
-    ! get current ii+1
-
-     ! get current ll
-
-     ! at j between i and i+1
-      dproc1  = itabcoll_3mom(dumzz+1,dumjj+1,dumii+1,dumll,dumi,dumj,ind)+(dum1-real(dumi))*                    &
-                (itabcoll_3mom(dumzz+1,dumjj+1,dumii+1,dumll,dumi+1,dumj,ind)-itabcoll_3mom(dumzz+1,dumjj+1,     &
-                dumii+1,dumll,dumi,dumj,ind))
-
-     ! at j+1 between i and i+1
-      dproc2  = itabcoll_3mom(dumzz+1,dumjj+1,dumii+1,dumll,dumi,dumj+1,ind)+(dum1-real(dumi))*                    &
-                (itabcoll_3mom(dumzz+1,dumjj+1,dumii+1,dumll,dumi+1,dumj+1,ind)-itabcoll_3mom(dumzz+1,dumjj+1,     &
-                dumii+1,dumll,dumi,dumj+1,ind))
-
-      iproc1  = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
-
-     ! get current ll+1
-     ! at j between i and i+1
-      dproc1  = itabcoll_3mom(dumzz+1,dumjj+1,dumii+1,dumll+1,dumi,dumj,ind)+(dum1-real(dumi))*                    &
-                (itabcoll_3mom(dumzz+1,dumjj+1,dumii+1,dumll+1,dumi+1,dumj,ind)-itabcoll_3mom(dumzz+1,dumjj+1,     &
-                dumii+1,dumll+1,dumi,dumj,ind))
-
-     ! at j+1 between i and i+1
-      dproc2  = itabcoll_3mom(dumzz+1,dumjj+1,dumii+1,dumll+1,dumi,dumj+1,ind)+(dum1-real(dumi))*                    &
-                (itabcoll_3mom(dumzz+1,dumjj+1,dumii+1,dumll+1,dumi+1,dumj+1,ind)-itabcoll_3mom(dumzz+1,dumjj+1,     &
-                dumii+1,dumll+1,dumi,dumj+1,ind))
-
-      iproc2  = dproc1+(dum3-real(dumj))*(dproc2-dproc1)
-
-      gproc2  = iproc1+(dum7-real(dumll))*(iproc2-iproc1)
-
-      rproc2  = gproc1+(dum4-real(dumii))*(gproc2-gproc1)
-
-      zproc2  = rproc1+(dum5-real(dumjj))*(rproc2-rproc1)
-
-! get the final interpolation process rate
-
-  proc = zproc1+(dum6-real(dumzz))*(zproc2-zproc1)
+ integer :: dumzz,dumjj,dumii,dumll,dumj,dumi
+
+ dum1 = args_r(1);  dum3 = args_r(2);  dum4 = args_r(3)
+ dum5 = args_r(4);  dum6 = args_r(5);  dum7 = args_r(6)
+ dumzz = args_i(1); dumjj = args_i(2); dumii = args_i(3)
+ dumll = args_i(4); dumj  = args_i(5); dumi  = args_i(6)
+
+ if (dumll==1 .and. dum7 < 1. + epsilon(dum7)) then  !skip interpolation for liq-frac if qiliq = 0.
+
+    ! 5D: size, rain, rimefrac, density (liqfrac fixed), Z index
+    ! at dumzz:
+    dproc1 = lerp(itabcoll_3mom(dumzz,  dumjj,  dumii,  dumll,dumi,  dumj,  ind), itabcoll_3mom(dumzz,  dumjj,  dumii,  dumll,dumi+1,dumj,  ind), dum1-real(dumi))
+    dproc2 = lerp(itabcoll_3mom(dumzz,  dumjj,  dumii,  dumll,dumi,  dumj+1,ind), itabcoll_3mom(dumzz,  dumjj,  dumii,  dumll,dumi+1,dumj+1,ind), dum1-real(dumi))
+    iproc1 = lerp(dproc1, dproc2, dum3-real(dumj))
+    dproc1 = lerp(itabcoll_3mom(dumzz,  dumjj,  dumii+1,dumll,dumi,  dumj,  ind), itabcoll_3mom(dumzz,  dumjj,  dumii+1,dumll,dumi+1,dumj,  ind), dum1-real(dumi))
+    dproc2 = lerp(itabcoll_3mom(dumzz,  dumjj,  dumii+1,dumll,dumi,  dumj+1,ind), itabcoll_3mom(dumzz,  dumjj,  dumii+1,dumll,dumi+1,dumj+1,ind), dum1-real(dumi))
+    iproc2 = lerp(dproc1, dproc2, dum3-real(dumj))
+    tmp1   = lerp(iproc1, iproc2, dum4-real(dumii))
+    dproc1 = lerp(itabcoll_3mom(dumzz,  dumjj+1,dumii,  dumll,dumi,  dumj,  ind), itabcoll_3mom(dumzz,  dumjj+1,dumii,  dumll,dumi+1,dumj,  ind), dum1-real(dumi))
+    dproc2 = lerp(itabcoll_3mom(dumzz,  dumjj+1,dumii,  dumll,dumi,  dumj+1,ind), itabcoll_3mom(dumzz,  dumjj+1,dumii,  dumll,dumi+1,dumj+1,ind), dum1-real(dumi))
+    iproc1 = lerp(dproc1, dproc2, dum3-real(dumj))
+    dproc1 = lerp(itabcoll_3mom(dumzz,  dumjj+1,dumii+1,dumll,dumi,  dumj,  ind), itabcoll_3mom(dumzz,  dumjj+1,dumii+1,dumll,dumi+1,dumj,  ind), dum1-real(dumi))
+    dproc2 = lerp(itabcoll_3mom(dumzz,  dumjj+1,dumii+1,dumll,dumi,  dumj+1,ind), itabcoll_3mom(dumzz,  dumjj+1,dumii+1,dumll,dumi+1,dumj+1,ind), dum1-real(dumi))
+    iproc2 = lerp(dproc1, dproc2, dum3-real(dumj))
+    tmp2   = lerp(iproc1, iproc2, dum4-real(dumii))
+    rproc1 = lerp(tmp1, tmp2, dum5-real(dumjj))
+    ! at dumzz+1:
+    dproc1 = lerp(itabcoll_3mom(dumzz+1,dumjj,  dumii,  dumll,dumi,  dumj,  ind), itabcoll_3mom(dumzz+1,dumjj,  dumii,  dumll,dumi+1,dumj,  ind), dum1-real(dumi))
+    dproc2 = lerp(itabcoll_3mom(dumzz+1,dumjj,  dumii,  dumll,dumi,  dumj+1,ind), itabcoll_3mom(dumzz+1,dumjj,  dumii,  dumll,dumi+1,dumj+1,ind), dum1-real(dumi))
+    iproc1 = lerp(dproc1, dproc2, dum3-real(dumj))
+    dproc1 = lerp(itabcoll_3mom(dumzz+1,dumjj,  dumii+1,dumll,dumi,  dumj,  ind), itabcoll_3mom(dumzz+1,dumjj,  dumii+1,dumll,dumi+1,dumj,  ind), dum1-real(dumi))
+    dproc2 = lerp(itabcoll_3mom(dumzz+1,dumjj,  dumii+1,dumll,dumi,  dumj+1,ind), itabcoll_3mom(dumzz+1,dumjj,  dumii+1,dumll,dumi+1,dumj+1,ind), dum1-real(dumi))
+    iproc2 = lerp(dproc1, dproc2, dum3-real(dumj))
+    tmp1   = lerp(iproc1, iproc2, dum4-real(dumii))
+    dproc1 = lerp(itabcoll_3mom(dumzz+1,dumjj+1,dumii,  dumll,dumi,  dumj,  ind), itabcoll_3mom(dumzz+1,dumjj+1,dumii,  dumll,dumi+1,dumj,  ind), dum1-real(dumi))
+    dproc2 = lerp(itabcoll_3mom(dumzz+1,dumjj+1,dumii,  dumll,dumi,  dumj+1,ind), itabcoll_3mom(dumzz+1,dumjj+1,dumii,  dumll,dumi+1,dumj+1,ind), dum1-real(dumi))
+    iproc1 = lerp(dproc1, dproc2, dum3-real(dumj))
+    dproc1 = lerp(itabcoll_3mom(dumzz+1,dumjj+1,dumii+1,dumll,dumi,  dumj,  ind), itabcoll_3mom(dumzz+1,dumjj+1,dumii+1,dumll,dumi+1,dumj,  ind), dum1-real(dumi))
+    dproc2 = lerp(itabcoll_3mom(dumzz+1,dumjj+1,dumii+1,dumll,dumi,  dumj+1,ind), itabcoll_3mom(dumzz+1,dumjj+1,dumii+1,dumll,dumi+1,dumj+1,ind), dum1-real(dumi))
+    iproc2 = lerp(dproc1, dproc2, dum3-real(dumj))
+    tmp2   = lerp(iproc1, iproc2, dum4-real(dumii))
+    rproc2 = lerp(tmp1, tmp2, dum5-real(dumjj))
+
+    proc_from_LUT_ir3mom = lerp(rproc1, rproc2, dum6-real(dumzz))
+
+ else
+
+    ! 6D: size, rain, liqfrac, rimefrac, density, Z index
+    ! at dumzz:
+    dproc1 = lerp(itabcoll_3mom(dumzz,  dumjj,  dumii,  dumll,  dumi,  dumj,  ind), itabcoll_3mom(dumzz,  dumjj,  dumii,  dumll,  dumi+1,dumj,  ind), dum1-real(dumi))
+    dproc2 = lerp(itabcoll_3mom(dumzz,  dumjj,  dumii,  dumll,  dumi,  dumj+1,ind), itabcoll_3mom(dumzz,  dumjj,  dumii,  dumll,  dumi+1,dumj+1,ind), dum1-real(dumi))
+    iproc1 = lerp(dproc1, dproc2, dum3-real(dumj))
+    dproc1 = lerp(itabcoll_3mom(dumzz,  dumjj,  dumii,  dumll+1,dumi,  dumj,  ind), itabcoll_3mom(dumzz,  dumjj,  dumii,  dumll+1,dumi+1,dumj,  ind), dum1-real(dumi))
+    dproc2 = lerp(itabcoll_3mom(dumzz,  dumjj,  dumii,  dumll+1,dumi,  dumj+1,ind), itabcoll_3mom(dumzz,  dumjj,  dumii,  dumll+1,dumi+1,dumj+1,ind), dum1-real(dumi))
+    iproc2 = lerp(dproc1, dproc2, dum3-real(dumj))
+    iproc3 = lerp(iproc1, iproc2, dum7-real(dumll))
+    dproc1 = lerp(itabcoll_3mom(dumzz,  dumjj,  dumii+1,dumll,  dumi,  dumj,  ind), itabcoll_3mom(dumzz,  dumjj,  dumii+1,dumll,  dumi+1,dumj,  ind), dum1-real(dumi))
+    dproc2 = lerp(itabcoll_3mom(dumzz,  dumjj,  dumii+1,dumll,  dumi,  dumj+1,ind), itabcoll_3mom(dumzz,  dumjj,  dumii+1,dumll,  dumi+1,dumj+1,ind), dum1-real(dumi))
+    iproc1 = lerp(dproc1, dproc2, dum3-real(dumj))
+    dproc1 = lerp(itabcoll_3mom(dumzz,  dumjj,  dumii+1,dumll+1,dumi,  dumj,  ind), itabcoll_3mom(dumzz,  dumjj,  dumii+1,dumll+1,dumi+1,dumj,  ind), dum1-real(dumi))
+    dproc2 = lerp(itabcoll_3mom(dumzz,  dumjj,  dumii+1,dumll+1,dumi,  dumj+1,ind), itabcoll_3mom(dumzz,  dumjj,  dumii+1,dumll+1,dumi+1,dumj+1,ind), dum1-real(dumi))
+    iproc2 = lerp(dproc1, dproc2, dum3-real(dumj))
+    iproc4 = lerp(iproc1, iproc2, dum7-real(dumll))
+    tmp1   = lerp(iproc3, iproc4, dum4-real(dumii))
+    dproc1 = lerp(itabcoll_3mom(dumzz,  dumjj+1,dumii,  dumll,  dumi,  dumj,  ind), itabcoll_3mom(dumzz,  dumjj+1,dumii,  dumll,  dumi+1,dumj,  ind), dum1-real(dumi))
+    dproc2 = lerp(itabcoll_3mom(dumzz,  dumjj+1,dumii,  dumll,  dumi,  dumj+1,ind), itabcoll_3mom(dumzz,  dumjj+1,dumii,  dumll,  dumi+1,dumj+1,ind), dum1-real(dumi))
+    iproc1 = lerp(dproc1, dproc2, dum3-real(dumj))
+    dproc1 = lerp(itabcoll_3mom(dumzz,  dumjj+1,dumii,  dumll+1,dumi,  dumj,  ind), itabcoll_3mom(dumzz,  dumjj+1,dumii,  dumll+1,dumi+1,dumj,  ind), dum1-real(dumi))
+    dproc2 = lerp(itabcoll_3mom(dumzz,  dumjj+1,dumii,  dumll+1,dumi,  dumj+1,ind), itabcoll_3mom(dumzz,  dumjj+1,dumii,  dumll+1,dumi+1,dumj+1,ind), dum1-real(dumi))
+    iproc2 = lerp(dproc1, dproc2, dum3-real(dumj))
+    iproc3 = lerp(iproc1, iproc2, dum7-real(dumll))
+    dproc1 = lerp(itabcoll_3mom(dumzz,  dumjj+1,dumii+1,dumll,  dumi,  dumj,  ind), itabcoll_3mom(dumzz,  dumjj+1,dumii+1,dumll,  dumi+1,dumj,  ind), dum1-real(dumi))
+    dproc2 = lerp(itabcoll_3mom(dumzz,  dumjj+1,dumii+1,dumll,  dumi,  dumj+1,ind), itabcoll_3mom(dumzz,  dumjj+1,dumii+1,dumll,  dumi+1,dumj+1,ind), dum1-real(dumi))
+    iproc1 = lerp(dproc1, dproc2, dum3-real(dumj))
+    dproc1 = lerp(itabcoll_3mom(dumzz,  dumjj+1,dumii+1,dumll+1,dumi,  dumj,  ind), itabcoll_3mom(dumzz,  dumjj+1,dumii+1,dumll+1,dumi+1,dumj,  ind), dum1-real(dumi))
+    dproc2 = lerp(itabcoll_3mom(dumzz,  dumjj+1,dumii+1,dumll+1,dumi,  dumj+1,ind), itabcoll_3mom(dumzz,  dumjj+1,dumii+1,dumll+1,dumi+1,dumj+1,ind), dum1-real(dumi))
+    iproc2 = lerp(dproc1, dproc2, dum3-real(dumj))
+    iproc4 = lerp(iproc1, iproc2, dum7-real(dumll))
+    tmp2   = lerp(iproc3, iproc4, dum4-real(dumii))
+    rproc1 = lerp(tmp1, tmp2, dum5-real(dumjj))
+    ! at dumzz+1:
+    dproc1 = lerp(itabcoll_3mom(dumzz+1,dumjj,  dumii,  dumll,  dumi,  dumj,  ind), itabcoll_3mom(dumzz+1,dumjj,  dumii,  dumll,  dumi+1,dumj,  ind), dum1-real(dumi))
+    dproc2 = lerp(itabcoll_3mom(dumzz+1,dumjj,  dumii,  dumll,  dumi,  dumj+1,ind), itabcoll_3mom(dumzz+1,dumjj,  dumii,  dumll,  dumi+1,dumj+1,ind), dum1-real(dumi))
+    iproc1 = lerp(dproc1, dproc2, dum3-real(dumj))
+    dproc1 = lerp(itabcoll_3mom(dumzz+1,dumjj,  dumii,  dumll+1,dumi,  dumj,  ind), itabcoll_3mom(dumzz+1,dumjj,  dumii,  dumll+1,dumi+1,dumj,  ind), dum1-real(dumi))
+    dproc2 = lerp(itabcoll_3mom(dumzz+1,dumjj,  dumii,  dumll+1,dumi,  dumj+1,ind), itabcoll_3mom(dumzz+1,dumjj,  dumii,  dumll+1,dumi+1,dumj+1,ind), dum1-real(dumi))
+    iproc2 = lerp(dproc1, dproc2, dum3-real(dumj))
+    iproc3 = lerp(iproc1, iproc2, dum7-real(dumll))
+    dproc1 = lerp(itabcoll_3mom(dumzz+1,dumjj,  dumii+1,dumll,  dumi,  dumj,  ind), itabcoll_3mom(dumzz+1,dumjj,  dumii+1,dumll,  dumi+1,dumj,  ind), dum1-real(dumi))
+    dproc2 = lerp(itabcoll_3mom(dumzz+1,dumjj,  dumii+1,dumll,  dumi,  dumj+1,ind), itabcoll_3mom(dumzz+1,dumjj,  dumii+1,dumll,  dumi+1,dumj+1,ind), dum1-real(dumi))
+    iproc1 = lerp(dproc1, dproc2, dum3-real(dumj))
+    dproc1 = lerp(itabcoll_3mom(dumzz+1,dumjj,  dumii+1,dumll+1,dumi,  dumj,  ind), itabcoll_3mom(dumzz+1,dumjj,  dumii+1,dumll+1,dumi+1,dumj,  ind), dum1-real(dumi))
+    dproc2 = lerp(itabcoll_3mom(dumzz+1,dumjj,  dumii+1,dumll+1,dumi,  dumj+1,ind), itabcoll_3mom(dumzz+1,dumjj,  dumii+1,dumll+1,dumi+1,dumj+1,ind), dum1-real(dumi))
+    iproc2 = lerp(dproc1, dproc2, dum3-real(dumj))
+    iproc4 = lerp(iproc1, iproc2, dum7-real(dumll))
+    tmp1   = lerp(iproc3, iproc4, dum4-real(dumii))
+    dproc1 = lerp(itabcoll_3mom(dumzz+1,dumjj+1,dumii,  dumll,  dumi,  dumj,  ind), itabcoll_3mom(dumzz+1,dumjj+1,dumii,  dumll,  dumi+1,dumj,  ind), dum1-real(dumi))
+    dproc2 = lerp(itabcoll_3mom(dumzz+1,dumjj+1,dumii,  dumll,  dumi,  dumj+1,ind), itabcoll_3mom(dumzz+1,dumjj+1,dumii,  dumll,  dumi+1,dumj+1,ind), dum1-real(dumi))
+    iproc1 = lerp(dproc1, dproc2, dum3-real(dumj))
+    dproc1 = lerp(itabcoll_3mom(dumzz+1,dumjj+1,dumii,  dumll+1,dumi,  dumj,  ind), itabcoll_3mom(dumzz+1,dumjj+1,dumii,  dumll+1,dumi+1,dumj,  ind), dum1-real(dumi))
+    dproc2 = lerp(itabcoll_3mom(dumzz+1,dumjj+1,dumii,  dumll+1,dumi,  dumj+1,ind), itabcoll_3mom(dumzz+1,dumjj+1,dumii,  dumll+1,dumi+1,dumj+1,ind), dum1-real(dumi))
+    iproc2 = lerp(dproc1, dproc2, dum3-real(dumj))
+    iproc3 = lerp(iproc1, iproc2, dum7-real(dumll))
+    dproc1 = lerp(itabcoll_3mom(dumzz+1,dumjj+1,dumii+1,dumll,  dumi,  dumj,  ind), itabcoll_3mom(dumzz+1,dumjj+1,dumii+1,dumll,  dumi+1,dumj,  ind), dum1-real(dumi))
+    dproc2 = lerp(itabcoll_3mom(dumzz+1,dumjj+1,dumii+1,dumll,  dumi,  dumj+1,ind), itabcoll_3mom(dumzz+1,dumjj+1,dumii+1,dumll,  dumi+1,dumj+1,ind), dum1-real(dumi))
+    iproc1 = lerp(dproc1, dproc2, dum3-real(dumj))
+    dproc1 = lerp(itabcoll_3mom(dumzz+1,dumjj+1,dumii+1,dumll+1,dumi,  dumj,  ind), itabcoll_3mom(dumzz+1,dumjj+1,dumii+1,dumll+1,dumi+1,dumj,  ind), dum1-real(dumi))
+    dproc2 = lerp(itabcoll_3mom(dumzz+1,dumjj+1,dumii+1,dumll+1,dumi,  dumj+1,ind), itabcoll_3mom(dumzz+1,dumjj+1,dumii+1,dumll+1,dumi+1,dumj+1,ind), dum1-real(dumi))
+    iproc2 = lerp(dproc1, dproc2, dum3-real(dumj))
+    iproc4 = lerp(iproc1, iproc2, dum7-real(dumll))
+    tmp2   = lerp(iproc3, iproc4, dum4-real(dumii))
+    rproc2 = lerp(tmp1, tmp2, dum5-real(dumjj))
+
+    proc_from_LUT_ir3mom = lerp(rproc1, rproc2, dum6-real(dumzz))
 
  endif
-
- proc_from_LUT_ir3mom = proc
 
  end function proc_from_LUT_ir3mom
 
 !==========================================================================================!
+
 
  real function polysvp1(T,i_type)
 
@@ -10963,10 +7335,7 @@ else
  ! represented by N(D) = No*D^mu*e(-lambda*D).
  !
  ! * solution is done using a piecewise polynomial approximation *
- !
- ! For analytic cubic root solution, use 'compute_mu_3mom_2'
- ! (This is coded as seperate subroutines, rather than a single function with an option,
- ! to avoid a IF/THEN block since this is used in loops.)
+ ! (faster and equivalent accuracy to the analytic cubic root for operational mu_i ranges)
  !
  ! note: moment 3 is not equal to the mass mixing ratio (due to variable density)
  !--------------------------------------------------------------------------
@@ -11036,80 +7405,6 @@ else
 
  end function compute_mu_3mom_1
 
-!==========================================================================================!
- real function compute_mu_3mom_2(mom0,mom3,mom6,mu_max)
-
- !--------------------------------------------------------------------------
- ! Computes mu as a function of moments 0, 3, and 6 of the size distribution
- ! represented by N(D) = No*D^mu*e(-lambda*D).
- !
- ! * solution is done using an analytic cubic root *
- !
- ! For piecewise polynomial approximation solution, use 'compute_mu_3mom_1'
- ! (This is coded as seperate subroutines, rather than a single function with an option,
- ! to avoid a IF/THEN block since this is used in loops.)
- !
- ! note: moment 3 is not equal to the mass mixing ratio (due to variable density)
- !--------------------------------------------------------------------------
-
- implicit none
-
-! arguments:
- real, intent(in) :: mom0    !0th moment
- real, intent(in) :: mom3    !3th moment  (note, not normalized)
- real, intent(in) :: mom6    !6th moment  (note, not normalized)
- real, intent(in) :: mu_max  !maximum allowable value of mu
-
-! local:
- double precision :: G,g2,x1,x2,x3
- real             :: mu,dum,c1,c2,c3,Q,R,aa,bb
- real, parameter  :: eps_m3 = 1.e-20
- real, parameter  :: inv_9  = 1./9.
- real, parameter  :: inv_54 = 1./54.
-
- if (mom3>eps_m3) then
-
-    !G = (mom0*mom6)/(mom3**2)
-    !To avoid very small values of mom3**2 (not enough),
-    !reformulated as: G = (mom0/mom3)*(mom6/mom3)
-     x1 = dble(1./mom3)
-     x2 = dble(mom0)*x1
-     x3 = dble(mom6)*x1
-     G  = x2*x3
-
-     ! set minimum on G, below this the analytic solution breaks down
-     G = max(1.3d0, G)
-
-    !analytic cubic root solution:
-     dum = 1./(1.-sngl(G))
-     c1  = (15.-6.*sngl(G))*dum
-     c2  = (74.-11.*sngl(G))*dum
-     c3  = (120.-6.*sngl(G))*dum
-     Q   = (c1**2-3.*c2)*inv_9
-     R   = (2.*c1**3-9.*c1*c2+27.*c3)*inv_54
-
-     ! NOTE: R is always < 0, thus we take the following:
-
-     aa = (abs(R)+sqrt(R**2-Q**3))**thrd
-     bb = Q/aa
-
-     mu = aa+bb-c1*thrd
-     mu = min(max(mu,0.),mu_max)
-
-     compute_mu_3mom_2 = mu
-
- else
-
-    print*, 'Input parameters out of bounds in function COMPUTE_MU_3MOMENT1'
-    print*, 'mom0 = ',mom0
-    print*, 'mom3 = ',mom3
-    print*, 'mom6 = ',mom6
-    stop
-
- endif
-
- end function compute_mu_3mom_2
-
 !======================================================================================!
  real function G_of_mu(mu)
 
@@ -11149,8 +7444,8 @@ else
  ! first find index for LT3 and interpolates in LT3 to get mu_i
  call find_lookupTable_indices_3a(dumzq,dum8,zqsize,Zi,Qi)
 
- mu_i   = proc_from_LUT_3(1,dumzq,dumjj,dumii,dumll,dumi,dum1,dum4,dum5,dum7,dum8)
- rholt3 = proc_from_LUT_3(2,dumzq,dumjj,dumii,dumll,dumi,dum1,dum4,dum5,dum7,dum8)
+ mu_i   = proc_from_LUT_3(LUT3_MUI,dumzq,dumjj,dumii,dumll,dumi,dum1,dum4,dum5,dum7,dum8)
+ rholt3 = proc_from_LUT_3(LUT3_RHOI,dumzq,dumjj,dumii,dumll,dumi,dum1,dum4,dum5,dum7,dum8)
 
  !now find dum6, dumzz from mu_i
  call find_lookupTable_indices_1c(dumzz,dum6,zsize,mu_i)
@@ -11200,7 +7495,7 @@ else
 ! !                    mu_i = compute_mu_3mom_1(Ni,mom3,Zi,mu_i_max)
 ! !                    call find_lookupTable_indices_1c(dumzz,dum6,zsize,mu_i)
 ! !                    call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0.,dumzz,dumjj,dumii,dumll,dumi,0)
-! !                    rhoi = proc_from_LUT_main3mom(12,args_r,args_i)
+! !                    rhoi = proc_from_LUT_main3mom(LUT1_RHOMM,args_r,args_i)
 ! !                    mom3 =  6./(rhoi*pi)*Qi  !estimate of moment3
 ! !                 enddo
 ! ! !-----
@@ -11210,10 +7505,12 @@ else
  do ind = 1,max_iterations
     call find_lookupTable_indices_1c(dumzz,dum6,zsize,mu_old)
     call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0.,dumzz,dumjj,dumii,dumll,dumi,0)
-    rhoi = proc_from_LUT_main3mom(12,args_r,args_i)
+    rhoi = proc_from_LUT_main3mom(LUT1_RHOMM,args_r,args_i)
     mom3 = 6./(rhoi*pi)*Qi
-    mu_i = compute_mu_3mom_1(Ni,mom3,Zi,mu_i_max)   ! piecewise polynomial approximation (fast)
-  ! mu_i = compute_mu_3mom_2(Ni,mom3,Zi,mu_i_max)   ! analytic cubic root (slow, more accurate)
+  ! compute_mu_3mom_1 (piecewise polynomial) is used rather than compute_mu_3mom_2
+  ! (analytic cubic root) because it is substantially faster at equivalent accuracy
+  ! for the mu_i ranges encountered in practice.  compute_mu_3mom_2 has been removed.
+    mu_i = compute_mu_3mom_1(Ni,mom3,Zi,mu_i_max)   ! piecewise polynomial approximation
     if (abs(mu_old-mu_i) < tol) exit
     mu_old = mu_i
  enddo
@@ -11717,7 +8014,12 @@ else
     dt_left       = dt  !time remaining for sedi over full model (mp) time step
     prt_accum     = 0.  !precip rate for individual category
     k_qxbot       = k_bottom(qx(:),ktop,kbot,kdir)
-    flux_qx(kbot) = 0.  !to prevent NaN in calculation of prt_accum below
+    flux_qx(:)    = 0.  !BUG-003: init whole array; the flux loop below only fills the
+    flux_nx(:)    = 0.  !  k_temp..k_qxtop rain subrange, but 'massflux = flux_qx' copies
+                        !  the WHOLE array into massflux_r, which VIS2 later reads at all
+                        !  levels -- uninitialized stack garbage there caused SIGFPE
+                        !  OVERFLOW in the visibility diagnostic. (Subsumes the old
+                        !  single-element flux_qx(kbot)=0. that guarded prt_accum only.)
 
     substep_sedi_r: do while (dt_left.gt.1.e-4)
 
@@ -11789,7 +8091,10 @@ else
        k = k_qxtop   !for top level only (since flux is 0 above)
        tmp1 = i_dz(k)*dt_sub*i_rho(k)
        qx(k) = qx(k) -flux_qx(k)*tmp1
-       nx(k) = nx(k) -flux_qx(k)*tmp1
+       nx(k) = nx(k) -flux_nx(k)*tmp1   !BUG-004: number update must use flux_nx, not
+                                        !  flux_qx (was a copy-paste typo from the qx line
+                                        !  above; the interior-levels loop below already
+                                        !  uses flux_nx correctly for nx).
 
        do k = k_qxtop-kdir,k_temp,-kdir
           tmp1 = i_dz(k)*dt_sub*i_rho(k)
@@ -11806,32 +8111,41 @@ else
 
  else
 
-    massflux(:) = 0.
+    if (present(massflux)) massflux(:) = 0.  !BUG-003: guard optional; cloud calls
+                                             !  (liq_type==1) do not pass massflux, so
+                                             !  the bare assignment referenced an absent
+                                             !  optional (UB) whenever a cloud column
+                                             !  took this no-precipitation branch.
 
  endif qx_present
 
  end subroutine sedimentation_liquid
 
 !======================================================================================!
- subroutine sedimentation_ice_TT(qit,qir,qil,nit,bir,zit,prt_sol,prt_soli,rho,i_rho,     &
-                                 rhofac,i_dz,ktop,kbot,kdir,dt)
+ subroutine sedimentation_ice(log_3mom,log_liq,qit,qir,qil,nit,bir,zit,prt_sol,          &
+                              prt_soli,rho,i_rho,rhofac,i_dz,ktop,kbot,kdir,dt)
 
  !--------------------------------------------------------------------------
  ! Performs full sedimentation step for all prognostic ice variables.
  ! Since this subroutine is passed from within an i-loop, the i-dimension is
  ! dropped from the ice arrays.
  !
- ! Note, the three following 'sedimentation_ice_(x)' routines, for x = TF, FT, and FF,
- ! are variations of this "full" ice sedimentation subroutine.  The repeated code
- ! is preferable to using conditionals within k-loops in a single genric routine.
- !
- ! Version:  3-moment ice (T), liqFrac (T)
+ ! This single routine replaces the former four specialized copies
+ ! (sedimentation_ice_TT/TF/FT/FF, one per trplMomIce x liqFrac combination).
+ ! The configuration is selected by two logical flags:
+ !   log_3mom - 3-moment ice:     advect zitot; Co_max uses the
+ !              reflectivity-weighted fall speed (the largest)
+ !   log_liq  - liquid fraction:  advect qiliq
+ ! Both flags are loop-invariant, so the conditionals inside the k-loops are
+ ! perfectly predicted; timing tests show no cost vs. the specialized copies.
+ ! The qil and zit arrays are always present (p3_main carries them for all
+ ! configurations); they are only read/updated under their respective flags.
  !--------------------------------------------------------------------------
 
  implicit none
 
 !arguments:
-! real, intent(inout), dimension(nk,nCat) :: qit,qir,qil,nit,bir,zit
+ logical, intent(in)                  :: log_3mom,log_liq
  real, intent(inout), dimension(:,:)  :: qit,qir,qil,nit,bir,zit
  real, intent(inout)                  :: prt_sol
  real, intent(inout), dimension(:)    :: prt_soli
@@ -11841,9 +8155,9 @@ else
 
 !local variables:
  integer :: iice,k,k_qxtop,k_qxbot,dumi,dumjj,dumii,dumll,dumzz,tmpint1,k_temp
- logical :: log_qxpresent
+ logical :: log_qxpresent,log_qiproceed
  real    :: dt_left,prt_accum,Co_max,rhop,dum1,dum4,dum5,dum7,mu_i,f1pr16,dum6,          &
-            f1pr01,f1pr02,f1pr09,f1pr10,f1pr19,tmp1,tmp2,dt_sub
+            f1pr01,f1pr02,f1pr09,f1pr10,f1pr19,tmp1,tmp2,dt_sub,qil_k
 
  real, dimension(size(qit,dim=1)) :: V_qit,V_nit,V_zit,flux_qit,flux_qir,flux_qil,       &
                                      flux_nit,flux_bir,flux_zit
@@ -11867,50 +8181,77 @@ else
           Co_max   = 0.
           V_qit(:) = 0.
           V_nit(:) = 0.
-          V_zit(:) = 0.
+          if (log_3mom) V_zit(:) = 0.
 
           kloop_sedi_i4: do k = k_qxtop,k_qxbot,-kdir
 
             !compute Vq, Vn (get values from lookup table):
-             qi_notsmall: if (qit(k,iice).ge.qsmall) then
+             log_qiproceed = qit(k,iice).ge.qsmall .and. nit(k,iice).ge.nsmall
+             if (log_liq) log_qiproceed = log_qiproceed .and. qil(k,iice).lt.qit(k,iice)
+
+             qi_notsmall: if (log_qiproceed) then
 
                 nit(k,iice) = max(nit(k,iice),nsmall) !impose lower limits; prevents log(<0)
-                call calc_bulkRhoRime(qit(k,iice),qir(k,iice),qil(k,iice),bir(k,iice),rhop)
+
+                qil_k = 0.
+                if (log_liq) qil_k = qil(k,iice)
+
+                call calc_bulkRhoRime(qit(k,iice),qir(k,iice),qil_k,bir(k,iice),rhop)
 
                 call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,       &
                           dum5,dum7,isize,rimsize,liqsize,densize,qit(k,iice),           &
-                          nit(k,iice),qir(k,iice),qil(k,iice),rhop)
+                          nit(k,iice),qir(k,iice),qil_k,rhop)
 
-                call get_mui_rhoi(mu_i,f1pr16,dum6,dumzz,qit(k,iice),                    &
-                                  nit(k,iice),zit(k,iice),dum1,dum4,dum5,dum7,           &
-                                  dumjj,dumii,dumll,dumi,zsize,zqsize)
+                threeMom_LUT: if (log_3mom) then
 
-                call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0.,       &
-                                  dumzz,dumjj,dumii,dumll,dumi,0)
+                   call get_mui_rhoi(mu_i,f1pr16,dum6,dumzz,qit(k,iice),                 &
+                                     nit(k,iice),zit(k,iice),dum1,dum4,dum5,dum7,        &
+                                     dumjj,dumii,dumll,dumi,zsize,zqsize)
 
-                f1pr01 = proc_from_LUT_main3mom( 1,args_r,args_i)
-                f1pr02 = proc_from_LUT_main3mom( 2,args_r,args_i)
-                f1pr09 = proc_from_LUT_main3mom( 7,args_r,args_i)
-                f1pr10 = proc_from_LUT_main3mom( 8,args_r,args_i)
-                f1pr19 = proc_from_LUT_main3mom(13,args_r,args_i)
+                   call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0.,    &
+                                     dumzz,dumjj,dumii,dumll,dumi,0)
+
+                   f1pr01 = proc_from_LUT_main3mom(LUT1_UNS,args_r,args_i)
+                   f1pr02 = proc_from_LUT_main3mom(LUT1_UMS,args_r,args_i)
+                   f1pr09 = proc_from_LUT_main3mom(LUT1_QSML,args_r,args_i)
+                   f1pr10 = proc_from_LUT_main3mom(LUT1_QLRG,args_r,args_i)
+                   f1pr19 = proc_from_LUT_main3mom(LUT1_3M_UZS,args_r,args_i)
+
+                else
+
+                   call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum7,0.,0.,0.,0.,      &
+                                     dumjj,dumii,dumll,dumi,0,0)
+
+                   f1pr01 = proc_from_LUT_main2mom(LUT1_UNS,args_r,args_i)
+                   f1pr02 = proc_from_LUT_main2mom(LUT1_UMS,args_r,args_i)
+                   f1pr09 = proc_from_LUT_main2mom(LUT1_QSML,args_r,args_i)
+                   f1pr10 = proc_from_LUT_main2mom(LUT1_QLRG,args_r,args_i)
+
+                endif threeMom_LUT
 
               !impose mean ice size bounds (i.e. apply lambda limiters)
                 nit(k,iice) = min(nit(k,iice),f1pr09*qit(k,iice))
                 nit(k,iice) = max(nit(k,iice),f1pr10*qit(k,iice))
 
-              !impose limiter on zitot; ensures mu_i is in bounds
-                tmp1 = 6./(f1pr16*pi)*qit(k,iice)
-                tmp2 = tmp1**2/nit(k,iice)
-                zit(k,iice) = min(zit(k,iice),G_of_mu( 0.)*tmp2)
-                zit(k,iice) = max(zit(k,iice),G_of_mu(20.)*tmp2)
+                if (log_3mom) then
+                 !impose limiter on zitot; ensures mu_i is in bounds
+                   tmp1 = 6./(f1pr16*pi)*qit(k,iice)
+                   tmp2 = tmp1**2/nit(k,iice)
+                   zit(k,iice) = min(zit(k,iice),G_of_mu( 0.)*tmp2)
+                   zit(k,iice) = max(zit(k,iice),G_of_mu(20.)*tmp2)
+                   V_zit(k) = f1pr19*rhofac(k)  !reflectivity-weighted fall speed (with air density factor)
+                endif
 
-                V_qit(k) = f1pr02*rhofac(k)   !mass-weighted fall speed  (with air density factor)
-                V_nit(k) = f1pr01*rhofac(k)   !number-weighted fall speed
-                V_zit(k) = f1pr19*rhofac(k)   !reflectivity-weighted fall speed
+                V_qit(k) = f1pr02*rhofac(k)   !mass-weighted fall speed (with air density factor)
+                V_nit(k) = f1pr01*rhofac(k)   !number-weighted fall speed (with air density factor)
 
              endif qi_notsmall
 
-             Co_max = max(Co_max, V_zit(k)*dt_left*i_dz(k))   !note: V_zit is the largest fall speed
+             if (log_3mom) then
+                Co_max = max(Co_max, V_zit(k)*dt_left*i_dz(k))  !note: V_zit is the largest fall speed
+             else
+                Co_max = max(Co_max, V_qit(k)*dt_left*i_dz(k))
+             endif
 
           enddo kloop_sedi_i4
 
@@ -11923,9 +8264,9 @@ else
              flux_qit(k) = V_qit(k)*qit(k,iice)*rho(k)
              flux_nit(k) = V_nit(k)*nit(k,iice)*rho(k)
              flux_qir(k) = V_qit(k)*qir(k,iice)*rho(k)
-             flux_qil(k) = V_qit(k)*qil(k,iice)*rho(k)
              flux_bir(k) = V_qit(k)*bir(k,iice)*rho(k)
-             flux_zit(k) = V_zit(k)*zit(k,iice)*rho(k)
+             if (log_liq)  flux_qil(k) = V_qit(k)*qil(k,iice)*rho(k)
+             if (log_3mom) flux_zit(k) = V_zit(k)*zit(k,iice)*rho(k)
 !              mflux_i(i,k) = flux_qit(k)  !store mass flux for use in visibility diagnostic)
           enddo
 
@@ -11939,19 +8280,19 @@ else
           tmp1 = i_dz(k)*dt_sub*i_rho(k)
           qit(k,iice) = qit(k,iice) - flux_qit(k)*tmp1
           qir(k,iice) = qir(k,iice) - flux_qir(k)*tmp1
-          qil(k,iice) = qil(k,iice) - flux_qil(k)*tmp1
-          bir(k,iice) = bir(k,iice) - flux_bir(k)*tmp1
           nit(k,iice) = nit(k,iice) - flux_nit(k)*tmp1
-          zit(k,iice) = zit(k,iice) - flux_zit(k)*tmp1
+          bir(k,iice) = bir(k,iice) - flux_bir(k)*tmp1
+          if (log_liq)  qil(k,iice) = qil(k,iice) - flux_qil(k)*tmp1
+          if (log_3mom) zit(k,iice) = zit(k,iice) - flux_zit(k)*tmp1
 
           do k = k_qxtop-kdir,k_temp,-kdir
              tmp1 = i_dz(k)*dt_sub*i_rho(k)
              qit(k,iice) = qit(k,iice) + (flux_qit(k+kdir) - flux_qit(k))*tmp1
              qir(k,iice) = qir(k,iice) + (flux_qir(k+kdir) - flux_qir(k))*tmp1
-             qil(k,iice) = qil(k,iice) + (flux_qil(k+kdir) - flux_qil(k))*tmp1
-             bir(k,iice) = bir(k,iice) + (flux_bir(k+kdir) - flux_bir(k))*tmp1
              nit(k,iice) = nit(k,iice) + (flux_nit(k+kdir) - flux_nit(k))*tmp1
-             zit(k,iice) = zit(k,iice) + (flux_zit(k+kdir) - flux_zit(k))*tmp1
+             bir(k,iice) = bir(k,iice) + (flux_bir(k+kdir) - flux_bir(k))*tmp1
+             if (log_liq)  qil(k,iice) = qil(k,iice) + (flux_qil(k+kdir) - flux_qil(k))*tmp1
+             if (log_3mom) zit(k,iice) = zit(k,iice) + (flux_zit(k+kdir) - flux_zit(k))*tmp1
           enddo
 
           dt_left = dt_left - dt_sub  !update time remaining for sedimentation
@@ -11967,423 +8308,7 @@ else
 
     enddo iice_loop_sedi_ice
 
- end subroutine sedimentation_ice_TT
-
-!======================================================================================!
- subroutine sedimentation_ice_TF(qit,qir,nit,bir,zit,prt_sol,prt_soli,rho,i_rho,rhofac,  &
-                                 i_dz,ktop,kbot,kdir,dt)
-
- !--------------------------------------------------------------------------
- ! Performs full sedimentation step for all prognostic ice variables.
- ! Since this subroutine is passed from within an i-loop, the i-dimension is
- ! dropped from the ice arrays.
- !
- ! Version:  3-moment ice (T), no liqFrac (F)
- !--------------------------------------------------------------------------
-
- implicit none
-
-!arguments:
- real, intent(inout), dimension(:,:) :: qit,qir,nit,bir,zit
- real, intent(inout)                 :: prt_sol
- real, intent(inout), dimension(:)   :: prt_soli
- integer, intent(in)                 :: ktop,kbot,kdir
- real,    intent(in)                 :: dt
- real, intent(in), dimension(:)      :: rho,i_rho,rhofac,i_dz
-
-!local variables:
- integer :: iice,k,k_qxtop,k_qxbot,dumi,dumjj,dumii,dumll,dumzz,tmpint1,k_temp
- logical :: log_qxpresent
- real    :: dt_left,prt_accum,Co_max,rhop,dum1,dum4,dum5,dum7,mu_i,f1pr16,dum6,          &
-            f1pr01,f1pr02,f1pr09,f1pr10,f1pr19,tmp1,tmp2,dt_sub
-
- real, dimension(size(qit,dim=1)) :: V_qit,V_nit,V_zit,flux_qit,flux_qir,flux_qil,flux_nit,flux_bir,  &
-                        flux_zit
- real,    dimension(n_args_r) :: args_r
- integer, dimension(n_args_i) :: args_i
-
-
- iice_loop_sedi_ice:  do iice = 1,size(qit,dim=2)  !i.e. 1,nCat
-
-    call find_top(k_qxtop,log_qxpresent,qit(:,iice),ktop,kbot,kdir)
-
-    qi_present: if (log_qxpresent) then
-
-       dt_left        = dt  !time remaining for sedi over full model (mp) time step
-       prt_accum      = 0.  !precip rate for individual category
-       k_qxbot        = k_bottom(qit(:,iice),ktop,kbot,kdir)
-       flux_qit(kbot) = 0.  !to prevent NaN in calculation of prt_accum below
-
-       substep_sedi: do while (dt_left.gt.1.e-4)
-
-          Co_max   = 0.
-          V_qit(:) = 0.
-          V_nit(:) = 0.
-          V_zit(:) = 0.
-
-          kloop_sedi_i4: do k = k_qxtop,k_qxbot,-kdir
-
-             !-- compute Vq, Vn (get values from lookup table)
-             qi_notsmall: if (qit(k,iice).ge.qsmall) then
-
-              !--Compute Vq, Vn:
-                nit(k,iice) = max(nit(k,iice),nsmall) !impose lower limits; prevents log(<0)
-                call calc_bulkRhoRime(qit(k,iice),qir(k,iice),0.,bir(k,iice),rhop)
-
-                call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,       &
-                          dum5,dum7,isize,rimsize,liqsize,densize,qit(k,iice),           &
-                          nit(k,iice),qir(k,iice),0.,rhop)
-
-                call get_mui_rhoi(mu_i,f1pr16,dum6,dumzz,qit(k,iice),nit(k,iice),        &
-                                  zit(k,iice),dum1,dum4,dum5,dum7,dumjj,dumii,dumll,     &
-                                  dumi,zsize,zqsize)
-
-                call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum6,dum7,0.,0.,0.,       &
-                                  dumzz,dumjj,dumii,dumll,dumi,0)
-
-                f1pr01 = proc_from_LUT_main3mom( 1,args_r,args_i)
-                f1pr02 = proc_from_LUT_main3mom( 2,args_r,args_i)
-                f1pr09 = proc_from_LUT_main3mom( 7,args_r,args_i)
-                f1pr10 = proc_from_LUT_main3mom( 8,args_r,args_i)
-                f1pr19 = proc_from_LUT_main3mom(13,args_r,args_i)
-
-              !impose mean ice size bounds (i.e. apply lambda limiters)
-                nit(k,iice) = min(nit(k,iice),f1pr09*qit(k,iice))
-                nit(k,iice) = max(nit(k,iice),f1pr10*qit(k,iice))
-
-              !impose limiter on zitot to make sure mu_i is in bounds
-                tmp1 = 6./(f1pr16*pi)*qit(k,iice)
-                tmp2 = tmp1**2/nit(k,iice)
-                zit(k,iice) = min(zit(k,iice),G_of_mu( 0.)*tmp2)
-                zit(k,iice) = max(zit(k,iice),G_of_mu(20.)*tmp2)
-
-                V_qit(k) = f1pr02*rhofac(k)   !mass-weighted fall speed (with air density factor)
-                V_nit(k) = f1pr01*rhofac(k)   !number-weighted fall speed (with air density factor)
-                V_zit(k) = f1pr19*rhofac(k)   !reflectivity-weighted fall speed (with air density factor)
-
-             endif qi_notsmall
-
-             Co_max = max(Co_max, V_zit(k)*dt_left*i_dz(k))   !note: V_zit is the largest fall speed
-
-          enddo kloop_sedi_i4
-
-          tmpint1 = int(Co_max+1.)    !number of substeps remaining if dt_sub were constant
-          dt_sub  = min(dt_left, dt_left/float(tmpint1))
-          k_temp  = merge(k_qxbot, k_qxbot-kdir, k_qxbot==kbot)
-
-          !-- calculate fluxes
-          do k = k_temp,k_qxtop,kdir
-             flux_qit(k) = V_qit(k)*qit(k,iice)*rho(k)
-             flux_nit(k) = V_nit(k)*nit(k,iice)*rho(k)
-             flux_qir(k) = V_qit(k)*qir(k,iice)*rho(k)
-             flux_bir(k) = V_qit(k)*bir(k,iice)*rho(k)
-             flux_zit(k) = V_zit(k)*zit(k,iice)*rho(k)
-!              mflux_i(i,k) = flux_qit(k)  !store mass flux for use in visibility diagnostic)
-          enddo
-
-          !accumulated precip during time step
-          prt_accum = prt_accum + flux_qit(kbot)*dt_sub*merge(1., 0., k_qxbot==kbot)
-
-          !-- update prognostic variables based on flux divergence
-
-          !for top level only (since flux is 0 above)
-          k = k_qxtop
-          tmp1 = i_dz(k)*dt_sub*i_rho(k)
-          qit(k,iice) = qit(k,iice) - flux_qit(k)*tmp1
-          qir(k,iice) = qir(k,iice) - flux_qir(k)*tmp1
-          bir(k,iice) = bir(k,iice) - flux_bir(k)*tmp1
-          nit(k,iice) = nit(k,iice) - flux_nit(k)*tmp1
-          zit(k,iice) = zit(k,iice) - flux_zit(k)*tmp1
-
-          do k = k_qxtop-kdir,k_temp,-kdir
-             tmp1 = i_dz(k)*dt_sub*i_rho(k)
-             qit(k,iice) = qit(k,iice) + (flux_qit(k+kdir) - flux_qit(k))*tmp1
-             qir(k,iice) = qir(k,iice) + (flux_qir(k+kdir) - flux_qir(k))*tmp1
-             bir(k,iice) = bir(k,iice) + (flux_bir(k+kdir) - flux_bir(k))*tmp1
-             nit(k,iice) = nit(k,iice) + (flux_nit(k+kdir) - flux_nit(k))*tmp1
-             zit(k,iice) = zit(k,iice) + (flux_zit(k+kdir) - flux_zit(k))*tmp1
-          enddo
-
-          dt_left = dt_left - dt_sub  !update time remaining for sedimentation
-          k_qxbot = merge(k_qxbot, k_qxbot-kdir, k_qxbot==kbot)
-
-       enddo substep_sedi
-
-       tmp1 = 1./dt
-       prt_sol = prt_sol + prt_accum*i_rhow*tmp1
-       prt_soli(iice) = prt_soli(iice) + prt_accum*i_rhow*tmp1
-
-       endif qi_present
-
-    enddo iice_loop_sedi_ice  !iice-loop
-
- end subroutine sedimentation_ice_TF
-
-!======================================================================================!
- subroutine sedimentation_ice_FT(qit,qir,qil,nit,bir,prt_sol,prt_soli,rho,i_rho,rhofac,  &
-                                 i_dz,ktop,kbot,kdir,dt)
-
- !--------------------------------------------------------------------------
- ! Performs full sedimentation step for all prognostic ice variables.
- ! Since this subroutine is passed from within an i-loop, the i-dimension is
- ! dropped from the ice arrays.
- !
- ! Version:  2-moment ice (F), liqFrac (T)
- !--------------------------------------------------------------------------
-
- implicit none
-
-!arguments:
- real, intent(inout), dimension(:,:) :: qit,qir,qil,nit,bir
- real, intent(inout)                 :: prt_sol
- real, intent(inout), dimension(:)   :: prt_soli
- integer, intent(in)                 :: ktop,kbot,kdir
- real,    intent(in)                 :: dt
- real, intent(in), dimension(:)      :: rho,i_rho,rhofac,i_dz
-
-!local variables:
- integer :: iice,k,k_qxtop,k_qxbot,dumi,dumjj,dumii,dumll,tmpint1,k_temp
- logical :: log_qxpresent
- real    :: dt_left,prt_accum,Co_max,rhop,dum1,dum4,dum5,dum7,f1pr16,dum6,               &
-            f1pr01,f1pr02,f1pr09,f1pr10,f1pr19,tmp1,tmp2,dt_sub
- real,    dimension(size(qit,dim=1)) :: V_qit,V_nit,flux_qit,flux_qir,flux_qil,          &
-                                        flux_nit,flux_bir
- real,    dimension(n_args_r) :: args_r
- integer, dimension(n_args_i) :: args_i
-
-
- iice_loop_sedi_ice:  do iice = 1,size(qit,dim=2)  !i.e. 1,nCat
-
-    call find_top(k_qxtop,log_qxpresent,qit(:,iice),ktop,kbot,kdir)
-
-    qi_present: if (log_qxpresent) then
-
-       dt_left        = dt  !time remaining for sedi over full model (mp) time step
-       prt_accum      = 0.  !precip rate for individual category
-       k_qxbot        = k_bottom(qit(:,iice),ktop,kbot,kdir)
-       flux_qit(kbot) = 0.  !to prevent NaN in calculation of prt_accum below
-
-       substep_sedi: do while (dt_left.gt.1.e-4)
-
-          Co_max   = 0.
-          V_qit(:) = 0.
-          V_nit(:) = 0.
-
-          kloop_sedi_i4: do k = k_qxtop,k_qxbot,-kdir
-
-             !-- compute Vq, Vn (get values from lookup table)
-             qi_notsmall: if (qit(k,iice).ge.qsmall) then
-
-              !--Compute Vq, Vn:
-                nit(k,iice) = max(nit(k,iice),nsmall) !impose lower limits to prevent log(<0)
-                call calc_bulkRhoRime(qit(k,iice),qir(k,iice),qil(k,iice),bir(k,iice),rhop)
-
-                call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,       &
-                          dum5,dum7,isize,rimsize,liqsize,densize,qit(k,iice),           &
-                          nit(k,iice),qir(k,iice),qil(k,iice),rhop)
-
-                call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum7,0.,0.,0.,0.,         &
-                                  dumjj,dumii,dumll,dumi,0,0)
-
-                f1pr01 = proc_from_LUT_main2mom( 1,args_r,args_i)
-                f1pr02 = proc_from_LUT_main2mom( 2,args_r,args_i)
-                f1pr09 = proc_from_LUT_main2mom( 7,args_r,args_i)
-                f1pr10 = proc_from_LUT_main2mom( 8,args_r,args_i)
-
-              !impose mean ice size bounds (i.e. apply lambda limiters)
-                nit(k,iice) = min(nit(k,iice),f1pr09*qit(k,iice))
-                nit(k,iice) = max(nit(k,iice),f1pr10*qit(k,iice))
-
-                V_qit(k) = f1pr02*rhofac(k)   !mass-weighted fall speed (with air density factor)
-                V_nit(k) = f1pr01*rhofac(k)   !number-weighted fall speed (with air density factor)
-
-             endif qi_notsmall
-
-             Co_max = max(Co_max, V_qit(k)*dt_left*i_dz(k))
-
-          enddo kloop_sedi_i4
-
-          tmpint1 = int(Co_max+1.)    !number of substeps remaining if dt_sub were constant
-          dt_sub  = min(dt_left, dt_left/float(tmpint1))
-          k_temp  = merge(k_qxbot, k_qxbot-kdir, k_qxbot==kbot)
-
-          !-- calculate fluxes
-          do k = k_temp,k_qxtop,kdir
-             flux_qit(k) = V_qit(k)*qit(k,iice)*rho(k)
-             flux_nit(k) = V_nit(k)*nit(k,iice)*rho(k)
-             flux_qir(k) = V_qit(k)*qir(k,iice)*rho(k)
-             flux_qil(k) = V_qit(k)*qil(k,iice)*rho(k)
-             flux_bir(k) = V_qit(k)*bir(k,iice)*rho(k)
-!              mflux_i(i,k) = flux_qit(k)  !store mass flux for use in visibility diagnostic)
-          enddo
-
-          !accumulated precip during time step
-          prt_accum = prt_accum + flux_qit(kbot)*dt_sub*merge(1., 0., k_qxbot==kbot)
-
-          !-- update prognostic variables based on flux divergence
-
-          !for top level only (since flux is 0 above)
-          k = k_qxtop
-          tmp1 = i_dz(k)*dt_sub*i_rho(k)
-          qit(k,iice) = qit(k,iice) - flux_qit(k)*tmp1
-          qir(k,iice) = qir(k,iice) - flux_qir(k)*tmp1
-          qil(k,iice) = qil(k,iice) - flux_qil(k)*tmp1
-          bir(k,iice) = bir(k,iice) - flux_bir(k)*tmp1
-          nit(k,iice) = nit(k,iice) - flux_nit(k)*tmp1
-
-          do k = k_qxtop-kdir,k_temp,-kdir
-             tmp1 = i_dz(k)*dt_sub*i_rho(k)
-             qit(k,iice) = qit(k,iice) + (flux_qit(k+kdir) - flux_qit(k))*tmp1
-             qir(k,iice) = qir(k,iice) + (flux_qir(k+kdir) - flux_qir(k))*tmp1
-             qil(k,iice) = qil(k,iice) + (flux_qil(k+kdir) - flux_qil(k))*tmp1
-             bir(k,iice) = bir(k,iice) + (flux_bir(k+kdir) - flux_bir(k))*tmp1
-             nit(k,iice) = nit(k,iice) + (flux_nit(k+kdir) - flux_nit(k))*tmp1
-          enddo
-
-          dt_left = dt_left - dt_sub  !update time remaining for sedimentation
-          k_qxbot = merge(k_qxbot, k_qxbot-kdir, k_qxbot==kbot)
-
-       enddo substep_sedi
-
-       tmp1 = 1./dt
-       prt_sol = prt_sol + prt_accum*i_rhow*tmp1
-       prt_soli(iice) = prt_soli(iice) + prt_accum*i_rhow*tmp1
-
-       endif qi_present
-
-    enddo iice_loop_sedi_ice  !iice-loop
-
- end subroutine sedimentation_ice_FT
-
-!======================================================================================!
- subroutine sedimentation_ice_FF(qit,qir,nit,bir,prt_sol,prt_soli,rho,i_rho,rhofac,      &
-                                 i_dz,ktop,kbot,kdir,dt)
-
- !--------------------------------------------------------------------------
- ! Performs full sedimentation step for all prognostic ice variables.
- ! Since this subroutine is passed from within an i-loop, the i-dimension is
- ! dropped from the ice arrays.
- !
- ! Version:  2-moment ice (F), no liqFrac (F)
- !--------------------------------------------------------------------------
-
- implicit none
-
-!arguments:
- real, intent(inout), dimension(:,:) :: qit,qir,nit,bir
- real, intent(inout)                 :: prt_sol
- real, intent(inout), dimension(:)   :: prt_soli
- integer, intent(in)                 :: ktop,kbot,kdir
- real,    intent(in)                 :: dt
- real, intent(in), dimension(:)      :: rho,i_rho,rhofac,i_dz
-
-!local variables:
- integer :: iice,k,k_qxtop,k_qxbot,dumi,dumjj,dumii,dumll,dumzz,tmpint1,k_temp
- logical :: log_qxpresent
- real    :: dt_left,prt_accum,Co_max,rhop,dum1,dum4,dum5,dum7,mu_i,f1pr16,dum6,          &
-            f1pr01,f1pr02,f1pr09,f1pr10,f1pr19,tmp1,tmp2,dt_sub
- real, dimension(size(qit,dim=1)) :: V_qit,V_nit,flux_qit,flux_qir,flux_nit,flux_bir
- real,    dimension(n_args_r)     :: args_r
- integer, dimension(n_args_i)     :: args_i
-
-
- iice_loop_sedi_ice:  do iice = 1,size(qit,dim=2)  !i.e. 1,nCat
-
-    call find_top(k_qxtop,log_qxpresent,qit(:,iice),ktop,kbot,kdir)
-
-    qi_present: if (log_qxpresent) then
-
-       dt_left        = dt  !time remaining for sedi over full model (mp) time step
-       prt_accum      = 0.  !precip rate for individual category
-       k_qxbot        = k_bottom(qit(:,iice),ktop,kbot,kdir)
-       flux_qit(kbot) = 0.  !to prevent NaN in calculation of prt_accum below
-
-       substep_sedi: do while (dt_left.gt.1.e-4)
-
-          Co_max   = 0.
-          V_qit(:) = 0.
-          V_nit(:) = 0.
-
-          kloop_sedi_i4: do k = k_qxtop,k_qxbot,-kdir
-
-           ! compute Vq, Vn (get values from lookup table):
-             qi_notsmall: if (qit(k,iice).ge.qsmall) then
-
-                nit(k,iice) = max(nit(k,iice),nsmall) !impose lower limits to prevent log(<0)
-                call calc_bulkRhoRime(qit(k,iice),qir(k,iice),0.,bir(k,iice),rhop)
-
-                call find_lookupTable_indices_1a(dumi,dumjj,dumii,dumll,dum1,dum4,       &
-                              dum5,dum7,isize,rimsize,liqsize,densize,qit(k,iice),       &
-                              nit(k,iice),qir(k,iice),0.,rhop)
-
-                call args_for_LUT(args_r,args_i,dum1,dum4,dum5,dum7,0.,0.,0.,0.,         &
-                                  dumjj,dumii,dumll,dumi,0,0)
-
-                f1pr01 = proc_from_LUT_main2mom( 1,args_r,args_i)
-                f1pr02 = proc_from_LUT_main2mom( 2,args_r,args_i)
-                f1pr09 = proc_from_LUT_main2mom( 7,args_r,args_i)
-                f1pr10 = proc_from_LUT_main2mom( 8,args_r,args_i)
-
-              !impose mean ice size bounds (i.e. apply lambda limiters)
-                nit(k,iice) = min(nit(k,iice),f1pr09*qit(k,iice))
-                nit(k,iice) = max(nit(k,iice),f1pr10*qit(k,iice))
-
-                V_qit(k) = f1pr02*rhofac(k)   !mass-weighted fall speed (with air density factor)
-                V_nit(k) = f1pr01*rhofac(k)   !number-weighted fall speed (with air density factor)
-
-             endif qi_notsmall
-
-             Co_max = max(Co_max, V_qit(k)*dt_left*i_dz(k))
-
-          enddo kloop_sedi_i4
-
-          tmpint1 = int(Co_max+1.)    !number of substeps remaining if dt_sub were constant
-          dt_sub  = min(dt_left, dt_left/float(tmpint1))
-          k_temp  = merge(k_qxbot, k_qxbot-kdir, k_qxbot==kbot)
-
-          !-- calculate fluxes
-          do k = k_temp,k_qxtop,kdir
-             flux_qit(k) = V_qit(k)*qit(k,iice)*rho(k)
-             flux_nit(k) = V_nit(k)*nit(k,iice)*rho(k)
-             flux_qir(k) = V_qit(k)*qir(k,iice)*rho(k)
-             flux_bir(k) = V_qit(k)*bir(k,iice)*rho(k)
-          enddo
-
-          !accumulated precip during time step
-          prt_accum = prt_accum + flux_qit(kbot)*dt_sub*merge(1., 0., k_qxbot==kbot)
-
-          !-- update prognostic variables based on flux divergence:
-
-          !for top level only (since flux is 0 above)
-          k = k_qxtop
-          tmp1 = i_dz(k)*dt_sub*i_rho(k)
-          qit(k,iice) = qit(k,iice) - flux_qit(k)*tmp1
-          qir(k,iice) = qir(k,iice) - flux_qir(k)*tmp1
-          nit(k,iice) = nit(k,iice) - flux_nit(k)*tmp1
-          bir(k,iice) = bir(k,iice) - flux_bir(k)*tmp1
-
-          do k = k_qxtop-kdir,k_temp,-kdir
-             tmp1 = i_dz(k)*dt_sub*i_rho(k)
-             qit(k,iice) = qit(k,iice) + (flux_qit(k+kdir) - flux_qit(k))*tmp1
-             qir(k,iice) = qir(k,iice) + (flux_qir(k+kdir) - flux_qir(k))*tmp1
-             nit(k,iice) = nit(k,iice) + (flux_nit(k+kdir) - flux_nit(k))*tmp1
-             bir(k,iice) = bir(k,iice) + (flux_bir(k+kdir) - flux_bir(k))*tmp1
-          enddo
-
-          dt_left = dt_left - dt_sub  !update time remaining for sedimentation
-          k_qxbot = merge(k_qxbot, k_qxbot-kdir, k_qxbot==kbot)
-
-       enddo substep_sedi
-
-       tmp1 = 1./dt
-       prt_sol = prt_sol + prt_accum*i_rhow*tmp1
-       prt_soli(iice) = prt_soli(iice) + prt_accum*i_rhow*tmp1
-
-       endif qi_present
-
-    enddo iice_loop_sedi_ice
-
- end subroutine sedimentation_ice_FF
+ end subroutine sedimentation_ice
 !======================================================================================!
 
  END MODULE microphy_p3

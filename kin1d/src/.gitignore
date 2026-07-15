@@ -1,0 +1,21 @@
+# Build artifacts
+*.o
+*.mod
+execld
+
+# Runtime script copies (canonical versions live in ../full_testing/ or ../plots/)
+run_full_tests
+run_timing_tests
+compare_runs.py
+save_reference.sh
+summarize_timing.py
+plot_kin1d.py
+p3_config-*.txt
+
+# Runtime symlinks created during setup
+lookup_tables
+soundings
+levels
+
+# Test output
+kin1d_tests/

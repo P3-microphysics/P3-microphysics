@@ -5,3 +5,12 @@ attic
 work*
 old_versions
 .vscode
+.DS_Store
+
+# Unzipped lookup tables (large; only .gz versions are tracked)
+lookup_tables/*.dat-*
+!lookup_tables/*.gz
+
+# graphify output (Claude-analysis artifacts; never tracked, any location)
+graphify-out*/
+docs/graphify-out*/

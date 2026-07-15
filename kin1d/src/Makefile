@@ -11,8 +11,9 @@ FC=gfortran
 #FFLAGS=-fdefault-real-8 -Wno-line-truncation -fbounds-check -finit-real=nan -Wall -Wno-unused-dummy-argument -std=f2008 -Wno-intrinsics-std -Wunused-parameter
 
 #FFLAGS=-fbounds-check -cpp 
-FFLAGS=-fbounds-check -cpp -DTIMING_P3
-LDFLAGS=
+FFLAGS=-fbounds-check -cpp -DTIMING_P3 -ffree-line-length-none
+# macOS: point linker at the active SDK so 'library System' is found
+LDFLAGS=$(shell xcrun --show-sdk-path 2>/dev/null | sed 's/^/-Wl,-syslibroot,/')
 LIBS=
 
 
@@ -29,7 +30,7 @@ LIBS=
 default:
 
 clean:
-	rm -f *.o *.mod fort.* execld out_p3.dat sfcprec.dat
+	rm -f *.o *.mod fort.* execld out_p3.dat sfcprec.dat timing.txt
 
 OBJS = microphy_p3.o routinesCld1d.o   cld1d.o
 exec:
