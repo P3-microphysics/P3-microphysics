@@ -2,3 +2,5 @@ The following subdirectories contain the GEM interface files that have been modi
 the pristine versions in the GEM library (for a particular version of GEM) that need to be
 included in the compilation of GEM for the version of P3 indicated (plus the version of
 'microphy_p3.f90', whose extension needs to be changed to .F90 for GEM)..
+
+Currently for the SIP version, only 5.3.0-a18 interface works.
