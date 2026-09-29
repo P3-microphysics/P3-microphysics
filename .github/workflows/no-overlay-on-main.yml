@@ -1,0 +1,28 @@
+# Refuse any commit on main that carries development-only overlay files.
+# The private development branch keeps assistant guidance, skills and private
+# notes; the release process strips them before merging to main. This check makes
+# that guarantee independent of who performs the merge.
+name: no-overlay-on-main
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fail if an overlay path is present
+        run: |
+          status=0
+          for p in CLAUDE.md KNOWN_BUGS.md CODE_REVIEW.md AGENTS.md \
+                   .claude .agents .codex docs/notes docs/plans; do
+            if [ -e "$p" ]; then
+              echo "::error::overlay path present on main: $p"
+              status=1
+            fi
+          done
+          exit $status

@@ -27,8 +27,8 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.6.0                                                                     !
-! Last updated:  2026 July                                                                 !
+! Version:       5.6.1                                                                     !
+! Last updated:  2026 Sep                                                                  !
 !__________________________________________________________________________________________!
 
  MODULE microphy_p3
@@ -225,7 +225,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.6.0'
+ character(len=1024), parameter :: version_p3                    = '5.6.1'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.9-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '6.9-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.2'
@@ -8186,7 +8186,14 @@ end function proc_from_LUT_3
           kloop_sedi_i4: do k = k_qxtop,k_qxbot,-kdir
 
             !compute Vq, Vn (get values from lookup table):
-             log_qiproceed = qit(k,iice).ge.qsmall .and. nit(k,iice).ge.nsmall
+          
+             log_qiproceed = qit(k,iice).ge.qsmall
+             ! Note: Do not also require nit.ge.nsmall; skipping the block leaves V_qit = 0, 
+             ! so ice mass with collapsed number stops sedimenting and accumulates, producing
+             ! spurious extreme Ze (>100 dBZ). nit is floored at nsmall below before the LUT call.
+             ! Also, it is expected that qit>qsmall and nitot<0 coming in is possible, due to the
+             ! process rate calculations (which can overdeplete number but not mass).
+
              if (log_liq) log_qiproceed = log_qiproceed .and. qil(k,iice).lt.qit(k,iice)
 
              qi_notsmall: if (log_qiproceed) then
