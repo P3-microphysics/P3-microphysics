@@ -27,7 +27,7 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.6.1                                                                     !
+! Version:       5.6.2                                                                     !
 ! Last updated:  2026 Sep                                                                  !
 !__________________________________________________________________________________________!
 
@@ -225,7 +225,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.6.1'
+ character(len=1024), parameter :: version_p3                    = '5.6.2'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.9-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '6.9-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.2'
@@ -1018,6 +1018,9 @@ END subroutine p3_init
    real, dimension(ims:ime, kms:kme,n_iceCat)  :: qiliq   ! liquid mixing ratio on ice     [kg kg-1]
 
    real, dimension(its:ite)                    :: pcprt_liq,pcprt_sol
+   real, dimension(its:ite)                    :: prt_drzl,prt_rain,prt_crys,prt_snow,     &
+                                                  prt_grpl,prt_pell,prt_hail,prt_sndp,     &
+                                                  prt_wsnow   ! precip-type rates (required by type diagnostics; not output)
    real                                        :: dum1,dum2,dum3,dum4,freq3Ddiag
    integer                                     :: i,k,j
 
@@ -1036,7 +1039,7 @@ END subroutine p3_init
    real, parameter                   :: clbfact_dep    =  1.     ! calibration factor for deposition
    real, parameter                   :: clbfact_sub    =  1.     ! calibration factor for sublimation
    real, parameter                   :: freq3Ddiag_wrf = 60.     ! frequency (min) for full-column diagnostics
-   real, parameter                   :: freq3Ddiag_cm1 =  5.     ! frequency (min) for full-column diagnostics
+   real, parameter                   :: freq3Ddiag_cm1 =  0.     ! frequency (min) for full-column diagnostics (0: every step)
 
    !------------------------------------------------------------------------------------------!
 
@@ -1119,6 +1122,9 @@ END subroutine p3_init
                       scpf_pfrac,scpf_resfact,cldfrac,                                                 &
                       log_3momentIce = log_3momIce,                                                    &
                       log_LiquidFrac = log_liqFrac,                                                    &
+                      prt_drzl = prt_drzl, prt_rain = prt_rain, prt_crys = prt_crys,                   &
+                      prt_snow = prt_snow, prt_grpl = prt_grpl, prt_pell = prt_pell,                   &
+                      prt_hail = prt_hail, prt_sndp = prt_sndp, prt_wsnow = prt_wsnow,                 &
                       diag_dhmax     = diag_dhmax,                                                     &
                       freq3Ddiag_in  = freq3Ddiag)
 
@@ -2364,6 +2370,7 @@ END subroutine p3_init
 
  real               :: freq3Ddiag              ! frequency (min) for full-column diagnostics
  real, parameter    :: freq3Ddiag_default = 5. ! value set if not passed in
+ real, parameter    :: qsmall_dhmax = 1.e-6    ! min. qitot (kg kg-1) for computing diag_dhmax
 
 ! to be added as namelist parameters (future)
  logical, parameter :: debug_ABORT  = .true. !.true. will result in forced abort in s/r 'check_values'
@@ -3336,7 +3343,7 @@ call cpu_time(timer_start(3))
    !............................................................
    ! calculate wet growth
 
-       ! similar to Musil (1970), JAS
+       ! Musil (1970), JAS, eq. (A9)
        ! note 'f1pr' values are normalized, so we need to multiply by N
 
              if (qitot(i,k,iice).ge.qsmall .and. (qc(i,k)+qr(i,k)).ge.1.e-6 .and.        &
@@ -3344,8 +3351,9 @@ call cpu_time(timer_start(3))
 
                 qsat0  = 0.622*e0/(pres(i,k)-e0)
                 qwgrth(iice) = ((f1pr05+f1pr14*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**     &
-                               0.5)*((t(i,k)-trplpt)*(-kap)+rho(i,k)*xxls(i,k)*dv*       &
-                               (qsat0-Qv_cld(i,k))*2.*pi/xlf(i,k)))*nitot(i,k,iice)
+                               0.5)*2.*pi*(rho(i,k)*xxlv(i,k)*dv*(qsat0-Qv_cld(i,k))-    &
+                               (t(i,k)-trplpt)*kap)/(xlf(i,k)+cpw*(t(i,k)-trplpt)))*     &
+                               nitot(i,k,iice)
                 qwgrth(iice) = max(qwgrth(iice),0.)
 
                 if (log_LiquidFrac) then
@@ -3437,8 +3445,8 @@ call cpu_time(timer_start(3))
                 if (t(i,k).lt.trplpt) then
                   qsat0  = 0.622*e0/(pres(i,k)-e0)
                   qifrz(iice) = ((f1pr05+f1pr14*sc**thrd*(rhofaci(i,k)*rho(i,k)/mu)**    &
-                                0.5)*((t(i,k)-trplpt)*(-kap)+rho(i,k)*xxls(i,k)*dv*      &
-                                (qsat0-Qv_cld(i,k))*2.*pi/xlf(i,k)))*nitot(i,k,iice)
+                                0.5)*2.*pi*(rho(i,k)*xxlv(i,k)*dv*(qsat0-Qv_cld(i,k))-   &
+                                (t(i,k)-trplpt)*kap)/xlf(i,k))*nitot(i,k,iice)
                   qifrz(iice) = min(max(qifrz(iice),0.),qiliq(i,k,iice)*i_dt)
                 endif
              ! Shedding
@@ -5258,8 +5266,12 @@ timer_description(9) = 'type_diags'
 call cpu_time(timer_start(9))
 #endif
 
- log_outputStep = (mod(it*dt,freq3Ddiag*60.)==0. .or. freq3Ddiag==0.)                    &
-                  .and. .not.freq3Ddiag<0.
+ ! freq3Ddiag = 0: every step; < 0: never (mod() is not evaluated with a zero divisor)
+ if (freq3Ddiag > 0.) then
+    log_outputStep = (mod(it*dt,freq3Ddiag*60.)==0.)
+ else
+    log_outputStep = (freq3Ddiag==0.)
+ endif
 
 !--- diagnostics CM1:
  if (log_outputStep .and. trim(model)=='CM1') then
@@ -5277,7 +5289,8 @@ call cpu_time(timer_start(9))
  endif
 !---
 
- compute_type_diags: if (log_typeDiags .and. (trim(model)=='GEM'.or.trim(model)=='KIN1D')) then
+ compute_type_diags: if (log_typeDiags .and. (trim(model)=='GEM'.or.trim(model)=='KIN1D'    &
+                         .or.trim(model)=='CM1')) then
 
     if (.not.(present(prt_drzl).and.present(prt_rain).and.present(prt_crys).and.         &
               present(prt_snow).and.present(prt_grpl).and.present(prt_pell).and.         &
@@ -5361,7 +5374,8 @@ call cpu_time(timer_start(9))
                 endif
                 liq_frac(i,k,iice) = qiliq(i,k,iice)/qitot(i,k,iice)          ! liquid fraction
 
-                if (liq_frac(i,k,iice).ge.0.15) then
+                ! wet snow: wet AND lightly rimed; melting rimed ice goes on to the hail branch
+                if (liq_frac(i,k,iice).ge.0.15 .and. rime_frac(i,k,iice).lt.0.6) then
                    Q_wsnow(i,k,iice) = qitot(i,k,iice)
                 else
                    if (rime_frac(i,k,iice).lt.0.6) then
@@ -5381,7 +5395,7 @@ call cpu_time(timer_start(9))
                            Q_pellets(i,k,iice) = qitot(i,k,iice)
                         else
                            Q_hail(i,k,iice) = qitot(i,k,iice)
-                           if (log_typeDiags) then
+                           if (log_typeDiags .and. qitot(i,k,iice).ge.qsmall_dhmax) then
                               diag_dhmax(i,k,iice) = maxHailSize(rho(i,k),               &
                                nitot(i,k,iice),rhofaci(i,k),arr_lami(i,k,iice),          &
                                arr_mui(i,k,iice),diag_rhoi(i,k,iice),rime_frac(i,k,iice))

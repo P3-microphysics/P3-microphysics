@@ -18,7 +18,7 @@ jobs:
       - name: Fail if an overlay path is present
         run: |
           status=0
-          for p in CLAUDE.md KNOWN_BUGS.md CODE_REVIEW.md AGENTS.md \
+          for p in CLAUDE.md CLAUDE.local.md* KNOWN_BUGS.md CODE_REVIEW.md AGENTS.md \
                    .claude .agents .codex docs/notes docs/plans; do
             if [ -e "$p" ]; then
               echo "::error::overlay path present on main: $p"

@@ -1,0 +1,70 @@
+========================================================================
+  P3 kin1d timing report
+  hash: ref   build: -O2   runs per config: 8
+========================================================================
+
+  Full p3_main (Block 1) — ms
+  Config    r   1  r   2  r   3  r   4  r   5  r   6  r   7  r   8      Mean       Min       Max     Range
+  --------  -----  -----  -----  -----  -----  -----  -----  -----  --------  --------  --------  --------
+  1FF        0.41   0.45   0.42   0.42   0.48   0.47   0.43   0.43     0.438     0.415     0.478     0.064
+  1FT        0.45   0.43   0.49   0.45   0.44   0.44   0.44   0.46     0.450     0.426     0.493     0.067
+  1TF        0.51   0.51   0.51   0.47   0.50   0.49   0.49   0.49     0.495     0.467     0.508     0.041
+  1TT        0.52   0.52   0.49   0.47   0.57   0.49   0.48   0.48     0.502     0.471     0.575     0.104
+  2TT        0.61   0.61   0.58   0.57   0.58   0.58   0.57   0.58     0.584     0.571     0.609     0.038
+  3TT        0.83   0.81   0.80   0.86   0.85   0.83   0.79   0.79     0.819     0.785     0.862     0.077
+
+  Per-block detail — 1FF  (mean across 8 runs, ms)
+  Block  Description                     Mean       Min       Max   % of B1
+  ----  --------------------------  --------  --------  --------  --------
+  1     full p3_main                   0.438     0.415     0.478    100.0%
+  2     i_loop_main                    0.336     0.320     0.366     76.8%
+  3     k_loop_main_process            0.202     0.192     0.222     46.2%
+  6     sedimentation                  0.054     0.051     0.061     12.4%
+  9     type_diags                     0.038     0.035     0.041      8.6%
+
+  Per-block detail — 1FT  (mean across 8 runs, ms)
+  Block  Description                     Mean       Min       Max   % of B1
+  ----  --------------------------  --------  --------  --------  --------
+  1     full p3_main                   0.450     0.426     0.493    100.0%
+  2     i_loop_main                    0.361     0.344     0.380     80.2%
+  3     k_loop_main_process            0.221     0.208     0.241     49.0%
+  6     sedimentation                  0.057     0.053     0.060     12.6%
+  9     type_diags                     0.025     0.023     0.028      5.5%
+
+  Per-block detail — 1TF  (mean across 8 runs, ms)
+  Block  Description                     Mean       Min       Max   % of B1
+  ----  --------------------------  --------  --------  --------  --------
+  1     full p3_main                   0.495     0.467     0.508    100.0%
+  2     i_loop_main                    0.393     0.371     0.404     79.3%
+  3     k_loop_main_process            0.230     0.216     0.237     46.4%
+  6     sedimentation                  0.072     0.067     0.076     14.6%
+  9     type_diags                     0.038     0.036     0.039      7.7%
+
+  Per-block detail — 1TT  (mean across 8 runs, ms)
+  Block  Description                     Mean       Min       Max   % of B1
+  ----  --------------------------  --------  --------  --------  --------
+  1     full p3_main                   0.502     0.471     0.575    100.0%
+  2     i_loop_main                    0.409     0.388     0.448     81.5%
+  3     k_loop_main_process            0.247     0.231     0.285     49.2%
+  6     sedimentation                  0.068     0.064     0.069     13.5%
+  9     type_diags                     0.024     0.023     0.030      4.9%
+
+  Per-block detail — 2TT  (mean across 8 runs, ms)
+  Block  Description                     Mean       Min       Max   % of B1
+  ----  --------------------------  --------  --------  --------  --------
+  1     full p3_main                   0.584     0.571     0.609    100.0%
+  2     i_loop_main                    0.485     0.476     0.495     83.1%
+  3     k_loop_main_process            0.290     0.283     0.301     49.7%
+  6     sedimentation                  0.068     0.066     0.071     11.7%
+  9     type_diags                     0.022     0.021     0.024      3.7%
+
+  Per-block detail — 3TT  (mean across 8 runs, ms)
+  Block  Description                     Mean       Min       Max   % of B1
+  ----  --------------------------  --------  --------  --------  --------
+  1     full p3_main                   0.819     0.785     0.862    100.0%
+  2     i_loop_main                    0.700     0.676     0.726     85.5%
+  3     k_loop_main_process            0.448     0.430     0.469     54.7%
+  6     sedimentation                  0.088     0.085     0.090     10.7%
+  9     type_diags                     0.025     0.024     0.027      3.1%
+
+========================================================================
