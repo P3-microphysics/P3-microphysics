@@ -27,7 +27,7 @@
 !    https://github.com/P3-microphysics/P3-microphysics                                    !
 !__________________________________________________________________________________________!
 !                                                                                          !
-! Version:       5.6.3                                                                     !
+! Version:       5.6.4                                                                     !
 ! Last updated:  2026 Oct                                                                  !
 !__________________________________________________________________________________________!
 
@@ -225,7 +225,7 @@
 
 ! Local variables and parameters:
  logical, save                  :: is_init = .false.
- character(len=1024), parameter :: version_p3                    = '5.6.3'
+ character(len=1024), parameter :: version_p3                    = '5.6.4'
  character(len=1024), parameter :: version_intended_table_1_2mom = '6.9-2momI'
  character(len=1024), parameter :: version_intended_table_1_3mom = '6.9-3momI'
  character(len=1024), parameter :: version_intended_table_2      = '6.2'
@@ -410,8 +410,13 @@
  minVIS  =  1.             ! minimum visibility  (m)
  maxVIS  = 99.e+3          ! maximum visibility  (m)
 
-! parameters for droplet mass spectral shape, used by Seifert and Beheng (2001)
-! warm rain scheme only (autoAccr_param = 1)
+! 1D lookup table for droplet mass spectral shape parameter dnu,
+! for the Seifert and Beheng (2001) warm rain scheme (autoAccr_param = 1).
+! This derivation is based on preserving M0, M3, and M6 when mapping from the
+! gamma size to mass distribution. The lookup table is a fast and accurate
+! approximation to the analytic mapping of:
+! dnu = (mu+1)*(mu+2)*(mu+3)/(3*(3*mu^2+21*mu+38))-1.
+
   dnu(1)  = -0.947
   dnu(2)  = -0.871
   dnu(3)  = -0.783

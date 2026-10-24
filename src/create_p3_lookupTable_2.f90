@@ -6,160 +6,56 @@ PROGRAM create_p3_lookuptable_2
 ! interactions for the multi-ice-category configuration of the P3 microphysics scheme.
 !
 !--------------------------------------------------------------------------------------
-! Version:       6.2
-! Last modified: 2025-FEB
-!______________________________________________________________________________________
-
-! For coupling with liquid fraction
-! _00 is Fi,liq1=0 and Fi,liq2=0
-! _10 is Fi,liq1=1 and Fi,liq2=0
-! _01 is Fi,liq1=0 and Fi,liq2=1
-! _11 is Fi,liq1=1 and Fi,liq2=1
-!
-!--------------------------------------------------------------------------------------
-! ASSEMBLY PROTOCOL FOR THE 8-COLUMN LIQUID-FRACTION TABLE
-!
-! This program computes n_agg and q_agg for ONE (Fl1,Fl2) combination per run:
-! 'Fl1' and 'Fl2' below are compile-time parameters (liquid fractions of category
-! 1 and category 2).  A single run with Fl1 = Fl2 = 0 writes the 14-column format
-! (6 index columns + n_agg + q_agg); any other combination writes only the
-! 2 columns (n_agg, q_agg).
-!
-! The runtime code (p3_init in microphy_p3.f90, liqfrac=.true. branch) reads a
-! 14-column file: 6 index columns followed by 8 data columns that must be, in
-! this exact order:
-!
-!   column pair    (Fl1,Fl2)    read into
-!   -----------    ---------    -------------------------
-!     7,  8         (0,0)       itabcolli001, itabcolli002
-!     9, 10         (0,1)       itabcolli011, itabcolli012
-!    11, 12         (1,0)       itabcolli101, itabcolli102
-!    13, 14         (1,1)       itabcolli111, itabcolli112
-!
-! i.e. table names are itabcolli[Fl1][Fl2][quantity].  NOTE: the required column
-! order is (0,0),(0,1),(1,0),(1,1) — NOT the order the codes are listed in the
-! comment block above.  At runtime, category 1 is the COLLECTEE (table dims 1-3)
-! and category 2 is the COLLECTOR (dims 4-6); proc_from_LUT_ii blends Fl2 with
-! the collector liquid fraction and Fl1 with the collectee liquid fraction.
-!
-! To build the full liqfrac table:
-!   1. Run this program 4 times, with (Fl1,Fl2) = (0,0), (0,1), (1,0), (1,1)
-!      (edit the two parameters below and recompile for each run).
-!   2. Paste the outputs column-wise in that order: the (0,0) run provides the
-!      6 index columns + first data pair; append the 2 data columns from the
-!      (0,1) run, then (1,0), then (1,1)  (e.g. with 'paste -d" "').
-!   3. Verify the assembled file has 14 columns per data row.
-!
-! A wrong paste order is NOT detected at read time and silently swaps the
-! collector/collectee liquid-fraction blend axes in the scheme.
-!--------------------------------------------------------------------------------------
-
+! Writes table version (parameter 'version' below; p3_init checks it).
+! The code itself is versioned with the P3 package (vX.Y.Z of microphy_p3.f90).
 !______________________________________________________________________________________
 !
-! To generate 'p3_lookupTable_2.dat' using this code, do the following steps :
+! Liquid fraction.  The table holds n_agg and q_agg for four combinations of the liquid
+! fractions of category 1 (the COLLECTEE, table dims 1-3) and category 2 (the COLLECTOR,
+! dims 4-6).  p3_init (liqfrac=.true. branch) reads 14 columns: 6 index columns, then
 !
-! 1. Break up this code into two parts (-top.f90 and -bottom.90).  Search for the string
-!    'RUNNING IN PARALLEL MODE' and follow instructions.  (In the future, a script
-!    will be written to automate this.)
+!   columns   (Fl1,Fl2)   read into
+!    7,  8     (0,0)      itabcolli001, itabcolli002
+!    9, 10     (0,1)      itabcolli011, itabcolli012
+!   11, 12     (1,0)      itabcolli101, itabcolli102
+!   13, 14     (1,1)      itabcolli111, itabcolli112
 !
-! 2. Copy the 3 pieces of text below to create indivudual executable shell scripts.
-
-! 3. Run script 1 (./go_1-compile.ksh).  This script will recreate several
-!    versions of the full code, concatenating the -top.f90 and the -bottom.90 with
-!    the following code (e.g.) in between (looping through values of i1:
+! i.e. table names are itabcolli[Fl1][Fl2][quantity]; proc_from_LUT_ii blends Fl2 with the
+! collector liquid fraction and Fl1 with the collectee liquid fraction.  One run of this
+! program computes one (Fl1,Fl2) combination and writes the 6 index columns plus its
+! 2 data columns; the driver script checks that the four runs' index columns agree row by
+! row and joins them in the order above.
+!______________________________________________________________________________________
 !
-!    i1  = 1
+! To generate the table, use the driver script, which runs the blocks in parallel and
+! checks the assembled table:
 !
-!    Each version of full_code.f90 is then compiled, with a unique executable name.
-!    Note, this is done is place the outer i1 loop in order to parallelized .
+!    src/make_luts.sh lt2 [-j N]
 !
-! 4. Run script 2 (./go_2-submit.csh)  This create temporary work directories,
-!    moves each executable to each work directory, and runs the executables
-!    simultaneously.  (Note, it is assumed that the machine on which this is done
-!    has multiple processors, though it is not necessary.)
+! Each run of the program computes one block.  Compile it together with the module of
+! shared procedures, module first, with double-precision default reals, e.g.
 !
-! 5. Run script 3 (./go_3-concatenate.ksh).  This concatenates the individual
-!    partial tables (the output in each working directory) into a single, final
-!    file 'p3_lookupTable_2.dat'  Once it is confirmed that the table is correct,
-!    the work directories and their contents can be removed.
+!    ifx -r8 -o create_p3_lookupTable_2 p3_lookupTable_common.f90 create_p3_lookupTable_2.f90
+!    gfortran -fdefault-real-8 -fdefault-double-8 -o create_p3_lookupTable_2 \
+!             p3_lookupTable_common.f90 create_p3_lookupTable_2.f90
 !
-!  Note:  For testing or to run in serial, compile with double-precision
-!         e.g. ifort -r8 create_p3_lookupTable_2.f90
-!              gfortran -fdefault-real-8 create_p3_lookupTable_2.f90
+! and run it as
+!
+!    ./create_p3_lookupTable_2 Fl1 Fl2 i1         -> 'lt2_<Fl1><Fl2>_<i1>.dat'
+!
+! with Fl1, Fl2 = 0 or 1 and i1 = 1..25 (the collectee normalized-Q index).  The header is
+! written by block (0,0,1) only.
 !______________________________________________________________________________________
 
-!--------------------------------------------------------------------------------------------
-!# Parallel script 1 (of 3):  [copy text below (uncommented) to file 'go_1-compile.ksh']
-!#  - creates individual parallel codes, compiles each
 
-!#!/bin/ksh
-!
-! for i1 in 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25
-! do
-!
-! rm cfg_input full_code.f90
-!
-! cat > cfg_input << EOF
-!  i1  = ${i1}
-! EOF
-!
-! cat create_p3_lookupTable_2-top.f90 cfg_input create_p3_lookupTable_2-bottom.f90 > full_code.f90
-!
-! echo 'Compiling 'exec_${i1}
-! #pgf90 -r8 full_code.f90
-! #gfortran -fdefault-real-8 full_code.f90
-! ifort -r8 full_code.f90
-! mv a.out exec_${i1}
-!
-! done
-!
-! rm cfg_input full_code.f90
-
-!--------------------------------------------------------------------------------------------
-!# Parallel script 2 (of 3):   [copy text below (uncommented) to file 'go_2-submit.ksh']
-!#  - creates individual work directories, launches each executable
-
-!#!/bin/ksh
-
-!for exec in `ls exec_*`
-!do
-!   echo Submitting: ${exec}
-!   mkdir ${exec}-workdir
-!   mv ${exec} ${exec}-workdir
-!   cd ${exec}-workdir
-!   ./${exec} > log &
-!   cd ..
-!done
-
-!--------------------------------------------------------------------------------------------
-!# Parallel script 3 (of 3):   [copy text below (uncommented) to file 'go_3-concatenate.ksh]
-!#  - concatenates the output of each parallel job into a single output file.
-
-!#!/bin/ksh
-!
-! rm lt_total
-!
-! for i in `ls exec*/*dat`
-! do
-!    echo $i
-!    cat lt_total $i > lt_total_tmp
-!    mv lt_total_tmp lt_total
-! done
-!
-! mv lt_total p3_lookupTable_2.dat
-!
-! echo 'Done.  Work directories and contents can now be removed.'
-! echo 'Be sure to re-name the file with the appropriate extension, with the version number
-! echo 'corresponding to that in the header.  (e.g. 'p3_lookupTable_2.dat-v5.0')'
-
-!--------------------------------------------------------------------------------------------
+ use p3_lookupTable_common
 
  implicit none
 
- character(len=16), parameter :: version = '6.2_00'
+ character(len=16), parameter :: version = '6.2'
 
- real, parameter :: Fl1 = 0.   ! liquid fraction of cat 1
- real, parameter :: Fl2 = 0.   ! liquid fraction of cat 2
+ real :: Fl1                   ! liquid fraction of cat 1 (0 or 1, from the command line)
+ real :: Fl2                   ! liquid fraction of cat 2 (0 or 1, from the command line)
 
  real    :: pi,g,p,t,rho,mu,pgam,ds,cs,bas,aas,dcrit,eii
  integer :: k,ii,jj,kk,dumii,j2
@@ -178,13 +74,15 @@ PROGRAM create_p3_lookuptable_2
  integer            :: i,i1,i2                 ! indices for normalized (by N) Q loop [1 .. n_Qnorm]  (i is i_Qnorm in LT1)
 
  real :: N,q,qdum,dum1,dum2,cs1,ds1,lam,n0,lamf,qerror,del0,c0,c1,c2,sum1,sum2,          &
-         sum3,sum4,xx,a0,b0,a1,b1,dum,bas1,aas1,aas2,bas2,gammq,d1,d2,delu,lamold,       &
+         sum3,sum4,xx,a0,b0,a1,b1,dum,bas1,aas1,aas2,bas2,d1,d2,delu,lamold,             &
          cap,lamr,dia,amg,dv,n0dum,sum5,sum6,sum7,sum8,dg,cg,bag,aag,dcritg,dcrits,      &
          dcritr,csr,dsr,duml,dum3,rhodep,cgpold,m1,m2,m3,dt,mur,initlamr,lamv,Fr,        &
          rdumii,lammin,lammax,cs2,ds2,intgrR1,intgrR2,intgrR3,intgrR4,q_agg,n_agg,area1, &
          area2,mass1,cs5,rhom1,rhom2,intgrR5
 
- real :: diagnostic_mui ! function to return diagnostic value of shape paramter, mu_i
+ real, parameter :: mu_i_min =  0.   ! limits of the diagnostic mu_i
+ real, parameter :: mu_i_max = 20.   !note: for orig 2-mom, mu_i_max=6.
+
  real :: Q_normalized   ! function
  real :: lambdai        ! function
 
@@ -210,7 +108,34 @@ PROGRAM create_p3_lookuptable_2
 
  character(len=2014) :: filename
 
+! command line: one block, Fl1 Fl2 i1
+ integer              :: i1_1,i1_2,n_arg,ios1,ios2
+ character(len=32)    :: arg
+
 !-------------------------------------------------------------------------------
+
+! the table is computed in double precision: refuse a build without promoted reals
+ if (kind(1.) /= 8 .or. kind(1.d0) /= 8) then
+    print*, 'create_p3_lookupTable_2: default real and double precision must both be 8 bytes'
+    print*, '  (ifx/ifort: -r8;  gfortran: -fdefault-real-8 -fdefault-double-8)'
+    stop 1
+ endif
+
+ n_arg = command_argument_count()
+ ios1 = 1;  ios2 = 1;  Fl1 = -1.;  Fl2 = -1.
+ if (n_arg == 3) then
+    call get_command_argument(1,arg);  read(arg,*,iostat=ios1) Fl1
+    call get_command_argument(2,arg);  read(arg,*,iostat=ios2) Fl2
+ endif
+ if (ios1/=0 .or. ios2/=0 .or. .not.(Fl1==0. .or. Fl1==1.) .or. .not.(Fl2==0. .or. Fl2==1.)) then
+    print*, 'usage: create_p3_lookupTable_2 Fl1 Fl2 i1    (Fl1, Fl2 = 0 or 1; i1 = 1..',n_Qnorm,')'
+    stop 1
+ endif
+ call get_command_argument(3,arg);  read(arg,*) i1_1
+ if (i1_1<1 .or. i1_1>n_Qnorm) then
+    print*, 'create_p3_lookupTable_2: i1 out of range 1..',n_Qnorm;  stop 1
+ endif
+ i1_2 = i1_1                ! the loop below runs once: one block per process
 
 ! set constants and parameters
 
@@ -549,7 +474,7 @@ PROGRAM create_p3_lookuptable_2
 
              lam1(i_rhor,i_Fr,i) = lambdai(ii)
              rhom1 = (1.-Fl1)*cgp1(i_rhor,i_Fr)+Fl1*1000.*pi*sxth
-             mu_i1(i_rhor,i_Fr,i) = diagnostic_mui(lam1(i_rhor,i_Fr,i),q,rhom1,Fr,pi)
+             mu_i1(i_rhor,i_Fr,i) = diagnostic_mui(mu_i_min,mu_i_max,lam1(i_rhor,i_Fr,i),q,rhom1,Fr,pi)
 
 ! set min,max lam corresponding to Dm_max,Dm_min:
              dum = Dm_max1+Dm_max2*Fr**2.
@@ -566,9 +491,9 @@ PROGRAM create_p3_lookuptable_2
              ds1  = 3.
              cs5  = pi*sxth*1000.
 
-             call intgrl_section(lam1(i_rhor,i_Fr,i),mu_i1(i_rhor,i_Fr,i), ds1,ds,dg,          &
-                                 dsr1(i_rhor,i_Fr),dcrit,dcrits1(i_rhor,i_Fr),                 &
-                                 dcritr1(i_rhor,i_Fr),intgrR1,intgrR2,intgrR3,intgrR4,intgrR5)
+             call intgrl_section_Fl(lam1(i_rhor,i_Fr,i),mu_i1(i_rhor,i_Fr,i), ds1,ds,dg,          &
+                                    dsr1(i_rhor,i_Fr),dcrit,dcrits1(i_rhor,i_Fr),                 &
+                                    dcritr1(i_rhor,i_Fr),intgrR1,intgrR2,intgrR3,intgrR4,intgrR5)
 
 ! intgrR1 is integral from 0 to dcrit (solid ice)
 ! intgrR2 is integral from dcrit to dcrits (snow)
@@ -602,7 +527,7 @@ PROGRAM create_p3_lookuptable_2
 ! this is the value of lam with the smallest qerror
           lam1(i_rhor,i_Fr,i) = lamf
 ! recalculate mu_i based on final lam
-          mu_i1(i_rhor,i_Fr,i) = diagnostic_mui(lam1(i_rhor,i_Fr,i),q,rhom1,Fr,pi)
+          mu_i1(i_rhor,i_Fr,i) = diagnostic_mui(mu_i_min,mu_i_max,lam1(i_rhor,i_Fr,i),q,rhom1,Fr,pi)
 
 !            n0 = N*lam**(pgam+1.)/(gamma(pgam+1.))
 
@@ -610,9 +535,9 @@ PROGRAM create_p3_lookuptable_2
 ! this is done instead of finding n0 from lam and N, since N
 ! may need to be adjusted to constrain mean size within reasonable bounds
 
-          call intgrl_section(lam1(i_rhor,i_Fr,i),mu_i1(i_rhor,i_Fr,i), ds1,ds,dg,             &
-                                 dsr1(i_rhor,i_Fr),dcrit,dcrits1(i_rhor,i_Fr),                 &
-                                 dcritr1(i_rhor,i_Fr),intgrR1,intgrR2,intgrR3,intgrR4,intgrR5)
+          call intgrl_section_Fl(lam1(i_rhor,i_Fr,i),mu_i1(i_rhor,i_Fr,i), ds1,ds,dg,             &
+                                    dsr1(i_rhor,i_Fr),dcrit,dcrits1(i_rhor,i_Fr),                 &
+                                    dcritr1(i_rhor,i_Fr),intgrR1,intgrR2,intgrR3,intgrR4,intgrR5)
 
 ! normalized n0
           cs5  = pi*sxth*1000.
@@ -827,7 +752,7 @@ PROGRAM create_p3_lookuptable_2
 
              lam2(i_rhor,i_Fr,i) = lambdai(ii)
              rhom2 = (1.-Fl2)*cgp2(i_rhor,i_Fr)+Fl2*1000.*pi*sxth
-             mu_i2(i_rhor,i_Fr,i) = diagnostic_mui(lam2(i_rhor,i_Fr,i),q,rhom2,Fr,pi)
+             mu_i2(i_rhor,i_Fr,i) = diagnostic_mui(mu_i_min,mu_i_max,lam2(i_rhor,i_Fr,i),q,rhom2,Fr,pi)
 
             !set min,max lam corresponding to Dm_max, Dm_min
              dum = Dm_max1+Dm_max2*Fr**2.
@@ -846,9 +771,9 @@ PROGRAM create_p3_lookuptable_2
              ds1  = 3.
              cs5  = pi*sxth*1000.
 
-             call intgrl_section(lam2(i_rhor,i_Fr,i),mu_i2(i_rhor,i_Fr,i), ds1,ds,dg,          &
-                                 dsr2(i_rhor,i_Fr),dcrit,dcrits2(i_rhor,i_Fr),                 &
-                                 dcritr2(i_rhor,i_Fr),intgrR1,intgrR2,intgrR3,intgrR4,intgrR5)
+             call intgrl_section_Fl(lam2(i_rhor,i_Fr,i),mu_i2(i_rhor,i_Fr,i), ds1,ds,dg,          &
+                                    dsr2(i_rhor,i_Fr),dcrit,dcrits2(i_rhor,i_Fr),                 &
+                                    dcritr2(i_rhor,i_Fr),intgrR1,intgrR2,intgrR3,intgrR4,intgrR5)
 
 ! sum of the integrals from the 4 regions of the size distribution
              qdum = n02(i_rhor,i_Fr,i)*( (1.-Fl2)*(cs1*intgrR1 + cs*intgrR2 + cgp2(i_rhor,i_Fr)*intgrR3 +  &
@@ -879,7 +804,7 @@ PROGRAM create_p3_lookuptable_2
 
 ! recalculate mu based on final lam
 !         mu_i2(i_rhor,i_Fr,i) = diagnostic_mui(log_diagmu_orig,lam2(i_rhor,i_Fr,i),q,cgp2(i_rhor,i_Fr),Fr,pi)
-          mu_i2(i_rhor,i_Fr,i) = diagnostic_mui(lam2(i_rhor,i_Fr,i),q,rhom2,Fr,pi)
+          mu_i2(i_rhor,i_Fr,i) = diagnostic_mui(mu_i_min,mu_i_max,lam2(i_rhor,i_Fr,i),q,rhom2,Fr,pi)
 
 !            n0 = N*lam**(pgam+1.)/(gamma(pgam+1.))
 
@@ -887,9 +812,9 @@ PROGRAM create_p3_lookuptable_2
 ! this is done instead of finding n0 from lam and N, since N
 ! may need to be adjusted to constrain mean size within reasonable bounds
 
-          call intgrl_section(lam2(i_rhor,i_Fr,i),mu_i2(i_rhor,i_Fr,i), ds1,ds,dg,              &
-                                 dsr2(i_rhor,i_Fr),dcrit,dcrits2(i_rhor,i_Fr),                  &
-                                 dcritr2(i_rhor,i_Fr),intgrR1,intgrR2,intgrR3,intgrR4,intgrR5)
+          call intgrl_section_Fl(lam2(i_rhor,i_Fr,i),mu_i2(i_rhor,i_Fr,i), ds1,ds,dg,              &
+                                    dsr2(i_rhor,i_Fr),dcrit,dcrits2(i_rhor,i_Fr),                  &
+                                    dcritr2(i_rhor,i_Fr),intgrR1,intgrR2,intgrR3,intgrR4,intgrR5)
 
           cs5  = pi*sxth*1000.
           n02(i_rhor,i_Fr,i) = q/( (1.-Fl2)*(cs1*intgrR1 + cs*intgrR2 + cgp2(i_rhor,i_Fr)*intgrR3 +        &  ! n0 is normalized
@@ -918,25 +843,6 @@ PROGRAM create_p3_lookuptable_2
 
 !--------------------------------------------------------------------
 
-!                            RUNNING IN PARALLEL MODE:
-!
-!------------------------------------------------------------------------------------
-! CODE ABOVE HERE IS FOR THE "TOP" OF THE BROKEN UP CODE (for running in parallel)
-!
-!   Before running ./go_1-compile.ksh, delete all lines below this point and
-!   and save as 'create_p3_lookupTable_2-top.f90'
-!------------------------------------------------------------------------------------
-
-! For testing single values, uncomment the following:
-! i1 = 1
-
-!------------------------------------------------------------------------------------
-! CODE BELOW HERE IS FOR THE "BOTTOM" OF THE BROKEN UP CODE (for running in parallel)
-!
-!   Before running ./go_1-compile.ksh, delete all lines below this point and
-!   and save as 'create_p3_lookupTable_2-bottom.f90'
-!------------------------------------------------------------------------------------
-
 !.....................................................................................
 ! begin category process interaction calculations for the lookup table
 
@@ -944,21 +850,16 @@ PROGRAM create_p3_lookuptable_2
 ! collection of category 1 by category 2
 !.....................................................................................
 
- write (filename, "(A12,I0.2,A4)") "lookupTable_2-",i1,".dat"
- filename = trim(filename)
+ write (filename, "(a4,2i1,a1,i2.2,a4)") "lt2_",nint(Fl1),nint(Fl2),"_",i1_1,".dat"
  open(unit=1, file=filename, status='unknown')
 
- !header:
- if (i1==1) then
+ ! header: written once, by the (0,0) run's first block
+ if (i1_1==1 .and. Fl1==0. .and. Fl2==0.) then
     write(1,*) 'LOOKUP_TABLE_2-version:  ',trim(version)
-    write(1,*)
+    write(1,'(a)') ''          ! an empty line, whatever the compiler
  endif
 
-
- ! Note: i1 loop (do/enddo statements) is commented out for parallelization; i1 gets initizatized there
- ! - to run in serial, uncomment the 'do i1' statement and the corresponding 'enddo'
-
- Qnorm_loop_3: do i1 = 1,n_Qnorm    ! COMMENT OUT FOR PARALLELIZATION
+ Qnorm_loop_3: do i1 = i1_1,i1_2
    do i_Fr1 = 1,n_Fr
      do i_rhor1 = 1,n_rhor
        do i2 = 1,n_Qnorm
@@ -1130,192 +1031,20 @@ PROGRAM create_p3_lookuptable_2
              q_agg = dim(q_agg, 1.e-50)
 
             !write(6,'(a5,6i5,2e15.5)') 'index:',i1,i_Fr1,i_rhor1,i2,i_Fr2,i_rhor2,n_agg,q_agg
-             if (Fl1.eq.0 .and. Fl2.eq.0) then
-                write(1,'(6i5,2e15.6)') i1,i_Fr1,i_rhor1,i2,i_Fr2,i_rhor2,n_agg,q_agg
-             else
-                write(1,'(2e15.6)') n_agg,q_agg
-             endif
+             ! every (Fl1,Fl2) run writes the index columns, so the driver can check the
+             ! four runs line up row by row before joining their data columns
+             write(1,'(6i5,2e15.6)') i1,i_Fr1,i_rhor1,i2,i_Fr2,i_rhor2,n_agg,q_agg
 
            enddo   ! i_rhor2 loop
          enddo   ! i_Fr2 loop
        enddo   ! i2 loop
      enddo   ! i_rhor1 loop
    enddo   ! i_Fr1
- enddo Qnorm_loop_3  ! i1 loop  (Qnorm)     ! COMMENTED OUT FOR PARALLELIZATION
+ enddo Qnorm_loop_3  ! i1 loop  (Qnorm)
 
  close(1)
 
 END PROGRAM create_p3_lookuptable_2
-!______________________________________________________________________________________
-
-! Incomplete gamma function
-! from Numerical Recipes in Fortran 77: The Art of Scientific Computing
-
-      function gammq(a,x)
-
-      real a,gammq,x
-
-! USES gcf,gser
-! Returns the incomplete gamma function Q(a,x) = 1-P(a,x)
-
-      real gammcf,gammser,gln
-      if (x.lt.0..or.a.le.0) print*, 'bad argument in gammq'
-      if (x.lt.a+1.) then
-         call gser(gamser,a,x,gln)
-         gammq=1.-gamser
-      else
-         call gcf(gammcf,a,x,gln)
-         gammq=gammcf
-      end if
-      return
-      end
-
-!-------------------------------------
-
-      subroutine gser(gamser,a,x,gln)
-      integer itmax
-      real a,gamser,gln,x,eps
-      parameter(itmax=100,eps=3.e-7)
-      integer n
-      real ap,del,sum,gamma
-      gln = log(gamma(a))
-      if (x.le.0.) then
-         if (x.lt.0.) print*, 'x < 0 in gser'
-         gamser = 0.
-         return
-      end if
-      ap=a
-      sum=1./a
-      del=sum
-      do n=1,itmax
-         ap=ap+1.
-         del=del*x/ap
-         sum=sum+del
-         if (abs(del).lt.abs(sum)*eps) goto 1
-      end do
-      print*, 'a too large, itmax too small in gser'
- 1    gamser=sum*exp(-x+a*log(x)-gln)
-      return
-      end
-
-!-------------------------------------
-
-      subroutine gcf(gammcf,a,x,gln)
-      integer itmax
-      real a,gammcf,gln,x,eps,fpmin
-      parameter(itmax=100,eps=3.e-7,fpmin=1.e-30)
-      integer i
-      real an,b,c,d,del,h,gamma
-      gln=log(gamma(a))
-      b=x+1.-a
-      c=1./fpmin
-      d=1./b
-      h=d
-      do i=1,itmax
-         an=-i*(i-a)
-         b=b+2.
-         d=an*d+b
-         if(abs(d).lt.fpmin) d=fpmin
-         c=b+an/c
-         if(abs(c).lt.fpmin) c=fpmin
-         d=1./d
-         del=d*c
-         h = h*del
-         if(abs(del-1.).lt.eps)goto 1
-      end do
-!     pause 'a too large, itmax too small in gcf'
-      print*, 'a too large, itmax too small in gcf'
- 1    gammcf=exp(-x+a*log(x)-gln)*h
-      return
-      end
-
-!______________________________________________________________________________________
-
- real function diagnostic_mui(lam,q,rho,Fr,pi)
-
-!----------------------------------------------------------!
-! Compute mu_i diagnostically.
-!----------------------------------------------------------!
-
- implicit none
-
-!Arguments:
- real :: lam,q,rho,Fr,pi
-
-! Local variables:
- real            :: mu_i,dum1,dum2,dum3
- real, parameter :: mu_i_min =  0.
- real, parameter :: mu_i_max = 20.  !note: for orig 2-mom, mu_i_max=6.
- real, parameter :: Di_thres = 0.2  !diameter threshold [mm]
-
-!-- original formulation: (from Heymsfield, 2003)
-!  mu_i = 0.076*(lam/100.)**0.8-2.   ! /100 is to convert m-1 to cm-1
-!  mu_i = max(mu_i,0.)  ! make sure mu_i >= 0, otherwise size dist is infinity at D = 0
-!  mu_i = min(mu_i,6.)
-
-
-!-- formulation based on 3-moment results (see 2021 JAS article)
- dum1 = (q/rho)**(1./3)*1000.              ! estimated Dmvd [mm], assuming spherical
- if (dum1<=Di_thres) then
-    !diagnostic mu_i, original formulation: (from Heymsfield, 2003)
-    mu_i = 0.076*(lam*0.01)**0.8-2.        ! /100 is to convert m-1 to cm-1
-    mu_i = min(mu_i,6.)
- else
-    dum2 = (6./pi)*rho                     ! mean density (total)
-    dum3 = max(1., 1.+0.00842*(dum2-400.)) ! adjustment factor for density
-    mu_i = 0.25*(dum1-Di_thres)*dum3*Fr
-   !mu_i = 4.*(dum1-Di_thres)*dum3*Fr
- endif
- mu_i = max(mu_i, mu_i_min)
- mu_i = min(mu_i, mu_i_max)
-
- diagnostic_mui = mu_i
-
- end function diagnostic_mui
-
-!______________________________________________________________________________________
-
- subroutine intgrl_section(lam,mu, d1,d2,d3,d4, Dcrit1,Dcrit2,Dcrit3,    &
-                           intsec_1,intsec_2,intsec_3,intsec_4,intsec_5)
- !-----------------
- ! Computes and returns partial integrals (partial moments) of ice PSD.
- !-----------------
-
- implicit none
-
-!Arguments:
- real, intent(in)  :: lam,mu, d1,d2,d3,d4, Dcrit1,Dcrit2,Dcrit3
- real, intent(out) :: intsec_1,intsec_2,intsec_3,intsec_4,intsec_5
-
-!Local:
- real :: dum,gammq
-!-----------------
-
- !Region I -- integral from 0 to Dcrit1  (small spherical ice)
- intsec_1 = lam**(-d1-mu-1.)*gamma(mu+d1+1.)*(1.-gammq(mu+d1+1.,Dcrit1*lam))
-
- !Region II -- integral from Dcrit1 to Dcrit2  (non-spherical unrimed ice)
- intsec_2 = lam**(-d2-mu-1.)*gamma(mu+d2+1.)*(gammq(mu+d2+1.,Dcrit1*lam))
- dum      = lam**(-d2-mu-1.)*gamma(mu+d2+1.)*(gammq(mu+d2+1.,Dcrit2*lam))
- intsec_2 = intsec_2-dum
-
- !Region III -- integral from Dcrit2 to Dcrit3  (fully rimed spherical ice)
- intsec_3 = lam**(-d3-mu-1.)*gamma(mu+d3+1.)*(gammq(mu+d3+1.,Dcrit2*lam))
- dum      = lam**(-d3-mu-1.)*gamma(mu+d3+1.)*(gammq(mu+d3+1.,Dcrit3*lam))
- intsec_3 = intsec_3-dum
-
- !Region IV -- integral from Dcrit3 to infinity  (partially rimed ice)
- intsec_4 = lam**(-d4-mu-1.)*gamma(mu+d4+1.)*(gammq(mu+d4+1.,Dcrit3*lam))
-
- !Region V -- integral from 0 to infinity  (ice completely metled)
- !because d1=3.
- intsec_5 = lam**(-d1-mu-1.)*gamma(mu+d1+1.)
-
- return
-
- end subroutine intgrl_section
-
-
 !______________________________________________________________________________________
 
  real function Q_normalized(i_qnorm)

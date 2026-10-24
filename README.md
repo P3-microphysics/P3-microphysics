@@ -8,6 +8,9 @@ This repository contains the  P3 microphysics scheme and associated components. 
 This directory contains the main P3 module and the codes necessary to geneate the lookup tables, which are pre-computed and accessed during run-time.  The instructions for generating the lookup tables are found in comment blocks in the code.
 - create_p3_lookupTable_1.f90
 - create_p3_lookupTable_2.f90
+- create_p3_lookupTable_3.f90
+- p3_lookupTable_common.f90 (procedures shared by the three lookup-table generators; compiled with each)
+- make_luts.sh (driver that compiles the generators and generates the lookup tables)
 - microphy_p3.f90
 
 ### ./interfaces

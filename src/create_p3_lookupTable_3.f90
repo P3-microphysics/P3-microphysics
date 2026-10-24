@@ -2,21 +2,39 @@ PROGRAM create_p3_lookuptable_3
 
 !______________________________________________________________________________________
 !
-! This program creates the lookup tables (that are combined into the single file
-! 'p3_lookupTable_3.dat') for compute mui with triple-moment ice
+! This program creates the lookup table 'p3_lookupTable_3.dat' (mu_i, for triple-moment ice)
+! used by the P3 microphysics scheme.
 !
 !--------------------------------------------------------------------------------------
-! Version:       1.0
-! Last modified: 2025 May
+! Writes table version (parameter 'version' below; p3_init checks it).
+! The code itself is versioned with the P3 package (vX.Y.Z of microphy_p3.f90).
 !______________________________________________________________________________________
 
 !______________________________________________________________________________________
 !
-! To generate 'p3_lookupTable_1.dat' using this code, do the following steps :
-!              gfortran -fdefault-real-8 create_p3_lookupTable_3.f90)
+! To generate the table, use the driver script, which runs the blocks in parallel and
+! checks the assembled table:
+!
+!    src/make_luts.sh lt3 [-j N]
+!
+! Each run of the program computes one block.  Compile it together with the module of
+! shared procedures, module first, with double-precision default reals, e.g.
+!
+!    ifx -r8 -o create_p3_lookupTable_3 p3_lookupTable_common.f90 create_p3_lookupTable_3.f90
+!    gfortran -fdefault-real-8 -fdefault-double-8 -o create_p3_lookupTable_3 \
+!             p3_lookupTable_common.f90 create_p3_lookupTable_3.f90
+!
+! and run it as
+!
+!    ./create_p3_lookupTable_3 i_Znorm i_rhor     -> 'lt3_ZZ_R.dat'
+!
+! The blocks, concatenated in (i_Znorm, i_rhor) order, form the table; the header is written
+! by block (1,1) only.  The driver runs the blocks and checks the assembled table.
 !______________________________________________________________________________________
 
 !--------------------------------------------------------------------------------------------
+
+ use p3_lookupTable_common
 
  implicit none
 
@@ -47,7 +65,7 @@ PROGRAM create_p3_lookuptable_3
  integer :: i,ii,iii,jj,kk,kkk,dumii,i_iter,n_iter_psdSolve
 
  real :: N,q,qdum,dum1,dum2,cs1,ds1,lam,n0,lamf,qerror,del0,c0,c1,c2,dd,ddd,sum1,sum2,   &
-         sum3,sum4,xx,a0,b0,a1,b1,dum,bas1,aas1,aas2,bas2,gammq,gamma,d1,d2,delu,lamold, &
+         sum3,sum4,xx,a0,b0,a1,b1,dum,bas1,aas1,aas2,bas2,gamma,d1,d2,delu,lamold, &
          cap,lamr,dia,amg,dv,n0dum,sum5,sum6,sum7,sum8,dg,cg,bag,aag,dcritg,dcrits,      &
          dcritr,Fr,csr,dsr,duml,dum3,rhodep,cgpold,m1,m2,m3,dt,mu_r,initlamr,lamv,       &
          rdumii,lammin,lammax,pi,g,p,t,rho,mu,mu_i,ds,cs,bas,aas,dcrit,mu_dum,gdum,      &
@@ -60,13 +78,7 @@ PROGRAM create_p3_lookuptable_3
          lamd,mu_id,n0d,qid,Zid,cs5,dum5,rhom,intgrR5,Fl
 
 ! function to compute mu for triple moment
- real :: compute_mu_3moment,compute_mu_3moment_2,compute_mu_3moment_1
-
-! function to return diagnostic value of shape paramter, mu_i (mu_id with i_Fl)
- real :: diagnostic_mui
-
-! function to return diagnostic value of shape paramter, mu_i
- real :: diagnostic_mui_Fl
+ real :: compute_mu_3moment_1
 
 ! outputs from lookup table (i.e. "mui" read by access_lookup_table in s/r p3_main)
  real, dimension(n_Znorm,n_rhor,n_Qnorm,n_Fr,n_Fl) :: mu_i_save,rhomm,momen3,momen3_save
@@ -84,7 +96,35 @@ PROGRAM create_p3_lookuptable_3
 
  character(len=2014)                :: filename
 
+! the block (one value of each outer-loop index), from the command line
+ integer                            :: i_Znorm_1,i_Znorm_2,i_rhor_1,i_rhor_2
+ character(len=32)                  :: arg
+
 !===   end of variable declaration ===
+
+! the tables are computed in double precision: refuse a build without promoted reals
+ if (kind(1.) /= 8 .or. kind(1.d0) /= 8) then
+    print*, 'create_p3_lookupTable_3: default real and double precision must both be 8 bytes'
+    print*, '  (ifx/ifort: -r8;  gfortran: -fdefault-real-8 -fdefault-double-8)'
+    stop 1
+ endif
+
+ if (command_argument_count() /= 2) then
+    print*, 'usage: create_p3_lookupTable_3 i_Znorm i_rhor'
+    stop 1
+ endif
+ call get_command_argument(1,arg);  read(arg,*) i_Znorm_1
+ call get_command_argument(2,arg);  read(arg,*) i_rhor_1
+ if (i_Znorm_1<1 .or. i_Znorm_1>n_Znorm .or. i_rhor_1<1 .or. i_rhor_1>n_rhor) then
+    print*, 'create_p3_lookupTable_3: index out of range (i_Znorm 1..',n_Znorm,', i_rhor 1..',n_rhor,')'
+    stop 1
+ endif
+ i_Znorm_2 = i_Znorm_1      ! the loops below run once: one block per process
+ i_rhor_2  = i_rhor_1
+
+! zqerror is read by the mu_i convergence test (zqerror_old) before it is first set; it was
+! 0 from static storage at program start.  Set explicitly, so no compiler can change it.
+ zqerror = 0.
 
  pi  = acos(-1.)
 
@@ -153,32 +193,24 @@ PROGRAM create_p3_lookuptable_3
  crp(5) = 900.*pi*sxth
 !------------------------------------------------------------------------
 
-! open file to write to lookup table:
- if (log_3momI) then
-    write (filename, "(A17)") "lookupTable_3.dat"
-    filename = trim(filename)
-    open(unit=1, file=filename, status='unknown')
- endif
+! open file to write this block of the lookup table:
+ write (filename, "(a4,i2.2,a1,i1,a4)") "lt3_",i_Znorm_1,"_",i_rhor_1,".dat"
+ open(unit=1, file=filename, status='unknown')
 
-!--
-! The values of i_Znorm (and possibly i_rhor) are "passed in" for parallelized version of code for 3-moment.
-! The values of i_rhor are "passed in" for parallelized version of code for 2-moment.
-! Thus, the loops 'i_Znorm_loop' and 'i_rhor_loop' are commented out accordingingly.
-!
-!i_Znorm_loop: do i_Znorm = 1,n_Znorm   !normally commented (kept to illustrate the structure (and to run in serial)
-!   i_rhor_loop: do i_rhor = 1,n_rhor    !COMMENT OUT FOR PARALLELIZATION OF THIS LOOP (2-MOMENT ONLY)
-     i_Fr_loop_1: do i_Fr = 1,n_Fr      !COMMENT OUT FOR PARALLELIZATION OF THIS LOOP (2-MOMENT ONLY)
+ i_Znorm_loop: do i_Znorm = i_Znorm_1,i_Znorm_2
+   i_rhor_loop: do i_rhor = i_rhor_1,i_rhor_2
+     i_Fr_loop_1: do i_Fr = 1,n_Fr
 
 
 ! 3-moment-ice only:
-! compute Z value from input Z index whose value is "passed in" through the script
+! compute Z value from the Z index
      Z_value = 2.1**(i_Znorm)*1.e-23 ! range from 2x10^(-23) to 600 using 80 values
      !Z_value = 2.1e-05 ! for testing
 
-       ! write header to first file:
+       ! write header (block (1,1) only); p3_init checks the version token
        if (log_3momI .and. i_Znorm==1 .and. i_rhor==1 .and. i_Fr==1) then
-          write(1,*) 'LOOKUP_TABLE_3-version:  ',trim(version),'-3momI'
-          write(1,*)
+          write(1,*) 'LOOKUP_TABLE_3-version:  ',trim(version)
+          write(1,'(a)') ''          ! an empty line, whatever the compiler
        endif
 
 !-- these lines to be replaced by Fr(i_Fr) initialization outside of loops
@@ -464,159 +496,14 @@ PROGRAM create_p3_lookuptable_3
 
         enddo i_Fl_loop_1
       enddo i_Fr_loop_1
-!    enddo i_rhor_loop
-!enddo i_Znorm_loop
+   enddo i_rhor_loop
+ enddo i_Znorm_loop
 !==
 
  close(1)
 
 END PROGRAM create_p3_lookuptable_3
 !______________________________________________________________________________________
-
-! Incomplete gamma function
-! from Numerical Recipes in Fortran 77: The Art of
-! Scientific Computing
-
-      function gammq(a,x)
-
-      real a,gammq,x
-
-! USES gcf,gser
-! Returns the incomplete gamma function Q(a,x) = 1-P(a,x)
-
-      real gammcf,gammser,gln
-!     if (x.lt.0..or.a.le.0) pause 'bad argument in gammq'
-      if (x.lt.0..or.a.le.0) print*, 'bad argument in gammq'
-      if (x.lt.a+1.) then
-         call gser(gamser,a,x,gln)
-         gammq=1.-gamser
-      else
-         call gcf(gammcf,a,x,gln)
-         gammq=gammcf
-      end if
-      return
-      end
-
-!______________________________________________________________________________________
-
-      subroutine gser(gamser,a,x,gln)
-      integer itmax
-      real a,gamser,gln,x,eps
-      parameter(itmax=100,eps=3.e-7)
-      integer n
-      real ap,del,sum,gamma
-      gln = log(gamma(a))
-      if (x.le.0.) then
-!        if (x.lt.0.) pause 'x < 0 in gser'
-         if (x.lt.0.) print*, 'x < 0 in gser'
-         gamser = 0.
-         return
-      end if
-      ap=a
-      sum=1./a
-      del=sum
-      do n=1,itmax
-         ap=ap+1.
-         del=del*x/ap
-         sum=sum+del
-         if (abs(del).lt.abs(sum)*eps) goto 1
-      end do
-!     pause 'a too large, itmax too small in gser'
-      print*, 'a too large, itmax too small in gser'
- 1    gamser=sum*exp(-x+a*log(x)-gln)
-      return
-      end
-
-!______________________________________________________________________________________
-
-      subroutine gcf(gammcf,a,x,gln)
-      integer itmax
-      real a,gammcf,gln,x,eps,fpmin
-      parameter(itmax=100,eps=3.e-7,fpmin=1.e-30)
-      integer i
-      real an,b,c,d,del,h,gamma
-      gln=log(gamma(a))
-      b=x+1.-a
-      c=1./fpmin
-      d=1./b
-      h=d
-      do i=1,itmax
-         an=-i*(i-a)
-         b=b+2.
-         d=an*d+b
-         if(abs(d).lt.fpmin) d=fpmin
-         c=b+an/c
-         if(abs(c).lt.fpmin) c=fpmin
-         d=1./d
-         del=d*c
-         h = h*del
-         if(abs(del-1.).lt.eps)goto 1
-      end do
-!     pause 'a too large, itmax too small in gcf'
-      print*, 'a too large, itmax too small in gcf'
- 1    gammcf=exp(-x+a*log(x)-gln)*h
-      return
-      end
-
-!______________________________________________________________________________________
-
- real function compute_mu_3moment(mom3,mom6,mu_max)
-
- !--------------------------------------------------------------------------
- ! Computes mu as a function of G(mu), where
- !
- ! G(mu)= N*Z/Q^2 = [(6+mu)(5+mu)(4+mu)]/[(3+mu)(2+mu)(1+mu)]
- !
- ! 2018-08-08
- !--------------------------------------------------------------------------
-
- implicit none
-
-! Arguments passed:
- real, intent(in) :: mom3,mom6 !normalized moments
- real, intent(in) :: mu_max    !maximum allowable value of mu
-
-! Local variables:
- real             :: mu   ! shape parameter in gamma distribution
- real             :: a1,g1,g2,G
-
-! calculate G from normalized moments
-    G = mom6/mom3
-
-!----------------------------------------------------------!
-! !Solve alpha numerically: (brute-force)
-!      mu= 0.
-!      g2= 999.
-!      do i=0,4000
-!         a1= i*0.01
-!         g1= (6.+a1)*(5.+a1)*(4.+a1)/((3.+a1)*(2.+a1)*(1.+a1))
-!         if(abs(g-g1)<abs(g-g2)) then
-!            mu = a1
-!            g2= g1
-!         endif
-!      enddo
-!----------------------------------------------------------!
-
-!Piecewise-polynomial approximation of G(mu) to solve for mu:
-  if (G >= 20.) then
-    mu = 0.
-  else
-    g2 = G**2
-    if (G<20.  .and.G>=13.31) mu = 3.3638e-3*g2 - 1.7152e-1*G + 2.0857e+0
-    if (G<13.31.and.G>=7.123) mu = 1.5900e-2*g2 - 4.8202e-1*G + 4.0108e+0
-    if (G<7.123.and.G>=4.200) mu = 1.0730e-1*g2 - 1.7481e+0*G + 8.4246e+0
-    if (G<4.200.and.G>=2.946) mu = 5.9070e-1*g2 - 5.7918e+0*G + 1.6919e+1
-    if (G<2.946.and.G>=1.793) mu = 4.3966e+0*g2 - 2.6659e+1*G + 4.5477e+1
-    if (G<1.793.and.G>=1.405) mu = 4.7552e+1*g2 - 1.7958e+2*G + 1.8126e+2
-    if (G<1.405.and.G>=1.230) mu = 3.0889e+2*g2 - 9.0854e+2*G + 6.8995e+2
-    if (G<1.230) mu = mu_max
-  endif
-
-  compute_mu_3moment = mu
-
- end function compute_mu_3moment
-
- !______________________________________________________________________________________
 
  real function compute_mu_3moment_1(mom3,mom6,mu_max)
 
@@ -660,103 +547,3 @@ END PROGRAM create_p3_lookuptable_3
   compute_mu_3moment_1 = mu
 
  end function compute_mu_3moment_1
-
- !==========================================================================================!
- real function compute_mu_3moment_2(mom3,mom6,mu_max)
-
- !--------------------------------------------------------------------------
- ! Computes mu as a function of moments 0, 3, and 6 of the size distribution
- ! represented by N(D) = No*D^mu*e(-lambda*D).
- !
- ! * solution is done using an analytic cubic root *
- !
- ! For piecewise polynomial approximation solution, use 'compute_mu_3moment_1'
- ! (This is coded as seperate subroutines, rather than a single function with an option,
- ! to avoid a IF/THEN block since this is used in loops.)
- !
- ! note: moment 3 is not equal to the mass mixing ratio (due to variable density)
- !--------------------------------------------------------------------------
-
- implicit none
-
-! arguments:
-! real, intent(in) :: mom0    !0th moment
- real, intent(in) :: mom3    !3th moment  (note, normalized)
- real, intent(in) :: mom6    !6th moment  (note, normalized)
- real, intent(in) :: mu_max  !maximum allowable value of mu
-
-! local:
- real             :: mu      !shape parameter in gamma distribution
- double precision :: G       !function of mu (see comments above)
- double precision :: g2,x1,x2,x3
- real, parameter  :: eps_m3 = 1.e-20
-
- real :: dum,c1,c2,c3,Q,R,aa,bb
-
-     G = mom6/mom3
-     ! set minimum on G, below this the analytic solution breaks down
-     G = max(1.3, G)
-
-    !analytic cubic root solution:
-     dum = 1./(1.-G)
-     c1  = (15.-6.*G)*dum
-     c2  = (74.-11.*G)*dum
-     c3  = (120.-6.*G)*dum
-     Q   = (c1**2-3.*c2)/9.
-     R   = (2.*c1**3-9.*c1*c2+27.*c3)/54.
-
-     ! NOTE: R is always < 0, thus we take the following:
-
-     aa = (abs(R)+sqrt(R**2-Q**3))**(1./3.)
-     bb = Q/aa
-
-     mu = aa+bb-c1*(1./3.)
-     mu = min(max(mu,0.),mu_max)
-
-     compute_mu_3moment_2 = mu
-
- end function compute_mu_3moment_2
-
-!______________________________________________________________________________________
-
-
-subroutine intgrl_section_Fl(lam,mu, d1,d2,d3,d4, Dcrit1,Dcrit2,Dcrit3,    &
-                          intsec_1,intsec_2,intsec_3,intsec_4,intsec_5)
-!-----------------
-! Computes and returns partial integrals (partial moments) of ice PSD.
-!-----------------
-
-implicit none
-
-!Arguments:
-real, intent(in)  :: lam,mu, d1,d2,d3,d4, Dcrit1,Dcrit2,Dcrit3
-real, intent(out) :: intsec_1,intsec_2,intsec_3,intsec_4,intsec_5
-
-!Local:
-real :: dum,gammq
-!-----------------
-
-!Region I -- integral from 0 to Dcrit1  (small spherical ice)
-intsec_1 = lam**(-d1-mu-1.)*gamma(mu+d1+1.)*(1.-gammq(mu+d1+1.,Dcrit1*lam))
-
-!Region II -- integral from Dcrit1 to Dcrit2  (non-spherical unrimed ice)
-intsec_2 = lam**(-d2-mu-1.)*gamma(mu+d2+1.)*(gammq(mu+d2+1.,Dcrit1*lam))
-dum      = lam**(-d2-mu-1.)*gamma(mu+d2+1.)*(gammq(mu+d2+1.,Dcrit2*lam))
-intsec_2 = intsec_2-dum
-
-!Region III -- integral from Dcrit2 to Dcrit3  (fully rimed spherical ice)
-intsec_3 = lam**(-d3-mu-1.)*gamma(mu+d3+1.)*(gammq(mu+d3+1.,Dcrit2*lam))
-dum      = lam**(-d3-mu-1.)*gamma(mu+d3+1.)*(gammq(mu+d3+1.,Dcrit3*lam))
-intsec_3 = intsec_3-dum
-
-!Region IV -- integral from Dcrit3 to infinity  (partially rimed ice)
-intsec_4 = lam**(-d4-mu-1.)*gamma(mu+d4+1.)*(gammq(mu+d4+1.,Dcrit3*lam))
-
-!Region V -- integral from 0 to infinity  (ice completely metled)
-!because d1=3.
-intsec_5 = lam**(-d1-mu-1.)*gamma(mu+d1+1.)
-
-return
-
-end subroutine intgrl_section_Fl
-

@@ -2,171 +2,61 @@ PROGRAM create_p3_lookuptable_1
 
 !______________________________________________________________________________________
 !
-! This program creates the lookup tables (that are combined into the single file
-! 'p3_lookupTable_1.dat') for the microphysical processes, used by the P3 microphysics scheme.
-! Note, 'p3_lookupTable_2.dat', used in ice-ice interactions for the multi-ice-category
-! configuration, are created by a separate program, 'create_lookupTable_2.f90').
-!
-! This code is used to generate lookupTable_1 for either 2momI or 3momI, depending on
-! the specified value of the parameter 'log_3momI'.
-!
-! All other parameter settings are linked uniquely to the version number.
+! This program creates the lookup table 'p3_lookupTable_1.dat' (the microphysical process
+! rates, plus the ice-rain collection sub-table) used by the P3 microphysics scheme, for
+! either 2-moment ice (2momI) or 3-moment ice (3momI).  'p3_lookupTable_2.dat', used for
+! ice-ice interactions with more than one ice category, is created by a separate program,
+! 'create_p3_lookupTable_2.f90'.
 !
 !--------------------------------------------------------------------------------------
-! Version:       6.9
-! Last modified: 2025 Feb
-! Version: including the liquid fraction (inner-loop i_Fl), full3mom, prognostic aerosols
+! Writes table version (parameter 'version' below; p3_init checks it), which includes
+! the liquid fraction (inner loop i_Fl), full 3-moment ice and prognostic aerosols.
+! The code itself is versioned with the P3 package (vX.Y.Z of microphy_p3.f90).
 !______________________________________________________________________________________
 
 !______________________________________________________________________________________
 !
-! To generate 'p3_lookupTable_1.dat' using this code, do the following steps :
+! To generate the table, use the driver script, which runs the blocks in parallel and
+! checks the assembled table:
 !
-! 1. Break up this code into two parts (-top.f90 and -bottom.90).  Search for the string
-!    'RUNNING IN PARALLEL MODE' and follow instructions.
-!    For 2momI, need to comment do/enddo for 'i_rhor_loop' for parallelization (search for
-!    'i_rhor_loop' label); for 3momI, the 'i_rhor_loop' needs to be uncomment.
-!    (In the future, a script  will be written to automate this.)
+!    src/make_luts.sh lt1-2mom [-j N]
+!    src/make_luts.sh lt1-3mom [-j N]
 !
-! 2. Copy the 3 pieces of text below to create indivudual executable shell scripts.
-
-! 3. Run script 1 (./go_1-compile.ksh).  This script will recreate several
-!    versions of the full code, concatenating the -top.f90 and the -bottom.90 with
-!    the following code (e.g.) in between (looping through values of i_rhor (for 2momI) or
-!    i_Znorm (for 3momI):
+! Each run of the program computes one block.  Compile it together with the module of
+! shared procedures, module first, with double-precision default reals, e.g.
 !
-!    i_rhor  = 1   ! 2-moment-ice
-!    i_Znorm = 1   ! 3-moment-ice
+!    ifx -r8 -o create_p3_lookupTable_1 p3_lookupTable_common.f90 create_p3_lookupTable_1.f90
+!    gfortran -fdefault-real-8 -fdefault-double-8 -o create_p3_lookupTable_1 \
+!             p3_lookupTable_common.f90 create_p3_lookupTable_1.f90
 !
-!    Each version of full_code.f90 is then compiled, with a unique executable name.
-!    Note, this is done is place the outer i1 loop in order to parallelized .
+! and run it as
 !
-! 4. Run script 2 (./go_2-submit.csh)  This create temporary work directories,
-!    moves each executable to each work directory, and runs the executables
-!    simultaneously.  (Note, it is assumed that the machine on which this is done
-!    has multiple processors, though it is not necessary.)
+!    ./create_p3_lookupTable_1 3 i_Znorm i_rhor i_Fr   -> 3momI block 'lt1-3mom_ZZ_R_F.dat'
+!    ./create_p3_lookupTable_1 2 i_rhor i_Fr           -> 2momI block 'lt1-2mom_R_F.dat'
 !
-! 5. Run script 3 (./go_3-concatenate.ksh).  This concatenates the individual
-!    partial tables (the output in each working directory) into a single, final
-!    file 'p3_lookupTable_1.dat'  Once it is confirmed that the table is correct,
-!    the work directories and their contents can be removed.
-!
-!  Note:  For testing or to run in serial, ompile with double-precision
-!        (e.g. ifort -r8 create_p3_lookupTable_1.f90)
-!              gfortran -fdefault-real-8 create_p3_lookupTable_1.f90)
+! The blocks, concatenated in (i_Znorm, i_rhor, i_Fr) order, form the table; the header is
+! written by the first block only.  The driver runs the blocks and checks the assembled table.
 !______________________________________________________________________________________
 
-!--------------------------------------------------------------------------------------------
-! Parallel script 1 (of 3):  [copy text below (uncommented) to file 'go_1-compile.ksh']
-!  - creates individual parallel codes, compiles each
-!
-!-----------------------------
-! For 2-MOMENT-ICE:
 
-! #!/bin/ksh
-!
-! for i_rhor in 01 02 03 04 05
-! do
-!
-!    rm cfg_input full_code.f90
-!    cat > cfg_input << EOF
-!     i_rhor  = ${i_rhor}
-! EOF
-!    cat create_p3_lookupTable_1-top.f90 cfg_input create_p3_lookupTable_1-bottom.f90 > full_code.f90
-!    echo 'Compiling 'exec_${i_rhor}
-!    ifort -r8 full_code.f90
-!    mv a.out exec_${i_rhor}
-!
-! done
-!
-! rm cfg_input full_code.f90
-
-!-----------------------------
-! For 3-MOMENT-ICE:
-
-!#!/bin/ksh
-!
-! for i_Znorm in 01 02 03 04 05 06 07 08 09 10 11
-! do
-!
-! for i_rhor in 01 02 03 04 05
-! do
-!    rm cfg_input full_code.f90
-!    cat > cfg_input << EOF
-!    i_Znorm = ${i_Znorm}
-!    i_rhor = ${i_rhor}
-!EOF
-!    cat create_p3_lookupTable_1-top.f90 cfg_input create_p3_lookupTable_1-bottom.f90 > full_code.f90
-!    cp full_code.f90 full_code_${i_Znorm}_${i_rhor}.f90
-!    echo 'Compiling 'exec_${i_Znorm}_${i_rhor}
-!    ifort -r8 full_code.f90
-!    mv a.out exec_${i_Znorm}_${i_rhor}
-!
-! done
-! done
-!
-! rm cfg_input full_code.f90
-
-!--------------------------------------------------------------------------------------------
-!# Parallel script 2 (of 3):   [copy text below (uncommented) to file 'go_2-submit.ksh']
-!#  - creates individual work directories, launches each executable
-
-!#!/bin/ksh
-!
-! for exec in `ls exec_*`
-! do
-!    echo Submitting: ${exec}
-!    mkdir ${exec}-workdir
-!    mv ${exec} ${exec}-workdir
-!    cd ${exec}-workdir
-!    ./${exec} > log &
-!    cd ..
-! done
-
-!--------------------------------------------------------------------------------------------
-!# Parallel script 3 (of 3):   [copy text below (uncommented) to file 'go_3-concatenate.ksh]
-!#  - concatenates the output of each parallel job into a single output file.
-
-!#!/bin/ksh
-!
-! rm lt_total
-!
-! for i in `ls exec*/*dat`
-! do
-!    echo $i
-!    cat lt_total $i > lt_total_tmp
-!    mv lt_total_tmp lt_total
-! done
-!
-! mv lt_total p3_lookupTable_1.dat
-!
-! echo 'Done.  Work directories and contents can now be removed.'
-! echo 'Be sure to re-name the file with the appropriate extension, with the version number'
-! echo 'corresponding to that in the header.  (e.g. 'p3_lookupTable_1.dat-v5.3-3momI')'
-
-!--------------------------------------------------------------------------------------------
+ use p3_lookupTable_common
 
  implicit none
 
  !-----
  character(len=20), parameter :: version   = '6.9'
- logical, parameter           :: log_3momI = .true.    !switch to create table for 2momI (.false.) or 3momI (.true.)
+ logical                      :: log_3momI             !table for 2momI (.false.) or 3momI (.true.); from the command line
  !-----
 
- integer            :: i_Znorm         ! index for normalized (by Q) Z (passed in through script; [1 .. n_Znorm])
- integer            :: i_rhor          ! index for rho_rime (passed in through script; [1 .. n_rhor])
+ integer            :: i_Znorm         ! index for normalized (by Q) Z  [1 .. n_Znorm] (3momI; -9 for 2momI)
+ integer            :: i_rhor          ! index for rho_rime             [1 .. n_rhor]
  integer            :: i_Fr            ! index for rime-mass-fraction loop      [1 .. n_Fr]
  integer            :: i_Fl            ! index for liquid-mass-fraction loop    [1 .. n_Fl]
  integer            :: i_Qnorm         ! index for normalized (by N) Q loop     [1 .. n_Qnorm]
  integer            :: i_Drscale       ! index for scaled mean rain size loop   [1 .. n_Drscale]
 
-! NOTE: n_Znorm (number of i_Znorm values) is currently equal to 80.  It is not actually used herein and therefore not declared.
-!       Rather, the outer (i_Znorm) "loop" is treated by individual complilations/execuations with specified values of i_Znorm,
-!       with resulting sub-tables subsequently concatenated.  The same is true for the second (i_rhor) "loop"; however, n_rhor
-!       is used to decare the ranges of other arrays, hence it is declared/initialized here
-
-!integer, parameter :: n_Znorm   = 11  ! number of indices for i_Znorm loop           (1nd "loop")  [not used in parallelized version]
- integer, parameter :: n_rhor    =  5  ! number of indices for i_rhor  loop           (2nd "loop")
+ integer, parameter :: n_Znorm   = 11  ! number of indices for i_Znorm loop           (1st loop, 3momI only)
+ integer, parameter :: n_rhor    =  5  ! number of indices for i_rhor  loop           (2nd loop)
  integer, parameter :: n_Fr      =  4  ! number of indices for i_Fr    loop           (3rd loop)
  integer, parameter :: n_Fl      =  4  ! number of indices for i_Fl    loop           (4th loop)
  integer, parameter :: n_Qnorm   = 50  ! number of indices for i_Qnorm loop           (5th loop)
@@ -181,7 +71,7 @@ PROGRAM create_p3_lookuptable_1
  integer :: i,ii,iii,jj,kk,kkk,dumii,i_iter,n_iter_psdSolve
 
  real :: N,q,qdum,dum1,dum2,cs1,ds1,lam,n0,lamf,qerror,del0,c0,c1,c2,dd,ddd,sum1,sum2,   &
-         sum3,sum4,xx,a0,b0,a1,b1,dum,bas1,aas1,aas2,bas2,gammq,gamma,d1,d2,delu,lamold, &
+         sum3,sum4,xx,a0,b0,a1,b1,dum,bas1,aas1,aas2,bas2,gamma,d1,d2,delu,lamold, &
          cap,lamr,dia,amg,dv,n0dum,sum5,sum6,sum7,sum8,dg,cg,bag,aag,dcritg,dcrits,      &
          dcritr,Fr,csr,dsr,duml,dum3,rhodep,cgpold,m1,m2,m3,dt,mu_r,initlamr,lamv,       &
          rdumii,lammin,lammax,pi,g,p,t,rho,mu,mu_i,ds,cs,bas,aas,dcrit,mu_dum,gdum,      &
@@ -191,12 +81,6 @@ PROGRAM create_p3_lookuptable_1
 ! New parameters with liquid fraction
  real :: area,area1,area2,mass,fac1,fac2,dumfac1,dumfac2,dumfac12,dumfac22,capm,gg,      &
          lamd,mu_id,n0d,qid,Zid,cs5,dum5,rhom,intgrR5,Fl
-
-! function to compute mu for triple moment
- real :: compute_mu_3moment
-
-! function to return diagnostic value of shape paramter, mu_i (mu_id with i_Fl)
- real :: diagnostic_mui
 
 ! function to return diagnostic value of shape paramter, mu_i
  real :: diagnostic_mui_Fl
@@ -244,6 +128,9 @@ PROGRAM create_p3_lookuptable_1
  real, parameter                    :: cutoff = 1.e-90
 
  character(len=2014)                :: filename
+ integer                            :: i_Znorm_1,i_Znorm_2,i_rhor_1,i_rhor_2,i_Fr_1,i_Fr_2   ! the block (outer-loop indices)
+ integer                            :: n_arg,mom,ios
+ character(len=32)                  :: arg
 
 ! Declaration variables for reflectivty init (2021)
 ! for rayleigh scattering based on WRF code
@@ -265,7 +152,6 @@ PROGRAM create_p3_lookuptable_1
                                        hoststring_m, hostmatrixstring_m, hostinclusionstring_m
  integer :: bb
 
- real :: dumm3,dumm6,dummu_i,compute_mu_3moment2
 
 
 do i = 1, slen
@@ -287,6 +173,47 @@ hostinclusionstring_m = 'spheroidal'
 
 !===   end of variable declaration ===
 
+! the tables are computed in double precision: refuse a build without promoted reals
+ if (kind(1.) /= 8 .or. kind(1.d0) /= 8) then
+    print*, 'create_p3_lookupTable_1: default real and double precision must both be 8 bytes'
+    print*, '  (ifx/ifort: -r8;  gfortran: -fdefault-real-8 -fdefault-double-8)'
+    stop 1
+ endif
+
+! command line: one block, '3 i_Znorm i_rhor i_Fr' (3momI) or '2 i_rhor i_Fr' (2momI)
+ n_arg = command_argument_count()
+ mom   = 0
+ if (n_arg >= 1) then
+    call get_command_argument(1,arg);  read(arg,*,iostat=ios) mom
+ endif
+ if (.not.((mom==3 .and. n_arg==4) .or. (mom==2 .and. n_arg==3))) then
+    print*, 'usage: create_p3_lookupTable_1 3 i_Znorm i_rhor i_Fr'
+    print*, '       create_p3_lookupTable_1 2 i_rhor i_Fr'
+    stop 1
+ endif
+ log_3momI = mom==3
+ if (log_3momI) then
+    call get_command_argument(2,arg);  read(arg,*) i_Znorm_1
+    call get_command_argument(3,arg);  read(arg,*) i_rhor_1
+    call get_command_argument(4,arg);  read(arg,*) i_Fr_1
+    if (i_Znorm_1<1 .or. i_Znorm_1>n_Znorm) then
+       print*, 'create_p3_lookupTable_1: i_Znorm out of range 1..',n_Znorm;  stop 1
+    endif
+ else
+    i_Znorm_1 = -9                      ! i_Znorm is not used for 2momI (value -9, as before)
+    call get_command_argument(2,arg);  read(arg,*) i_rhor_1
+    call get_command_argument(3,arg);  read(arg,*) i_Fr_1
+ endif
+ if (i_rhor_1<1 .or. i_rhor_1>n_rhor) then
+    print*, 'create_p3_lookupTable_1: i_rhor out of range 1..',n_rhor;  stop 1
+ endif
+ if (i_Fr_1<1 .or. i_Fr_1>n_Fr) then
+    print*, 'create_p3_lookupTable_1: i_Fr out of range 1..',n_Fr;  stop 1
+ endif
+ i_Znorm_2 = i_Znorm_1                  ! the loops below run once: one block per process
+ i_rhor_2  = i_rhor_1
+ i_Fr_2    = i_Fr_1
+
  if (log_3momI) then
 ! HM, no longer need iteration loop
 !    n_iter_psdSolve = 3   ! 3 iterations found to be sufficient (trial-and-error)
@@ -295,29 +222,6 @@ hostinclusionstring_m = 'spheroidal'
     n_iter_psdSolve = 1
  endif
 
-
-!                            RUNNING IN PARALLEL MODE:
-!
-!------------------------------------------------------------------------------------
-! CODE ABOVE HERE IS FOR THE "TOP" OF THE BROKEN UP CODE (for running in parallel)
-!
-!   Before running ./go_1-compile.ksh, delete all lines below this point and
-!   and save as 'create_p3_lookupTable_1-top.f90'
-!------------------------------------------------------------------------------------
-
-
-! For testing single values, uncomment the following:
-! i_Znorm = 1
-! i_rhor  = 1
-
-!------------------------------------------------------------------------------------
-! CODE BELOW HERE IS FOR THE "BOTTOM" OF THE BROKEN UP CODE (for running in parallel)
-!
-!   Before running ./go_1-compile.ksh, delete all lines below this point and
-!   and save as 'create_p3_lookupTable_1-bottom.f90'
-!------------------------------------------------------------------------------------
-
- if (.not.log_3momI) i_Znorm = -9  ! to avoid uninitialized value (2-moment only)
 
 ! set constants and parameters
 
@@ -437,7 +341,7 @@ hostinclusionstring_m = 'spheroidal'
 
  if (pi/4.*dcrit**2.lt.aas*dcrit**bas) then
     print*,'STOP, area > area of solid ice sphere, unrimed'
-    stop
+    stop 1
  endif
 
 !.........................................................
@@ -491,40 +395,31 @@ hostinclusionstring_m = 'spheroidal'
 
 !------------------------------------------------------------------------
 
-! open file to write to lookup table:
+! open file to write this block of the lookup table:
  if (log_3momI) then
-!   write (filename, "(A12,I0.2,A1,I0.2,A4)") "lookupTable_1-",i_Znorm,"_",i_rhor,".dat"   !if parallelized over both i_Znorm and i_rhor
-    write (filename, "(A12,I0.2,A4)") "lookupTable_1-",i_Znorm,".dat"
-    filename = trim(filename)
-    open(unit=1, file=filename, status='unknown')
+    write (filename, "(a9,i2.2,a1,i1,a1,i1,a4)") "lt1-3mom_",i_Znorm_1,"_",i_rhor_1,"_",i_Fr_1,".dat"
  else
-    write (filename, "(A12,I0.2,A4)") "lookupTable_1-",i_rhor,".dat"
-    filename = trim(filename)
-    open(unit=1, file=filename, status='unknown')
+    write (filename, "(a9,i1,a1,i1,a4)") "lt1-2mom_",i_rhor_1,"_",i_Fr_1,".dat"
  endif
+ open(unit=1, file=filename, status='unknown')
 
-!--
-! The values of i_Znorm (and possibly i_rhor) are "passed in" for parallelized version of code for 3-moment.
-! The values of i_rhor are "passed in" for parallelized version of code for 2-moment.
-! Thus, the loops 'i_Znorm_loop' and 'i_rhor_loop' are commented out accordingingly.
-!
-!i_Znorm_loop: do i_Znorm = 1,n_Znorm   !normally commented (kept to illustrate the structure (and to run in serial)
-!   i_rhor_loop: do i_rhor = 1,n_rhor    !COMMENT OUT FOR PARALLELIZATION OF THIS LOOP (2-MOMENT ONLY)
-     i_Fr_loop_1: do i_Fr = 1,n_Fr      !COMMENT OUT FOR PARALLELIZATION OF THIS LOOP (2-MOMENT ONLY)
+ i_Znorm_loop: do i_Znorm = i_Znorm_1,i_Znorm_2
+   i_rhor_loop: do i_rhor = i_rhor_1,i_rhor_2
+     i_Fr_loop_1: do i_Fr = i_Fr_1,i_Fr_2
 
 ! 3-moment-ice only:
-! compute Z value from input Z index whose value is "passed in" through the script
+! compute Z value from the Z index
 ! Z_value = 2.1**(i_Znorm)*1.e-23 ! range from 2x10^(-23) to 600 using 80 values
   Z_value = 2.*(i_Znorm-1.) ! mu values of 0,2,4,6,8, temporary.... NOTE IF 2 MOM JUST SET TO ARBITRARY VALUE, WILL BE OVERWRITTEN LATER
 
        ! write header to first file:
        if (log_3momI .and. i_Znorm==1 .and. i_rhor==1 .and. i_Fr==1) then
           write(1,*) 'LOOKUP_TABLE_1-version:  ',trim(version),'-3momI'
-          write(1,*)
+          write(1,'(a)') ''          ! an empty line, whatever the compiler
        ! elseif (i_rhor==1) then
        elseif (.not.log_3momI .and. i_rhor==1 .and. i_Fr==1) then
           write(1,*) 'LOOKUP_TABLE_1-version:  ',trim(version),'-2momI'
-          write(1,*)
+          write(1,'(a)') ''          ! an empty line, whatever the compiler
        endif
 
 !-- these lines to be replaced by Fr(i_Fr) initialization outside of loops
@@ -2390,219 +2285,15 @@ hostinclusionstring_m = 'spheroidal'
           enddo !i_Drscale-loop
        enddo !i_Qnorm-loop
 
-!--
-! The values of i_Znorm (3-momI) and i_rhor/i_Fr (2-momI) are "passed in" for parallelized
-! version of code, thus the loops are commented out.
         enddo i_Fl_loop_1
       enddo i_Fr_loop_1
-!    enddo i_rhor_loop
-!enddo i_Znorm_loop
+   enddo i_rhor_loop
+ enddo i_Znorm_loop
 !==
 
  close(1)
 
 END PROGRAM create_p3_lookuptable_1
-!______________________________________________________________________________________
-
-! Incomplete gamma function
-! from Numerical Recipes in Fortran 77: The Art of
-! Scientific Computing
-
-      function gammq(a,x)
-
-      real a,gammq,x
-
-! USES gcf,gser
-! Returns the incomplete gamma function Q(a,x) = 1-P(a,x)
-
-      real gammcf,gammser,gln
-!     if (x.lt.0..or.a.le.0) pause 'bad argument in gammq'
-      if (x.lt.0..or.a.le.0) print*, 'bad argument in gammq'
-      if (x.lt.a+1.) then
-         call gser(gamser,a,x,gln)
-         gammq=1.-gamser
-      else
-         call gcf(gammcf,a,x,gln)
-         gammq=gammcf
-      end if
-      return
-      end
-
-!______________________________________________________________________________________
-
-      subroutine gser(gamser,a,x,gln)
-      integer itmax
-      real a,gamser,gln,x,eps
-      parameter(itmax=100,eps=3.e-7)
-      integer n
-      real ap,del,sum,gamma
-      gln = log(gamma(a))
-      if (x.le.0.) then
-!        if (x.lt.0.) pause 'x < 0 in gser'
-         if (x.lt.0.) print*, 'x < 0 in gser'
-         gamser = 0.
-         return
-      end if
-      ap=a
-      sum=1./a
-      del=sum
-      do n=1,itmax
-         ap=ap+1.
-         del=del*x/ap
-         sum=sum+del
-         if (abs(del).lt.abs(sum)*eps) goto 1
-      end do
-!     pause 'a too large, itmax too small in gser'
-      print*, 'a too large, itmax too small in gser'
- 1    gamser=sum*exp(-x+a*log(x)-gln)
-      return
-      end
-
-!______________________________________________________________________________________
-
-      subroutine gcf(gammcf,a,x,gln)
-      integer itmax
-      real a,gammcf,gln,x,eps,fpmin
-      parameter(itmax=100,eps=3.e-7,fpmin=1.e-30)
-      integer i
-      real an,b,c,d,del,h,gamma
-      gln=log(gamma(a))
-      b=x+1.-a
-      c=1./fpmin
-      d=1./b
-      h=d
-      do i=1,itmax
-         an=-i*(i-a)
-         b=b+2.
-         d=an*d+b
-         if(abs(d).lt.fpmin) d=fpmin
-         c=b+an/c
-         if(abs(c).lt.fpmin) c=fpmin
-         d=1./d
-         del=d*c
-         h = h*del
-         if(abs(del-1.).lt.eps)goto 1
-      end do
-!     pause 'a too large, itmax too small in gcf'
-      print*, 'a too large, itmax too small in gcf'
- 1    gammcf=exp(-x+a*log(x)-gln)*h
-      return
-      end
-
-!______________________________________________________________________________________
-
- real function compute_mu_3moment(mom3,mom6,mu_max)
-
- !--------------------------------------------------------------------------
- ! Computes mu as a function of G(mu), where
- !
- ! G(mu)= N*Z/Q^2 = [(6+mu)(5+mu)(4+mu)]/[(3+mu)(2+mu)(1+mu)]
- !
- ! 2018-08-08
- !--------------------------------------------------------------------------
-
- implicit none
-
-! Arguments passed:
- real, intent(in) :: mom3,mom6 !normalized moments
- real, intent(in) :: mu_max    !maximum allowable value of mu
-
-! Local variables:
- real             :: mu   ! shape parameter in gamma distribution
- real             :: a1,g1,g2,G
-
-! calculate G from normalized moments
-    G = mom6/mom3
-
-!----------------------------------------------------------!
-! !Solve alpha numerically: (brute-force)
-!      mu= 0.
-!      g2= 999.
-!      do i=0,4000
-!         a1= i*0.01
-!         g1= (6.+a1)*(5.+a1)*(4.+a1)/((3.+a1)*(2.+a1)*(1.+a1))
-!         if(abs(g-g1)<abs(g-g2)) then
-!            mu = a1
-!            g2= g1
-!         endif
-!      enddo
-!----------------------------------------------------------!
-
-!Piecewise-polynomial approximation of G(mu) to solve for mu:
-  if (G >= 20.) then
-    mu = 0.
-  else
-    g2 = G**2
-    if (G<20.  .and.G>=13.31) mu = 3.3638e-3*g2 - 1.7152e-1*G + 2.0857e+0
-    if (G<13.31.and.G>=7.123) mu = 1.5900e-2*g2 - 4.8202e-1*G + 4.0108e+0
-    if (G<7.123.and.G>=4.200) mu = 1.0730e-1*g2 - 1.7481e+0*G + 8.4246e+0
-    if (G<4.200.and.G>=2.946) mu = 5.9070e-1*g2 - 5.7918e+0*G + 1.6919e+1
-    if (G<2.946.and.G>=1.793) mu = 4.3966e+0*g2 - 2.6659e+1*G + 4.5477e+1
-    if (G<1.793.and.G>=1.405) mu = 4.7552e+1*g2 - 1.7958e+2*G + 1.8126e+2
-    if (G<1.405.and.G>=1.230) mu = 3.0889e+2*g2 - 9.0854e+2*G + 6.8995e+2
-    if (G<1.230) mu = mu_max
-  endif
-
-  compute_mu_3moment = mu
-
- end function compute_mu_3moment
-
-!______________________________________________________________________________________
-
- real function diagnostic_mui(mu_i_min,mu_i_max,lam,q,cgp,Fr,pi)
-
-!----------------------------------------------------------!
-! Compute mu_i diagnostically.
-!----------------------------------------------------------!
-
- implicit none
-
-!Arguments:
- real    :: mu_i_min,mu_i_max,lam,q,cgp,Fr,pi
-
-! Local variables:
- real, parameter :: Di_thres = 0.2 !diameter threshold [mm]
-!real, parameter :: Di_thres = 0.6 !diameter threshold [mm]
- real            :: mu_i,dum1,dum2,dum3
-
-
-!-- diagnostic mu_i, original formulation: (from Heymsfield, 2003)
-!  mu_i = 0.076*(lam/100.)**0.8-2.   ! /100 is to convert m-1 to cm-1
-!  mu_i = max(mu_i,0.)
-!  mu_i = min(mu_i,6.)
-
-!-- diagnostic mu_i, 3-moment-based formulation:
-!  dum1 = (q/cgp)**(1./3)*1000.              ! estimated Dmvd [mm], assuming spherical
-!  if (dum1<=Di_thres) then
-!     !diagnostic mu_i, original formulation: (from Heymsfield, 2003)
-!     mu_i = 0.076*(lam*0.01)**0.8-2.        ! /100 is to convert m-1 to cm-1
-!     mu_i = min(mu_i,6.)
-!  else
-!     dum2 = (6./pi)*cgp                     ! mean density (total)
-!     dum3 = max(1., 1.+0.00842*(dum2-400.)) ! adjustment factor for density
-!     mu_i = 4.*(dum1-Di_thres)*dum3*Fr
-!  endif
-!  mu_i = max(mu_i,mu_i_min)  ! make sure mu_i >= 0, otherwise size dist is infinity at D = 0
-!  mu_i = min(mu_i,mu_i_max)
-
- dum1 = (q/cgp)**(1./3)*1000.              ! estimated Dmvd [mm], assuming spherical
- if (dum1<=Di_thres) then
-    !diagnostic mu_i, original formulation: (from Heymsfield, 2003)
-    mu_i = 0.076*(lam*0.01)**0.8-2.        ! /100 is to convert m-1 to cm-1
-    mu_i = min(mu_i,6.)
- else
-    dum2 = (6./pi)*cgp                     ! mean density (total)
-!   dum3 = max(1., 1.+0.00842*(dum2-400.)) ! adjustment factor for density
-    dum3 = max(1., 1.+0.00842*(dum2-400.)) ! adjustment factor for density
-    mu_i = 0.25*(dum1-Di_thres)*dum3*Fr
- endif
- mu_i = max(mu_i,mu_i_min)  ! make sure mu_i >= 0, otherwise size dist is infinity at D = 0
- mu_i = min(mu_i,mu_i_max)
-
- diagnostic_mui = mu_i
-
- end function diagnostic_mui
-
 !______________________________________________________________________________________
 
  real function diagnostic_mui_Fl(mu_i_min,mu_i_max,mu_id,lam,q,cgp,Fr,Fl,rhom,pi)
@@ -2638,87 +2329,6 @@ END PROGRAM create_p3_lookuptable_1
  diagnostic_mui_Fl = mu_i
 
  end function diagnostic_mui_Fl
-
-!______________________________________________________________________________________
-
-
- subroutine intgrl_section(lam,mu, d1,d2,d3,d4, Dcrit1,Dcrit2,Dcrit3,    &
-                           intsec_1,intsec_2,intsec_3,intsec_4)
- !-----------------
- ! Computes and returns partial integrals (partial moments) of ice PSD.
- !-----------------
-
- implicit none
-
-!Arguments:
- real, intent(in)  :: lam,mu, d1,d2,d3,d4, Dcrit1,Dcrit2,Dcrit3
- real, intent(out) :: intsec_1,intsec_2,intsec_3,intsec_4
-
-!Local:
- real :: dum,gammq
-!-----------------
-
- !Region I -- integral from 0 to Dcrit1  (small spherical ice)
- intsec_1 = lam**(-d1-mu-1.)*gamma(mu+d1+1.)*(1.-gammq(mu+d1+1.,Dcrit1*lam))
-
- !Region II -- integral from Dcrit1 to Dcrit2  (non-spherical unrimed ice)
- intsec_2 = lam**(-d2-mu-1.)*gamma(mu+d2+1.)*(gammq(mu+d2+1.,Dcrit1*lam))
- dum      = lam**(-d2-mu-1.)*gamma(mu+d2+1.)*(gammq(mu+d2+1.,Dcrit2*lam))
- intsec_2 = intsec_2-dum
-
- !Region III -- integral from Dcrit2 to Dcrit3  (fully rimed spherical ice)
- intsec_3 = lam**(-d3-mu-1.)*gamma(mu+d3+1.)*(gammq(mu+d3+1.,Dcrit2*lam))
- dum      = lam**(-d3-mu-1.)*gamma(mu+d3+1.)*(gammq(mu+d3+1.,Dcrit3*lam))
- intsec_3 = intsec_3-dum
-
- !Region IV -- integral from Dcrit3 to infinity  (partially rimed ice)
- intsec_4 = lam**(-d4-mu-1.)*gamma(mu+d4+1.)*(gammq(mu+d4+1.,Dcrit3*lam))
-
- return
-
- end subroutine intgrl_section
-!______________________________________________________________________________________
-
-
-subroutine intgrl_section_Fl(lam,mu, d1,d2,d3,d4, Dcrit1,Dcrit2,Dcrit3,    &
-                          intsec_1,intsec_2,intsec_3,intsec_4,intsec_5)
-!-----------------
-! Computes and returns partial integrals (partial moments) of ice PSD.
-!-----------------
-
-implicit none
-
-!Arguments:
-real, intent(in)  :: lam,mu, d1,d2,d3,d4, Dcrit1,Dcrit2,Dcrit3
-real, intent(out) :: intsec_1,intsec_2,intsec_3,intsec_4,intsec_5
-
-!Local:
-real :: dum,gammq
-!-----------------
-
-!Region I -- integral from 0 to Dcrit1  (small spherical ice)
-intsec_1 = lam**(-d1-mu-1.)*gamma(mu+d1+1.)*(1.-gammq(mu+d1+1.,Dcrit1*lam))
-
-!Region II -- integral from Dcrit1 to Dcrit2  (non-spherical unrimed ice)
-intsec_2 = lam**(-d2-mu-1.)*gamma(mu+d2+1.)*(gammq(mu+d2+1.,Dcrit1*lam))
-dum      = lam**(-d2-mu-1.)*gamma(mu+d2+1.)*(gammq(mu+d2+1.,Dcrit2*lam))
-intsec_2 = intsec_2-dum
-
-!Region III -- integral from Dcrit2 to Dcrit3  (fully rimed spherical ice)
-intsec_3 = lam**(-d3-mu-1.)*gamma(mu+d3+1.)*(gammq(mu+d3+1.,Dcrit2*lam))
-dum      = lam**(-d3-mu-1.)*gamma(mu+d3+1.)*(gammq(mu+d3+1.,Dcrit3*lam))
-intsec_3 = intsec_3-dum
-
-!Region IV -- integral from Dcrit3 to infinity  (partially rimed ice)
-intsec_4 = lam**(-d4-mu-1.)*gamma(mu+d4+1.)*(gammq(mu+d4+1.,Dcrit3*lam))
-
-!Region V -- integral from 0 to infinity  (ice completely metled)
-!because d1=3.
-intsec_5 = lam**(-d1-mu-1.)*gamma(mu+d1+1.)
-
-return
-
-end subroutine intgrl_section_Fl
 
 !______________________________________________________________________________________
 
@@ -2989,93 +2599,3 @@ complex :: beta2, beta3, m1t, m2t, m3t
        (1.0-vol2-vol3+vol2*beta2+vol3*beta3))
 
 end function m_complex_maxwellgarnett
-
- real function compute_mu_3moment2(mom0,mom3,mom6,mu_max)
-
- !--------------------------------------------------------------------------
- ! Computes mu as a function of moments 0, 3, and 6 of the size distribution
- ! represented by N(D) = No*D^mu*e(-lambda*D).
- !
- ! Note:  moment 3 is not equal to the mass mixing ratio (due to variable density)
- !
- ! G(mu)= mom0*mom6/mom3^2 = [(6+mu)(5+mu)(4+mu)]/[(3+mu)(2+mu)(1+mu)]
- !--------------------------------------------------------------------------
-
- implicit none
-
-! Arguments passed:
- real, intent(in) :: mom0    !0th moment
- real, intent(in) :: mom3    !3th moment  (note, not normalized)
- real, intent(in) :: mom6    !6th moment  (note, not normalized)
- real, intent(in) :: mu_max  !maximum allowable value of mu
-
-! Local variables:
- real             :: mu   ! shape parameter in gamma distribution
- double precision :: G    ! function of mu (see comments above)
- double precision :: g2,x1,x2,x3
-!real             :: a1,g1
-!real, parameter  :: eps_m0 = 1.e-20
- real, parameter  :: eps_m3 = 1.e-20
- real, parameter  :: eps_m6 = 1.e-35
-
- if (mom3>eps_m3) then
-
-    !G = (mom0*mom6)/(mom3**2)
-    !To avoid very small values of mom3**2 (not enough)
-    !G = (mom0/mom3)*(mom6/mom3)
-     x1 = 1./mom3
-     x2 = mom0*x1
-     x3 = mom6*x1
-     G  = x2*x3
-
-     !----------------------------------------------------------!
-! !Solve alpha numerically: (brute-force)
-!      mu= 0.
-!      g2= 999.
-!      do i=0,4000
-!         a1= i*0.01
-!         g1= (6.+a1)*(5.+a1)*(4.+a1)/((3.+a1)*(2.+a1)*(1.+a1))
-!         if(abs(g-g1)<abs(g-g2)) then
-!            mu = a1
-!            g2= g1
-!         endif
-!      enddo
-!----------------------------------------------------------!
-
-!Piecewise-polynomial approximation of G(mu) to solve for mu:
-     if (G>=20.) then
-        mu = 0.
-     else
-        g2 = G**2
-        if (G<20.  .and.G>=13.31) then
-           mu = 3.3638e-3*g2 - 1.7152e-1*G + 2.0857e+0
-        elseif (G<13.31.and.G>=7.123) then
-           mu = 1.5900e-2*g2 - 4.8202e-1*G + 4.0108e+0
-        elseif (G<7.123.and.G>=4.200) then
-           mu = 1.0730e-1*g2 - 1.7481e+0*G + 8.4246e+0
-        elseif (G<4.200.and.G>=2.946) then
-           mu = 5.9070e-1*g2 - 5.7918e+0*G + 1.6919e+1
-        elseif (G<2.946.and.G>=1.793) then
-           mu = 4.3966e+0*g2 - 2.6659e+1*G + 4.5477e+1
-        elseif (G<1.793.and.G>=1.405) then
-           mu = 4.7552e+1*g2 - 1.7958e+2*G + 1.8126e+2
-        elseif (G<1.405.and.G>=1.230) then
-           mu = 3.0889e+2*g2 - 9.0854e+2*G + 6.8995e+2
-        elseif (G<1.230) then
-           mu = mu_max
-        endif
-     endif
-
-     compute_mu_3moment2 = mu
-
- else
-
-    print*, 'Input parameters out of bounds in function COMPUTE_MU_3MOMENT'
-    print*, 'mom0 = ',mom0
-    print*, 'mom3 = ',mom3
-    print*, 'mom6 = ',mom6
-    stop
-
- endif
-
- end function compute_mu_3moment2
