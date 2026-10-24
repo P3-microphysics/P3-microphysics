@@ -2,7 +2,7 @@ _*
 attic
 attic/*
 attic
-work*
+/work*/
 old_versions
 .vscode
 .DS_Store
@@ -12,6 +12,5 @@ old_versions
 lookup_tables/*.dat-*
 !lookup_tables/*.gz
 
-# graphify output (Claude-analysis artifacts; never tracked, any location)
+# graphify output (never tracked, any location)
 graphify-out*/
-docs/graphify-out*/
